@@ -1,14 +1,14 @@
 # Boxes include navigation
 
-- title: Why $TemplateNamePascalCase$
-  desc: $TemplateNamePascalCase$ - Transform your data into seamless, dynamic outputs, effortlessly.
+- title: Why Packata
+  desc: Packata - Transform your data into seamless, dynamic outputs, effortlessly.
   icon: check
-  doc: why-$TemplateNameCamelCase$
+  doc: why-packata
 
 - title: Installation
   desc: Get started fast with installation and basic usages
   icon: cog
-  doc: installation-$TemplateNameCamelCase$
+  doc: installation-packata
 
 - title: Usage
   desc: Learn about how to configure inputs and outputs

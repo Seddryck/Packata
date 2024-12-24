@@ -219,7 +219,7 @@
         font-size: $global-small-font-size;
     }
     > span {
-        color: $global-primary-background;
+        color: $card-alternate-color;
     }
 }
 
@@ -423,7 +423,7 @@
 
 @mixin hook-utility-misc(){
     .border-xlight {
-        border: solid 1px $border-xlight;
+        border: solid 1px $card-alternate-color;
     }    
     .border-light {
         border: solid 1px $border-light;
@@ -760,7 +760,7 @@
                 left: calc(30% - 2px);
                 bottom: 0;
                 width: $timeline-border-width;
-                background: $global-secondary-background;
+                background: $timeline-border-color;
             }
     
             &:after {
@@ -796,8 +796,8 @@
                     position: absolute;
                     width: $timeline-dot-diameter;
                     height: $timeline-dot-diameter;
-                    border: $timeline-border-width solid $global-primary-background;
-                    background-color: $global-secondary-background;
+                    border: $timeline-border-width solid $timeline-border-color;
+                    background-color: $timeline-background-color;
                     border-radius: 100%;
                     top: 0;
                     right: - 14px;

@@ -1,6 +1,6 @@
 # How to contribute
 
-Third-party patches are essential for keeping **$TemplateNamePascalCase$** great. We want to keep it as easy as possible to contribute changes. There are a few guidelines that we need contributors to follow so that we can have a chance of keeping on top of things.
+Third-party patches are essential for keeping **Packata** great. We want to keep it as easy as possible to contribute changes. There are a few guidelines that we need contributors to follow so that we can have a chance of keeping on top of things.
 
 We love pull requests from everyone. By participating in this project, you agree to abide by the thoughtbot [code of conduct].
 

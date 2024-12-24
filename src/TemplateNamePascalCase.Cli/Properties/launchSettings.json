@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "$TemplateNamePascalCase$.Console": {
-      "commandName": "Project",
-      "commandLineArgs": "--Template template.scriban --Source source.yaml"
-    }
-  }
-}

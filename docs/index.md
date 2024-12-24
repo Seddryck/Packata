@@ -3,7 +3,7 @@ layout: page
 width: expand
 hero:
     subtitle:  Transform data. Transform possibilities.
-    image: $TemplateNameCamelCase$-title.png
+    image: packata-title.png
     search: false
 ---
 
@@ -11,4 +11,4 @@ hero:
 
 {% include changelog.html %}
 
-{% include cta.html title="Didn't find an answer?" button_text="Contact Us" button_url="https://github.com/seddryck/$TemplateNameCamelCase$/discussions" subtitle="Get in touch with us through GitHub discussions" %}
+{% include cta.html title="Didn't find an answer?" button_text="Contact Us" button_url="https://github.com/seddryck/packata/discussions" subtitle="Get in touch with us through GitHub discussions" %}

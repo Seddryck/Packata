@@ -7,7 +7,7 @@ version: 2
 updates:
   - package-ecosystem: "nuget" 
     directories:
-      - "*/$TemplateNamePascalCase$.*/" 
+      - "src/Packata.*/" 
     schedule:
       interval: "daily"
     labels:

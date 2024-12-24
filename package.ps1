@@ -3,8 +3,8 @@ if (Test-Path "./.publish") {
 }
 
 $projects = @(
-  "src/$TemplateNamePascalCase$.Core/$TemplateNamePascalCase$.Core.csproj",
-  "src/$TemplateNamePascalCase$.Cli/$TemplateNamePascalCase$.Cli.csproj"
+  "src/Packata.Core/Packata.Core.csproj",
+  "src/Packata.Cli/Packata.Cli.csproj"
 )
 $frameworks = @("net8.0", "net9.0")
 $runtimes = ("win-x64", "linux-x64")
@@ -14,10 +14,10 @@ foreach ($project in $projects) {
         foreach ($runtime in $runtimes) {
             Write-Host "Building $project for $framework on $runtime ..."
             dotnet build $project -p:version="$env:GitVersion_SemVer" -c Release -f $framework -r $runtime /p:ContinuousIntegrationBuild=true --nologo
-            if ($project -like "*$TemplateNamePascalCase$.Cli*") {
+            if ($project -like "*Packata.Cli*") {
                 Write-Host "Packaging .exe artifacts $project for $framework on $runtime..."
                 dotnet publish $project -c Release -f $framework -r $runtime --no-self-contained -o ./.publish/$framework/$runtime --no-build --nologo
-                7z a ./.publish/$TemplateNamePascalCase$-$env:GitVersion_SemVer-$framework-$runtime.zip ./.publish/$framework/$runtime/*.*
+                7z a ./.publish/Packata-$env:GitVersion_SemVer-$framework-$runtime.zip ./.publish/$framework/$runtime/*.*
             }
         }
     }

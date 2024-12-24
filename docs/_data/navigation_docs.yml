@@ -1,27 +1,8 @@
 - title: Getting Started
   docs:
-  - why-$TemplateNameCamelCase$
+  - why-packata
   
 - title: Installation
   docs:
-  - installation-$TemplateNameCamelCase$
-  - installation-net-global-tool
-  - installation-net-local-tool
-  - deployment-docker
-  - installation-windows
-  - installation-linux
-  - installation-library-nuget
+  - installation-packata
 
-- title: Usage
-  docs:
-  - supported-format-engine
-  - cli-options
-  - basic-usage
-  - use-stdin-stdout
-  - specify-engine-parser
-  - specify-parser-parameters
-  - multiple-sources
-
-- title: Parsers
-  docs:
-  - csv-parser

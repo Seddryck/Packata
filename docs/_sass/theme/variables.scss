@@ -2,11 +2,11 @@
 // ========================================================================
 
 // Color
-$global-background:                           #EDE0D0;
-$global-color:                                #1F1E23;
-$global-muted-color:                          #8c0d1c;
-$global-primary-background:                   #EDE0D0;
-$global-secondary-background:                 #8c0d1c;
+$global-background:                           #C3E3DE;
+$global-color:                                #293C42;
+$global-muted-color:                          #33838D;
+$global-primary-background:                   #E3A049;
+$global-secondary-background:                 #33838D;
 $global-warning-background:                   #DF6446;
 $global-success-background:                   #92ca9a;
 $global-danger-background:                    #da9da8;
@@ -31,9 +31,9 @@ $text-lead-font-size:                           1.125rem;
 $text-lead-color:                               $global-muted-color;
 
 // Borders
-$global-border:                               #8c0d1c;
-$border-light:                                #8c0d1c;
-$border-xlight:                               #8c0d1c;
+$global-border:                               #E3A049;
+$border-light:                                #E3A049;
+$border-xlight:                               #E3A049;
 
 // Border radius
 $border-rounded-border-radius:                  5px;
@@ -159,4 +159,9 @@ $docs-sidebar-width-l:                          360px;
 
 // Changelog
 $timeline-border-width:                         4px;
+$timeline-border-color:                         $global-muted-color;
+$timeline-background-color:                     $global-primary-background;
 $timeline-dot-diameter:                         20px;
+
+// Cards
+$card-alternate-color:                          #DCE0B5;

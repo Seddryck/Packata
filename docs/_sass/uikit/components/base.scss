@@ -16,7 +16,7 @@ $base-body-font-family:                          $global-font-family !default;
 $base-body-font-weight:                          normal !default;
 $base-body-font-size:                            $global-font-size !default;
 $base-body-line-height:                          $global-line-height !default;
-$base-body-color:                                #EDE0D0 !default;
+$base-body-color:                                $global-color !default;
 
 $base-link-color:                                $global-link-color !default;
 $base-link-text-decoration:                      none !default;
@@ -99,7 +99,7 @@ html {
     /* 2 */
     -webkit-text-size-adjust: 100%;
     /* 3 */
-    background: #EDE0D0;
+    background: $global-background;
     color: $base-body-color;
     @if(mixin-exists(hook-base-body)) {@include hook-base-body();}
 }

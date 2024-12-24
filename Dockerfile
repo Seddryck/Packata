@@ -4,4 +4,4 @@ WORKDIR /app
 
 COPY ./.publish/net8.0/linux-x64 ./
 
-ENTRYPOINT ["./$TemplateNamePascalCase$"]
+ENTRYPOINT ["./Packata"]

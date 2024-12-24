@@ -5,12 +5,12 @@
 # 'bundle exec jekyll serve'. If you change this file, please restart the server process.
 
 # Site title and description
-title:              $TemplateNamePascalCase$
-description:        Documentation of $TemplateNamePascalCase$, a database connection URL for .NET ecosystem
+title:              Packata
+description:        Data Packages for .NET
 lang:               en
 
 # Site subpath, e.g. /blog
-baseurl:            "/$TemplateNamePascalCase$"
+baseurl:            "/Packata"
 
 # Permalink URLs structure, for permalink style options see: https://jekyllrb.com/docs/permalinks/
 permalink:          /:title/
@@ -19,7 +19,7 @@ permalink:          /:title/
 url:                ""
 
 # Site logo # e.g. logo.png, upload logo image file to /uploads/ folder
-logo: $TemplateNameCamelCase$-icon-64.png
+logo: packata-icon-64.png
 
 navbar:
     sticky:         false
@@ -46,7 +46,7 @@ social:
     facebook:
     flickr:
     dribbble:
-    github:         https://github.com/Seddryck/$TemplateNamePascalCase$
+    github:         https://github.com/Seddryck/Packata
     googleplus:
     instagram:
     linkedin:       https://linkedin.com/in/cedriccharlier/
