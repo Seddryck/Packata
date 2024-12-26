@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Packata.Core.Testing;
 
@@ -18,6 +19,7 @@ public class DataPackageFactoryTests
             ""title"": ""My Data Package"",
             ""description"": ""A really long description"",
             ""keywords"": [""data"", ""example""],
+            ""Homepage"": ""https://github.com/package"",  
             ""resources"": [
                 {
                     ""name"": ""data.csv"",
@@ -45,6 +47,7 @@ public class DataPackageFactoryTests
             Assert.That(dataPackage.Name, Is.EqualTo("my-data-package"));
             Assert.That(dataPackage.Title, Is.EqualTo("My Data Package"));
             Assert.That(dataPackage.Description, Is.EqualTo("A really long description"));
+            Assert.That(dataPackage.Homepage, Is.EqualTo("https://github.com/package"));
             Assert.That(dataPackage.Keywords, Does.Contain("data"));
             Assert.That(dataPackage.Keywords, Does.Contain("example"));
             Assert.That(dataPackage.Resources, Has.Count.EqualTo(1));
@@ -151,12 +154,67 @@ public class DataPackageFactoryTests
         {
             Assert.That(dataPackage.Resources[0].Profile, Is.EqualTo("https://datapackage.org/profiles/2.0/dataresource.json"));
             Assert.That(dataPackage.Resources[0].Name, Is.EqualTo("deployments"));
-            Assert.That(dataPackage.Resources[0].Path, Is.EqualTo("deployments.csv"));
+            Assert.That(dataPackage.Resources[0].Paths, Does.Contain("deployments.csv"));
             Assert.That(dataPackage.Resources[0].Type, Is.EqualTo("table"));
             Assert.That(dataPackage.Resources[0].Title, Is.EqualTo("Camera trap deployments"));
             Assert.That(dataPackage.Resources[0].Format, Is.EqualTo("csv"));
             Assert.That(dataPackage.Resources[0].MediaType, Is.EqualTo("text/csv"));
             Assert.That(dataPackage.Resources[0].Encoding, Is.EqualTo("utf-8"));
         });
+    }
+
+    [Test]
+    public void LoadFromStream_WithValidStream_ReturnsResources()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"{
+            ""name"": ""my-data-package"",
+            ""resources"": [
+                {
+                    ""name"": ""data.csv"",
+                    ""path"": ""https://example.com/data.csv"",
+                    ""description"": ""A really long description"",
+                    ""bytes"": 752 ,
+                    ""hash"": ""2bf9cebe5915601985c8febd3d3d37d1"",
+                }
+            ]
+        }"));
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream);
+        Assert.That(dataPackage, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dataPackage.Name, Is.EqualTo("my-data-package"));
+            Assert.That(dataPackage.Resources, Has.Count.EqualTo(1));
+        });
+        Assert.Multiple(() =>
+        {
+            Assert.That(dataPackage.Resources[0].Name, Is.EqualTo("data.csv"));
+            Assert.That(dataPackage.Resources[0].Paths, Does.Contain("https://example.com/data.csv"));
+            Assert.That(dataPackage.Resources[0].Description, Is.EqualTo("A really long description"));
+            Assert.That(dataPackage.Resources[0].Bytes, Is.EqualTo(752));
+            Assert.That(dataPackage.Resources[0].Hash, Is.EqualTo("2bf9cebe5915601985c8febd3d3d37d1"));
+        });
+    }
+
+    [Test]
+    public void LoadFromStream_WithValidStream_ReturnsResourcePaths()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"{
+            ""name"": ""my-data-package"",
+            ""resources"": [
+                {
+                    ""name"": ""data"",
+                    ""path"": [""data_1.csv"", ""data_2.csv""],
+                    ""format"": ""csv"",
+                }
+            ]
+        }"));
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream);
+        Assert.That(dataPackage, Is.Not.Null);
+        Assert.That(dataPackage.Resources[0], Is.Not.Null);
+        Assert.That(dataPackage.Resources[0].Paths, Is.Not.Null.Or.Empty);
+        Assert.That(dataPackage.Resources[0].Paths, Does.Contain("data_1.csv"));
+        Assert.That(dataPackage.Resources[0].Paths, Does.Contain("data_2.csv"));
     }
 }

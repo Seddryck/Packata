@@ -83,11 +83,16 @@ public partial class Resource
     public string? Hash { get; set; }
 
     /// <summary>
-    /// A path to the resource.
+    /// A reference to the data for this resource, as either a path as a string, or an array of paths as strings. of valid URIs.
     /// </summary>
-    /// <remarks>Can be a POSIX file path or a URL.</remarks>
-    /// <example>"/path/to/resource.csv"</example>
-    public object? Path { get; set; }
+    /// <remarks>A fully qualified URL, or a POSIX file path.</remarks>
+    /// <example>
+    /// "/path/to/resource.csv"
+    /// "http://example.com/file.csv"
+    /// [ "file_1.csv", "file_2.csv" ]
+    /// [ "http://example.com/file_1.csv", "http://example.com/file_2.csv" ]
+    /// </example>
+    public List<string> Paths { get; set; } = [];
 
     /// <summary>
     /// Inline data for the resource.
