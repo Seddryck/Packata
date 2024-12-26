@@ -34,13 +34,4 @@ public class License
     /// Example: { "title": "My License Title" }
     /// </summary>
     public string? Title { get; set; }
-
-    /// <summary>
-    /// Validates that at least one of the "Name" or "Path" properties is set.
-    /// </summary>
-    /// <returns>True if valid; otherwise, false.</returns>
-    public bool IsValid()
-    {
-        return !string.IsNullOrWhiteSpace(Name) || !string.IsNullOrWhiteSpace(Path);
-    }
 }
