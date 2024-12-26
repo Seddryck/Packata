@@ -109,11 +109,9 @@ public partial class Resource
     public object? Schema { get; set; }
 
     /// <summary>
-    /// A list of profiles this resource conforms to.
+    /// The Table dialect descriptor.
     /// </summary>
-    /// <remarks>Each profile must be a valid URL or identifier.</remarks>
-    /// <example>["tabular-data-resource"]</example>
-    public List<string> Profiles { get; set; } = [];
+    public TableDialect? Dialect { get; set; }
 
     /// <summary>
     /// A list of sources for this resource.

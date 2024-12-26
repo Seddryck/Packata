@@ -10,7 +10,6 @@ namespace Packata.Core.Validation;
 public class ResourceValidator : IValidator<Resource>
 {
     protected virtual string PathRegex { get => DefaultRegex.PathRegex; }
-    protected virtual string EmailRegex { get => DefaultRegex.EmailRegex; }
 
     public bool IsValid(Resource resource)
         => IsNameSet(resource, out var _) && IsSinglePropertySet(resource, out var _)
@@ -18,8 +17,8 @@ public class ResourceValidator : IValidator<Resource>
 
     protected internal virtual bool IsSinglePropertySet(Resource resource, out Exception? exception)
     {
-        exception = (resource.Paths.Any() && resource.Data is not null)
-                    || (!resource.Paths.Any() && resource.Data is null)
+        exception = (resource.Paths.Count() > 0 && resource.Data is not null)
+                    || (resource.Paths.Count() == 0 && resource.Data is null)
             ? new ArgumentOutOfRangeException($"Properties 'path' and 'data' cannot be simultaneously set. At least one of them must be null.")
             : null;
         return exception is null;
@@ -43,7 +42,7 @@ public class ResourceValidator : IValidator<Resource>
 
     protected virtual bool IsPathCoherent(Resource Resource, out Exception? exception)
     {
-        exception = (Resource.Paths.Any()) && (Resource.Paths.Any(r => r.Contains("://")) ^ Resource.Paths.All(r => r.Contains("://")))
+        exception = (Resource.Paths.Count() > 0) && (Resource.Paths.Any(r => r.Contains("://")) ^ Resource.Paths.All(r => r.Contains("://")))
             ? new ArgumentOutOfRangeException($"It is not permitted to mix fully qualified URLs and relative paths in a path array. Values MUST either all be relative paths or all URLs.")
             : null;
         return exception is null;
