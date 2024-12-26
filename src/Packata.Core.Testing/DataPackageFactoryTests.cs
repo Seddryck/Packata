@@ -181,6 +181,27 @@ public class DataPackageFactoryTests
             Assert.That(dataPackage.Resources[0].Format, Is.EqualTo("csv"));
             Assert.That(dataPackage.Resources[0].MediaType, Is.EqualTo("text/csv"));
             Assert.That(dataPackage.Resources[0].Encoding, Is.EqualTo("utf-8"));
+            Assert.That(dataPackage.Resources[0].Dialect, Is.Null);
+        });
+    }
+
+    [Test]
+    public void LoadFromStream_WithEmbeddedFile_ReturnsTableDialect()
+    {
+        string resourceName = $"{GetType().Namespace}.Resources.example.json";
+        using var stream = GetType().Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
+
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream);
+        Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
+        Assert.That(dataPackage.Resources[1].Dialect, Is.Not.Null);
+        var dialect = dataPackage.Resources[1].Dialect!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(dialect.Profile, Is.EqualTo("https://datapackage.org/profiles/2.0/tabledialect.json"));
+            Assert.That(dialect.Delimiter, Is.EqualTo('\t'));
+            Assert.That(dialect.LineTerminator, Is.EqualTo("\r\n"));
         });
     }
 
