@@ -26,17 +26,6 @@ public class DataPackageFactoryTests
                     ""path"": ""https://example.com/data.csv"",
                     ""format"": ""csv""
                 }
-            ],
-            ""contributors"": [
-                {
-                    ""name"": ""Jane Doe"",
-                    ""email"": ""jane.doe@company.com"",
-                    ""role"": ""creator""
-                }, 
-                {
-                    ""name"": ""John Doe"",
-                    ""email"": ""john.doe@company.com""
-                }
             ]
         }"));
         var factory = new DataPackageFactory();
@@ -51,12 +40,44 @@ public class DataPackageFactoryTests
             Assert.That(dataPackage.Keywords, Does.Contain("data"));
             Assert.That(dataPackage.Keywords, Does.Contain("example"));
             Assert.That(dataPackage.Resources, Has.Count.EqualTo(1));
-            Assert.That(dataPackage.Contributors, Has.Count.EqualTo(2));
         });
+    }
+
+    [Test]
+    public void LoadFromStream_WithValidStream_ReturnsContributors()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"{
+            ""name"": ""my-data-package"",
+            ""contributors"": [
+                {
+                    ""title"": ""Jane Doe"",
+                    ""givenName"": ""Jane"",
+                    ""familyName"": ""Doe"",
+                    ""organization"": ""The Company"",
+                    ""email"": ""jane.doe@company.com"",
+                    ""path"": ""jane-doe.html"",
+                    ""roles"": [""creator""]
+                }, 
+                {
+                    ""title"": ""John Doe"",
+                    ""email"": ""john.doe@company.com""
+                }
+            ]
+        }"));
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream);
+        Assert.That(dataPackage, Is.Not.Null);
+        Assert.That(dataPackage.Contributors, Has.Count.EqualTo(2));
         Assert.Multiple(() =>
         {
-            Assert.That(dataPackage.Contributors[0].Name, Is.EqualTo("Jane Doe"));
+            Assert.That(dataPackage.Contributors[0].Title, Is.EqualTo("Jane Doe"));
+            Assert.That(dataPackage.Contributors[0].GivenName, Is.EqualTo("Jane"));
+            Assert.That(dataPackage.Contributors[0].FamilyName, Is.EqualTo("Doe"));
+            Assert.That(dataPackage.Contributors[0].Path, Is.EqualTo("jane-doe.html"));
+            Assert.That(dataPackage.Contributors[0].Organization, Is.EqualTo("The Company"));
             Assert.That(dataPackage.Contributors[0].Email, Is.EqualTo("jane.doe@company.com"));
+            Assert.That(dataPackage.Contributors[0].Roles, Has.Count.EqualTo(1));
+            Assert.That(dataPackage.Contributors[0].Roles, Does.Contain("creator"));
         });
     }
 
