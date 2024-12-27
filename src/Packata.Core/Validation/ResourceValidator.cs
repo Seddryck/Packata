@@ -34,7 +34,7 @@ public class ResourceValidator : IValidator<Resource>
 
     protected virtual bool IsPathValid(Resource Resource, out Exception? exception)
     {
-        exception = Resource.Paths is not null && Resource.Paths.Any(r => !Regex.IsMatch(r, PathRegex))
+        exception = Resource.Paths is not null && Resource.Paths.Any(r => !Regex.IsMatch(r.ToString()!, PathRegex))
             ? new ArgumentOutOfRangeException($"At least one member of the property 'path' doesn't validate the regex '{PathRegex}'.")
             : null;
         return exception is null;
@@ -42,7 +42,7 @@ public class ResourceValidator : IValidator<Resource>
 
     protected virtual bool IsPathCoherent(Resource Resource, out Exception? exception)
     {
-        exception = (Resource.Paths.Count() > 0) && (Resource.Paths.Any(r => r.Contains("://")) ^ Resource.Paths.All(r => r.Contains("://")))
+        exception = (Resource.Paths.Count() > 0) && (Resource.Paths.Any(r => r.ToString()!.Contains("://")) ^ Resource.Paths.All(r => r.ToString()!.Contains("://")))
             ? new ArgumentOutOfRangeException($"It is not permitted to mix fully qualified URLs and relative paths in a path array. Values MUST either all be relative paths or all URLs.")
             : null;
         return exception is null;
