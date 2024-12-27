@@ -16,6 +16,11 @@ public class TableDialect
     public string Profile { get; set; } = "https://datapackage.org/profiles/1.0/tabledialect.json";
 
     /// <summary>
+    /// The type of the dialect. Can be "delimited", "structured", "spreadsheet" or "database"
+    /// </summary>
+    public string? Type { get; set; }
+
+    /// <summary>
     /// A character sequence to use as the field separator.
     /// Default is ','.
     /// </summary>
@@ -91,7 +96,7 @@ public class TableDialect
     /// Default is undefined.
     /// </summary>
     /// <example>"#"</example>
-    public string? CommentChar { get; set; }
+    public char? CommentChar { get; set; }
 
     /// <summary>
     /// Specifies the row numbers that are commented.
