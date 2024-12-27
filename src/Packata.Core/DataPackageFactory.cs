@@ -12,7 +12,7 @@ public class DataPackageFactory
 {
     public DataPackage LoadFromStream(Stream stream)
     {
-        var resolver = new DataPackagePropertyResolver();
+        var resolver = new DataPackagePropertyResolver(new HttpClient(), GetType().Assembly.Location);
         var serializer = new JsonSerializer
         {
             ContractResolver = resolver

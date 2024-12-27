@@ -92,7 +92,7 @@ public partial class Resource
     /// [ "file_1.csv", "file_2.csv" ]
     /// [ "http://example.com/file_1.csv", "http://example.com/file_2.csv" ]
     /// </example>
-    public List<string> Paths { get; set; } = [];
+    public List<IPath> Paths { get; set; } = [];
 
     /// <summary>
     /// Inline data for the resource.

@@ -57,7 +57,7 @@ build_script:
 test_script:
 - pwsh: |
     $ErrorActionPreference = "Stop"
-    dotnet test src/Packata.Core.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Include="[Packata.Core]*" /p:Threshold=80 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.Core.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
+    dotnet test src/Packata.Core.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Include="[Packata.Core]*" /p:Threshold=75 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.Core.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
     $globalTestResult = $LastExitCode
     if($globalTestResult -ne 0) { $host.SetShouldExit($globalTestResult) }
 

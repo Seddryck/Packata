@@ -5,7 +5,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Packata.Core.Testing;
 
@@ -175,7 +174,7 @@ public class DataPackageFactoryTests
         {
             Assert.That(dataPackage.Resources[0].Profile, Is.EqualTo("https://datapackage.org/profiles/2.0/dataresource.json"));
             Assert.That(dataPackage.Resources[0].Name, Is.EqualTo("deployments"));
-            Assert.That(dataPackage.Resources[0].Paths, Does.Contain("deployments.csv"));
+            Assert.That(dataPackage.Resources[0].Paths.Select(p => p.ToString()), Does.Contain("deployments.csv"));
             Assert.That(dataPackage.Resources[0].Type, Is.EqualTo("table"));
             Assert.That(dataPackage.Resources[0].Title, Is.EqualTo("Camera trap deployments"));
             Assert.That(dataPackage.Resources[0].Format, Is.EqualTo("csv"));
@@ -231,7 +230,7 @@ public class DataPackageFactoryTests
         Assert.Multiple(() =>
         {
             Assert.That(dataPackage.Resources[0].Name, Is.EqualTo("data.csv"));
-            Assert.That(dataPackage.Resources[0].Paths, Does.Contain("https://example.com/data.csv"));
+            Assert.That(dataPackage.Resources[0].Paths.Select(p => p.ToString()), Does.Contain("https://example.com/data.csv"));
             Assert.That(dataPackage.Resources[0].Description, Is.EqualTo("A really long description"));
             Assert.That(dataPackage.Resources[0].Bytes, Is.EqualTo(752));
             Assert.That(dataPackage.Resources[0].Hash, Is.EqualTo("2bf9cebe5915601985c8febd3d3d37d1"));
@@ -256,7 +255,7 @@ public class DataPackageFactoryTests
         Assert.That(dataPackage, Is.Not.Null);
         Assert.That(dataPackage.Resources[0], Is.Not.Null);
         Assert.That(dataPackage.Resources[0].Paths, Is.Not.Null.Or.Empty);
-        Assert.That(dataPackage.Resources[0].Paths, Does.Contain("data_1.csv"));
-        Assert.That(dataPackage.Resources[0].Paths, Does.Contain("data_2.csv"));
+        Assert.That(dataPackage.Resources[0].Paths.Select(p => p.ToString()), Does.Contain("data_1.csv"));
+        Assert.That(dataPackage.Resources[0].Paths.Select(p => p.ToString()), Does.Contain("data_2.csv"));
     }
 }

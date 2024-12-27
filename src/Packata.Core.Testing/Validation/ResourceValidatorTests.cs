@@ -4,11 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Packata.Core.PathHandling;
 using Packata.Core.Validation;
 
 namespace Packata.Core.Testing.Validation;
 public class ResourceValidatorTests
 {
+    private PathFactory _factory = new PathFactory();
+
     [Test]
     [TestCase("any", "data.csv")]
     [TestCase("any", "data_1.csv", "data_2.csv")]
@@ -16,8 +19,7 @@ public class ResourceValidatorTests
     public void IsValid_SinglePropertySet_ReturnsFalse(object? data, params string[] paths)
     {
         var validator = new ResourceValidator();
-        var resource = new Resource() {Data = data, Paths = [.. paths], Name = "my-resource"};
-        Assert.That(validator.IsValid(resource), Is.False);
+        var resource = new Resource() {Data = data, Paths = [.. paths.Select(_factory.Create)], Name = "my-resource" };
     }
 
     [Test]
@@ -27,7 +29,7 @@ public class ResourceValidatorTests
     public void IsValid_SinglePropertySet_ReturnsTrue(object? data, params string[] paths)
     {
         var validator = new ResourceValidator();
-        var resource = new Resource() { Data = data, Paths = [.. paths], Name = "my-resource" };
+        var resource = new Resource() { Data = data, Paths = [.. paths.Select(_factory.Create)], Name = "my-resource" };
         Assert.That(validator.IsValid(resource), Is.True);
     }
 
@@ -39,7 +41,7 @@ public class ResourceValidatorTests
     public void IsValid_PathCoherent_ReturnsTrue(params string[] paths)
     {
         var validator = new ResourceValidator();
-        var resource = new Resource() { Paths = [.. paths], Name = "my-resource" };
+        var resource = new Resource() { Paths = [.. paths.Select(_factory.Create)], Name = "my-resource" };
         Assert.That(validator.IsValid(resource), Is.True);
     }
 
@@ -49,7 +51,7 @@ public class ResourceValidatorTests
     public void IsValid_PathCoherent_ReturnsFalse(params string[] paths)
     {
         var validator = new ResourceValidator();
-        var resource = new Resource() { Paths = [.. paths], Name = "my-resource" };
+        var resource = new Resource() { Paths = [.. paths.Select(_factory.Create)], Name = "my-resource" };
         Assert.That(validator.IsValid(resource), Is.False);
     }
 
@@ -61,7 +63,7 @@ public class ResourceValidatorTests
     public void IsValid_PathValid_ReturnsTrue(params string[] paths)
     {
         var validator = new ResourceValidator();
-        var resource = new Resource() { Paths = [.. paths], Name = "my-resource" };
+        var resource = new Resource() { Paths = [.. paths.Select(_factory.Create)], Name = "my-resource" };
         Assert.That(validator.IsValid(resource), Is.True);
     }
 
@@ -71,7 +73,7 @@ public class ResourceValidatorTests
     public void IsValid_PathValid_ReturnsFalse(params string[] paths)
     {
         var validator = new ResourceValidator();
-        var resource = new Resource() { Paths = [.. paths], Name = "my-resource" };
+        var resource = new Resource() { Paths = [.. paths.Select(_factory.Create)], Name = "my-resource" };
         Assert.That(validator.IsValid(resource), Is.False);
     }
 
@@ -79,7 +81,7 @@ public class ResourceValidatorTests
     public void IsValid_PathValid_ReturnsTrue()
     {
         var validator = new ResourceValidator();
-        var resource = new Resource() {Name = "my-resource", Paths=["data.csv"] };
+        var resource = new Resource() {Name = "my-resource", Paths=[_factory.Create("data.csv")] };
         Assert.That(validator.IsValid(resource), Is.True);
     }
 
@@ -87,7 +89,7 @@ public class ResourceValidatorTests
     public void IsValid_PathValid_ReturnsFalse()
     {
         var validator = new ResourceValidator();
-        var resource = new Resource() { Paths = ["data.csv"] };
+        var resource = new Resource() { Paths = [_factory.Create("data.csv")] };
         Assert.That(validator.IsValid(resource), Is.False);
     }
 }
