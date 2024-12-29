@@ -1,9 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <None Remove="Resources\example.json" />
+    <None Remove="Resources\example.yml" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\example.json" />
+    <EmbeddedResource Include="Resources\example.yml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
