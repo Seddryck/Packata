@@ -106,7 +106,7 @@ public partial class Resource
     /// </summary>
     /// <remarks>May define fields, types, constraints, etc.</remarks>
     /// <example>{ "fields": [{ "name": "id", "type": "integer" }] }</example>
-    public object? Schema { get; set; }
+    public Schema? Schema { get; set; }
 
     /// <summary>
     /// The Table dialect descriptor.

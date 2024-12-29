@@ -10,12 +10,13 @@ using Newtonsoft.Json.Serialization;
 namespace Packata.Core.Serialization.Json;
 internal class DataPackagePropertyResolver : DefaultContractResolver
 {
-    private readonly JsonConverter _converter;
+    private readonly Dictionary<string, JsonConverter> _converters = new();
     private readonly Func<string, string> _propertyNameResolver;
 
     public DataPackagePropertyResolver(HttpClient httpClient, string root)
     {
-        _converter = new PathConverter(httpClient, root);
+        _converters.Add("path", new PathConverter(httpClient, root));
+        _converters.Add("fields", new FieldConverter());
         _propertyNameResolver = value =>
         {
             value = value.ToLowerInvariant();
@@ -30,9 +31,11 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
         var property = base.CreateProperty(member, memberSerialization);
 
         if (property.PropertyName == "path" && property.PropertyType == typeof(List<IPath>))
-            property.Converter = _converter;
+            property.Converter = _converters["path"];
         else if (property.PropertyName == "path" && property.PropertyType == typeof(List<string>))
             property.Converter = new SingleOrArrayConverter();
+        else if (property.PropertyName == "fields")
+            property.Converter = _converters["fields"];
         return property;
     }
 

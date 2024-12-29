@@ -205,6 +205,124 @@ public class DataPackageFactoryTests
     }
 
     [Test]
+    public void LoadFromStream_WithEmbeddedFile_ReturnsSchema()
+    {
+        string resourceName = $"{GetType().Namespace}.Resources.example.json";
+        using var stream = GetType().Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
+
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream);
+        Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
+        Assert.That(dataPackage.Resources[0].Schema, Is.Not.Null);
+        var schema = dataPackage.Resources[0].Schema!;
+        Assert.That(schema.Fields, Has.Count.EqualTo(5));
+        Assert.Multiple(() =>
+        {
+            Assert.That(schema.Profile, Is.EqualTo("https://datapackage.org/profiles/2.0/tableschema.json"));
+            Assert.That(schema.Fields[0], Is.TypeOf<StringField>());
+            Assert.That(schema.Fields[0].Name, Is.EqualTo("deployment_id"));
+            Assert.That(schema.Fields[0].Type, Is.EqualTo("string"));
+            Assert.That(schema.Fields[1], Is.TypeOf<NumberField>());
+            Assert.That(schema.Fields[1].Name, Is.EqualTo("longitude"));
+            Assert.That(schema.Fields[1].Type, Is.EqualTo("number"));
+            Assert.That(schema.Fields[2], Is.TypeOf<Field>());
+            Assert.That(schema.Fields[2].Name, Is.EqualTo("latitude"));
+            Assert.That(schema.Fields[2].Type, Is.Null);
+            Assert.That(schema.Fields[3], Is.TypeOf<DateField>());
+            Assert.That(schema.Fields[3].Name, Is.EqualTo("start"));
+            Assert.That(schema.Fields[3].Type, Is.EqualTo("date"));
+            Assert.That(schema.Fields[3].Format, Is.EqualTo("%x"));
+            Assert.That(schema.Fields[4], Is.TypeOf<StringField>());
+            Assert.That(schema.Fields[4].Name, Is.EqualTo("comments"));
+            Assert.That(schema.Fields[4].Type, Is.EqualTo("string"));
+        });
+    }
+
+    [Test]
+    public void LoadFromStream_WithValidStream_ReturnsSchema()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"{
+            ""name"": ""my-data-package"",
+            ""resources"": [
+                {
+                    ""name"": ""data.csv"",
+                    ""path"": ""https://example.com/data.csv"",
+
+                    ""schema"": {
+                        ""fields"": [
+                            {
+                                ""name"": ""field_integer"",
+                                ""type"": ""integer"",
+                                ""bareNumber"": false,
+                                ""groupChar"": "",""
+                            },
+                            {
+                                ""name"": ""field_number"",
+                                ""type"": ""number"",
+                                ""bareNumber"": true,
+                                ""groupChar"": "" "",
+                                ""decimalChar"": "".""
+                            },
+                            {
+                                ""name"": ""field_date"",
+                                ""type"": ""date"",
+                                ""format"": ""%Y-%m-%d""
+                            },
+                            {
+                                ""name"": ""field_time"",
+                                ""type"": ""time"",
+                                ""format"": ""%H:%M:%S""
+                            },
+                            {
+                                ""name"": ""field_year"",
+                                ""type"": ""year""
+                            },
+                            {
+                                ""name"": ""field_yearmonth"",
+                                ""type"": ""yearmonth""
+                            },
+                            {
+                                ""name"": ""field_boolean"",
+                                ""type"": ""boolean""
+                            },
+                            {
+                                ""name"": ""field_object"",
+                                ""type"": ""object""
+                            }
+                        ],
+                        ""$schema"": ""https://datapackage.org/profiles/2.0/tableschema.json"",
+                    }
+                }
+            ]
+        }"));
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream);
+        Assert.That(dataPackage.Resources[0].Schema, Is.Not.Null);
+        var schema = dataPackage.Resources[0].Schema!;
+        Assert.That(schema.Fields, Has.Count.EqualTo(8));
+        Assert.Multiple(() =>
+        {
+            Assert.That(schema.Profile, Is.EqualTo("https://datapackage.org/profiles/2.0/tableschema.json"));
+            Assert.That(schema.Fields[0], Is.TypeOf<IntegerField>());
+            Assert.That(((IntegerField)schema.Fields[0]).BareNumber, Is.False);
+            Assert.That(((IntegerField)schema.Fields[0]).GroupChar, Is.EqualTo(','));
+            Assert.That(schema.Fields[1], Is.TypeOf<NumberField>());
+            Assert.That(((NumberField)schema.Fields[1]).BareNumber, Is.True);
+            Assert.That(((NumberField)schema.Fields[1]).GroupChar, Is.EqualTo(' '));
+            Assert.That(((NumberField)schema.Fields[1]).DecimalChar, Is.EqualTo('.'));
+            Assert.That(schema.Fields[2], Is.TypeOf<DateField>());
+            Assert.That(schema.Fields[2].Format, Is.EqualTo("%Y-%m-%d"));
+            Assert.That(schema.Fields[3], Is.TypeOf<TimeField>());
+            Assert.That(schema.Fields[3].Format, Is.EqualTo("%H:%M:%S"));
+            Assert.That(schema.Fields[4], Is.TypeOf<YearField>());
+            Assert.That(schema.Fields[5], Is.TypeOf<YearMonthField>());
+            Assert.That(schema.Fields[6], Is.TypeOf<BooleanField>());
+            Assert.That(schema.Fields[7], Is.TypeOf<ObjectField>());
+        });
+    }
+
+    [Test]
     public void LoadFromStream_WithValidStream_ReturnsResources()
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"{
