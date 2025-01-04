@@ -19,7 +19,7 @@ Packata is a library for consuming Data Package v2 files, enabling seamless acce
 [![nuget](https://img.shields.io/nuget/v/Packata.Core.svg)](https://www.nuget.org/packages/Packata.Core/) [![GitHub Release Date](https://img.shields.io/github/release-date/seddryck/Packata.svg)](https://github.com/Seddryck/Packata/releases/latest) [![licence badge](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](https://github.com/Seddryck/Packata/blob/master/LICENSE) 
 
 **Dev. activity:** [![GitHub last commit](https://img.shields.io/github/last-commit/Seddryck/Packata.svg)](https://github.com/Seddryck/Packata/commits)
-![Still maintained](https://img.shields.io/maintenance/yes/2024.svg)
+![Still maintained](https://img.shields.io/maintenance/yes/2025.svg)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/y/Seddryck/Packata)
 
 **Continuous integration builds:** [![Build status](https://ci.appveyor.com/api/projects/status/bq45qo05end3bk88?svg=true)](https://ci.appveyor.com/project/Seddryck/Packata/)
