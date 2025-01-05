@@ -9,4 +9,5 @@ public class Schema
 {
     public string? Profile { get; set; }
     public List<Field> Fields { get; set; } = [];
+    public FieldsMatching FieldsMatch { get; set; } = FieldsMatching.Exact;
 }

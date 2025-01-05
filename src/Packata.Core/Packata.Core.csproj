@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="PocketCsvReader" Version="2.17.0" />
+    <PackageReference Include="PocketCsvReader" Version="2.20.0" />
     <PackageReference Include="YamlDotNet" Version="16.2.1" />
   </ItemGroup>
 
