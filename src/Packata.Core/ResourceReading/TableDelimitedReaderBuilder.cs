@@ -4,7 +4,6 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using PocketCsvReader;
 using PocketCsvReader.Configuration;
 
 namespace Packata.Core.ResourceReading;
@@ -43,7 +42,7 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
         }
 
         var csvReaderBuilder = new CsvReaderBuilder()
-            .WithDialectDescriptor(b => builder);
+            .WithDialect(b => builder);
         return csvReaderBuilder;
     }
 }
