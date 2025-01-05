@@ -40,6 +40,7 @@ public class TableDelimitedReaderTests
         var dataReader = reader.ToDataReader(resource);
 
         Assert.That(dataReader, Is.Not.Null);
+        Assert.That(dataReader, Is.InstanceOf<CsvDataReader>());
         Assert.That(dataReader.Read(), Is.True);
         Assert.That(dataReader["a"], Is.EqualTo("1"));
         Assert.That(dataReader["b"], Is.EqualTo("2"));

@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Packata.Core.PathHandling;
 using Packata.Core.ResourceReading;
 using Packata.Core.Testing.PathHandling;
+using PocketCsvReader;
 
 namespace Packata.Core.Testing.ResourceReading;
 public class TableDelimitedReaderBuilderTests
@@ -34,6 +35,8 @@ public class TableDelimitedReaderBuilderTests
         Assert.That(dataReader, Is.Not.Null);
         Assert.That(dataReader.Read(), Is.True);
         Assert.That(dataReader["a"], Is.EqualTo("1"));
+        Assert.That(dataReader.GetValue(0), Is.EqualTo("1"));
+        Assert.That(((CsvDataReader)dataReader).GetFieldValue<int>(0), Is.EqualTo(1));
         Assert.That(dataReader["b"], Is.EqualTo("2"));
         Assert.That(dataReader["c"], Is.EqualTo("3"));
         Assert.That(dataReader.Read(), Is.True);
@@ -48,14 +51,15 @@ public class TableDelimitedReaderBuilderTests
     [TestCase(FieldsMatching.Equal)]
     public void ToDataReader_ExistingLocalResourceWithSchema_ReturnsIDataReader(FieldsMatching fieldMatch)
     {
-        var resource = new Resource() { Paths = [GetPath("a;b;c\n1;01-04-2025\n2;01-05-2025")], Type = "table", Name = "my-resource" };
+        var resource = new Resource() { Paths = [GetPath("a;b;c\n1e2;01-04-2025;0,12\n-2 000;01-05-2025;7.010.120,12")], Type = "table", Name = "my-resource" };
         resource.Dialect = new TableDialect() { Delimiter = ';', LineTerminator = "\n" };
         resource.Schema = new Schema()
         {
             FieldsMatch = fieldMatch,
             Fields = [
-                new Field() { Name = "a", Type = "integer", Format = "i32" }
+                new IntegerField() { Name = "a", Type = "integer", Format = "i32",  GroupChar=' '}
                 , new Field() { Name = "b", Type = "date", Format = "%m-%d-%Y" }
+                , new NumberField() { Name = "c", Type = "number", GroupChar='.', DecimalChar=','}
             ]
         };
         var builder = new TableDelimitedReaderBuilder();
@@ -66,11 +70,13 @@ public class TableDelimitedReaderBuilderTests
 
         Assert.That(dataReader, Is.Not.Null);
         Assert.That(dataReader.Read(), Is.True);
-        Assert.That(dataReader.GetValue(0), Is.EqualTo(1));
+        Assert.That(dataReader.GetValue(0), Is.EqualTo(100));
         Assert.That(dataReader.GetValue(1), Is.EqualTo(new DateOnly(2025, 1, 4)));
+        Assert.That(dataReader.GetValue(2), Is.EqualTo(0.12m));
         Assert.That(dataReader.Read(), Is.True);
-        Assert.That(dataReader.GetValue(0), Is.EqualTo(2));
+        Assert.That(dataReader.GetValue(0), Is.EqualTo(-2000));
         Assert.That(dataReader.GetValue(1), Is.EqualTo(new DateOnly(2025, 1, 5)));
+        Assert.That(dataReader.GetValue(2), Is.EqualTo(7010120.12m));
         Assert.That(dataReader.Read(), Is.False);
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 using PocketCsvReader.Configuration;
@@ -54,11 +55,45 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                             ? new SchemaDescriptorBuilder().Indexed()
                             : new SchemaDescriptorBuilder().Named();
             foreach (var field in resource.Schema.Fields)
-                schemaBuilder.WithField(
-                    MapRuntimeType(field.Type, field.Format)
-                    , field.Name!
-                    , f => field.Format is null ? f : f.WithFormat(field.Format)
-                );
+            {
+                if (field is NumericField numericField)
+                {
+                    // Handle NumericField separately
+                    schemaBuilder.WithNumericField(
+                        MapRuntimeType(field.Type, field.Format),
+                        field.Name!,
+                        builder =>
+                        {
+                            builder = field.Format is not null
+                                ? (NumericFieldDescriptorBuilder)builder.WithFormat(field.Format)
+                                : builder;
+
+                            builder = numericField is NumberField numberField && numberField.DecimalChar is not null
+                                ? builder.WithDecimalChar(numberField.DecimalChar.Value)
+                                : builder;
+
+                            builder = numericField.GroupChar is not null
+                                ? builder.WithGroupChar(numericField.GroupChar.Value)
+                                : builder;
+
+                            return builder;
+                        });
+                }
+                else
+                {
+                    // General handling for non-numeric fields
+                    schemaBuilder.WithField(
+                        MapRuntimeType(field.Type, field.Format),
+                        field.Name!,
+                        builder =>
+                        {
+                            return field.Format is not null
+                                ? builder.WithFormat(field.Format)
+                                : builder;
+                        });
+                }
+            }
+
         }
 
         var csvReaderBuilder = new CsvReaderBuilder().WithDialect(dialectBuilder);
