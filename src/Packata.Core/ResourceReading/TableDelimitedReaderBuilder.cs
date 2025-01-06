@@ -93,11 +93,17 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                         });
                 }
             }
+        }
 
+        var resourceBuilder = new ResourceDescriptorBuilder();
+        if (resource.Encoding is not null)
+        {
+            resourceBuilder.WithEncoding(resource.Encoding);
         }
 
         var csvReaderBuilder = new CsvReaderBuilder().WithDialect(dialectBuilder);
         csvReaderBuilder = schemaBuilder is not null ? csvReaderBuilder.WithSchema(schemaBuilder) : csvReaderBuilder;
+        csvReaderBuilder = resourceBuilder is not null ? csvReaderBuilder.WithResource(resourceBuilder) : csvReaderBuilder;
         return csvReaderBuilder;
     }
 }

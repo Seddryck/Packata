@@ -15,6 +15,9 @@ public class License
     /// Open Definition license identifier.
     /// MUST be an Open Definition license identifier, see http://licenses.opendefinition.org/
     /// </summary>
+    /// <example>
+    /// CC0-1.0
+    /// </example>
     [RegularExpression("^([-a-zA-Z0-9._])+$", ErrorMessage = "Invalid Open Definition license identifier.")]
     public string? Name { get; set; }
 
@@ -24,8 +27,8 @@ public class License
     /// Context: Implementations need to negotiate the type of path provided, and dereference the data accordingly.
     /// </summary>
     /// <example>
-    /// { "path": "file.csv" }
-    /// { "path": "http://example.com/file.csv" }
+    /// { "path": "license.txt" }
+    /// { "path": "https://creativecommons.org/publicdomain/zero/1.0/" }
     /// </example>
     public string? Path { get; set; }
 
@@ -33,5 +36,8 @@ public class License
     /// A human-readable title for the license.
     /// Example: { "title": "My License Title" }
     /// </summary>
+    /// <example>
+    /// CC0 1.0
+    /// </example>
     public string? Title { get; set; }
 }
