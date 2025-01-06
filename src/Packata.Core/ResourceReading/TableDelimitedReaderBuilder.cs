@@ -74,7 +74,7 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
 
                             builder = numericField.GroupChar is not null
                                 ? builder.WithGroupChar(numericField.GroupChar.Value)
-                                : builder;
+                                : builder.WithoutGroupChar();
 
                             return builder;
                         });
