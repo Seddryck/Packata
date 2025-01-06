@@ -51,7 +51,7 @@ public class TableDelimitedReaderBuilderTests
     [TestCase(FieldsMatching.Equal)]
     public void ToDataReader_ExistingLocalResourceWithSchema_ReturnsIDataReader(FieldsMatching fieldMatch)
     {
-        var resource = new Resource() { Paths = [GetPath("a;b;c\n1e2;01-04-2025;0,12\n-2 000;01-05-2025;7.010.120,12")], Type = "table", Name = "my-resource" };
+        var resource = new Resource() { Paths = [GetPath("a;b;c;d\n1e2;01-04-2025;0,12;1200.16\n-2 000;01-05-2025;7.010.120,12;1,200.16")], Type = "table", Name = "my-resource" };
         resource.Dialect = new TableDialect() { Delimiter = ';', LineTerminator = "\n" };
         resource.Schema = new Schema()
         {
@@ -60,6 +60,7 @@ public class TableDelimitedReaderBuilderTests
                 new IntegerField() { Name = "a", Type = "integer", Format = "i32",  GroupChar=' '}
                 , new Field() { Name = "b", Type = "date", Format = "%m-%d-%Y" }
                 , new NumberField() { Name = "c", Type = "number", GroupChar='.', DecimalChar=','}
+                , new NumberField() { Name = "d", Type = "number"}
             ]
         };
         var builder = new TableDelimitedReaderBuilder();
@@ -73,10 +74,12 @@ public class TableDelimitedReaderBuilderTests
         Assert.That(dataReader.GetValue(0), Is.EqualTo(100));
         Assert.That(dataReader.GetValue(1), Is.EqualTo(new DateOnly(2025, 1, 4)));
         Assert.That(dataReader.GetValue(2), Is.EqualTo(0.12m));
+        Assert.That(dataReader.GetValue(3), Is.EqualTo(1200.16m));
         Assert.That(dataReader.Read(), Is.True);
         Assert.That(dataReader.GetValue(0), Is.EqualTo(-2000));
         Assert.That(dataReader.GetValue(1), Is.EqualTo(new DateOnly(2025, 1, 5)));
         Assert.That(dataReader.GetValue(2), Is.EqualTo(7010120.12m));
+        Assert.Throws<FormatException>(() => dataReader.GetDecimal(3));
         Assert.That(dataReader.Read(), Is.False);
     }
 }
