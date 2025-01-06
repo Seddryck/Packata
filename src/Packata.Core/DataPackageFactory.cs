@@ -10,9 +10,11 @@ namespace Packata.Core;
 
 public class DataPackageFactory
 {
+    private string? _root;
+
     public DataPackage LoadFromStream(Stream stream)
     {
-        var resolver = new DataPackagePropertyResolver(new HttpClient(), GetType().Assembly.Location);
+        var resolver = new DataPackagePropertyResolver(new HttpClient(), _root ?? GetType().Assembly.Location);
         var serializer = new JsonSerializer
         {
             ContractResolver = resolver
@@ -26,6 +28,8 @@ public class DataPackageFactory
     {
         if (!File.Exists(path))
             throw new FileNotFoundException("The specified file does not exist.", path);
+
+        _root = Path.GetDirectoryName(path) + Path.DirectorySeparatorChar.ToString();
 
         using var stream = File.OpenRead(path);
         return LoadFromStream(stream);
