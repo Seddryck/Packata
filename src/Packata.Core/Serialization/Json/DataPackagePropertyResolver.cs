@@ -17,9 +17,10 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
     {
         _converters.Add("path", new PathConverter(httpClient, root));
         _converters.Add("fields", new FieldConverter());
+        _converters.Add("singleOrArray", new SingleOrArrayConverter());
         _propertyNameResolver = value =>
         {
-            value = value.ToLowerInvariant();
+            value = value.ToCamelCase();
             value = value == "profile" ? "$schema" : value;
             value = value == "paths" ? "path" : value;
             return value;
@@ -33,7 +34,7 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
         if (property.PropertyName == "path" && property.PropertyType == typeof(List<IPath>))
             property.Converter = _converters["path"];
         else if (property.PropertyName == "path" && property.PropertyType == typeof(List<string>))
-            property.Converter = new SingleOrArrayConverter();
+            property.Converter = _converters["singleOrArray"];
         else if (property.PropertyName == "fields")
             property.Converter = _converters["fields"];
         return property;

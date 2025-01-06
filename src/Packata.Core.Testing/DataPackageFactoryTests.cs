@@ -8,17 +8,17 @@ using NUnit.Framework;
 
 namespace Packata.Core.Testing;
 
-public class DataPackageFactoryTests
+public partial class DataPackageFactoryTests
 {
     [Test]
-    public void LoadFromStream_WithValidStream_ReturnsDataPackage()
+    public void LoadFromStream_WithValidJsonStream_ReturnsDataPackage()
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"{
             ""name"": ""my-data-package"",
             ""title"": ""My Data Package"",
             ""description"": ""A really long description"",
             ""keywords"": [""data"", ""example""],
-            ""Homepage"": ""https://github.com/package"",  
+            ""homepage"": ""https://github.com/package"",  
             ""resources"": [
                 {
                     ""name"": ""data.csv"",
@@ -28,7 +28,36 @@ public class DataPackageFactoryTests
             ]
         }"));
         var factory = new DataPackageFactory();
-        var dataPackage = factory.LoadFromStream(stream);
+        var dataPackage = factory.LoadFromStream(stream, DataPackageFactory.SerializationFormat.Json);
+        Assert.That(dataPackage, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dataPackage.Name, Is.EqualTo("my-data-package"));
+            Assert.That(dataPackage.Title, Is.EqualTo("My Data Package"));
+            Assert.That(dataPackage.Description, Is.EqualTo("A really long description"));
+            Assert.That(dataPackage.Homepage, Is.EqualTo("https://github.com/package"));
+            Assert.That(dataPackage.Keywords, Does.Contain("data"));
+            Assert.That(dataPackage.Keywords, Does.Contain("example"));
+            Assert.That(dataPackage.Resources, Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void LoadFromStream_WithValidYamlStream_ReturnsDataPackage()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"
+            name: my-data-package
+            title: ""My Data Package""
+            description: ""A really long description""
+            keywords: [""data"", ""example""]
+            homepage: ""https://github.com/package""
+            resources:
+              - name: ""data.csv""
+                path: ""https://example.com/data.csv""
+                format: ""csv""
+        "));
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream, DataPackageFactory.SerializationFormat.Yaml);
         Assert.That(dataPackage, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -81,7 +110,7 @@ public class DataPackageFactoryTests
     }
 
     [Test]
-    public void LoadFromStream_WithValidStream_ReturnsResourceSources()
+    public void LoadFromStream_WithValidJsonStream_ReturnsResourceSources()
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"{
             ""name"": ""my-data-package"",
@@ -104,7 +133,40 @@ public class DataPackageFactoryTests
             ]
         }"));
         var factory = new DataPackageFactory();
-        var dataPackage = factory.LoadFromStream(stream);
+        var dataPackage = factory.LoadFromStream(stream, DataPackageFactory.SerializationFormat.Yaml);
+        Assert.That(dataPackage, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dataPackage.Name, Is.EqualTo("my-data-package"));
+            Assert.That(dataPackage.Resources, Has.Count.EqualTo(1));
+        });
+        Assert.That(dataPackage.Resources[0].Sources, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(dataPackage.Resources[0].Sources[0].Title, Is.EqualTo("My article"));
+            Assert.That(dataPackage.Resources[0].Sources[0].Path, Is.EqualTo("https://example.com/article.html"));
+            Assert.That(dataPackage.Resources[0].Sources[1].Title, Is.EqualTo("My source"));
+            Assert.That(dataPackage.Resources[0].Sources[1].Email, Is.EqualTo("john.doe@company.com"));
+        });
+    }
+
+    [Test]
+    public void LoadFromStream_WithValidYamlStream_ReturnsResourceSources()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"
+            name: my-data-package
+            resources:
+              - name: data.csv
+                path: ""https://example.com/data.csv""
+                format: csv
+                sources:
+                    - title: My article
+                      path: ""https://example.com/article.html""
+                    - title: My source
+                      email: ""john.doe@company.com""
+        "));
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream, DataPackageFactory.SerializationFormat.Yaml);
         Assert.That(dataPackage, Is.Not.Null);
         Assert.Multiple(() =>
         {
