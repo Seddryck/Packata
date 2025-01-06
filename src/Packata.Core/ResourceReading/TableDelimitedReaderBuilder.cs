@@ -13,6 +13,7 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
 {
     private CsvReaderBuilder? _csvReaderBuilder;
     private Func<string?, string?, Type> MapRuntimeType = RuntimeTypeMapper.Map;
+    private DefaultFormatMapper _defaultFormatMapper = new();
 
     public void Configure(Resource resource)
         => _csvReaderBuilder = ConfigureBuilder(resource);
@@ -87,15 +88,20 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                         field.Name!,
                         builder =>
                         {
-                            return field.Format is not null
-                                ? builder.WithFormat(field.Format)
-                                : builder;
-                        });
-                }
+                        return field.Format is not null
+                            ? builder.WithFormat(
+                                field.Format.Equals("default", StringComparison.InvariantCultureIgnoreCase)
+                                    && field.Type is not null
+                                    && _defaultFormatMapper.TryGetMapping(field.Type, out var defaultFormat)
+                                ? defaultFormat
+                                : field.Format)
+                            : builder;
+                });
             }
         }
+    }
 
-        var resourceBuilder = new ResourceDescriptorBuilder();
+    var resourceBuilder = new ResourceDescriptorBuilder();
         if (resource.Encoding is not null)
         {
             resourceBuilder.WithEncoding(resource.Encoding);
