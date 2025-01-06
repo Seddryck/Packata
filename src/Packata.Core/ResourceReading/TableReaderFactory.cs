@@ -33,7 +33,7 @@ internal class TableReaderFactory : IResourceReaderFactory
 
     public IResourceReader Create(Resource resource)
     {
-        if (resource.Type?.ToLowerInvariant() != "table")
+        if ((resource.Type ?? "table").ToLowerInvariant() != "table")
             throw new InvalidOperationException();
 
         if (!Readers.TryGetValue(Heuristic(resource), out var builder))
