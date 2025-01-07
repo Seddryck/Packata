@@ -17,6 +17,7 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
     {
         _converters.Add("path", new PathConverter(httpClient, root));
         _converters.Add("fields", new FieldConverter());
+        _converters.Add("missingValues", new MissingValuesConverter());
         _propertyNameResolver = value =>
         {
             value = value.ToLowerInvariant();
@@ -36,6 +37,8 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
             property.Converter = new SingleOrArrayConverter();
         else if (property.PropertyName == "fields")
             property.Converter = _converters["fields"];
+        else if (property.PropertyName == "missingvalues")
+            property.Converter = _converters["missingValues"];
         return property;
     }
 
