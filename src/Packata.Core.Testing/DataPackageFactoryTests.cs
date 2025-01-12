@@ -4,7 +4,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using NUnit.Framework;
+using Packata.Core.Serialization.Json;
 
 namespace Packata.Core.Testing;
 
@@ -377,5 +379,90 @@ public class DataPackageFactoryTests
         Assert.That(dataPackage.Resources[0].Paths, Is.Not.Null.Or.Empty);
         Assert.That(dataPackage.Resources[0].Paths.Select(p => p.ToString()), Does.Contain("data_1.csv"));
         Assert.That(dataPackage.Resources[0].Paths.Select(p => p.ToString()), Does.Contain("data_2.csv"));
+    }
+
+    [Test]
+    public void LoadFromStream_WithMissingValueAsStringArray_ReturnsSchema()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"{
+            ""name"": ""my-data-package"",
+            ""resources"": [
+                {
+                    ""name"": ""data.csv"",
+                    ""path"": ""https://example.com/data.csv"",
+
+                    ""schema"": {
+                        ""fieldsMatch"": ""equal"",
+                        ""fields"": [
+                            {
+                                ""name"": ""field_integer"",
+                                ""type"": ""integer"",
+                                ""bareNumber"": false,
+                                ""groupChar"": "",""
+                            }
+                        ],
+                        ""missingValues"": [""-"", ""NaN"", """"],
+                        ""$schema"": ""https://datapackage.org/profiles/2.0/tableschema.json"",
+                    }
+                }
+            ]
+        }"));
+
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream);
+        Assert.That(dataPackage.Resources[0].Schema, Is.Not.Null);
+        var schema = dataPackage.Resources[0].Schema!;
+        Assert.That(schema.MissingValues, Has.Count.EqualTo(3));
+        Assert.That(schema.MissingValues, Has.One.Property("Value").EqualTo("NaN"));
+        Assert.That(schema.MissingValues, Has.All.Property("Label").Null);
+    }
+
+    [Test]
+    public void LoadFromStream_WithMissingValueAsObjectArray_ReturnsSchema()
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(@"{
+            ""name"": ""my-data-package"",
+            ""resources"": [
+                {
+                    ""name"": ""data.csv"",
+                    ""path"": ""https://example.com/data.csv"",
+
+                    ""schema"": {
+                        ""fieldsMatch"": ""equal"",
+                        ""fields"": [
+                            {
+                                ""name"": ""field_integer"",
+                                ""type"": ""integer"",
+                                ""bareNumber"": false,
+                                ""groupChar"": "",""
+                            }
+                        ],
+                        ""missingValues"": [
+                            {
+                                ""value"": ""-"",
+                                ""label"": ""Missing value""
+                            },
+                            {
+                                ""value"": ""NaN"",
+                                ""label"": ""Not a number""
+                            },
+                            {
+                                ""value"": """",
+                                ""label"": ""Unknown""
+                            }
+                        ],
+                        ""$schema"": ""https://datapackage.org/profiles/2.0/tableschema.json"",
+                    }
+                }
+            ]
+        }"));
+
+        var factory = new DataPackageFactory();
+        var dataPackage = factory.LoadFromStream(stream);
+        Assert.That(dataPackage.Resources[0].Schema, Is.Not.Null);
+        var schema = dataPackage.Resources[0].Schema!;
+        Assert.That(schema.MissingValues, Has.Count.EqualTo(3));
+        Assert.That(schema.MissingValues, Has.One.Property("Value").EqualTo("NaN"));
+        Assert.That(schema.MissingValues, Has.All.Property("Label").Not.Null);
     }
 }

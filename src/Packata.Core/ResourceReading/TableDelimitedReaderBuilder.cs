@@ -48,7 +48,6 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                 .WithSkipInitialSpace(dialect.SkipInitialSpace);
         }
 
-
         ISchemaDescriptorBuilder? schemaBuilder = null;
         if (resource.Schema is not null && resource.Schema.Fields.Count > 0)
         {
@@ -77,6 +76,8 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                                 ? builder.WithGroupChar(numericField.GroupChar.Value)
                                 : builder.WithoutGroupChar();
 
+                            withSequence(builder, [.. (numericField.MissingValues ?? resource.Schema.MissingValues ?? [])]);
+
                             return builder;
                         });
                 }
@@ -88,20 +89,27 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                         field.Name!,
                         builder =>
                         {
-                        return field.Format is not null
-                            ? builder.WithFormat(
-                                field.Format.Equals("default", StringComparison.InvariantCultureIgnoreCase)
-                                    && field.Type is not null
-                                    && _defaultFormatMapper.TryGetMapping(field.Type, out var defaultFormat)
-                                ? defaultFormat
-                                : field.Format)
-                            : builder;
-                });
+                            withSequence(builder, [ .. field.MissingValues ?? resource.Schema.MissingValues ?? []]);
+
+                            return field.Format is not null
+                                ? builder.WithFormat(
+                                    field.Format.Equals("default", StringComparison.InvariantCultureIgnoreCase)
+                                        && field.Type is not null
+                                        && _defaultFormatMapper.TryGetMapping(field.Type, out var defaultFormat)
+                                    ? defaultFormat
+                                    : field.Format)
+                                : builder;
+                        });
+                }
+
+                FieldDescriptorBuilder withSequence(FieldDescriptorBuilder builder, List<MissingValue> missingValues) =>
+                    missingValues.Count > 0
+                        ? missingValues.Aggregate(builder, (b, missingValue) => b.WithSequence(missingValue.Value, null))
+                        : builder;
             }
         }
-    }
 
-    var resourceBuilder = new ResourceDescriptorBuilder();
+        var resourceBuilder = new ResourceDescriptorBuilder();
         if (resource.Encoding is not null)
         {
             resourceBuilder.WithEncoding(resource.Encoding);

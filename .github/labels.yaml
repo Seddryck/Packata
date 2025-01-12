@@ -1,0 +1,27 @@
+- name: bug
+  description: Something isn't working
+  color: fc2929
+- name: build
+  description: Improvements or additions to the build process
+  color: ffaa44
+- name: dependency-update
+  description: Some dependencies aren't up-to-date
+  color: ffaa44
+- name: docs
+  description: Related to the documentation on the website or in the readme
+  color: 774400
+- name: duplicate
+  description: This issue or pull request already exists
+  color: cfd3d7
+- name: enhancement
+  description: Enhancement to an existing feature
+  color: 33cccc
+- name: new-feature
+  description: Description for a new feature in the tool
+  color: 774400
+- name: no-combine
+  description: Don't combine with other pull requests
+  color: 333333
+- name: wontfix
+  description: This will not be worked on
+  color: 555555
