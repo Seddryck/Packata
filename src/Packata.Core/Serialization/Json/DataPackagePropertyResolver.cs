@@ -35,7 +35,7 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
             property.Converter = _converters["path"];
         else if (property.PropertyName == "path" && property.PropertyType == typeof(List<string>))
             property.Converter = new SingleOrArrayConverter();
-        else if (property.PropertyName == "fields")
+        else if (property.PropertyName == "fields" && property.PropertyType == typeof(List<Field>))
             property.Converter = _converters["fields"];
         else if (property.PropertyName == "missingvalues")
             property.Converter = _converters["missingValues"];
