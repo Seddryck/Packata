@@ -64,8 +64,12 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                         field.Name!,
                         builder =>
                         {
+                            builder = field.Type is not null
+                                ? builder.WithDataSourceTypeName(field.Type)
+                                : builder;
+
                             builder = field.Format is not null
-                                ? (NumericFieldDescriptorBuilder)builder.WithFormat(field.Format)
+                                ? builder.WithFormat(field.Format)
                                 : builder;
 
                             builder = numericField is NumberField numberField && numberField.DecimalChar is not null
@@ -90,6 +94,10 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                         builder =>
                         {
                             withSequence(builder, [ .. field.MissingValues ?? resource.Schema.MissingValues ?? []]);
+
+                            builder = field.Type is not null
+                                ? builder.WithDataSourceTypeName(field.Type)
+                                : builder;
 
                             return field.Format is not null
                                 ? builder.WithFormat(
