@@ -5,13 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Packata.Core.CustomTypes;
 using Packata.Core.PathHandling;
 using Packata.Core.ResourceReading;
 using Packata.Core.Testing.PathHandling;
 using PocketCsvReader;
 using PocketCsvReader.Configuration;
 using RichardSzalay.MockHttp;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Packata.Core.Testing.ResourceReading;
 public class TableDelimitedReaderTests
@@ -49,6 +49,45 @@ public class TableDelimitedReaderTests
         Assert.That(dataReader["a"], Is.EqualTo("4"));
         Assert.That(dataReader["b"], Is.EqualTo("5"));
         Assert.That(dataReader["c"], Is.EqualTo("6"));
+        Assert.That(dataReader.Read(), Is.False);
+    }
+
+    [Test]
+    public void ToDataReader_YearYearMonthDecimal_ReturnsIDataReader()
+    {
+        var fileSystem = new Mock<IFileSystem>();
+        fileSystem.Setup(x => x.Exists("my-resource-path")).Returns(true);
+        fileSystem.Setup(x => x.OpenRead("my-resource-path")).Returns(new MemoryStream(Encoding.UTF8.GetBytes("a;b;c;d\r\n2025;2025-01;107,25;10")));
+
+        var resource = new Resource
+        {
+            Paths = [new LocalPath(fileSystem.Object, "", "my-resource-path")],
+            Type = "table",
+            Name = "my-resource",
+            Dialect = new TableDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
+            Schema = new Schema()
+            {
+                Fields = [
+                    new YearField() { Name = "a", Type = "year" },
+                    new YearMonthField() { Name = "b", Type = "yearmonth" },
+                    new NumberField() { Name = "c", Type = "number", DecimalChar = ',' },
+                    new IntegerField() { Name = "d", Type = "integer", Format="i16" }
+                ]
+            }
+        };
+        var builder = new TableDelimitedReaderBuilder();
+        builder.Configure(resource);
+        var reader = builder.Build();
+        var dataReader = reader.ToDataReader(resource);
+
+        Assert.That(dataReader, Is.Not.Null);
+        Assert.That(dataReader, Is.InstanceOf<CsvDataReader>());
+        Assert.That(dataReader.Read(), Is.True);
+        Assert.That(dataReader["a"], Is.EqualTo(new Year(2025)));
+        Assert.That(dataReader["b"], Is.EqualTo(new YearMonth(2025,1)));
+        Assert.That(dataReader["c"], Is.EqualTo(107.25m));
+        Assert.That(dataReader["d"], Is.TypeOf<short>());
+        Assert.That(dataReader["d"], Is.EqualTo((short)10));
         Assert.That(dataReader.Read(), Is.False);
     }
 }

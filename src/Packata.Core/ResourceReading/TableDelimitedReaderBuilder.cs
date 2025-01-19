@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Text;
@@ -12,14 +13,15 @@ namespace Packata.Core.ResourceReading;
 internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
 {
     private CsvReaderBuilder? _csvReaderBuilder;
-    private Func<string?, string?, Type> MapRuntimeType = RuntimeTypeMapper.Map;
+    private RuntimeTypeMapper RuntimeTypes = new();
     private DefaultFormatMapper _defaultFormatMapper = new();
+    private DateTimeFormatConverter _dateTimeFormatConverter = new();
 
     public void Configure(Resource resource)
         => _csvReaderBuilder = ConfigureBuilder(resource);
 
-    public void Configure(Func<string?, string?, Type> mapRuntimeType)
-        => MapRuntimeType = mapRuntimeType;
+    public void Register(string type, string? format, Type runtimeType)
+        => RuntimeTypes.Register(type, string.IsNullOrEmpty(format) ? null : format, runtimeType);
 
     public IResourceReader Build()
     {
@@ -56,58 +58,86 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                             : new SchemaDescriptorBuilder().Named();
             foreach (var field in resource.Schema.Fields)
             {
-                if (field is NumericField numericField)
+                FieldDescriptorBuilder enrich(FieldDescriptorBuilder builder, Field field)
                 {
-                    // Handle NumericField separately
-                    schemaBuilder.WithNumericField(
-                        MapRuntimeType(field.Type, field.Format),
+                    builder = field.Type is not null
+                                ? builder.WithDataSourceTypeName(field.Type)
+                                : builder;
+                    withSequence(builder, [.. (field.MissingValues ?? resource.Schema!.MissingValues ?? [])]);
+                    return builder;
+                }
+
+                if (field is NumberField numberField)
+                {
+                    schemaBuilder.WithNumberField(
+                        RuntimeTypes.Map(field.Type, field.Format),
                         field.Name!,
                         builder =>
                         {
-                            builder = field.Type is not null
-                                ? builder.WithDataSourceTypeName(field.Type)
-                                : builder;
-
-                            builder = field.Format is not null
-                                ? builder.WithFormat(field.Format)
-                                : builder;
-
-                            builder = numericField is NumberField numberField && numberField.DecimalChar is not null
-                                ? builder.WithDecimalChar(numberField.DecimalChar.Value)
-                                : builder;
-
-                            builder = numericField.GroupChar is not null
-                                ? builder.WithGroupChar(numericField.GroupChar.Value)
-                                : builder.WithoutGroupChar();
-
-                            withSequence(builder, [.. (numericField.MissingValues ?? resource.Schema.MissingValues ?? [])]);
-
-                            return builder;
+                            builder = builder.WithFormat((fmt) =>
+                            {
+                                fmt = numberField.GroupChar is not null
+                                        ? fmt.WithGroupChar(numberField.GroupChar.Value)
+                                        : fmt.WithoutGroupChar();
+                                fmt = numberField.DecimalChar is not null
+                                        ? fmt.WithDecimalChar(numberField.DecimalChar.Value)
+                                        : fmt;
+                                return fmt;
+                            });
+                            return (NumberFieldDescriptorBuilder)enrich(builder, field);
+                        });
+                }
+                else if (field is IntegerField integerField)
+                {
+                    schemaBuilder.WithIntegerField(
+                        RuntimeTypes.Map(field.Type, field.Format),
+                        field.Name!,
+                        builder =>
+                        {
+                            builder = builder.WithFormat((fmt) =>
+                            {
+                                fmt = integerField.GroupChar is not null
+                                        ? fmt.WithGroupChar(integerField.GroupChar.Value)
+                                        : fmt.WithoutGroupChar();
+                                return fmt;
+                            });
+                            return (IntegerFieldDescriptorBuilder)enrich(builder, field);
+                        });
+                }
+                else if (field is TemporalField temporalField)
+                {
+                    schemaBuilder.WithTemporalField(
+                        RuntimeTypes.Map(field.Type, field.Format),
+                        field.Name!,
+                        builder =>
+                        {
+                            builder = builder.WithFormat(
+                                _dateTimeFormatConverter.Convert(
+                                    (temporalField.Format ?? "default").Equals("default", StringComparison.InvariantCultureIgnoreCase)
+                                    && field.Type is not null
+                                    && _defaultFormatMapper.TryGetMapping(field.Type, out var defaultFormat)
+                                        ? defaultFormat
+                                        : temporalField.Format!));
+                            return (TemporalFieldDescriptorBuilder)enrich(builder, field);
+                        });
+                }
+                else if (field is CustomField customField)
+                {
+                    schemaBuilder.WithCustomField(
+                        RuntimeTypes.Map(field.Type, field.Format),
+                        field.Name!,
+                        builder =>
+                        {
+                            builder = builder.WithFormat(customField.FormatProvider ?? CultureInfo.InvariantCulture);
+                            return (CustomFieldDescriptorBuilder)enrich(builder, field);
                         });
                 }
                 else
                 {
-                    // General handling for non-numeric fields
                     schemaBuilder.WithField(
-                        MapRuntimeType(field.Type, field.Format),
+                        RuntimeTypes.Map(field.Type, field.Format),
                         field.Name!,
-                        builder =>
-                        {
-                            withSequence(builder, [ .. field.MissingValues ?? resource.Schema.MissingValues ?? []]);
-
-                            builder = field.Type is not null
-                                ? builder.WithDataSourceTypeName(field.Type)
-                                : builder;
-
-                            return field.Format is not null
-                                ? builder.WithFormat(
-                                    field.Format.Equals("default", StringComparison.InvariantCultureIgnoreCase)
-                                        && field.Type is not null
-                                        && _defaultFormatMapper.TryGetMapping(field.Type, out var defaultFormat)
-                                    ? defaultFormat
-                                    : field.Format)
-                                : builder;
-                        });
+                        builder => enrich(builder, field));
                 }
 
                 FieldDescriptorBuilder withSequence(FieldDescriptorBuilder builder, List<MissingValue> missingValues) =>

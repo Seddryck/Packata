@@ -13,6 +13,8 @@ public class DefaultFormatMapper
         AddMapping("datetime", "%Y-%m-%dT%H:%M:%S");
         AddMapping("date", "%Y-%m-%d");
         AddMapping("time", "%H:%M:%S");
+        AddMapping("year", "%Y");
+        AddMapping("yearmonth", "%Y-%m");
     }
 
     private Dictionary<string, string> _mappings = [];
