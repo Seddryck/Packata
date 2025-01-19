@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Packata.Core.CustomTypes;
 
 namespace Packata.Core;
 public class Field
@@ -116,17 +117,28 @@ public class TimeField : TemporalField
 public class DateTimeField : TemporalField
 { }
 
+public abstract class CustomField : Field
+{
+    public IFormatProvider? FormatProvider { get; set; }
+}
+
 /// <summary>
 /// A calendar year, being an integer with 4 digits. Equivalent to [gYear in XML Schema](https://www.w3.org/TR/xmlschema-2/#gYear)
 /// </summary>
-public class YearField : TemporalField
-{ }
+public class YearField : CustomField
+{
+    public YearField()
+        => FormatProvider = YearFormatProvider.Instance;
+}
 
 /// <summary>
 /// A calendar year month, being an integer with 1 or 2 digits. Equivalent to [gYearMonth in XML Schema](https://www.w3.org/TR/xmlschema-2/#gYearMonth)
 /// </summary>
-public class YearMonthField : TemporalField
-{ }
+public class YearMonthField : CustomField
+{
+    public YearMonthField()
+        => FormatProvider = YearMonthFormatProvider.Instance;
+}
 
 
 /// <summary>

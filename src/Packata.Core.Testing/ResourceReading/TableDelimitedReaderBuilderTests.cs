@@ -58,7 +58,7 @@ public class TableDelimitedReaderBuilderTests
             FieldsMatch = fieldMatch,
             Fields = [
                 new IntegerField() { Name = "a", Type = "integer", Format = "i32",  GroupChar=' '}
-                , new Field() { Name = "b", Type = "date", Format = "%m-%d-%Y" }
+                , new DateField() { Name = "b", Type = "date", Format = "%m-%d-%Y" }
                 , new NumberField() { Name = "c", Type = "number", GroupChar='.', DecimalChar=','}
                 , new NumberField() { Name = "d", Type = "number"}
             ]
