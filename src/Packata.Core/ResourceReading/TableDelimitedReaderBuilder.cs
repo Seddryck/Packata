@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using PocketCsvReader.Configuration;
 
 namespace Packata.Core.ResourceReading;
-internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
+public class TableDelimitedReaderBuilder : IResourceReaderBuilder
 {
     private CsvReaderBuilder? _csvReaderBuilder;
     private RuntimeTypeMapper RuntimeTypes = new();
@@ -19,6 +19,9 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
 
     public void Configure(Resource resource)
         => _csvReaderBuilder = ConfigureBuilder(resource);
+
+    public void Register(string type, Type runtimeType)
+        => Register(type, null, runtimeType);
 
     public void Register(string type, string? format, Type runtimeType)
         => RuntimeTypes.Register(type, string.IsNullOrEmpty(format) ? null : format, runtimeType);
@@ -128,7 +131,7 @@ internal class TableDelimitedReaderBuilder : IResourceReaderBuilder
                         field.Name!,
                         builder =>
                         {
-                            builder = builder.WithFormat(customField.FormatProvider ?? CultureInfo.InvariantCulture);
+                            builder = customField.Format is not null ? builder.WithFormat(customField.Format) : builder;
                             return (CustomFieldDescriptorBuilder)enrich(builder, field);
                         });
                 }
