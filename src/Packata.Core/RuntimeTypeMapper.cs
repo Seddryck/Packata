@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Packata.Core.CustomTypes;
 
 namespace Packata.Core;
 internal class RuntimeTypeMapper
@@ -46,9 +45,12 @@ internal class RuntimeTypeMapper
         Register("date", null, typeof(DateOnly));
         Register("time", null, typeof(TimeOnly));
         Register("datetime", null, typeof(DateTime));
-        Register("year", null, typeof(Year));
-        Register("yearmonth", null, typeof(YearMonth));
+        Register("year", null, typeof(int));
+        Register("yearmonth", null, typeof(string));
     }
+
+    public void Register(string type, Type runtimeType)
+        => Register(type, null, runtimeType);
 
     public void Register(string type, string? format, Type runtimeType)
     {

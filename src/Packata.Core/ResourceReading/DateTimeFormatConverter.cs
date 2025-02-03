@@ -10,30 +10,32 @@ internal class DateTimeFormatConverter
     // Mapping dictionary for C-style to .NET-style format specifiers
     private static readonly Dictionary<string, string> FormatMap = new()
     {
-        { "%a", "ddd" },
-        { "%A", "dddd" },
-        { "%b", "MMM" },
-        { "%B", "MMMM" },
+        { "%a", "ddd" }, //Abbreviated day of week
+        { "%A", "dddd" }, //Full label of day of week
+        { "%b", "MMM" }, //Abbreviated month
+        { "%B", "MMMM" }, //Full label of Month
         { "%c", "F" },
-        { "%d", "dd" },
+        { "%d", "dd" }, //Day of month
         { "%-d", "d" },
-        { "%H", "HH" },
+        { "%H", "HH" }, //Hour
         { "%-H", "H" },
         { "%I", "hh" },
         { "%j", "ddd" }, // Day of year
-        { "%m", "MM" },
+        { "%m", "MM" }, //Month
         { "%-m", "M" },
-        { "%M", "mm" },
+        { "%M", "mm" }, //Minute
         { "%-M", "m" },
         { "%p", "tt" },
-        { "%S", "ss" },
-        { "%-S", "s" },
+        { "%q", "q" }, // Non-standard for quarter
+        { "%s", "S" }, // Non-standard for semester
+        { "%S", "ss" }, //second
+        { "%-S", "s" }, //second
         { "%U", "ww" }, // Week of year (Sunday-start)
         { "%w", "d" },  // Day of week (0-Sunday to 6)
         { "%W", "ww" }, // Week of year (Monday-start)
         { "%x", "d" },  // Date
         { "%X", "T" },  // Time
-        { "%y", "yy" },
+        { "%y", "yy" }, // Year
         { "%Y", "yyyy" },
         { "%z", "z00" },
         { "%:z", "zzz" },
