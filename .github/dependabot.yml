@@ -7,6 +7,20 @@ version: 2
 updates:
   - package-ecosystem: "nuget" 
     directories:
+      - "src/Packata.*.Testing/" 
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependency-update"
+    commit-message:
+      prefix: "chore"
+    groups:
+      ExternalLibs:
+          patterns:
+            - "PocketCsvReader*"
+            - "Chrononuensis*"
+  - package-ecosystem: "nuget" 
+    directories:
       - "src/Packata.*/" 
     schedule:
       interval: "daily"
