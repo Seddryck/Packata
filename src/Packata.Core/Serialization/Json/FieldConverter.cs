@@ -11,7 +11,7 @@ namespace Packata.Core.Serialization.Json;
 internal class FieldConverter : JsonConverter
 {
     public override bool CanConvert(Type objectType)
-        => typeof(Field).IsAssignableFrom(objectType);
+        => typeof(List<Field>).IsAssignableFrom(objectType);
 
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
     {
