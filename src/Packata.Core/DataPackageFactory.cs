@@ -12,15 +12,10 @@ public class DataPackageFactory
 {
     private string? _root;
 
-    public DataPackage LoadFromStream(Stream stream)
+    public DataPackage LoadFromStream(Stream stream, string format = "json")
     {
-        var resolver = new DataPackagePropertyResolver(new HttpClient(), _root ?? GetType().Assembly.Location);
-        var serializer = new JsonSerializer
-        {
-            ContractResolver = resolver
-        };
-        var dataPackage = serializer.Deserialize<DataPackage>(new JsonTextReader(new StreamReader(stream)))
-                            ?? throw new JsonSerializationException("The JSON data is not valid.");
+        var serializer = new DataPackageSerializer();
+        var dataPackage = serializer.Deserialize(new StreamReader(stream), new HttpClient(), _root ?? GetType().Assembly.Location);
         return dataPackage;
     }
 
