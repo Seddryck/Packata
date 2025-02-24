@@ -4,6 +4,8 @@ using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 using Packata.Core.PathHandling;
+using Newtonsoft.Json;
+using System.Runtime.Serialization;
 
 namespace Packata.Core.Serialization.Yaml
 {
@@ -16,19 +18,24 @@ namespace Packata.Core.Serialization.Yaml
             => (_httpClient, _root) = (httpClient, root);
 
         public bool Accepts(Type type)
-            => typeof(IPath).IsAssignableFrom(type);
+            => typeof(List<IPath>).IsAssignableFrom(type);
 
         public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
         {
             var paths = new List<IPath>();
-            parser.Consume<SequenceStart>();
+            if (parser.TryConsume<SequenceStart>(out var _))
+            { 
+                while (parser.TryConsume<Scalar>(out var scalar))
+                    paths.Add(BuildPath(scalar.Value));
 
-            while (parser.TryConsume<Scalar>(out var scalar))
+                parser.Consume<SequenceEnd>();
+            }
+            else if(parser.TryConsume<Scalar>(out var scalar))
             {
                 paths.Add(BuildPath(scalar.Value));
             }
-
-            parser.Consume<SequenceEnd>();
+            else
+                throw new SerializationException("Unexpected YAML format.");
             return paths;
         }
 

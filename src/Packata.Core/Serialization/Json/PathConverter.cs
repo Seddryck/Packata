@@ -16,7 +16,7 @@ internal class PathConverter : JsonConverter
         => (_httpClient, _root) = (httpClient, root);
 
     public override bool CanConvert(Type objectType)
-        => typeof(IPath).IsAssignableFrom(objectType);
+        => typeof(List<IPath>).IsAssignableFrom(objectType);
 
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
     {
