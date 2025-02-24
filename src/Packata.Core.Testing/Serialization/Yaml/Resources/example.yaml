@@ -60,7 +60,7 @@ resources:
   "$schema": https://datapackage.org/profiles/2.0/dataresource.json
   title: Camera trap observations
   format: csv
-  mediatype: text/csv
+  mediaType: text/csv
   encoding: utf-8
   dialect:
     "$schema": https://datapackage.org/profiles/2.0/tabledialect.json

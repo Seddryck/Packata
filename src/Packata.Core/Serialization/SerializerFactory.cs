@@ -12,6 +12,9 @@ internal class SerializerFactory
         {
             "json" => new Json.DataPackageSerializer(),
             "yaml" or "yml" => new Yaml.DataPackageSerializer(),
-            _ => throw new ArgumentOutOfRangeException(),
+            _ => throw new ArgumentOutOfRangeException(
+                    nameof(format),
+                    format,
+                    "Unsupported format. Supported formats are: json, yaml, yml")
         };
 }
