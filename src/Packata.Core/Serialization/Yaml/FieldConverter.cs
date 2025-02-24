@@ -7,6 +7,7 @@ using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.Converters;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace Packata.Core.Serialization.Yaml
 {
@@ -33,7 +34,7 @@ namespace Packata.Core.Serialization.Yaml
                     }
                 }
 
-                list.Add((string)(dict["type"]) switch
+                list.Add(dict.GetValueOrDefault("type") switch
                 {
                     "string" => ToObject<StringField>(dict)!,
                     "number" => ToObject<NumberField>(dict)!,
@@ -58,13 +59,16 @@ namespace Packata.Core.Serialization.Yaml
         private static Field ToObject<T>(Dictionary<string, object> dictionary) where T : Field
         {
             Type type = typeof(T);
-            var obj = Activator.CreateInstance(type);
+            var obj = Activator.CreateInstance(type)!;
             foreach (var kvp in dictionary)
             {
-                PropertyInfo? property = type.GetProperty(kvp.Key);
+                var propertyName = CamelCaseNamingConvention.Instance.Reverse(kvp.Key);
+                PropertyInfo? property = type.GetProperty(propertyName);
                 if (property != null && property.CanWrite)
                 {
-                    object value = Convert.ChangeType(kvp.Value, property.PropertyType);
+                    object value = property.PropertyType == typeof(char) || property.PropertyType == typeof(char?)
+                                    ? Convert.ToChar(kvp.Value)
+                                    : Convert.ChangeType(kvp.Value, property.PropertyType);
                     property.SetValue(obj, value);
                 }
             }
@@ -73,7 +77,7 @@ namespace Packata.Core.Serialization.Yaml
 
         public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
         {
-            var fields = (List<Field>)value;
+            var fields = (List<Field>)(value ?? throw new NullReferenceException());
             emitter.Emit(new SequenceStart(null, null, false, SequenceStyle.Block));
 
             foreach (var field in fields)

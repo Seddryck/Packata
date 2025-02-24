@@ -4,6 +4,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Serialization\Json\Resources\example.json" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\example.yaml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Chrononuensis" Version="0.22.1" />

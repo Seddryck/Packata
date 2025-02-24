@@ -74,7 +74,7 @@ namespace Packata.Core.Tests.Serialization.Json
 
             var wrapper = JsonConvert.DeserializeObject<FieldCollectionWrapper>(json, _settings);
 
-            Assert.That(wrapper.Fields, Is.Not.Null);
+            Assert.That(wrapper!.Fields, Is.Not.Null);
             Assert.That(wrapper.Fields.Count, Is.EqualTo(3));
             Assert.That(wrapper.Fields[0], Is.TypeOf<StringField>());
             Assert.That(wrapper.Fields[1], Is.TypeOf<NumberField>());

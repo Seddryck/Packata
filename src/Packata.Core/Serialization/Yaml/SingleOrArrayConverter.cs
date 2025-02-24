@@ -34,9 +34,9 @@ namespace Packata.Core.Serialization.Yaml
             throw new YamlException("Unexpected YAML format.");
         }
 
-        public void WriteYaml(IEmitter emitter, object value, Type type, ObjectSerializer serializer)
+        public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
         {
-            var list = (List<string>)value;
+            var list = (List<string>)(value ?? throw new NullReferenceException());
 
             if (list.Count == 1)
             {

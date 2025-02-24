@@ -42,14 +42,14 @@ namespace Packata.Core.Serialization.Yaml
         private IPath BuildPath(string value)
             => value.Contains("://") ? new HttpPath(_httpClient, value) : new LocalPath(_root, value);
 
-        public void WriteYaml(IEmitter emitter, object value, Type type, ObjectSerializer serializer)
+        public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
         {
-            var paths = (List<IPath>)value;
+            var paths = (List<IPath>)(value ?? throw new NullReferenceException());
             emitter.Emit(new SequenceStart(null, null, false, SequenceStyle.Block));
 
             foreach (var path in paths)
             {
-                emitter.Emit(new Scalar(path.ToString()));
+                emitter.Emit(new Scalar(path.ToString() ?? string.Empty));
             }
 
             emitter.Emit(new SequenceEnd());

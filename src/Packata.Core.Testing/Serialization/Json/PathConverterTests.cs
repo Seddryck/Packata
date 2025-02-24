@@ -59,7 +59,7 @@ namespace Packata.Core.Tests.Serialization.Json
         public void CanConvert_FieldType_ReturnsTrue()
         {
             var converter = new SingleOrArrayConverter();
-            Assert.That(converter.CanConvert(typeof(List<IPath>)), Is.True);
+            Assert.That(converter.CanConvert(typeof(List<string>)), Is.True);
         }
 
         [Test]

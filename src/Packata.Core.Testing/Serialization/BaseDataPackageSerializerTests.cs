@@ -234,7 +234,7 @@ public abstract class BaseDataPackageSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = new DataPackageSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
         Assert.That(dataPackage, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -256,7 +256,7 @@ public abstract class BaseDataPackageSerializerTests
 
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = new DataPackageSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
         Assert.That(dataPackage.Licenses, Has.Count.EqualTo(1));
         Assert.Multiple(() =>
         {
@@ -274,7 +274,7 @@ public abstract class BaseDataPackageSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = new DataPackageSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
         Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
         Assert.Multiple(() =>
         {
@@ -298,7 +298,7 @@ public abstract class BaseDataPackageSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = new DataPackageSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
         Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
         Assert.That(dataPackage.Resources[1].Dialect, Is.Not.Null);
         var dialect = dataPackage.Resources[1].Dialect!;
@@ -318,7 +318,7 @@ public abstract class BaseDataPackageSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = new DataPackageSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
         Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
         Assert.That(dataPackage.Resources[0].Schema, Is.Not.Null);
         var schema = dataPackage.Resources[0].Schema!;
