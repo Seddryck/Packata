@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <None Remove="Resources\example.json" />
+    <None Remove="Serialization\Json\Resources\example.json" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\example.json" />
+    <EmbeddedResource Include="Serialization\Json\Resources\example.json" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Chrononuensis" Version="0.22.1" />
