@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using YamlDotNet.Core;
 
 namespace Packata.Core.Serialization.Json;
 internal class ConstraintsConverter : JsonConverter
@@ -26,7 +24,9 @@ internal class ConstraintsConverter : JsonConverter
             {
                 var propertyName = reader.Value as string ?? throw new NotSupportedException();
                 reader.Read();
-                var value =  reader.Value ?? throw new InvalidCastException();
+                if (reader.Value is null)
+                    continue;
+                var value = reader.Value;
                 list.Add(constraintMapper.Map(propertyName, value));
             }
         }
