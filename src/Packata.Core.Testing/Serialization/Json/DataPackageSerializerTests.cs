@@ -134,6 +134,43 @@ public class DataPackageSerializerTests : BaseDataPackageSerializerTests
             ]
         }"));
 
+    protected override Stream GetFieldConstraintsProperties()
+        => new MemoryStream(Encoding.UTF8.GetBytes(@"{
+                ""name"": ""my-data-package"",
+                ""resources"": [
+                    {
+                        ""name"": ""data.csv"",
+                        ""path"": ""https://example.com/data.csv"",
+                        ""schema"": {
+                            ""fieldsMatch"": ""equal"",
+                            ""fields"": [
+                                {
+                                     ""name"": ""field_integer"",
+                                     ""type"": ""integer"",
+                                     ""constraints"":
+                                     {
+                                         ""required"": true,
+                                         ""unique"": false,
+                                         ""minimum"": 0,
+                                         ""maximum"": 100,
+                                     }
+                                },
+                                {
+                                     ""name"": ""field_string"",
+                                     ""type"": ""string"",
+                                     ""constraints"":
+                                     {
+                                         ""minLength"": 3,
+                                         ""maxLength"": 5,
+                                         ""pattern"": ""^\\d{3}$""   
+                                     }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }"));
+
     protected override Stream GetResourcesProperties()
         => new MemoryStream(Encoding.UTF8.GetBytes(@"{
             ""name"": ""my-data-package"",
@@ -159,7 +196,6 @@ public class DataPackageSerializerTests : BaseDataPackageSerializerTests
                 }
             ]
         }"));
-
 
     protected override Stream GetMissingValuesAsStringArrayProperties()
         => new MemoryStream(Encoding.UTF8.GetBytes(@"{
@@ -223,7 +259,6 @@ public class DataPackageSerializerTests : BaseDataPackageSerializerTests
                 }
             ]
         }"));
-
 
     protected override Stream GetKeysProperties()
         => new MemoryStream(Encoding.UTF8.GetBytes(@"{

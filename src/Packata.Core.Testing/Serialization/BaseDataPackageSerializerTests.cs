@@ -119,6 +119,44 @@ public abstract class BaseDataPackageSerializerTests
         });
     }
 
+    protected abstract Stream GetFieldConstraintsProperties();
+
+    [Test]
+    public void Deserialize_FieldConstraintsProperties_ReturnsFieldConstraints()
+    {
+        using var stream = GetFieldConstraintsProperties();
+        using var streamReader = new StreamReader(stream);
+        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var schema = dataPackage.Resources[0].Schema!;
+        Assert.That(schema.Fields, Has.Count.EqualTo(2));
+        var field = schema.Fields[0];
+        Assert.Multiple(() =>
+        {
+            Assert.That(field, Is.TypeOf<IntegerField>());
+            Assert.That(field.Constraints, Has.Count.EqualTo(4));
+            Assert.That(field.Constraints![0], Is.TypeOf<RequiredConstraint>());
+            Assert.That(((RequiredConstraint)field.Constraints![0]).Value, Is.True);
+            Assert.That(field.Constraints![1], Is.TypeOf<UniqueConstraint>());
+            Assert.That(((UniqueConstraint)field.Constraints![1]).Value, Is.False);
+            Assert.That(field.Constraints![2], Is.TypeOf<MinimumConstraint>());
+            Assert.That(((MinimumConstraint)field.Constraints![2]).Value, Is.EqualTo(0).Or.EqualTo("0"));
+            Assert.That(field.Constraints![3], Is.TypeOf<MaximumConstraint>());
+            Assert.That(((MaximumConstraint)field.Constraints![3]).Value, Is.EqualTo(100).Or.EqualTo("100"));
+        });
+        field = schema.Fields[1];
+        Assert.Multiple(() =>
+        {
+            Assert.That(field, Is.TypeOf<StringField>());
+            Assert.That(field.Constraints, Has.Count.EqualTo(3));
+            Assert.That(field.Constraints![0], Is.TypeOf<MinLengthConstraint>());
+            Assert.That(((MinLengthConstraint)field.Constraints![0]).Value, Is.EqualTo(3));
+            Assert.That(field.Constraints![1], Is.TypeOf<MaxLengthConstraint>());
+            Assert.That(((MaxLengthConstraint)field.Constraints![1]).Value, Is.EqualTo(5));
+            Assert.That(field.Constraints![2], Is.TypeOf<PatternConstraint>());
+            Assert.That(((PatternConstraint)field.Constraints![2]).Value, Is.EqualTo("^\\d{3}$"));
+        });
+    }
+
     protected abstract Stream GetResourcesProperties();
 
     [Test]
