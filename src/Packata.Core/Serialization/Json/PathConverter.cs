@@ -52,16 +52,5 @@ internal class PathConverter : JsonConverter
         => value.Contains("://") ? new HttpPath(_httpClient, value) : new LocalPath(_root, value);
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
-    {
-        var list = (List<string>)value!;
-        if (list.Count == 1)
-            writer.WriteValue(list[0]);
-        else
-        {
-            writer.WriteStartArray();
-            foreach (var item in list)
-                writer.WriteValue(item);
-            writer.WriteEndArray();
-        }
-    }
+        => throw new NotImplementedException();
 }

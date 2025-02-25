@@ -48,16 +48,6 @@ namespace Packata.Core.Serialization.Yaml
         }
 
         public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
-        {
-            var list = (List<MissingValue>)(value ?? throw new NullReferenceException());
-            emitter.Emit(new SequenceStart(null, null, false, SequenceStyle.Block));
-
-            foreach (var missingValue in list)
-            {
-                emitter.Emit(new Scalar(missingValue.Value));
-            }
-
-            emitter.Emit(new SequenceEnd());
-        }
+            => throw new NotImplementedException();
     }
 }

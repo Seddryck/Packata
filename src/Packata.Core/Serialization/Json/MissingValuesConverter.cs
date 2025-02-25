@@ -40,35 +40,5 @@ internal class MissingValuesConverter : JsonConverter
     }
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
-    {
-        var list = (List<MissingValue>)value!;
-
-        if (list == null || list.Count == 0)
-        {
-            writer.WriteStartArray();
-            writer.WriteEndArray();
-            return;
-        }
-
-        // Determine if the output should be in object or string format
-        var isSimpleFormat = list.TrueForAll(v => string.IsNullOrEmpty(v.Label));
-
-        writer.WriteStartArray();
-
-        foreach (var missingValue in list)
-        {
-            if (isSimpleFormat)
-            {
-                // Write as strings
-                writer.WriteValue(missingValue.Value);
-            }
-            else
-            {
-                // Write as objects
-                serializer.Serialize(writer, missingValue);
-            }
-        }
-
-        writer.WriteEndArray();
-    }
+        => throw new NotImplementedException();
 }
