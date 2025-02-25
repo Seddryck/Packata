@@ -18,9 +18,14 @@ namespace Packata.Core.Serialization.Yaml
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(new DataPackageNamingConvention())
                 .WithTypeConverter(new PathConverter(httpClient, root))
-                .WithTypeDiscriminatingNodeDeserializer((o) => new FieldTypeDiscriminator().Execute(o))
+                .WithTypeDiscriminatingNodeDeserializer((o) =>
+                    {
+                        new FieldTypeDiscriminator().Execute(o);
+                        new ConstraintTypeDiscriminator().Execute(o);
+                    })
                 .WithTypeConverter(new MissingValuesConverter())
                 .WithTypeConverter(new SingleOrArrayConverter())
+                .WithTypeConverter(new ConstraintsConverter())
                 .IgnoreUnmatchedProperties()
                 .Build();
 

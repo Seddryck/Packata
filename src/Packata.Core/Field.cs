@@ -53,6 +53,11 @@ public class Field
     /// The RDF type for this field.
     /// </summary>
     public string? RdfType { get; set; }
+
+    /// <summary>
+    /// The constraints applicable to this field.
+    /// </summary>
+    public List<Constraint>? Constraints { get; set; }
 }
 
 /// <summary>
