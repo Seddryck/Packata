@@ -13,15 +13,15 @@ internal class ConstraintMapper
         {
             return name switch
             {
-                "required" => new RequiredConstraint { Value = Convert.ToBoolean(value) },
-                "unique" => new UniqueConstraint { Value = Convert.ToBoolean(value) },
-                "minLength" => new MinLengthConstraint { Value = Convert.ToInt32(value) },
-                "maxLength" => new MaxLengthConstraint { Value = Convert.ToInt32(value) },
-                "minimum" => new MinimumConstraint { Value = value },
-                "maximum" => new MaximumConstraint { Value = value },
-                "exclusiveMinimum" => new ExclusiveMinimumConstraint { Value = value },
-                "exclusiveMaximum" => new ExclusiveMaximumConstraint { Value = value },
-                "pattern" => new PatternConstraint { Value = (string)value },
+                "required" => new RequiredConstraint(Convert.ToBoolean(value)),
+                "unique" => new UniqueConstraint(Convert.ToBoolean(value)),
+                "minLength" => new MinLengthConstraint(Convert.ToInt32(value)),
+                "maxLength" => new MaxLengthConstraint(Convert.ToInt32(value)),
+                "minimum" => new MinimumConstraint(value),
+                "maximum" => new MaximumConstraint(value),
+                "exclusiveMinimum" => new ExclusiveMinimumConstraint(value),
+                "exclusiveMaximum" => new ExclusiveMaximumConstraint(value),
+                "pattern" => new PatternConstraint((string)value),
                 _ => throw new NotSupportedException($"The constraint '{name}' is not supported.")
             };
         }
