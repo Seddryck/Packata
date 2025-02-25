@@ -7,18 +7,11 @@ using YamlDotNet.Serialization;
 
 namespace Packata.Core.Tests.Serialization.Yaml
 {
-    public class FieldConverterTests
+    public class FieldTypeDiscriminatorTests
     {
         private class FieldCollectionWrapper
         {
             public List<Field>? Fields { get; set; }
-        }
-
-        [Test]
-        public void Accepts_FieldType_ReturnsTrue()
-        {
-            var converter = new FieldConverter();
-            Assert.That(converter.Accepts(typeof(List<Field>)), Is.True);
         }
 
         [Test]
@@ -36,7 +29,7 @@ namespace Packata.Core.Tests.Serialization.Yaml
 
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .WithTypeConverter(new FieldConverter())
+                .WithTypeDiscriminatingNodeDeserializer((o) => new FieldTypeDiscriminator().Execute(o))
                 .Build();
 
             var wrapper = deserializer.Deserialize<FieldCollectionWrapper>(yaml);
@@ -46,6 +39,29 @@ namespace Packata.Core.Tests.Serialization.Yaml
             Assert.That(wrapper.Fields[0], Is.TypeOf<StringField>());
             Assert.That(wrapper.Fields[1], Is.TypeOf<NumberField>());
             Assert.That(wrapper.Fields[2], Is.TypeOf<BooleanField>());
+        }
+
+        [Test]
+        public void ReadJson_ValidJsonWithNoType_ReturnsCorrectFieldList()
+        {
+            var yaml = @"
+            fields:
+              - type: ""string""
+                name: ""test""
+              - name: 123
+            ";
+
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .WithTypeDiscriminatingNodeDeserializer((o) => new FieldTypeDiscriminator().Execute(o))
+                .Build();
+
+            var wrapper = deserializer.Deserialize<FieldCollectionWrapper>(yaml);
+
+            Assert.That(wrapper.Fields, Is.Not.Null);
+            Assert.That(wrapper.Fields.Count, Is.EqualTo(2));
+            Assert.That(wrapper.Fields[0], Is.TypeOf<StringField>());
+            Assert.That(wrapper.Fields[1], Is.TypeOf<Field>());
         }
     }
 }
