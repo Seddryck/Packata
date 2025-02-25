@@ -8,6 +8,7 @@ using YamlDotNet.Serialization;
 namespace Packata.Core.Testing.Serialization.Yaml;
 
 public class FieldTypeDiscriminatorTests
+
 {
     private class FieldCollectionWrapper
     {
