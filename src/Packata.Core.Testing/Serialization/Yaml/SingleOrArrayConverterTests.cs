@@ -40,9 +40,12 @@ public class SingleOrArrayConverterTests
 
         Assert.That(wrapper?.Path, Is.Not.Null);
         Assert.That(wrapper.Path, Has.Count.EqualTo(3));
-        Assert.That(wrapper.Path[0], Is.EqualTo("path_01"));
-        Assert.That(wrapper.Path[1], Is.EqualTo("path_02"));
-        Assert.That(wrapper.Path[2], Is.EqualTo("path_03"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(wrapper.Path[0], Is.EqualTo("path_01"));
+            Assert.That(wrapper.Path[1], Is.EqualTo("path_02"));
+            Assert.That(wrapper.Path[2], Is.EqualTo("path_03"));
+        });
     }
 
     [Test]
