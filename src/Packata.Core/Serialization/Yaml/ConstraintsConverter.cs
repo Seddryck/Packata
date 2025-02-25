@@ -6,31 +6,33 @@ using YamlDotNet.Serialization;
 
 namespace Packata.Core.Serialization.Yaml;
 
-internal class ConstraintsConverter : IYamlTypeConverter
-{
-    private readonly ConstraintMapper constraintMapper = new();
-
-    public bool Accepts(Type type)
-        => type == typeof(List<Constraint>);
-
-    public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
+    internal class ConstraintsConverter : IYamlTypeConverter
     {
-        var list = new List<Constraint>();
+        private readonly ConstraintMapper constraintMapper = new();
 
-        parser.Consume<MappingStart>();
+        public bool Accepts(Type type)
+            => type == typeof(List<Constraint>);
 
-        while (parser.TryConsume<Scalar>(out var scalar))
+        public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
         {
+            var list = new List<Constraint>();
+
+            parser.Consume<MappingStart>();
+
+            while (parser.TryConsume<Scalar>(out var scalar))
+            {
             if (parser.TryConsume<Scalar>(out var valueScalar))
                 list.Add(constraintMapper.Map(scalar.Value, valueScalar.Value));
             else
                 throw new YamlException($"Expected scalar value for constraint '{scalar.Value}'");
+            }
+
+            parser.Consume<MappingEnd>();
+            return list;
+
+            throw new YamlException("Unexpected YAML format.");
         }
 
-        parser.Consume<MappingEnd>();
-        return list;
-    }
-
-    public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
+        public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
         => throw new NotImplementedException();
 }
