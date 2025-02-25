@@ -4,50 +4,33 @@ using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 
-namespace Packata.Core.Serialization.Yaml
+namespace Packata.Core.Serialization.Yaml;
+
+internal class ConstraintsConverter : IYamlTypeConverter
 {
-    internal class ConstraintsConverter : IYamlTypeConverter
+    private readonly ConstraintMapper constraintMapper = new();
+
+    public bool Accepts(Type type)
+        => type == typeof(List<Constraint>);
+
+    public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
     {
-        private readonly ConstraintMapper constraintMapper = new();
+        var list = new List<Constraint>();
 
-        public bool Accepts(Type type)
-            => type == typeof(List<Constraint>);
+        parser.Consume<MappingStart>();
 
-        public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
+        while (parser.TryConsume<Scalar>(out var scalar))
         {
-            var list = new List<Constraint>();
-
-            parser.Consume<MappingStart>();
-
-            while (parser.TryConsume<Scalar>(out var scalar))
-            {
-                var value = parser.Consume<Scalar>().Value;
-                list.Add(constraintMapper.Map(scalar.Value, value));
-            }
-
-            parser.Consume<MappingEnd>();
-            return list;
-
-            throw new YamlException("Unexpected YAML format.");
-        }
-
-        public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
-        {
-            var list = (List<string>)(value ?? throw new NullReferenceException());
-
-            if (list.Count == 1)
-            {
-                emitter.Emit(new Scalar(list[0]));
-            }
+            if (parser.TryConsume<Scalar>(out var valueScalar))
+                list.Add(constraintMapper.Map(scalar.Value, valueScalar.Value));
             else
-            {
-                emitter.Emit(new SequenceStart(null, null, false, SequenceStyle.Block));
-                foreach (var item in list)
-                {
-                    emitter.Emit(new Scalar(item));
-                }
-                emitter.Emit(new SequenceEnd());
-            }
+                throw new YamlException($"Expected scalar value for constraint '{scalar.Value}'");
         }
+
+        parser.Consume<MappingEnd>();
+        return list;
     }
+
+    public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
+        => throw new NotImplementedException();
 }

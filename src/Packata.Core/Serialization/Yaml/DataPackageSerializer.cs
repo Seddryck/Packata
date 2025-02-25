@@ -21,7 +21,6 @@ namespace Packata.Core.Serialization.Yaml
                 .WithTypeDiscriminatingNodeDeserializer((o) =>
                     {
                         new FieldTypeDiscriminator().Execute(o);
-                        new ConstraintTypeDiscriminator().Execute(o);
                     })
                 .WithTypeConverter(new MissingValuesConverter())
                 .WithTypeConverter(new SingleOrArrayConverter())

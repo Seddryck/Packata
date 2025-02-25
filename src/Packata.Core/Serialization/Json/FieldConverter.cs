@@ -40,18 +40,5 @@ internal class FieldConverter : JsonConverter
     }
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
-    {
-        if (value is StringField stringField)
-        {
-            serializer.Serialize(writer, stringField);
-        }
-        else if (value is NumberField numberField)
-        {
-            serializer.Serialize(writer, numberField);
-        }
-        else
-        {
-            throw new JsonSerializationException("Unknown Field type.");
-        }
-    }
+        => throw new NotImplementedException();
 }
