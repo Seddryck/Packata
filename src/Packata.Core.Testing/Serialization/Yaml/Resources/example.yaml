@@ -92,13 +92,13 @@ resources:
         minimum: 1
     - name: life_stage
       type: string
-      # categories:
-      # - adult
-      # - subadult
-      # - juvenile
-      # - offspring
-      # - unknown
-      # categoriesOrdered: false
+      categories:
+      - adult
+      - subadult
+      - juvenile
+      - offspring
+      - unknown
+      categoriesOrdered: false
       constraints:
         required: false
     - name: comments

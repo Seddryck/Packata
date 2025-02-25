@@ -382,4 +382,25 @@ public abstract class BaseDataPackageSerializerTests
             Assert.That(schema.Fields[4].Type, Is.EqualTo("string"));
         });
     }
+
+
+    [Test]
+    public void Deserialize_EmbeddedFile_ReturnsCategories()
+    {
+        string resourceName = $"{GetType().Namespace}.Resources.example.{GetFormat()}";
+        using var stream = GetType().Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
+
+        using var streamReader = new StreamReader(stream);
+        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
+        Assert.That(dataPackage.Resources[1].Schema!.Fields[5], Is.Not.Null);
+        var field = dataPackage.Resources[1].Schema!.Fields[5];
+        Assert.Multiple(() =>
+        {
+            Assert.That(field.Categories, Has.Count.EqualTo(5));
+            Assert.That(field.Categories, Is.All.InstanceOf<CategoryLabel>());
+            Assert.That(field.CategoriesOrdered, Is.False);
+        });
+    }
 }
