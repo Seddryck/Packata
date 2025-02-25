@@ -8,7 +8,7 @@ using NUnit.Framework;
 using System.Net.Http;
 using Newtonsoft.Json.Serialization;
 
-namespace Packata.Core.Tests.Serialization.Json
+namespace Packata.Core.Testing.Serialization.Json
 {
     public class SingleOrArrayConverterTests
     {

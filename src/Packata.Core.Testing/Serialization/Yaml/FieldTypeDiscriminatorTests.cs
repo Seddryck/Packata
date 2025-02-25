@@ -5,7 +5,7 @@ using NUnit.Framework;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
 
-namespace Packata.Core.Tests.Serialization.Yaml
+namespace Packata.Core.Testing.Serialization.Yaml
 {
     public class FieldTypeDiscriminatorTests
     {

@@ -25,6 +25,7 @@ namespace Packata.Core.Serialization.Yaml
                 .WithTypeConverter(new MissingValuesConverter())
                 .WithTypeConverter(new SingleOrArrayConverter())
                 .WithTypeConverter(new ConstraintsConverter())
+                .WithTypeConverter(new CategoriesConverter())
                 .IgnoreUnmatchedProperties()
                 .Build();
 

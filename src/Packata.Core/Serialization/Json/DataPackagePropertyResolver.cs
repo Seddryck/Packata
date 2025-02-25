@@ -19,6 +19,7 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
         _converters.Add("fields", new FieldConverter());
         _converters.Add("missingValues", new MissingValuesConverter());
         _converters.Add("constraints", new ConstraintsConverter());
+        _converters.Add("categories", new CategoriesConverter());
         _propertyNameResolver = value =>
         {
             value = value.ToLowerInvariant();
@@ -42,6 +43,8 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
             property.Converter = _converters["missingValues"];
         else if (property.PropertyName == "constraints")
             property.Converter = _converters["constraints"];
+        else if (property.PropertyName == "categories")
+            property.Converter = _converters["categories"];
         return property;
     }
 
