@@ -10,6 +10,7 @@ using Packata.Core.PathHandling;
 using Packata.Core.ResourceReading;
 using Packata.Core.Testing.PathHandling;
 using PocketCsvReader;
+using PocketCsvReader.Configuration;
 using RichardSzalay.MockHttp;
 
 namespace Packata.Core.Testing.ResourceReading;
@@ -34,7 +35,7 @@ public class TableDelimitedReaderTests
     public void ToDataReader_ExistingLocalResource_ReturnsIDataReader(IPath path)
     {
         var resource = new Resource() { Paths = [path], Type = "table", Name = "my-resource" };
-        var csvReader = new CsvReader(new CsvProfile(true));
+        var csvReader = new CsvReaderBuilder().WithDialect(d => d.WithHeader()).Build();
         var reader = new TableDelimitedReader(csvReader);
         var dataReader = reader.ToDataReader(resource);
 
