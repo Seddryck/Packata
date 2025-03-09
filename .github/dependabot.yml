@@ -7,21 +7,7 @@ version: 2
 updates:
   - package-ecosystem: "nuget" 
     directories:
-      - "src/Packata.*.Testing/" 
-    schedule:
-      interval: "daily"
-    labels:
-      - "dependency-update"
-    commit-message:
-      prefix: "chore"
-    groups:
-      ExternalLibs:
-          patterns:
-            - "PocketCsvReader*"
-            - "Chrononuensis*"
-  - package-ecosystem: "nuget" 
-    directories:
-      - "src/Packata.*/" 
+      - "src/*/" 
     schedule:
       interval: "daily"
     labels:
@@ -57,3 +43,7 @@ updates:
       Newtonsoft.Json:
           patterns:
             - "Newtonsoft.Json"
+      ExternalTestingLibs:
+          patterns:
+            - "PocketCsvReader*"
+            - "Chrononuensis*"
