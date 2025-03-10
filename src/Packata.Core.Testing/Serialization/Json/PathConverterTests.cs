@@ -58,8 +58,8 @@ public class PathConverterTests
     [Test]
     public void CanConvert_FieldType_ReturnsTrue()
     {
-        var converter = new SingleOrArrayConverter();
-        Assert.That(converter.CanConvert(typeof(List<string>)), Is.True);
+        var converter = new PathConverter(new HttpClient(), "c:\\");
+        Assert.That(converter.CanConvert(typeof(List<IPath>)), Is.True);
     }
 
     [Test]

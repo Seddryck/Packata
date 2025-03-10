@@ -95,6 +95,15 @@ public partial class Resource
     public List<IPath> Paths { get; set; } = [];
 
     /// <summary>
+    /// A reference to the data for this resource, as a connection-url
+    /// </summary>
+    /// <example>
+    /// "sqlserver://server001/database001/"
+    /// "sqlserver://user:passw0rd@server001/database001/"
+    /// </example>
+    public IConnection? Connection { get; set; }
+
+    /// <summary>
     /// Inline data for the resource.
     /// </summary>
     /// <remarks>Useful for small datasets.</remarks>
