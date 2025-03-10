@@ -25,7 +25,7 @@ public class TableDelimitedReaderBuilderTests
     public void ToDataReader_ExistingLocalResource_ReturnsIDataReader()
     {
         var resource = new Resource() { Paths = [GetPath("a;b;c\n1;2;3\n4;5;6")], Type = "table", Name = "my-resource" };
-        resource.Dialect = new TableDialect() { Delimiter = ';', LineTerminator = "\n" };
+        resource.Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\n" };
         var builder = new TableDelimitedReaderBuilder();
         builder.Configure(resource);
         var reader = builder.Build();
@@ -52,7 +52,7 @@ public class TableDelimitedReaderBuilderTests
     public void ToDataReader_ExistingLocalResourceWithSchema_ReturnsIDataReader(FieldsMatching fieldMatch)
     {
         var resource = new Resource() { Paths = [GetPath("a;b;c;d\n1e2;01-04-2025;0,12;1200.16\n-2 000;01-05-2025;7.010.120,12;1,200.16")], Type = "table", Name = "my-resource" };
-        resource.Dialect = new TableDialect() { Delimiter = ';', LineTerminator = "\n" };
+        resource.Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\n" };
         resource.Schema = new Schema()
         {
             FieldsMatch = fieldMatch,

@@ -20,6 +20,8 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
         _converters.Add("missingValues", new MissingValuesConverter());
         _converters.Add("constraints", new ConstraintsConverter());
         _converters.Add("categories", new CategoriesConverter());
+        _converters.Add("connection", new ConnectionConverter());
+        _converters.Add("dialect", new TableDialectConverter());
         _propertyNameResolver = value =>
         {
             value = value.ToLowerInvariant();
@@ -45,6 +47,10 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
             property.Converter = _converters["constraints"];
         else if (property.PropertyName == "categories")
             property.Converter = _converters["categories"];
+        else if (property.PropertyName == "connection")
+            property.Converter = _converters["connection"];
+        else if (property.PropertyName == "dialect")
+            property.Converter = _converters["dialect"];
         return property;
     }
 

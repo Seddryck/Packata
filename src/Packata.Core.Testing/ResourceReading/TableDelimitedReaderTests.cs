@@ -64,7 +64,7 @@ public class TableDelimitedReaderTests
             Paths = [new LocalPath(fileSystem.Object, "", "my-resource-path")],
             Type = "table",
             Name = "my-resource",
-            Dialect = new TableDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
+            Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
             Schema = new Schema()
             {
                 Fields = [
@@ -105,7 +105,7 @@ public class TableDelimitedReaderTests
             Paths = [new LocalPath(fileSystem.Object, "", "my-resource-path")],
             Type = "table",
             Name = "my-resource",
-            Dialect = new TableDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
+            Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
             Schema = new Schema()
             {
                 Fields = [

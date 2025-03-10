@@ -7,12 +7,12 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Packata.Core.Validation;
-public class TableDialectValidator : IValidator<TableDialect>
+public class TableDialectValidator : IValidator<TableDelimitedDialect>
 {
-    public bool IsValid(TableDialect tableDialect)
+    public bool IsValid(TableDelimitedDialect tableDialect)
         => IsEscapeOrQuote(tableDialect, out var _) && IsHeaderCoherent(tableDialect, out var _);
 
-    protected virtual bool IsEscapeOrQuote(TableDialect TableDialect, out Exception? exception)
+    protected virtual bool IsEscapeOrQuote(TableDelimitedDialect TableDialect, out Exception? exception)
     {
         exception = TableDialect.EscapeChar is not null
                         && (TableDialect.QuoteChar is not null
@@ -22,7 +22,7 @@ public class TableDialectValidator : IValidator<TableDialect>
         return exception is null;
     }
 
-    protected virtual bool IsHeaderCoherent(TableDialect TableDialect, out Exception? exception)
+    protected virtual bool IsHeaderCoherent(TableDelimitedDialect TableDialect, out Exception? exception)
     {
         exception = (TableDialect.Header && (TableDialect.HeaderRows is null || TableDialect.HeaderRows.Count() == 0))
                     || (!TableDialect.Header && (TableDialect.HeaderRows is not null && TableDialect.HeaderRows.Count() > 0))

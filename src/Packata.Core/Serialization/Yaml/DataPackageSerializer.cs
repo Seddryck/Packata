@@ -21,11 +21,13 @@ namespace Packata.Core.Serialization.Yaml
                 .WithTypeDiscriminatingNodeDeserializer((o) =>
                     {
                         new FieldTypeDiscriminator().Execute(o);
+                        new TableDialectTypeDiscriminator().Execute(o);
                     })
                 .WithTypeConverter(new MissingValuesConverter())
                 .WithTypeConverter(new SingleOrArrayConverter())
                 .WithTypeConverter(new ConstraintsConverter())
                 .WithTypeConverter(new CategoriesConverter())
+                .WithTypeConverter(new ConnectionConverter())
                 .IgnoreUnmatchedProperties()
                 .Build();
 

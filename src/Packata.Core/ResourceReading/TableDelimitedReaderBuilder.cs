@@ -39,7 +39,7 @@ public class TableDelimitedReaderBuilder : IResourceReaderBuilder
 
         if (resource.Dialect is not null)
         {
-            var dialect = resource.Dialect;
+            var dialect = resource.Dialect as TableDelimitedDialect ?? throw new InvalidOperationException();
             dialectBuilder.WithDelimiter(dialect.Delimiter)
                 .WithLineTerminator(dialect.LineTerminator)
                 .WithQuoteChar(dialect.QuoteChar)

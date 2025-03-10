@@ -16,7 +16,7 @@ public class TableDialectValidatorTests
     public void IsValid_EscapeAndQuote_ReturnsFalse(char? escape, char? quote, bool doubleQuote)
     {
         var validator = new TableDialectValidator();
-        var tableDialect = new TableDialect() {EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote};
+        var tableDialect = new TableDelimitedDialect() {EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote};
         Assert.That(validator.IsValid(tableDialect), Is.False);
     }
 
@@ -27,7 +27,7 @@ public class TableDialectValidatorTests
     public void IsValid_EscapeAndQuote_ReturnsTrue(char? escape, char? quote, bool doubleQuote)
     {
         var validator = new TableDialectValidator();
-        var TableDialect = new TableDialect() { EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote };
+        var TableDialect = new TableDelimitedDialect() { EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote };
         Assert.That(validator.IsValid(TableDialect), Is.True);
     }
 
@@ -37,7 +37,7 @@ public class TableDialectValidatorTests
     public void IsValid_IsHeaderCoherent_ReturnsFalse(bool header, params int[] headerRows)
     {
         var validator = new TableDialectValidator();
-        var tableDialect = new TableDialect() { Header = header, HeaderRows = [.. headerRows] };
+        var tableDialect = new TableDelimitedDialect() { Header = header, HeaderRows = [.. headerRows] };
         Assert.That(validator.IsValid(tableDialect), Is.False);
     }
 
@@ -47,7 +47,7 @@ public class TableDialectValidatorTests
     public void IsValid_IsHeaderCoherent_ReturnsTrue(bool header, params int[] headerRows)
     {
         var validator = new TableDialectValidator();
-        var tableDialect = new TableDialect() { Header = header, HeaderRows = [.. headerRows] };
+        var tableDialect = new TableDelimitedDialect() { Header = header, HeaderRows = [.. headerRows] };
         Assert.That(validator.IsValid(tableDialect), Is.True);
     }
 }

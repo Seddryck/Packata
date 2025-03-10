@@ -39,7 +39,6 @@ public partial class Resource
     /// <example>"This is a description of the resource."</example>
     public string? Description { get; set; }
 
-
     /// <summary>
     /// The type of the resource.
     /// </summary>
