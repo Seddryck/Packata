@@ -21,6 +21,16 @@ public class ResourceReaderFactoryTests
     }
 
     [Test]
+    public void Create_TableDatabase_ReturnsTableDatabaseReader()
+    {
+        var resource = new Resource() { Type = "table", Dialect = new TableDatabaseDialect() { Type = "database" } };
+
+        var factory = new ResourceReaderFactory();
+        var reader = factory.Create(resource);
+        Assert.That(reader, Is.InstanceOf<TableDatabaseReader>());
+    }
+
+    [Test]
     public void AddOrReplaceReader_NewTableDelimited_ReturnsTableDelimitedReader()
     {
         var resource = new Resource() { Type = "table", Dialect = new TableDelimitedDialect() { Type = "delimited" } };

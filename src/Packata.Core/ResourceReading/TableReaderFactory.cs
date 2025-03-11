@@ -28,6 +28,7 @@ internal class TableReaderFactory : IResourceReaderFactory
     public TableReaderFactory()
     {
         AddOrReplaceReader(Delimited, new TableDelimitedReaderBuilder());
+        AddOrReplaceReader(Database, new TableDatabaseReaderBuilder());
         Heuristic = resource => resource.Dialect?.Type ?? Delimited;
     }
 
