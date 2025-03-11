@@ -17,14 +17,13 @@ internal class RuntimeTypeMapper
 
         public string Type { get; set; }
         public string? Format { get; set; }
-
         public bool Equals(TypeFormat other)
             => Type == other.Type && (Format == other.Format
                     || (other.Format is null && Format is null)
             );
     }
 
-    private Dictionary<TypeFormat, Type> _mappings = new();
+    private Dictionary<TypeFormat, Type> Mappings { get; } = [];
 
     public RuntimeTypeMapper()
     {
@@ -55,8 +54,8 @@ internal class RuntimeTypeMapper
     public void Register(string type, string? format, Type runtimeType)
     {
         var key = new TypeFormat(type, format);
-        if (!_mappings.TryAdd(key, runtimeType))
-            _mappings[key] = runtimeType;
+        if (!Mappings.TryAdd(key, runtimeType))
+            Mappings[key] = runtimeType;
     }
 
 
@@ -65,9 +64,9 @@ internal class RuntimeTypeMapper
         if (type is not null)
         {
             var key = new TypeFormat(type, format);
-            if (_mappings.TryGetValue(key, out var runtimeType))
+            if (Mappings.TryGetValue(key, out var runtimeType))
                 return runtimeType;
-            else if (_mappings.TryGetValue(new TypeFormat(type, null), out runtimeType))
+            else if (Mappings.TryGetValue(new TypeFormat(type, null), out runtimeType))
                 return runtimeType;
         }
         return typeof(object);

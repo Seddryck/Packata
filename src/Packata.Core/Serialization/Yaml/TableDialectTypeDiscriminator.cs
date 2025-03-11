@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using YamlDotNet.Serialization.BufferedDeserialization;
 
 namespace Packata.Core.Serialization.Yaml;
-internal class TableDialectTypeDiscriminator
+internal class TableDialectTypeDiscriminator : ITypeDiscriminator
 {
     private static Dictionary<string, Type> GetValueMappings()
         => new()

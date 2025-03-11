@@ -10,19 +10,20 @@ using Newtonsoft.Json.Serialization;
 namespace Packata.Core.Serialization.Json;
 internal class DataPackagePropertyResolver : DefaultContractResolver
 {
-    private readonly Dictionary<string, JsonConverter> _converters = new();
-    private readonly Func<string, string> _propertyNameResolver;
+    private Dictionary<string, JsonConverter> Converters { get; } = [];
+    private Func<string, string> PropertyNameResolver { get; }
 
     public DataPackagePropertyResolver(HttpClient httpClient, string root)
     {
-        _converters.Add("path", new PathConverter(httpClient, root));
-        _converters.Add("fields", new FieldConverter());
-        _converters.Add("missingValues", new MissingValuesConverter());
-        _converters.Add("constraints", new ConstraintsConverter());
-        _converters.Add("categories", new CategoriesConverter());
-        _converters.Add("connection", new ConnectionConverter());
-        _converters.Add("dialect", new TableDialectConverter());
-        _propertyNameResolver = value =>
+        Converters.Add("resources", new ResourcesConverter(root));
+        Converters.Add("path", new PathConverter(httpClient, root));
+        Converters.Add("fields", new FieldConverter());
+        Converters.Add("missingValues", new MissingValuesConverter());
+        Converters.Add("constraints", new ConstraintsConverter());
+        Converters.Add("categories", new CategoriesConverter());
+        Converters.Add("connection", new ConnectionConverter());
+        Converters.Add("dialect", new TableDialectConverter());
+        PropertyNameResolver = value =>
         {
             value = value.ToLowerInvariant();
             value = value == "profile" ? "$schema" : value;
@@ -35,25 +36,27 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
     {
         var property = base.CreateProperty(member, memberSerialization);
 
-        if (property.PropertyName == "path" && property.PropertyType == typeof(List<IPath>))
-            property.Converter = _converters["path"];
+        if (property.PropertyName == "resources" && property.PropertyType == typeof(List<Resource>))
+            property.Converter = Converters["resources"];
+        else if (property.PropertyName == "path" && property.PropertyType == typeof(List<IPath>))
+            property.Converter = Converters["path"];
         else if (property.PropertyName == "path" && property.PropertyType == typeof(List<string>))
             property.Converter = new SingleOrArrayConverter();
         else if (property.PropertyName == "fields" && property.PropertyType == typeof(List<Field>))
-            property.Converter = _converters["fields"];
+            property.Converter = Converters["fields"];
         else if (property.PropertyName == "missingvalues")
-            property.Converter = _converters["missingValues"];
+            property.Converter = Converters["missingValues"];
         else if (property.PropertyName == "constraints")
-            property.Converter = _converters["constraints"];
+            property.Converter = Converters["constraints"];
         else if (property.PropertyName == "categories")
-            property.Converter = _converters["categories"];
+            property.Converter = Converters["categories"];
         else if (property.PropertyName == "connection")
-            property.Converter = _converters["connection"];
+            property.Converter = Converters["connection"];
         else if (property.PropertyName == "dialect")
-            property.Converter = _converters["dialect"];
+            property.Converter = Converters["dialect"];
         return property;
     }
 
     protected override string ResolvePropertyName(string propertyName)
-        => _propertyNameResolver(propertyName);
+        => PropertyNameResolver(propertyName);
 }

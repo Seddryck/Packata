@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Chrononuensis;
 using DubUrl;
 using DubUrl.Mapping;
+using DubUrl.Querying.Dialects;
+using DubUrl.Querying.Dialects.Renderers;
 using Moq;
 using NUnit.Framework;
 using Packata.Core.PathHandling;
@@ -37,8 +39,15 @@ public class TableDatabaseReaderTests
         var mockConnection = new Mock<IDbConnection>();
         mockConnection.Setup(x => x.CreateCommand()).Returns(mockCommand.Object);
 
+        var mockRenderer = new Mock<IRenderer>();
+        mockRenderer.Setup(x => x.Render(It.IsAny<string>(), It.IsAny<string>())).Returns("Customer");
+
+        var mockDialect = new Mock<IDialect>();
+        mockDialect.SetupGet(x => x.Renderer).Returns(mockRenderer.Object);
+
         var mockConnectionUrl = new Mock<ConnectionUrl>(It.IsAny<string>());
         mockConnectionUrl.Setup(x => x.Open()).Returns(mockConnection.Object);
+        mockConnectionUrl.SetupGet(x => x.Dialect).Returns(mockDialect.Object);
 
         var mockFactory = new Mock<ConnectionUrlFactory>(new SchemeMapperBuilder());
         mockFactory.Setup(x => x.Instantiate(It.IsAny<string>())).Returns(mockConnectionUrl.Object);

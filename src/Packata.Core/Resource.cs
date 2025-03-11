@@ -11,6 +11,18 @@ namespace Packata.Core;
 
 public partial class Resource
 {
+    public Resource()
+        => RootPath = string.Empty;
+
+    public Resource(string rootPath)
+        => RootPath = rootPath;
+
+    /// <summary>
+    /// The root path of the data package.
+    /// </summary> 
+    public string RootPath { get; }
+
+
     /// <summary>
     /// Returns a IDataReader for the resource.
     /// </summary>

@@ -14,6 +14,7 @@ namespace Packata.Core.ResourceReading;
 public class TableDatabaseReaderBuilder : IResourceReaderBuilder
 {
     private readonly ProviderFactoriesRegistrator providerFactories;
+    private string? RootPath { get; set; }
 
     public TableDatabaseReaderBuilder()
         : this(new ProviderFactoriesRegistrator())
@@ -25,8 +26,9 @@ public class TableDatabaseReaderBuilder : IResourceReaderBuilder
     public void Configure(Resource resource)
     {
         providerFactories.Register();
+        RootPath = resource.RootPath;
     }
 
     public IResourceReader Build()
-        => new TableDatabaseReader();
+        => new TableDatabaseReader(RootPath ?? throw new InvalidOperationException());
 }

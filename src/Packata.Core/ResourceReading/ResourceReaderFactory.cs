@@ -8,7 +8,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace Packata.Core.ResourceReading;
 public class ResourceReaderFactory
 {
-    private Dictionary<string, IResourceReaderFactory> Factories { get; } = new();
+    private Dictionary<string, IResourceReaderFactory> Factories { get; } = [];
 
     public ResourceReaderFactory()
     {
@@ -18,21 +18,21 @@ public class ResourceReaderFactory
     public void AddOrReplaceReader(string type, string subType, IResourceReaderBuilder builder)
     {
         if (!Factories.TryGetValue(type, out var factory))
-            throw new ArgumentOutOfRangeException();
+            throw new ArgumentOutOfRangeException(nameof(type));
         factory.AddOrReplaceReader(subType, builder);
     }
 
     public void SetHeuristic(string type, Func<Resource, string> heuristic)
     {
         if (!Factories.TryGetValue(type, out var factory))
-            throw new ArgumentOutOfRangeException();
+            throw new ArgumentOutOfRangeException(nameof(type));
         factory.SetHeuristic(heuristic);
     }
 
     public IResourceReader Create(Resource resource)
     {
         if (!Factories.TryGetValue(resource.Type ?? "table", out var factory))
-            throw new ArgumentOutOfRangeException();
+            throw new ArgumentOutOfRangeException(nameof(resource));
         return factory.Create(resource);
     }
 }

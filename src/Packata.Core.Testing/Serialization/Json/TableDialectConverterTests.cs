@@ -10,57 +10,11 @@ using Newtonsoft.Json.Serialization;
 
 namespace Packata.Core.Testing.Serialization.Json;
 
-public class TableDialectConverterTests
+internal class TableDialectConverterTests : BaseConverterTests<TableDialectConverter, TableDialect>
 {
-    private readonly JsonSerializerSettings _settings;
-
     public TableDialectConverterTests()
-    {
-        _settings = new JsonSerializerSettings
-        {
-            Converters = new List<JsonConverter> { new ConnectionConverter() },
-            ContractResolver = new FieldsPropertyResolver()
-        };
-    }
-
-    private class FieldsPropertyResolver : DefaultContractResolver
-    {
-        private readonly Dictionary<string, JsonConverter> _converters = new();
-        private readonly Func<string, string> _propertyNameResolver;
-
-        public FieldsPropertyResolver()
-        {
-            _converters.Add("dialect", new TableDialectConverter());
-            _propertyNameResolver = value =>
-            {
-                return value.ToLowerInvariant();
-            };
-        }
-
-        protected override JsonProperty CreateProperty(System.Reflection.MemberInfo member, MemberSerialization memberSerialization)
-        {
-            var property = base.CreateProperty(member, memberSerialization);
-
-            if (property.PropertyName == "dialect" && property.PropertyType == typeof(TableDialect))
-                property.Converter = new TableDialectConverter();
-            return property;
-        }
-
-        protected override string ResolvePropertyName(string propertyName)
-            => _propertyNameResolver(propertyName);
-    }
-
-    private class TableDialectWrapper
-    {
-        public TableDialect? Dialect { get; set; }
-    }
-
-    [Test]
-    public void CanConvert_FieldType_ReturnsTrue()
-    {
-        var converter = new TableDialectConverter();
-        Assert.That(converter.CanConvert(typeof(TableDialect)), Is.True);
-    }
+        : base("dialect")
+    { }
 
     [Test]
     public void ReadJson_TypeDelimited_ReturnsDelimited()
@@ -71,12 +25,16 @@ public class TableDialectConverterTests
                 ""type"": ""delimited"",
                 ""delimiter"": "";""
             }}";
-        var wrapper = JsonConvert.DeserializeObject<TableDialectWrapper>(json, _settings);
+        var wrapper = JsonConvert.DeserializeObject<Wrapper>(json, Settings);
 
-        Assert.That(wrapper?.Dialect, Is.Not.Null);
-        Assert.That(wrapper.Dialect, Is.TypeOf<TableDelimitedDialect>());
-        var delimitedDialect = (TableDelimitedDialect)wrapper.Dialect;
-        Assert.That(delimitedDialect.Delimiter, Is.EqualTo(';'));
+        Assert.That(wrapper?.Object, Is.Not.Null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Is.TypeOf<TableDelimitedDialect>());
+            var delimitedDialect = (TableDelimitedDialect)wrapper.Object!;
+            Assert.That(delimitedDialect.Delimiter, Is.EqualTo(';'));
+        }
     }
 
     [Test]
@@ -87,12 +45,15 @@ public class TableDialectConverterTests
                 ""$schema"": ""https://datapackage.org/profiles/2.0/tabledialect.json"",
                 ""delimiter"": "";""
             }}";
-        var wrapper = JsonConvert.DeserializeObject<TableDialectWrapper>(json, _settings);
+        var wrapper = JsonConvert.DeserializeObject<Wrapper>(json, Settings);
 
-        Assert.That(wrapper?.Dialect, Is.Not.Null);
-        Assert.That(wrapper.Dialect, Is.TypeOf<TableDelimitedDialect>());
-        var delimitedDialect = (TableDelimitedDialect)wrapper.Dialect;
-        Assert.That(delimitedDialect.Delimiter, Is.EqualTo(';'));
+        Assert.That(wrapper?.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Is.TypeOf<TableDelimitedDialect>());
+            var delimitedDialect = (TableDelimitedDialect)wrapper.Object!;
+            Assert.That(delimitedDialect.Delimiter, Is.EqualTo(';'));
+        }
     }
 
     [Test]
@@ -104,11 +65,14 @@ public class TableDialectConverterTests
                 ""type"": ""database"",
                 ""table"": ""Customer""
             }}";
-        var wrapper = JsonConvert.DeserializeObject<TableDialectWrapper>(json, _settings);
+        var wrapper = JsonConvert.DeserializeObject<Wrapper>(json, Settings);
 
-        Assert.That(wrapper?.Dialect, Is.Not.Null);
-        Assert.That(wrapper.Dialect, Is.TypeOf<TableDatabaseDialect>());
-        var dbDialect = (TableDatabaseDialect)wrapper.Dialect;
-        Assert.That(dbDialect.Table, Is.EqualTo("Customer"));
+        Assert.That(wrapper?.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Is.TypeOf<TableDatabaseDialect>());
+            var dbDialect = (TableDatabaseDialect)wrapper.Object!;
+            Assert.That(dbDialect.Table, Is.EqualTo("Customer"));
+        }
     }
 }

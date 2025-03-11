@@ -7,13 +7,11 @@ using YamlDotNet.Serialization;
 
 namespace Packata.Core.Testing.Serialization.Yaml;
 
-public class FieldTypeDiscriminatorTests
-
+internal class FieldTypeDiscriminatorTests : BaseTypeDiscriminatorTests<FieldTypeDiscriminator, List<Field>>
 {
-    private class FieldCollectionWrapper
-    {
-        public List<Field>? Fields { get; set; }
-    }
+    public FieldTypeDiscriminatorTests()
+        : base("fields")
+    { }
 
     [Test]
     public void ReadJson_ValidJson_ReturnsCorrectFieldList()
@@ -28,18 +26,16 @@ public class FieldTypeDiscriminatorTests
                 name: true
             ";
 
-        var deserializer = new DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .WithTypeDiscriminatingNodeDeserializer((o) => new FieldTypeDiscriminator().Execute(o))
-            .Build();
+        var wrapper = Deserializer.Deserialize<Wrapper>(yaml);
 
-        var wrapper = deserializer.Deserialize<FieldCollectionWrapper>(yaml);
-
-        Assert.That(wrapper.Fields, Is.Not.Null);
-        Assert.That(wrapper.Fields.Count, Is.EqualTo(3));
-        Assert.That(wrapper.Fields[0], Is.TypeOf<StringField>());
-        Assert.That(wrapper.Fields[1], Is.TypeOf<NumberField>());
-        Assert.That(wrapper.Fields[2], Is.TypeOf<BooleanField>());
+        Assert.That(wrapper.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Has.Count.EqualTo(3));
+            Assert.That(wrapper.Object[0], Is.TypeOf<StringField>());
+            Assert.That(wrapper.Object[1], Is.TypeOf<NumberField>());
+            Assert.That(wrapper.Object[2], Is.TypeOf<BooleanField>());
+        }
     }
 
     [Test]
@@ -52,16 +48,14 @@ public class FieldTypeDiscriminatorTests
               - name: 123
             ";
 
-        var deserializer = new DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .WithTypeDiscriminatingNodeDeserializer((o) => new FieldTypeDiscriminator().Execute(o))
-            .Build();
+        var wrapper = Deserializer.Deserialize<Wrapper>(yaml);
 
-        var wrapper = deserializer.Deserialize<FieldCollectionWrapper>(yaml);
-
-        Assert.That(wrapper.Fields, Is.Not.Null);
-        Assert.That(wrapper.Fields.Count, Is.EqualTo(2));
-        Assert.That(wrapper.Fields[0], Is.TypeOf<StringField>());
-        Assert.That(wrapper.Fields[1], Is.TypeOf<Field>());
+        Assert.That(wrapper.Object, Is.Not.Null);
+        Assert.That(wrapper.Object, Has.Count.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object[0], Is.TypeOf<StringField>());
+            Assert.That(wrapper.Object[1], Is.TypeOf<Field>());
+        }
     }
 }

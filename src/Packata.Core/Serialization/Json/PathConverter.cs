@@ -9,11 +9,11 @@ using Packata.Core.PathHandling;
 namespace Packata.Core.Serialization.Json;
 internal class PathConverter : JsonConverter
 {
-    private HttpClient _httpClient;
-    private string _root;
+    private readonly HttpClient httpClient;
+    private readonly string root;
 
     public PathConverter(HttpClient httpClient, string root)
-        => (_httpClient, _root) = (httpClient, root);
+        => (this.httpClient, this.root) = (httpClient, root);
 
     public override bool CanConvert(Type objectType)
         => typeof(List<IPath>).IsAssignableFrom(objectType);
@@ -49,7 +49,7 @@ internal class PathConverter : JsonConverter
     }
 
     private IPath BuildPath(string value)
-        => value.Contains("://") ? new HttpPath(_httpClient, value) : new LocalPath(_root, value);
+        => value.Contains("://") ? new HttpPath(httpClient, value) : new LocalPath(root, value);
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         => throw new NotImplementedException();

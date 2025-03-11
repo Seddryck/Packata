@@ -11,8 +11,8 @@ internal class TableDatabaseReader : IResourceReader
 {
     private readonly ConnectionUrlFactory connectionUrlFactory;
 
-    public TableDatabaseReader()
-        : this(new ConnectionUrlFactory(new DubUrl.Mapping.SchemeMapperBuilder()))
+    public TableDatabaseReader(string rootPath)
+        : this(new ConnectionUrlFactory(new DubUrl.Mapping.SchemeMapperBuilder(rootPath)))
     { }
 
     public TableDatabaseReader(ConnectionUrlFactory connectionUrlFactory)
@@ -20,14 +20,14 @@ internal class TableDatabaseReader : IResourceReader
 
     public IDataReader ToDataReader(Resource resource)
     {
-        var url = resource.Connection?.ConnectionUrl ?? throw new ArgumentException();
+        var url = resource.Connection?.ConnectionUrl ?? throw new ArgumentException("Connection is not specified", nameof(resource));
         var dialect = (resource.Dialect as TableDatabaseDialect) ?? throw new InvalidOperationException();
 
         var connectionUrl = connectionUrlFactory.Instantiate(url);
         using (var connection = connectionUrl.Open())
         {
             var command = connection.CreateCommand();
-            command.CommandText = $"SELECT * FROM {dialect.Table}";
+            command.CommandText = $"SELECT * FROM {connectionUrl.Dialect.Renderer.Render(dialect.Table, "identity")}";
             return command.ExecuteReader();
         }
     }

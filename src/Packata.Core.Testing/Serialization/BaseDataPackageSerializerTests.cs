@@ -239,28 +239,36 @@ public abstract class BaseDataPackageSerializerTests
         var schema = dataPackage.Resources[0].Schema!;
 
         Assert.That(schema.PrimaryKey, Has.Count.EqualTo(1));
-        Assert.That(schema.PrimaryKey[0], Is.EqualTo("name"));
-
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(schema.PrimaryKey[0], Is.EqualTo("name"));
+        }
         Assert.That(schema.UniqueKeys, Has.Count.EqualTo(2));
-        Assert.That(schema.UniqueKeys[0], Has.Count.EqualTo(1));
-        Assert.That(schema.UniqueKeys[0][0], Is.EqualTo("name"));
-        Assert.That(schema.UniqueKeys[1], Has.Count.EqualTo(2));
-        Assert.That(schema.UniqueKeys[1], Does.Contain("fk"));
-        Assert.That(schema.UniqueKeys[1], Does.Contain("info"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(schema.UniqueKeys[0], Has.Count.EqualTo(1));
+            Assert.That(schema.UniqueKeys[0][0], Is.EqualTo("name"));
+            Assert.That(schema.UniqueKeys[1], Has.Count.EqualTo(2));
+            Assert.That(schema.UniqueKeys[1], Does.Contain("fk"));
+            Assert.That(schema.UniqueKeys[1], Does.Contain("info"));
+        }
 
         Assert.That(schema.ForeignKeys, Has.Count.EqualTo(2));
-        Assert.That(schema.ForeignKeys[0].Fields, Has.Count.EqualTo(1));
-        Assert.That(schema.ForeignKeys[0].Fields[0], Is.EqualTo("fk"));
-        Assert.That(schema.ForeignKeys[0].Reference, Is.Not.Null);
-        Assert.That(schema.ForeignKeys[0].Reference.Resource, Is.EqualTo("other.csv"));
-        Assert.That(schema.ForeignKeys[0].Reference.Fields, Has.Count.EqualTo(1));
-        Assert.That(schema.ForeignKeys[0].Reference.Fields[0], Is.EqualTo("id"));
-        Assert.That(schema.ForeignKeys[1].Fields, Has.Count.EqualTo(1));
-        Assert.That(schema.ForeignKeys[1].Fields[0], Is.EqualTo("parent"));
-        Assert.That(schema.ForeignKeys[1].Reference, Is.Not.Null);
-        Assert.That(schema.ForeignKeys[1].Reference.Resource, Is.Null);
-        Assert.That(schema.ForeignKeys[1].Reference.Fields, Has.Count.EqualTo(1));
-        Assert.That(schema.ForeignKeys[1].Reference.Fields[0], Is.EqualTo("name"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(schema.ForeignKeys[0].Fields, Has.Count.EqualTo(1));
+            Assert.That(schema.ForeignKeys[0].Fields[0], Is.EqualTo("fk"));
+            Assert.That(schema.ForeignKeys[0].Reference, Is.Not.Null);
+            Assert.That(schema.ForeignKeys[0].Reference!.Resource, Is.EqualTo("other.csv"));
+            Assert.That(schema.ForeignKeys[0].Reference!.Fields, Has.Count.EqualTo(1));
+            Assert.That(schema.ForeignKeys[0].Reference!.Fields[0], Is.EqualTo("id"));
+            Assert.That(schema.ForeignKeys[1].Fields, Has.Count.EqualTo(1));
+            Assert.That(schema.ForeignKeys[1].Fields[0], Is.EqualTo("parent"));
+            Assert.That(schema.ForeignKeys[1].Reference, Is.Not.Null);
+            Assert.That(schema.ForeignKeys[1].Reference!.Resource, Is.Null);
+            Assert.That(schema.ForeignKeys[1].Reference!.Fields, Has.Count.EqualTo(1));
+            Assert.That(schema.ForeignKeys[1].Reference!.Fields[0], Is.EqualTo("name"));
+        }
     }
 
 

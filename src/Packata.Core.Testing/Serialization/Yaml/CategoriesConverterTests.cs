@@ -5,51 +5,41 @@ using NUnit.Framework;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
 
-namespace Packata.Core.Testing.Serialization.Yaml
+namespace Packata.Core.Testing.Serialization.Yaml;
+
+internal class CategoriesConverterTests : BaseConverterTests<CategoriesConverter, List<ICategory>>
 {
-    public class CategoriesConverterTests
+    public CategoriesConverterTests()
+        : base("categories")
+    { }
+
+    [Test]
+    public void ReadJson_ValidYamlArray_ReturnsCorrectPathList()
     {
-        private class CategoriesWrapper
-        {
-            public List<ICategory>? Categories { get; set; }
-        }
-
-        [Test]
-        public void Accepts_FieldType_ReturnsTrue()
-        {
-            var converter = new CategoriesConverter();
-            Assert.That(converter.Accepts(typeof(List<ICategory>)), Is.True);
-        }
-
-        [Test]
-        public void ReadJson_ValidYamlArray_ReturnsCorrectPathList()
-        {
-            var yaml = @"
+        var yaml = @"
             categories:
               - apple
               - orange
               - banana
             ";
 
-            var deserializer = new DeserializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .WithTypeConverter(new CategoriesConverter())
-                .Build();
+        var wrapper = Deserializer.Deserialize<Wrapper>(yaml);
 
-            var wrapper = deserializer.Deserialize<CategoriesWrapper>(yaml);
-
-            Assert.That(wrapper?.Categories, Is.Not.Null);
-            Assert.That(wrapper.Categories, Has.Count.EqualTo(3));
-            Assert.That(wrapper.Categories, Is.All.InstanceOf<CategoryLabel>());
-            Assert.That(wrapper.Categories[0].Label, Is.EqualTo("apple"));
-            Assert.That(wrapper.Categories[1].Label, Is.EqualTo("orange"));
-            Assert.That(wrapper.Categories[2].Label, Is.EqualTo("banana"));
-        }
-
-        [Test]
-        public void ReadJson_ValidYamlValue_ReturnsCorrectPathList()
+        Assert.That(wrapper?.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
         {
-            var yaml = @"
+            Assert.That(wrapper.Object, Has.Count.EqualTo(3));
+            Assert.That(wrapper.Object, Is.All.InstanceOf<CategoryLabel>());
+            Assert.That(wrapper.Object[0].Label, Is.EqualTo("apple"));
+            Assert.That(wrapper.Object[1].Label, Is.EqualTo("orange"));
+            Assert.That(wrapper.Object[2].Label, Is.EqualTo("banana"));
+        }
+    }
+
+    [Test]
+    public void ReadJson_ValidYamlValue_ReturnsCorrectPathList()
+    {
+        var yaml = @"
             categories:
               - value: 0
                 label: apple
@@ -59,22 +49,19 @@ namespace Packata.Core.Testing.Serialization.Yaml
                 label: banana
             ";
 
-            var deserializer = new DeserializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .WithTypeConverter(new CategoriesConverter())
-                .Build();
+        var wrapper = Deserializer.Deserialize<Wrapper>(yaml);
 
-            var wrapper = deserializer.Deserialize<CategoriesWrapper>(yaml);
-
-            Assert.That(wrapper?.Categories, Is.Not.Null);
-            Assert.That(wrapper.Categories, Has.Count.EqualTo(3));
-            Assert.That(wrapper.Categories, Is.All.InstanceOf<Category>());
-            Assert.That(wrapper.Categories[0].Label, Is.EqualTo("apple"));
-            Assert.That(wrapper.Categories[1].Label, Is.EqualTo("orange"));
-            Assert.That(wrapper.Categories[2].Label, Is.EqualTo("banana"));
-            Assert.That(((Category)wrapper.Categories[0]).Value, Is.EqualTo(0));
-            Assert.That(((Category)wrapper.Categories[1]).Value, Is.EqualTo(1));
-            Assert.That(((Category)wrapper.Categories[2]).Value, Is.EqualTo(2));
+        Assert.That(wrapper?.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Has.Count.EqualTo(3));
+            Assert.That(wrapper.Object, Is.All.InstanceOf<Category>());
+            Assert.That(wrapper.Object[0].Label, Is.EqualTo("apple"));
+            Assert.That(wrapper.Object[1].Label, Is.EqualTo("orange"));
+            Assert.That(wrapper.Object[2].Label, Is.EqualTo("banana"));
+            Assert.That(((Category)wrapper.Object[0]).Value, Is.EqualTo(0));
+            Assert.That(((Category)wrapper.Object[1]).Value, Is.EqualTo(1));
+            Assert.That(((Category)wrapper.Object[2]).Value, Is.EqualTo(2));
         }
     }
 }
