@@ -8,26 +8,26 @@ using NUnit.Framework;
 using Packata.Core.Serialization.Json;
 
 namespace Packata.Core.Testing.Serialization.Json;
-public class MissingValuesConverterTest
+internal class MissingValuesConverterTest : BaseConverterTests<MissingValuesConverter, List<MissingValue>>
 {
-    private class MissingValuesWrapper
-    {
-        public string Id { get; set; } = string.Empty;
-        public List<MissingValue>? MissingValues { get; set; }
-    }
+    public MissingValuesConverterTest()
+        : base("missingValues")
+    { }
 
     [Test]
-    [TestCase(@"{ ""id"": ""1"", ""missingValues"": ["""", ""NA"", ""NaN""] }")]
-    [TestCase(@"{ ""id"": ""2"", ""missingValues"": [ { ""value"": """", ""label"": ""blue""}, { ""value"": ""NA"", ""label"": ""blue""},  { ""value"": ""NaN"", ""label"": ""red""}] }")]
-    public void Debug(string json)
+    [TestCase(@"{ ""missingValues"": ["""", ""NA"", ""NaN""] }")]
+    [TestCase(@"{ ""missingValues"": [ { ""value"": """", ""label"": ""blue""}, { ""value"": ""NA"", ""label"": ""blue""},  { ""value"": ""NaN"", ""label"": ""red""}] }")]
+    public void DeserializeObject_MissingValues_Expected(string json)
     {
-        var settings = new JsonSerializerSettings();
-        settings.Converters.Add(new MissingValuesConverter());
+        var wrapper = JsonConvert.DeserializeObject<Wrapper>(json, Settings);
 
-        var result = JsonConvert.DeserializeObject<MissingValuesWrapper>(json, settings);
-        Assert.That(result!.MissingValues, Has.Count.EqualTo(3));
-        Assert.That(result!.MissingValues, Has.One.Property(nameof(MissingValue.Value)).EqualTo("NaN"));
-        Assert.That(result!.MissingValues, Has.One.Property(nameof(MissingValue.Value)).EqualTo(string.Empty));
-        Assert.That(result!.MissingValues, Has.One.Property(nameof(MissingValue.Value)).EqualTo("NA"));
+        Assert.That(wrapper!.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Has.Count.EqualTo(3));
+            Assert.That(wrapper.Object, Has.One.Property(nameof(MissingValue.Value)).EqualTo("NaN"));
+            Assert.That(wrapper.Object, Has.One.Property(nameof(MissingValue.Value)).EqualTo(string.Empty));
+            Assert.That(wrapper.Object, Has.One.Property(nameof(MissingValue.Value)).EqualTo("NA"));
+        }
     }
 }

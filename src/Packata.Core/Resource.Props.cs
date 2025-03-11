@@ -39,7 +39,6 @@ public partial class Resource
     /// <example>"This is a description of the resource."</example>
     public string? Description { get; set; }
 
-
     /// <summary>
     /// The type of the resource.
     /// </summary>
@@ -93,6 +92,15 @@ public partial class Resource
     /// [ "http://example.com/file_1.csv", "http://example.com/file_2.csv" ]
     /// </example>
     public List<IPath> Paths { get; set; } = [];
+
+    /// <summary>
+    /// A reference to the data for this resource, as a connection-url
+    /// </summary>
+    /// <example>
+    /// "sqlserver://server001/database001/"
+    /// "sqlserver://user:passw0rd@server001/database001/"
+    /// </example>
+    public IConnection? Connection { get; set; }
 
     /// <summary>
     /// Inline data for the resource.

@@ -12,13 +12,13 @@ using PocketCsvReader.Configuration;
 namespace Packata.Core.ResourceReading;
 public class TableDelimitedReaderBuilder : IResourceReaderBuilder
 {
-    private CsvReaderBuilder? _csvReaderBuilder;
-    private RuntimeTypeMapper RuntimeTypes = new();
-    private DefaultFormatMapper _defaultFormatMapper = new();
-    private DateTimeFormatConverter _dateTimeFormatConverter = new();
+    private CsvReaderBuilder? CsvReaderBuilder { get; set; }
+    private RuntimeTypeMapper RuntimeTypes { get; }  = new();
+    private DefaultFormatMapper DefaultFormatMapper { get; } = new();
+    private DateTimeFormatConverter DateTimeFormatConverter { get; } = new();
 
     public void Configure(Resource resource)
-        => _csvReaderBuilder = ConfigureBuilder(resource);
+        => CsvReaderBuilder = ConfigureBuilder(resource);
 
     public void Register(string type, Type runtimeType)
         => Register(type, null, runtimeType);
@@ -28,9 +28,9 @@ public class TableDelimitedReaderBuilder : IResourceReaderBuilder
 
     public IResourceReader Build()
     {
-        if (_csvReaderBuilder is null)
+        if (CsvReaderBuilder is null)
             throw new InvalidOperationException("Builder not configured");
-        return new TableDelimitedReader(_csvReaderBuilder.Build());
+        return new TableDelimitedReader(CsvReaderBuilder.Build());
     }
 
     protected virtual CsvReaderBuilder ConfigureBuilder(Resource resource)
@@ -39,7 +39,7 @@ public class TableDelimitedReaderBuilder : IResourceReaderBuilder
 
         if (resource.Dialect is not null)
         {
-            var dialect = resource.Dialect;
+            var dialect = resource.Dialect as TableDelimitedDialect ?? throw new InvalidOperationException();
             dialectBuilder.WithDelimiter(dialect.Delimiter)
                 .WithLineTerminator(dialect.LineTerminator)
                 .WithQuoteChar(dialect.QuoteChar)
@@ -115,10 +115,10 @@ public class TableDelimitedReaderBuilder : IResourceReaderBuilder
                         builder =>
                         {
                             builder = builder.WithFormat(
-                                _dateTimeFormatConverter.Convert(
+                                DateTimeFormatConverter.Convert(
                                     (temporalField.Format ?? "default").Equals("default", StringComparison.InvariantCultureIgnoreCase)
                                     && field.Type is not null
-                                    && _defaultFormatMapper.TryGetMapping(field.Type, out var defaultFormat)
+                                    && DefaultFormatMapper.TryGetMapping(field.Type, out var defaultFormat)
                                         ? defaultFormat
                                         : temporalField.Format!));
                             return (TemporalFieldDescriptorBuilder)enrich(builder, field);

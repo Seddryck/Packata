@@ -11,7 +11,7 @@ internal class LocalPath : IPath
     public string Root { get; }
     public string Path { get; }
 
-    private readonly IFileSystem _fileSystem;
+    private IFileSystem FileSystem { get; }
 
     public string FullPath
         => System.IO.Path.Combine(Root, Path);
@@ -20,16 +20,16 @@ internal class LocalPath : IPath
         : this(new FileSystem(), root, path) { }
 
     protected internal LocalPath(IFileSystem fileSystem, string root, string path)
-        => (_fileSystem, Root, Path) = (fileSystem, root, path);
+        => (FileSystem, Root, Path) = (fileSystem, root, path);
 
     public bool Exists()
-        => _fileSystem.Exists(FullPath);
+        => FileSystem.Exists(FullPath);
 
     public Stream ToStream()
     {
         if (!Exists())
             throw new FileNotFoundException($"The file '{Path}' does not exist.");
-        return _fileSystem.OpenRead(FullPath);
+        return FileSystem.OpenRead(FullPath);
     }
 
     #region Equality

@@ -10,14 +10,14 @@ using PocketCsvReader.Configuration;
 namespace Packata.Core.ResourceReading;
 internal class TableDelimitedReader : IResourceReader
 {
-    private readonly CsvReader _csvReader;
+    private CsvReader CsvReader { get; }
 
     public TableDelimitedReader(CsvReader csvReader)
-        => (_csvReader) = (csvReader);
+        => (CsvReader) = (csvReader);
 
     public IDataReader ToDataReader(Resource resource)
     {
         var stream = resource.Paths[0].ToStream();
-        return _csvReader.ToDataReader(stream);
+        return CsvReader.ToDataReader(stream);
     }
 }

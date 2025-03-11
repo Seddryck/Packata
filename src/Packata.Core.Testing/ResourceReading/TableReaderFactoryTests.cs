@@ -15,7 +15,7 @@ public class TableReaderFactoryTests
     public void Create_WithTableDelimited_ReturnsTableDelimitedReader()
     {
         var factory = new TableReaderFactory();
-        var reader = factory.Create(new Resource() { Type = "table", Dialect = new TableDialect() { Type = "delimited"} });
+        var reader = factory.Create(new Resource() { Type = "table", Dialect = new TableDelimitedDialect() { Type = "delimited"} });
         Assert.That(reader, Is.InstanceOf<TableDelimitedReader>());
     }
 
@@ -28,10 +28,10 @@ public class TableReaderFactoryTests
 
         var factory = new TableReaderFactory();
         factory.AddOrReplaceReader(TableReaderFactory.Delimited, builder.Object);
-        var reader = factory.Create(new Resource() { Type = "table", Dialect = new TableDialect() { Type = "delimited", Delimiter=';' } });
+        var reader = factory.Create(new Resource() { Type = "table", Dialect = new TableDelimitedDialect() { Type = "delimited", Delimiter=';' } });
         Assert.That(reader, Is.InstanceOf<TableDelimitedReader>());
 
-        builder.Verify(x => x.Configure(It.Is<Resource>(r => r.Dialect!.Delimiter == ';')), Times.Once);
+        builder.Verify(x => x.Configure(It.Is<Resource>(r => (r.Dialect as TableDelimitedDialect)!.Delimiter == ';')), Times.Once);
         builder.Verify(x => x.Build(), Times.Once);
     }
 
@@ -47,7 +47,7 @@ public class TableReaderFactoryTests
         factory.AddOrReplaceReader(TableReaderFactory.Structured, builder.Object);
         factory.SetHeuristic(r => r.Dialect?.Type ?? TableReaderFactory.Structured);
 
-        var reader = factory.Create(new Resource() { Type = "table", Dialect = new TableDialect() { Type = "delimited", Delimiter = ';' } });
+        var reader = factory.Create(new Resource() { Type = "table", Dialect = new TableDelimitedDialect() { Type = "delimited", Delimiter = ';' } });
         Assert.That(reader, Is.InstanceOf<TableDelimitedReader>());
 
         reader = factory.Create(new Resource() { Type = "table" });

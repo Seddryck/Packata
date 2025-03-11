@@ -10,12 +10,10 @@ namespace Packata.Core;
 
 public class DataPackageFactory
 {
-    private string? _root;
-
-    public DataPackage LoadFromStream(Stream stream, string format = "json")
+    public DataPackage LoadFromStream(Stream stream, string format = "json", string? root = null)
     {
         var serializer = new DataPackageSerializer();
-        var dataPackage = serializer.Deserialize(new StreamReader(stream), new HttpClient(), _root ?? GetType().Assembly.Location);
+        var dataPackage = serializer.Deserialize(new StreamReader(stream), new HttpClient(), root ?? GetType().Assembly.Location);
         return dataPackage;
     }
 
@@ -24,9 +22,15 @@ public class DataPackageFactory
         if (!File.Exists(path))
             throw new FileNotFoundException("The specified file does not exist.", path);
 
-        _root = Path.GetDirectoryName(path) + Path.DirectorySeparatorChar.ToString();
+        var extension = Path.GetExtension(path) switch
+        {
+            ".json" => "json",
+            _ => throw new NotSupportedException("The specified file format is not supported.")
+        };
+
+        var root = Path.GetDirectoryName(path) + Path.DirectorySeparatorChar.ToString();
 
         using var stream = File.OpenRead(path);
-        return LoadFromStream(stream);
+        return LoadFromStream(stream, extension, root);
     }
 }

@@ -9,29 +9,32 @@ using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization.NodeDeserializers;
 
-namespace Packata.Core.Serialization.Yaml
-{
-    internal class DataPackageSerializer : IDataPackageSerializer
-    {
-        public DataPackage Deserialize(StreamReader reader, HttpClient httpClient, string root)
-        {
-            var deserializer = new DeserializerBuilder()
-                .WithNamingConvention(new DataPackageNamingConvention())
-                .WithTypeConverter(new PathConverter(httpClient, root))
-                .WithTypeDiscriminatingNodeDeserializer((o) =>
-                    {
-                        new FieldTypeDiscriminator().Execute(o);
-                    })
-                .WithTypeConverter(new MissingValuesConverter())
-                .WithTypeConverter(new SingleOrArrayConverter())
-                .WithTypeConverter(new ConstraintsConverter())
-                .WithTypeConverter(new CategoriesConverter())
-                .IgnoreUnmatchedProperties()
-                .Build();
+namespace Packata.Core.Serialization.Yaml;
 
-            var dataPackage = deserializer.Deserialize<DataPackage>(reader)
-                              ?? throw new YamlDotNet.Core.YamlException("The YAML data is not valid.");
-            return dataPackage;
-        }
+internal class DataPackageSerializer : IDataPackageSerializer
+{
+    public DataPackage Deserialize(StreamReader reader, HttpClient httpClient, string root)
+    {
+        var deserializer = new DeserializerBuilder()
+            .WithNamingConvention(new DataPackageNamingConvention())
+            
+            .WithTypeDiscriminatingNodeDeserializer((o) =>
+                {
+                    new FieldTypeDiscriminator().Execute(o);
+                    new TableDialectTypeDiscriminator().Execute(o);
+                })
+            .WithObjectFactory(new ResourcesObjectFactory(root))
+            .WithTypeConverter(new PathConverter(httpClient, root))
+            .WithTypeConverter(new MissingValuesConverter())
+            .WithTypeConverter(new SingleOrArrayConverter())
+            .WithTypeConverter(new ConstraintsConverter())
+            .WithTypeConverter(new CategoriesConverter())
+            .WithTypeConverter(new ConnectionConverter())
+            .IgnoreUnmatchedProperties()
+            .Build();
+
+        var dataPackage = deserializer.Deserialize<DataPackage>(reader)
+                          ?? throw new YamlDotNet.Core.YamlException("The YAML data is not valid.");
+        return dataPackage;
     }
 }

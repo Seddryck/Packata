@@ -42,13 +42,19 @@ public class TableDelimitedReaderTests
         Assert.That(dataReader, Is.Not.Null);
         Assert.That(dataReader, Is.InstanceOf<CsvDataReader>());
         Assert.That(dataReader.Read(), Is.True);
-        Assert.That(dataReader["a"], Is.EqualTo("1"));
-        Assert.That(dataReader["b"], Is.EqualTo("2"));
-        Assert.That(dataReader["c"], Is.EqualTo("3"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dataReader["a"], Is.EqualTo("1"));
+            Assert.That(dataReader["b"], Is.EqualTo("2"));
+            Assert.That(dataReader["c"], Is.EqualTo("3"));
+        }
         Assert.That(dataReader.Read(), Is.True);
-        Assert.That(dataReader["a"], Is.EqualTo("4"));
-        Assert.That(dataReader["b"], Is.EqualTo("5"));
-        Assert.That(dataReader["c"], Is.EqualTo("6"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dataReader["a"], Is.EqualTo("4"));
+            Assert.That(dataReader["b"], Is.EqualTo("5"));
+            Assert.That(dataReader["c"], Is.EqualTo("6"));
+        }
         Assert.That(dataReader.Read(), Is.False);
     }
 
@@ -64,7 +70,7 @@ public class TableDelimitedReaderTests
             Paths = [new LocalPath(fileSystem.Object, "", "my-resource-path")],
             Type = "table",
             Name = "my-resource",
-            Dialect = new TableDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
+            Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
             Schema = new Schema()
             {
                 Fields = [
@@ -85,11 +91,14 @@ public class TableDelimitedReaderTests
         Assert.That(dataReader, Is.Not.Null);
         Assert.That(dataReader, Is.InstanceOf<CsvDataReader>());
         Assert.That(dataReader.Read(), Is.True);
-        Assert.That(dataReader["a"], Is.EqualTo(2025));
-        Assert.That(dataReader["b"], Is.EqualTo(new YearMonth(2025, 1)));
-        Assert.That(dataReader["c"], Is.EqualTo(107.25m));
-        Assert.That(dataReader["d"], Is.TypeOf<short>());
-        Assert.That(dataReader["d"], Is.EqualTo((short)10));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dataReader["a"], Is.EqualTo(2025));
+            Assert.That(dataReader["b"], Is.EqualTo(new YearMonth(2025, 1)));
+            Assert.That(dataReader["c"], Is.EqualTo(107.25m));
+            Assert.That(dataReader["d"], Is.TypeOf<short>());
+            Assert.That(dataReader["d"], Is.EqualTo((short)10));
+        }
         Assert.That(dataReader.Read(), Is.False);
     }
 
@@ -105,7 +114,7 @@ public class TableDelimitedReaderTests
             Paths = [new LocalPath(fileSystem.Object, "", "my-resource-path")],
             Type = "table",
             Name = "my-resource",
-            Dialect = new TableDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
+            Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
             Schema = new Schema()
             {
                 Fields = [
@@ -126,11 +135,14 @@ public class TableDelimitedReaderTests
         Assert.That(dataReader, Is.Not.Null);
         Assert.That(dataReader, Is.InstanceOf<CsvDataReader>());
         Assert.That(dataReader.Read(), Is.True);
-        Assert.That(dataReader["a"], Is.EqualTo(2025));
-        Assert.That(dataReader["b"], Is.EqualTo(new YearMonth(2025, 1)));
-        Assert.That(dataReader["c"], Is.EqualTo(107.25m));
-        Assert.That(dataReader["d"], Is.TypeOf<short>());
-        Assert.That(dataReader["d"], Is.EqualTo((short)10));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dataReader["a"], Is.EqualTo(2025));
+            Assert.That(dataReader["b"], Is.EqualTo(new YearMonth(2025, 1)));
+            Assert.That(dataReader["c"], Is.EqualTo(107.25m));
+            Assert.That(dataReader["d"], Is.TypeOf<short>());
+            Assert.That(dataReader["d"], Is.EqualTo((short)10));
+        }
         Assert.That(dataReader.Read(), Is.False);
     }
 }

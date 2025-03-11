@@ -3,28 +3,27 @@ using System.Collections.Generic;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace Packata.Core.Serialization.Yaml
+namespace Packata.Core.Serialization.Yaml;
+
+internal class DataPackageNamingConvention : INamingConvention
 {
-    internal class DataPackageNamingConvention : INamingConvention
+    private Func<string, string> PropertyNameResolver { get; }
+    private INamingConvention NamingConvention { get; }
+
+    public DataPackageNamingConvention()
     {
-        private readonly Func<string, string> _propertyNameResolver;
-        private readonly INamingConvention _namingConvention;
-
-        public DataPackageNamingConvention()
+        NamingConvention = CamelCaseNamingConvention.Instance;
+        PropertyNameResolver = value =>
         {
-            _namingConvention = CamelCaseNamingConvention.Instance;
-            _propertyNameResolver = value =>
-            {
-                value = value == "Profile" ? "$schema" : value;
-                value = value == "Paths" ? "path" : value;
-                return value;
-            };
-        }
-
-        public string Apply(string value)
-            => _namingConvention.Apply(_propertyNameResolver(value));
-
-        public string Reverse(string value)
-            => _namingConvention.Reverse(value);
+            value = value == "Profile" ? "$schema" : value;
+            value = value == "Paths" ? "path" : value;
+            return value;
+        };
     }
+
+    public string Apply(string value)
+        => NamingConvention.Apply(PropertyNameResolver(value));
+
+    public string Reverse(string value)
+        => NamingConvention.Reverse(value);
 }

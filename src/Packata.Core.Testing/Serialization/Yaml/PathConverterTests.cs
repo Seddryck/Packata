@@ -7,19 +7,14 @@ using YamlDotNet.Serialization;
 
 namespace Packata.Core.Testing.Serialization.Yaml;
 
-public class PathConverterTests
+internal class PathConverterTests : AbstractConverterTests<PathConverter, List<IPath>>
 {
-    private class PathWrapper
-    {
-        public List<IPath>? Path { get; set; }
-    }
+    public PathConverterTests()
+        : base("path")
+    { }
 
-    [Test]
-    public void Accepts_FieldType_ReturnsTrue()
-    {
-        var converter = new PathConverter(new HttpClient(), "c:\\");
-        Assert.That(converter.Accepts(typeof(List<IPath>)), Is.True);
-    }
+    protected override PathConverter CreateConverter()
+        => new (new HttpClient(), "c:\\");
 
     [Test]
     public void ReadJson_ValidJsonArray_ReturnsCorrectFieldList()
@@ -31,18 +26,16 @@ public class PathConverterTests
               - path_03
             ";
 
-        var deserializer = new DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .WithTypeConverter(new PathConverter(new HttpClient(), "c:\\"))
-            .Build();
+        var wrapper = Deserializer.Deserialize<Wrapper>(yaml);
 
-        var wrapper = deserializer.Deserialize<PathWrapper>(yaml);
-
-        Assert.That(wrapper?.Path, Is.Not.Null);
-        Assert.That(wrapper.Path, Has.Count.EqualTo(3));
-        Assert.That(wrapper.Path[0], Is.InstanceOf<IPath>());
-        Assert.That(wrapper.Path[1], Is.InstanceOf<IPath>());
-        Assert.That(wrapper.Path[2], Is.InstanceOf<IPath>());
+        Assert.That(wrapper?.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Has.Count.EqualTo(3));
+            Assert.That(wrapper.Object[0], Is.InstanceOf<IPath>());
+            Assert.That(wrapper.Object[1], Is.InstanceOf<IPath>());
+            Assert.That(wrapper.Object[2], Is.InstanceOf<IPath>());
+        }
     }
 
     [Test]
@@ -50,15 +43,13 @@ public class PathConverterTests
     {
         var yaml = @"path: path_01";
 
-        var deserializer = new DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .WithTypeConverter(new PathConverter(new HttpClient(), "c:\\"))
-            .Build();
+        var wrapper = Deserializer.Deserialize<Wrapper>(yaml);
 
-        var wrapper = deserializer.Deserialize<PathWrapper>(yaml);
-
-        Assert.That(wrapper?.Path, Is.Not.Null);
-        Assert.That(wrapper.Path, Has.Count.EqualTo(1));
-        Assert.That(wrapper.Path[0], Is.InstanceOf<IPath>());
+        Assert.That(wrapper?.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Has.Count.EqualTo(1));
+            Assert.That(wrapper.Object[0], Is.InstanceOf<IPath>());
+        }
     }
 }

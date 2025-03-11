@@ -13,7 +13,7 @@ public class ResourceReaderFactoryTests
     [Test]
     public void Create_TableDelimited_ReturnsTableDelimitedReader()
     {
-        var resource = new Resource() { Type = "table", Dialect= new TableDialect() { Type = "delimited" } };
+        var resource = new Resource() { Type = "table", Dialect= new TableDelimitedDialect() { Type = "delimited" } };
 
         var factory = new ResourceReaderFactory();
         var reader = factory.Create(resource);
@@ -21,9 +21,19 @@ public class ResourceReaderFactoryTests
     }
 
     [Test]
+    public void Create_TableDatabase_ReturnsTableDatabaseReader()
+    {
+        var resource = new Resource() { Type = "table", Dialect = new TableDatabaseDialect() { Type = "database" } };
+
+        var factory = new ResourceReaderFactory();
+        var reader = factory.Create(resource);
+        Assert.That(reader, Is.InstanceOf<TableDatabaseReader>());
+    }
+
+    [Test]
     public void AddOrReplaceReader_NewTableDelimited_ReturnsTableDelimitedReader()
     {
-        var resource = new Resource() { Type = "table", Dialect = new TableDialect() { Type = "delimited" } };
+        var resource = new Resource() { Type = "table", Dialect = new TableDelimitedDialect() { Type = "delimited" } };
         var delimitedReader = new Mock<IResourceReader>().Object;
         var builder = new Mock<IResourceReaderBuilder>();
         builder.Setup(b => b.Configure(It.IsAny<Resource>()));

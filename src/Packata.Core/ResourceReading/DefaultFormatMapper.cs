@@ -17,12 +17,12 @@ public class DefaultFormatMapper
         AddMapping("yearmonth", "%Y-%m");
     }
 
-    private Dictionary<string, string> _mappings = [];
+    private Dictionary<string, string> Mappings { get; } = [];
     public void AddMapping(string type, string defaultFormat)
     {
-        if (!_mappings.TryAdd(type, defaultFormat))
-            _mappings[type] = defaultFormat;
+        if (!Mappings.TryAdd(type, defaultFormat))
+            Mappings[type] = defaultFormat;
     }
     public bool TryGetMapping(string type, [NotNullWhen(true)] out string? format)
-        => _mappings.TryGetValue(type, out format);
+        => Mappings.TryGetValue(type, out format);
 }

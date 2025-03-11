@@ -64,6 +64,7 @@ resources:
   encoding: utf-8
   dialect:
     "$schema": https://datapackage.org/profiles/2.0/tabledialect.json
+    type: delimited
     delimiter: "\t"
   schema:
     fields:
