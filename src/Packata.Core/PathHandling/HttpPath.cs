@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.PathHandling;
-internal class HttpPath : IPath
+public class HttpPath : IPath
 {
     public HttpClient Client { get; }
     public string Path { get; }

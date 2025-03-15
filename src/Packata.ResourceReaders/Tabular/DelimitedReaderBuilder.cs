@@ -6,11 +6,12 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Text;
-using System.Threading.Tasks;
+using Packata.Core;
+using Packata.Core.ResourceReading;
 using PocketCsvReader.Configuration;
 
-namespace Packata.Core.ResourceReading;
-public class TableDelimitedReaderBuilder : IResourceReaderBuilder
+namespace Packata.ResourceReaders.Tabular;
+public class DelimitedReaderBuilder : IResourceReaderBuilder
 {
     private CsvReaderBuilder? CsvReaderBuilder { get; set; }
     private RuntimeTypeMapper RuntimeTypes { get; }  = new();
@@ -30,7 +31,7 @@ public class TableDelimitedReaderBuilder : IResourceReaderBuilder
     {
         if (CsvReaderBuilder is null)
             throw new InvalidOperationException("Builder not configured");
-        return new TableDelimitedReader(CsvReaderBuilder.Build());
+        return new DelimitedReader(CsvReaderBuilder.Build());
     }
 
     protected virtual CsvReaderBuilder ConfigureBuilder(Resource resource)
@@ -156,9 +157,10 @@ public class TableDelimitedReaderBuilder : IResourceReaderBuilder
             resourceBuilder.WithEncoding(resource.Encoding);
         }
 
-        var csvReaderBuilder = new CsvReaderBuilder().WithDialect(dialectBuilder);
+        var csvReaderBuilder = new CsvReaderBuilder()
+                                    .WithDialect(dialectBuilder)
+                                    .WithResource(resourceBuilder);
         csvReaderBuilder = schemaBuilder is not null ? csvReaderBuilder.WithSchema(schemaBuilder) : csvReaderBuilder;
-        csvReaderBuilder = resourceBuilder is not null ? csvReaderBuilder.WithResource(resourceBuilder) : csvReaderBuilder;
         return csvReaderBuilder;
     }
 }

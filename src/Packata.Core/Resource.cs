@@ -21,16 +21,4 @@ public partial class Resource
     /// The root path of the data package.
     /// </summary> 
     public string RootPath { get; }
-
-
-    /// <summary>
-    /// Returns a IDataReader for the resource.
-    /// </summary>
-    /// <returns>An IDataReader</returns>
-    public IDataReader ToDataReader()
-    {
-        var factory = new ResourceReaderFactory();
-        var reader = factory.Create(this);
-        return reader.ToDataReader(this);
-    }
 }

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core;
-internal class LiteralConnectionUrl : IConnection
+public class LiteralConnectionUrl : IConnection
 {
     public string ConnectionUrl { get; }
 

@@ -5,23 +5,25 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DubUrl;
+using Packata.Core;
+using Packata.Core.ResourceReading;
 
-namespace Packata.Core.ResourceReading;
-internal class TableDatabaseReader : IResourceReader
+namespace Packata.ResourceReaders.Tabular;
+internal class DatabaseReader : IResourceReader
 {
     private readonly ConnectionUrlFactory connectionUrlFactory;
 
-    public TableDatabaseReader(string rootPath)
+    public DatabaseReader(string rootPath)
         : this(new ConnectionUrlFactory(new DubUrl.Mapping.SchemeMapperBuilder(rootPath)))
     { }
 
-    public TableDatabaseReader(ConnectionUrlFactory connectionUrlFactory)
+    public DatabaseReader(ConnectionUrlFactory connectionUrlFactory)
         => this.connectionUrlFactory = connectionUrlFactory;
 
     public IDataReader ToDataReader(Resource resource)
     {
         var url = resource.Connection?.ConnectionUrl ?? throw new ArgumentException("Connection is not specified", nameof(resource));
-        var dialect = (resource.Dialect as TableDatabaseDialect) ?? throw new InvalidOperationException();
+        var dialect = resource.Dialect as TableDatabaseDialect ?? throw new InvalidOperationException();
 
         var connectionUrl = connectionUrlFactory.Instantiate(url);
         using (var connection = connectionUrl.Open())
