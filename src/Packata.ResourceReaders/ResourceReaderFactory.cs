@@ -3,16 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using Packata.Core;
+using Packata.Core.ResourceReading;
 
-namespace Packata.Core.ResourceReading;
+namespace Packata.ResourceReaders;
 public class ResourceReaderFactory
 {
     private Dictionary<string, IResourceReaderFactory> Factories { get; } = [];
 
     public ResourceReaderFactory()
     {
-        Factories.Add("table", new TableReaderFactory());
+        Factories.Add("table", new TabularReaderFactory());
     }
 
     public void AddOrReplaceReader(string type, string subType, IResourceReaderBuilder builder)

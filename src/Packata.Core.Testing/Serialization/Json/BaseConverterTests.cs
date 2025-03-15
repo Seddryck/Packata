@@ -4,8 +4,6 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using Newtonsoft.Json.Serialization;
 using NUnit.Framework.Internal;
-using Microsoft.Testing.Platform.Extensions.TestFramework;
-using DubUrl.Querying.Dialects.Casters;
 
 namespace Packata.Core.Testing.Serialization.Json;
 

@@ -5,9 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Packata.Core;
 using Packata.Core.ResourceReading;
+using Packata.ResourceReaders.Tabular;
 
-namespace Packata.Core.Testing.ResourceReading;
+namespace Packata.ResourceReaders.Testing;
 public class ResourceReaderFactoryTests
 {
     [Test]
@@ -17,7 +19,7 @@ public class ResourceReaderFactoryTests
 
         var factory = new ResourceReaderFactory();
         var reader = factory.Create(resource);
-        Assert.That(reader, Is.InstanceOf<TableDelimitedReader>());
+        Assert.That(reader, Is.InstanceOf<DelimitedReader>());
     }
 
     [Test]
@@ -27,7 +29,7 @@ public class ResourceReaderFactoryTests
 
         var factory = new ResourceReaderFactory();
         var reader = factory.Create(resource);
-        Assert.That(reader, Is.InstanceOf<TableDatabaseReader>());
+        Assert.That(reader, Is.InstanceOf<DatabaseReader>());
     }
 
     [Test]

@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Packata.Core;
+using Packata.Core.ResourceReading;
+using Packata.ResourceReaders.Tabular;
 
-namespace Packata.Core.ResourceReading;
-internal class TableReaderFactory : IResourceReaderFactory
+namespace Packata.ResourceReaders;
+internal class TabularReaderFactory : IResourceReaderFactory
 {
     public const string Delimited = "delimited";
     public const string Structured = "structured";
@@ -25,10 +28,10 @@ internal class TableReaderFactory : IResourceReaderFactory
     public void SetHeuristic(Func<Resource, string> heuristic)
         => Heuristic = heuristic;
 
-    public TableReaderFactory()
+    public TabularReaderFactory()
     {
-        AddOrReplaceReader(Delimited, new TableDelimitedReaderBuilder());
-        AddOrReplaceReader(Database, new TableDatabaseReaderBuilder());
+        AddOrReplaceReader(Delimited, new DelimitedReaderBuilder());
+        AddOrReplaceReader(Database, new DatabaseReaderBuilder());
         Heuristic = resource => resource.Dialect?.Type ?? Delimited;
     }
 

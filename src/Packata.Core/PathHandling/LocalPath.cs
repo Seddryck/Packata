@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Packata.Core.Testing.PathHandling;
 
 namespace Packata.Core.PathHandling;
-internal class LocalPath : IPath
+public class LocalPath : IPath
 {
     public string Root { get; }
     public string Path { get; }
@@ -19,7 +19,7 @@ internal class LocalPath : IPath
     public LocalPath(string root, string path)
         : this(new FileSystem(), root, path) { }
 
-    protected internal LocalPath(IFileSystem fileSystem, string root, string path)
+    public LocalPath(IFileSystem fileSystem, string root, string path)
         => (FileSystem, Root, Path) = (fileSystem, root, path);
 
     public bool Exists()

@@ -5,13 +5,15 @@ using System.Text;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Packata.Core;
 using Packata.Core.PathHandling;
 using Packata.Core.ResourceReading;
 using Packata.Core.Testing.PathHandling;
+using Packata.ResourceReaders.Tabular;
 using PocketCsvReader;
 
-namespace Packata.Core.Testing.ResourceReading;
-public class TableDelimitedReaderBuilderTests
+namespace Packata.ResourceReaders.Testing.Tabular;
+public class DelimitedReaderBuilderTests
 {
     private static LocalPath GetPath(string content)
     {
@@ -31,7 +33,7 @@ public class TableDelimitedReaderBuilderTests
             Name = "my-resource",
             Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\n" }
         };
-        var builder = new TableDelimitedReaderBuilder();
+        var builder = new DelimitedReaderBuilder();
         builder.Configure(resource);
         var reader = builder.Build();
 
@@ -80,7 +82,7 @@ public class TableDelimitedReaderBuilderTests
             ]
             }
         };
-        var builder = new TableDelimitedReaderBuilder();
+        var builder = new DelimitedReaderBuilder();
         builder.Configure(resource);
         var reader = builder.Build();
 

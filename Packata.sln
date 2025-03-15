@@ -36,6 +36,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Edit", "Edit", "{210C887C-6
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Core.Testing", "src\Packata.Core.Testing\Packata.Core.Testing.csproj", "{6F8E7D81-19C5-49F9-9E6C-117947D755ED}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.ResourceReaders", "src\Packata.ResourceReaders\Packata.ResourceReaders.csproj", "{B17B8F9D-6832-4215-A388-EC9398E7C071}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.ResourceReaders.Testing", "src\Packata.ResourceReaders.Testing\Packata.ResourceReaders.Testing.csproj", "{7A9C53DD-A0D6-4771-8934-4DE37C10ECAD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +54,14 @@ Global
 		{6F8E7D81-19C5-49F9-9E6C-117947D755ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6F8E7D81-19C5-49F9-9E6C-117947D755ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6F8E7D81-19C5-49F9-9E6C-117947D755ED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B17B8F9D-6832-4215-A388-EC9398E7C071}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B17B8F9D-6832-4215-A388-EC9398E7C071}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B17B8F9D-6832-4215-A388-EC9398E7C071}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B17B8F9D-6832-4215-A388-EC9398E7C071}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A9C53DD-A0D6-4771-8934-4DE37C10ECAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A9C53DD-A0D6-4771-8934-4DE37C10ECAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A9C53DD-A0D6-4771-8934-4DE37C10ECAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A9C53DD-A0D6-4771-8934-4DE37C10ECAD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

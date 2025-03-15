@@ -5,15 +5,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using PocketCsvReader;
-using PocketCsvReader.Configuration;
+using Packata.Core;
+using Packata.Core.ResourceReading;
 
-namespace Packata.Core.ResourceReading;
-internal class TableDelimitedReader : IResourceReader
+namespace Packata.ResourceReaders.Tabular;
+internal class DelimitedReader : IResourceReader
 {
     private CsvReader CsvReader { get; }
 
-    public TableDelimitedReader(CsvReader csvReader)
-        => (CsvReader) = (csvReader);
+    public DelimitedReader(CsvReader csvReader)
+        => CsvReader = csvReader;
 
     public IDataReader ToDataReader(Resource resource)
     {

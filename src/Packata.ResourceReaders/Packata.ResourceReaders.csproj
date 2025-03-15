@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Description>Packata is a library for consuming Data Package v2 files. The `Packata.ResourceReaders` package specializes in providing read access to resource files using common patterns, such as `IDataReader`, ensuring seamless data retrieval and processing.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DubUrl" Version="0.22.6" />
+    <PackageReference Include="PocketCsvReader" Version="2.27.10" />
+  </ItemGroup>
+
+</Project>

@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection.Emit;
-using PocketCsvReader;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;

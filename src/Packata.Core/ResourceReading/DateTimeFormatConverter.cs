@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.ResourceReading;
-internal class DateTimeFormatConverter
+public class DateTimeFormatConverter
 {
     // Mapping dictionary for C-style to .NET-style format specifiers
     private static readonly Dictionary<string, string> FormatMap = new()
