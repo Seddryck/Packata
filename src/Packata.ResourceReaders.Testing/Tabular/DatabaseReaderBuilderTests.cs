@@ -7,13 +7,11 @@ using System.Threading.Tasks;
 using DubUrl.Registering;
 using Moq;
 using NUnit.Framework;
-using Packata.Core.PathHandling;
-using Packata.Core.ResourceReading;
-using Packata.Core.Testing.PathHandling;
-using PocketCsvReader;
+using Packata.Core;
+using Packata.ResourceReaders.Tabular;
 
-namespace Packata.Core.Testing.ResourceReading;
-public class TableDatabaseReaderBuilderTests
+namespace Packata.ResourceReaders.Testing.Tabular;
+public class DatabaseReaderBuilderTests
 {
     private class FakeDbProviderFactory : DbProviderFactory
     {
@@ -34,12 +32,12 @@ public class TableDatabaseReaderBuilderTests
         var discoverMock = new Mock<IProviderFactoriesDiscoverer>();
         discoverMock.Setup(x => x.Execute()).Returns(new[] { typeof(FakeDbProviderFactory) });
 
-        var builder = new TableDatabaseReaderBuilder(new ProviderFactoriesRegistrator(discoverMock.Object));
+        var builder = new DatabaseReaderBuilder(new ProviderFactoriesRegistrator(discoverMock.Object));
         builder.Configure(resource);
         var reader = builder.Build();
 
         discoverMock.Verify(x => x.Execute(), Times.Once);
         Assert.That(reader, Is.Not.Null);
-        Assert.That(reader, Is.InstanceOf<TableDatabaseReader>());
+        Assert.That(reader, Is.InstanceOf<DatabaseReader>());
     }
 }

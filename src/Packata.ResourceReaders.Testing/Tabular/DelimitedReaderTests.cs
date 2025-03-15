@@ -6,15 +6,16 @@ using System.Threading.Tasks;
 using Chrononuensis;
 using Moq;
 using NUnit.Framework;
+using Packata.Core;
 using Packata.Core.PathHandling;
-using Packata.Core.ResourceReading;
 using Packata.Core.Testing.PathHandling;
+using Packata.ResourceReaders.Tabular;
 using PocketCsvReader;
 using PocketCsvReader.Configuration;
 using RichardSzalay.MockHttp;
 
-namespace Packata.Core.Testing.ResourceReading;
-public class TableDelimitedReaderTests
+namespace Packata.ResourceReaders.Testing.Tabular;
+public class DelimitedReaderTests
 {
     private static IEnumerable<IPath> GetPaths()
     {
@@ -36,7 +37,7 @@ public class TableDelimitedReaderTests
     {
         var resource = new Resource() { Paths = [path], Type = "table", Name = "my-resource" };
         var csvReader = new CsvReaderBuilder().WithDialect(d => d.WithHeader()).Build();
-        var reader = new TableDelimitedReader(csvReader);
+        var reader = new DelimitedReader(csvReader);
         var dataReader = reader.ToDataReader(resource);
 
         Assert.That(dataReader, Is.Not.Null);
@@ -81,7 +82,7 @@ public class TableDelimitedReaderTests
                 ]
             }
         };
-        var builder = new TableDelimitedReaderBuilder();
+        var builder = new DelimitedReaderBuilder();
         builder.Register("year", typeof(int));
         builder.Register("yearmonth", typeof(YearMonth));
         builder.Configure(resource);
@@ -125,7 +126,7 @@ public class TableDelimitedReaderTests
                 ]
             }
         };
-        var builder = new TableDelimitedReaderBuilder();
+        var builder = new DelimitedReaderBuilder();
         builder.Register("year", typeof(int));
         builder.Register("yearmonth", typeof(YearMonth));
         builder.Configure(resource);

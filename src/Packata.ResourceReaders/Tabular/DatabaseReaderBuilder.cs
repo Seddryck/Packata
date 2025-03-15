@@ -1,26 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Linq;
-using System.Reflection.Emit;
-using System.Text;
 using System.Threading.Tasks;
-using DubUrl;
 using DubUrl.Registering;
+using Packata.Core;
+using Packata.Core.ResourceReading;
 
-namespace Packata.Core.ResourceReading;
-public class TableDatabaseReaderBuilder : IResourceReaderBuilder
+namespace Packata.ResourceReaders.Tabular;
+public class DatabaseReaderBuilder : IResourceReaderBuilder
 {
     private readonly ProviderFactoriesRegistrator providerFactories;
     private string? RootPath { get; set; }
 
-    public TableDatabaseReaderBuilder()
+    public DatabaseReaderBuilder()
         : this(new ProviderFactoriesRegistrator())
     { }
 
-    public TableDatabaseReaderBuilder(ProviderFactoriesRegistrator providerFactories)
+    public DatabaseReaderBuilder(ProviderFactoriesRegistrator providerFactories)
         => this.providerFactories = providerFactories;
 
     public void Configure(Resource resource)
@@ -30,5 +26,5 @@ public class TableDatabaseReaderBuilder : IResourceReaderBuilder
     }
 
     public IResourceReader Build()
-        => new TableDatabaseReader(RootPath ?? throw new InvalidOperationException());
+        => new DatabaseReader(RootPath ?? throw new InvalidOperationException());
 }

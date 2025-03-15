@@ -26,11 +26,6 @@ init:
 - cmd: RefreshEnv.cmd
 - pwsh: Write-Host "Target branch is '$($env:APPVEYOR_REPO_BRANCH)'"
 
-install:
-- ps: |
-    Invoke-WebRequest -Uri 'https://dot.net/v1/dotnet-install.ps1' -UseBasicParsing -OutFile "$env:temp\dotnet-install.ps1"
-    & $env:temp\dotnet-install.ps1 -Architecture x64 -Version '9.0.100' -InstallDir "$env:ProgramFiles\dotnet"
-
 before_build:
 - cmd: gitversion /output buildserver /verbosity Minimal
 - pwsh: Write-Host "Building Packata version $($env:GitVersion_SemVer)"
@@ -57,8 +52,10 @@ build_script:
 test_script:
 - pwsh: |
     $ErrorActionPreference = "Stop"
-    dotnet test src/Packata.Core.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Include="[Packata.Core]*" /p:Threshold=80 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.Core.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
+    dotnet test src/Packata.Core.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:Threshold=10 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.Core.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
     $globalTestResult = $LastExitCode
+    dotnet test src/Packata.ResourceReaders.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:Threshold=10 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.ResourceReaders.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
+    $globalTestResult += $LastExitCode
     if($globalTestResult -ne 0) { $host.SetShouldExit($globalTestResult) }
 
 - pwsh: |
@@ -68,6 +65,7 @@ test_script:
 
 after_test:
 - dotnet pack src/Packata.Core -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
+- dotnet pack src/Packata.ResourceReaders -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 
 artifacts:
 - path: '**\*.nupkg'

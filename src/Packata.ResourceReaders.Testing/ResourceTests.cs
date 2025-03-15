@@ -4,10 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Packata.Core;
 using Packata.Core.PathHandling;
 using RichardSzalay.MockHttp;
 
-namespace Packata.Core.Testing;
+namespace Packata.ResourceReaders.Testing;
 public class ResourceTests
 {
     [Test]

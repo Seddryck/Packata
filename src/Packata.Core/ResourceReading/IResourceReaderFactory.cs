@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.ResourceReading;
-internal interface IResourceReaderFactory
+public interface IResourceReaderFactory
 {
     void AddOrReplaceReader(string profile, IResourceReaderBuilder builder);
     IResourceReader Create(Resource resource);

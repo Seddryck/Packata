@@ -5,22 +5,17 @@ using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Chrononuensis;
 using DubUrl;
 using DubUrl.Mapping;
 using DubUrl.Querying.Dialects;
 using DubUrl.Querying.Dialects.Renderers;
 using Moq;
 using NUnit.Framework;
-using Packata.Core.PathHandling;
-using Packata.Core.ResourceReading;
-using Packata.Core.Testing.PathHandling;
-using PocketCsvReader;
-using PocketCsvReader.Configuration;
-using RichardSzalay.MockHttp;
+using Packata.Core;
+using Packata.ResourceReaders.Tabular;
 
-namespace Packata.Core.Testing.ResourceReading;
-public class TableDatabaseReaderTests
+namespace Packata.ResourceReaders.Testing.Tabular;
+public class DatabaseReaderTests
 {
     [Test]
     public void ToDataReader_TableDefined_ExpectedCommand()
@@ -52,7 +47,7 @@ public class TableDatabaseReaderTests
         var mockFactory = new Mock<ConnectionUrlFactory>(new SchemeMapperBuilder());
         mockFactory.Setup(x => x.Instantiate(It.IsAny<string>())).Returns(mockConnectionUrl.Object);
 
-        var reader = new TableDatabaseReader(mockFactory.Object);
+        var reader = new DatabaseReader(mockFactory.Object);
         var dataReader = reader.ToDataReader(resource);
 
         Assert.That(dataReader, Is.Not.Null);

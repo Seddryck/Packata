@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core;
-internal class RuntimeTypeMapper
+public class RuntimeTypeMapper
 {
     private struct TypeFormat : IEquatable<TypeFormat>
     {
