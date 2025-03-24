@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Description>Packata is a library for consuming Data Package v2 files. The Packata.Provisioners package specializes in providing a relational engine on top of the content of the package.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DubUrl.BulkCopy" Version="0.24.6" />
+    <PackageReference Include="DubUrl.Schema" Version="0.24.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+    <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
+  </ItemGroup>
+
+</Project>

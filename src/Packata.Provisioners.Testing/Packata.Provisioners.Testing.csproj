@@ -31,7 +31,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Packata.Core\Packata.Core.csproj" />
-    <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
+    <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+    <ProjectReference Include="..\Packata.Provisioners\Packata.Provisioners.csproj" />
   </ItemGroup>
 </Project>
