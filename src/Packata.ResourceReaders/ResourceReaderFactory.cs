@@ -30,7 +30,7 @@ public class ResourceReaderFactory
         factory.SetHeuristic(heuristic);
     }
 
-    public IResourceReader Create(Resource resource)
+    public virtual IResourceReader Create(Resource resource)
     {
         if (!Factories.TryGetValue(resource.Type ?? "table", out var factory))
             throw new ArgumentOutOfRangeException(nameof(resource));
