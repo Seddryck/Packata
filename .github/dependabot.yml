@@ -43,6 +43,9 @@ updates:
       Newtonsoft.Json:
           patterns:
             - "Newtonsoft.Json"
+      DubUrl:
+          patterns:
+            - "DubUrl*"
       ExternalTestingLibs:
           patterns:
             - "PocketCsvReader*"
