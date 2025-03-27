@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DubUrl" Version="0.25.0" />
+    <PackageReference Include="DubUrl" Version="0.26.1" />
     <PackageReference Include="PocketCsvReader" Version="2.27.11" />
   </ItemGroup>
 

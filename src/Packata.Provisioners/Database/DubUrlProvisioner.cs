@@ -11,10 +11,8 @@ using Packata.Core.Provisioning;
 using DubUrl;
 using DubUrl.Schema;
 using DubUrl.BulkCopy;
-using Packata.ResourceReaders;
-using HandlebarsDotNet;
-using DubUrl.Querying.TypeMapping;
 using DubUrl.Querying.Dialects;
+using Packata.ResourceReaders;
 
 namespace Packata.Provisioners.Database;
 
@@ -108,19 +106,19 @@ public class DubUrlProvisioner : IPackageProvisioner
         ArgumentNullException.ThrowIfNull(resource, nameof(resource));
 
         return new TableBuilder().WithName(resource.Name
-                    ?? throw new InvalidOperationException("Resource name is required."))
-                    .WithColumns(columns =>
-                    {
-                        foreach (var field in resource.Schema?.Fields
-                            ?? throw new InvalidOperationException("Schema is required."))
-                        {
-                            columns.Add(column =>
-                                column.WithName(field.Name
-                                        ?? throw new InvalidOperationException("Field name is required."))
-                                    .WithType(DbTypeMapper.Map(field.Type, field.Format))
-                            );
-                        }
-                        return columns;
-                    });
+            ?? throw new InvalidOperationException("Resource name is required."))
+            .WithColumns(columns =>
+            {
+                foreach (var field in resource.Schema?.Fields
+                    ?? throw new InvalidOperationException("Schema is required."))
+                {
+                    columns.Add(column =>
+                        column.WithName(field.Name
+                                ?? throw new InvalidOperationException("Field name is required."))
+                            .WithType(DbTypeMapper.Map(field.Type, field.Format))
+                    );
+                }
+                return columns;
+            });
     }
 }
