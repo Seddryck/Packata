@@ -12,11 +12,11 @@ internal class ConstraintsConverter : JsonConverter
     private readonly ConstraintMapper constraintMapper = new();
 
     public override bool CanConvert(Type objectType)
-        => objectType == typeof(List<Constraint>);
+        => objectType == typeof(FieldConstraintCollection);
 
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
     {
-        var list = new List<Constraint>();
+        var list = new FieldConstraintCollection();
 
         if (reader.TokenType == JsonToken.StartObject)
         {

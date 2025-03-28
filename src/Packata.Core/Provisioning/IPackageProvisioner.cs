@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 namespace Packata.Core.Provisioning;
 public interface IPackageProvisioner
 {
-    void Execute(DataPackage dataPackage);
+    void Execute(DataPackage dataPackage, ProvisionerOptions options);
 
-    void DeploySchema(DataPackage dataPackage);
+    void DeploySchema(DataPackage dataPackage, ProvisionerOptions options);
     void LoadData(DataPackage dataPackage);
 
-    void DeploySchema(Resource resource);
+    void DeploySchema(Resource resource, ProvisionerOptions options);
     void LoadData(Resource resource);
 }

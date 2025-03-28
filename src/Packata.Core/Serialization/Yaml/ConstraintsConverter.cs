@@ -11,11 +11,11 @@ internal class ConstraintsConverter : IYamlTypeConverter
     private readonly ConstraintMapper constraintMapper = new();
 
     public bool Accepts(Type type)
-        => type == typeof(List<Constraint>);
+        => type == typeof(FieldConstraintCollection);
 
     public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
     {
-        var list = new List<Constraint>();
+        var list = new FieldConstraintCollection();
 
         parser.Consume<MappingStart>();
 
