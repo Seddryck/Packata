@@ -57,7 +57,7 @@ public class Field
     /// <summary>
     /// The constraints applicable to this field.
     /// </summary>
-    public List<Constraint>? Constraints { get; set; }
+    public FieldConstraintCollection? Constraints { get; set; }
 
     /// <summary>
     /// Property to restrict the field to a finite set of possible values. It indicate that the field MAY be loaded as a categorical data type if supported by the implementation. The categories property MUST be either (a) an array of unique values or (b) an array of objects, each with a unique value property. The logical representation of data in the field MUST exactly match one of the values in categories.

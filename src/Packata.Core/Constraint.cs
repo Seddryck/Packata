@@ -6,6 +6,13 @@ using System.Threading.Tasks;
 using YamlDotNet.Core.Tokens;
 
 namespace Packata.Core;
+
+public interface ILength { }
+public interface IMinimum { }
+public interface IMaximum { }
+public interface IMinimumExclusive { }
+public interface IMaximumExclusive { }
+
 public class Constraint
 {
     public object? Value { get; init; }
@@ -33,45 +40,50 @@ public class UniqueConstraint : Constraint
         => Value = value;
 }
 
-public class MinLengthConstraint : Constraint
+public abstract class CheckConstraint : Constraint
+{ }
+
+public class MinLengthConstraint : CheckConstraint, IMinimum, ILength
 {
     public new int Value { get; }
     public MinLengthConstraint(int value)
         => Value = value;
 }
 
-public class MaxLengthConstraint : Constraint
+public class MaxLengthConstraint : CheckConstraint, IMaximum, ILength
 {
     public new int Value { get; }
     public MaxLengthConstraint(int value)
         => Value = value;
 }
 
-public class MinimumConstraint : Constraint
+public class MinimumConstraint : CheckConstraint, IMinimum
 {
+    public new object Value { get; }
     public MinimumConstraint(object value)
         => Value = value;
 }
 
-public class MaximumConstraint : Constraint
+public class MaximumConstraint : CheckConstraint, IMaximum
 {
+    public new object Value { get; }
     public MaximumConstraint(object value)
         => Value = value;
 }
 
-public class ExclusiveMinimumConstraint : Constraint
+public class ExclusiveMinimumConstraint : CheckConstraint, IMinimumExclusive
 {
     public ExclusiveMinimumConstraint(object value)
         => Value = value;
 }
 
-public class ExclusiveMaximumConstraint : Constraint
+public class ExclusiveMaximumConstraint : CheckConstraint, IMaximumExclusive
 {
     public ExclusiveMaximumConstraint(object value)
         => Value = value;
 }
 
-public class PatternConstraint : Constraint
+public class PatternConstraint : CheckConstraint
 {
     public new string Value { get; }
     public PatternConstraint(string value)

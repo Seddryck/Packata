@@ -53,7 +53,7 @@ public class DubUrlProvisionerTests
         schemaDeployer.Setup(x => x.DeploySchema(It.IsAny<ConnectionUrl>(), It.IsAny<string>())).Verifiable();
 
         var provisioner = new DubUrlProvisioner(connectionUrl.Object, scriptRenderer.Object, schemaDeployer.Object);
-        provisioner.DeploySchema(dataPackage);
+        provisioner.DeploySchema(dataPackage, new());
 
         dialect.VerifyAll();
         scriptRenderer.Verify(x => x.Render(It.IsAny<Schema>()), Times.Once);

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Text;
@@ -13,6 +12,7 @@ using DubUrl.Schema;
 using DubUrl.BulkCopy;
 using DubUrl.Querying.Dialects;
 using Packata.ResourceReaders;
+using YamlDotNet.Core.Tokens;
 
 namespace Packata.Provisioners.Database;
 
@@ -55,13 +55,13 @@ public class DubUrlProvisioner : IPackageProvisioner
         }
     }
 
-    public void DeploySchema(DataPackage dataPackage)
+    public void DeploySchema(DataPackage dataPackage, ProvisionerOptions options)
     {
         var schema = new SchemaBuilder()
             .WithTables(tables =>
             {
                 foreach (var resource in dataPackage.Resources)
-                    tables.Add(Map(resource));
+                    tables.Add(Map(resource, options));
                 return tables;
             }).Build();
 
@@ -69,10 +69,10 @@ public class DubUrlProvisioner : IPackageProvisioner
         ScriptDeployer.DeploySchema(ConnectionUrl, script);
     }
 
-    public void DeploySchema(Resource resource)
+    public void DeploySchema(Resource resource, ProvisionerOptions options)
     {
         var schema = new SchemaBuilder().WithTables(
-                tables => { tables.Add(Map(resource)); return tables; }
+                tables => { tables.Add(Map(resource, options)); return tables; }
             ).Build();
         var script = ScriptRenderer.Render(schema);
         ScriptDeployer.DeploySchema(ConnectionUrl, script);
@@ -95,13 +95,13 @@ public class DubUrlProvisioner : IPackageProvisioner
         );
     }
 
-    public void Execute(DataPackage dataPackage)
+    public void Execute(DataPackage dataPackage, ProvisionerOptions options)
     {
-        DeploySchema(dataPackage);
+        DeploySchema(dataPackage, options);
         LoadData(dataPackage);
     }
 
-    protected internal ITableBuilder Map(Resource resource)
+    protected internal ITableBuilder Map(Resource resource, ProvisionerOptions options)
     {
         ArgumentNullException.ThrowIfNull(resource, nameof(resource));
 
@@ -113,12 +113,89 @@ public class DubUrlProvisioner : IPackageProvisioner
                     ?? throw new InvalidOperationException("Schema is required."))
                 {
                     columns.Add(column =>
+                    {
                         column.WithName(field.Name
                                 ?? throw new InvalidOperationException("Field name is required."))
                             .WithType(DbTypeMapper.Map(field.Type, field.Format))
-                    );
+                            .WithPrimaryKeyIf(
+                                resource.Schema.PrimaryKey?.Count==1
+                                && resource.Schema.PrimaryKey.Contains(field.Name)
+                                && (options.Constraints & ConstraintsOptions.PrimaryKey) != 0)
+                            .WithUniqueIf(
+                                field.Constraints?.Get<UniqueConstraint>()?.Value ?? false
+                                && (options.Constraints & ConstraintsOptions.Unique) != 0)
+                            .WithNullableIf(
+                                !(field.Constraints?.Get<RequiredConstraint>()?.Value ?? false)
+                                && (options.Constraints & ConstraintsOptions.Required) != 0)
+                            .WithChecksIf(checks =>
+                            {
+                                foreach (var constraint in field.Constraints?.TypeOf<Core.CheckConstraint>() ?? [])
+                                    checks.Add(Map(column, constraint));
+                                return checks;
+                            }, (options.Constraints & ConstraintsOptions.Checks) != 0);
+
+                        return column;
+                    });
                 }
                 return columns;
             });
+    }
+
+    protected internal ICheckBuildable Map(IColumnName column, Core.CheckConstraint check)
+    {
+        ArgumentNullException.ThrowIfNull(check, nameof(check));
+        return ((ICheckBuilder) new CheckBuilder(column))
+            .WithComparison(left => check switch
+            {
+                ILength _ => left.WithFunctionCurrentColumn("Length"),
+                _ => left.WithCurrentColumn(),
+            }, check switch
+            {
+                IMinimum _ => ">=",
+                IMaximum _ => "<=",
+                IMaximumExclusive _ => "<",
+                IMinimumExclusive _ => ">",
+                _ => throw new ArgumentOutOfRangeException(nameof(check)),
+            }, right => right.WithValue(check.Value!));
+    }
+}
+
+static class ColumnConstraintBuilderExtensions
+{
+    public static IColumnConstraintBuilder WithPrimaryKeyIf(this IColumnConstraintBuilder builder, bool value)
+    {
+        if (value)
+            builder.WithPrimaryKey();
+        return builder;
+    }
+
+    public static IColumnConstraintBuilder WithUniqueIf(this IColumnConstraintBuilder builder, bool value)
+    {
+        if (value)
+            builder.WithUnique();
+        return builder;
+    }
+
+    public static IColumnConstraintBuilder WithNullableIf(this IColumnConstraintBuilder builder, bool value)
+    {
+        if (value)
+            builder.WithNullable();
+        else
+            builder.WithNotNullable();
+        return builder;
+    }
+
+    public static IColumnConstraintBuilder WithChecks(this IColumnConstraintBuilder builder, Func<IList<ICheckBuildable>, IList<ICheckBuildable>> checks)
+    {
+        foreach (var check in checks([]))
+            builder.WithCheck(_ => check);
+        return builder;
+    }
+
+    public static IColumnConstraintBuilder WithChecksIf(this IColumnConstraintBuilder builder, Func<IList<ICheckBuildable>, IList<ICheckBuildable>> checks, bool value)
+    {
+        if(value)
+            builder.WithChecks(checks);
+        return builder;
     }
 }
