@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core;
-public class DuplicatedConstraintException : ApplicationException
+public class DuplicatedConstraintException : Exception
 {
     public DuplicatedConstraintException(Constraint constraint)
         : base($"Duplicated constraint: {constraint.GetType().Name}")

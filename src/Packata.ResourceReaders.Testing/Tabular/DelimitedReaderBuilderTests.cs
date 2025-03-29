@@ -61,6 +61,57 @@ public class DelimitedReaderBuilderTests
     }
 
     [Test]
+    public void ToDataReader_ExistingLocalResourceMultiple_ReturnsIDataReader()
+    {
+        var resource = new Resource
+        {
+            Paths = [GetPath("a;b;c\n1;2;3\n4;5;6"), GetPath("a;b;c\n7;8;9\n10;11;12")],
+            Type = "table",
+            Name = "my-resource",
+            Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\n" }
+        };
+        var builder = new DelimitedReaderBuilder();
+        builder.Configure(resource);
+        var reader = builder.Build();
+
+        var dataReader = reader.ToDataReader(resource);
+
+        Assert.That(dataReader, Is.TypeOf<CsvBatchDataReader>());
+        Assert.That(dataReader, Is.Not.Null);
+        Assert.That(dataReader.Read(), Is.True);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dataReader["a"], Is.EqualTo("1"));
+            Assert.That(dataReader.GetValue(0), Is.EqualTo("1"));
+            Assert.That(dataReader["b"], Is.EqualTo("2"));
+            Assert.That(dataReader["c"], Is.EqualTo("3"));
+        }
+        Assert.That(dataReader.Read(), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dataReader["a"], Is.EqualTo("4"));
+            Assert.That(dataReader["b"], Is.EqualTo("5"));
+            Assert.That(dataReader["c"], Is.EqualTo("6"));
+        }
+        Assert.That(dataReader.Read(), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dataReader["a"], Is.EqualTo("7"));
+            Assert.That(dataReader["b"], Is.EqualTo("8"));
+            Assert.That(dataReader["c"], Is.EqualTo("9"));
+        }
+        Assert.That(dataReader.Read(), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dataReader["a"], Is.EqualTo("10"));
+            Assert.That(dataReader["b"], Is.EqualTo("11"));
+            Assert.That(dataReader["c"], Is.EqualTo("12"));
+        }
+        Assert.That(dataReader.Read(), Is.False);
+    }
+
+    [Test]
     [TestCase(FieldsMatching.Exact)]
     [TestCase(FieldsMatching.Equal)]
     public void ToDataReader_ExistingLocalResourceWithSchema_ReturnsIDataReader(FieldsMatching fieldMatch)
