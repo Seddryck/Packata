@@ -120,19 +120,19 @@ public class DubUrlProvisioner : IPackageProvisioner
                             .WithPrimaryKeyIf(
                                 resource.Schema.PrimaryKey?.Count==1
                                 && resource.Schema.PrimaryKey.Contains(field.Name)
-                                && (options.Constraints & ConstraintsOptions.PrimaryKey) != 0)
+                                && options.Constraints.HasFlag(ConstraintsOptions.PrimaryKey))
                             .WithUniqueIf(
                                 field.Constraints?.Get<UniqueConstraint>()?.Value ?? false
-                                && (options.Constraints & ConstraintsOptions.Unique) != 0)
+                                && options.Constraints.HasFlag(ConstraintsOptions.Unique))
                             .WithNullableIf(
                                 !(field.Constraints?.Get<RequiredConstraint>()?.Value ?? false)
-                                && (options.Constraints & ConstraintsOptions.Required) != 0)
+                                && options.Constraints.HasFlag(ConstraintsOptions.Required))
                             .WithChecksIf(checks =>
                             {
                                 foreach (var constraint in field.Constraints?.TypeOf<Core.CheckConstraint>() ?? [])
                                     checks.Add(Map(column, constraint));
                                 return checks;
-                            }, (options.Constraints & ConstraintsOptions.Checks) != 0);
+                            }, options.Constraints.HasFlag(ConstraintsOptions.Checks));
 
                         return column;
                     });
@@ -141,7 +141,7 @@ public class DubUrlProvisioner : IPackageProvisioner
             });
     }
 
-    protected internal ICheckBuildable Map(IColumnName column, Core.CheckConstraint check)
+    protected internal static ICheckBuildable Map(IColumnName column, CheckConstraint check)
     {
         ArgumentNullException.ThrowIfNull(check, nameof(check));
         return ((ICheckBuilder) new CheckBuilder(column))

@@ -22,7 +22,8 @@ internal class DelimitedReader : IResourceReader
             throw new InvalidOperationException(
                 "The resource does not contain any paths, but at least one is required to create a DataReader.");
 
-        var stream = resource.Paths[0].ToStream();
-        return CsvReader.ToDataReader(stream);
+        return resource.Paths.Count == 1
+            ? CsvReader.ToDataReader(resource.Paths[0].ToStream())
+            : CsvReader.ToDataReader(resource.Paths.Select(p => p.ToStream()));
     }
 }
