@@ -49,6 +49,7 @@ public class DelimitedReaderBuilder : IResourceReaderBuilder
                 .WithHeader(dialect.Header)
                 .WithHeaderJoin(dialect.HeaderJoin ?? "")
                 .WithHeaderRows(dialect.HeaderRows?.ToArray() ?? [])
+                .WithHeaderRepeat(dialect.HeaderRepeat)
                 .WithCommentChar(dialect.CommentChar)
                 .WithCommentRows(dialect.CommentRows?.ToArray() ?? [])
                 .WithSkipInitialSpace(dialect.SkipInitialSpace);

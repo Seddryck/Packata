@@ -68,6 +68,19 @@ public class TableDelimitedDialect : TableDialect
     public string? HeaderJoin { get; set; } = " ";
 
     /// <summary>
+    /// Gets or sets a value indicating whether the header row is present in every file
+    /// or only in the first file of a multi-file resource.
+    /// When set to <c>true</c> (default), the header is expected in each file.
+    /// When set to <c>false</c>, only the first file is expected to contain the header row.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// HeaderRepeat = false; // Header only exists in the first file
+    /// </code>
+    /// </example>
+    public bool HeaderRepeat { get; set; } = true;
+
+    /// <summary>
     /// A string representing a sequence to be interpreted as a null value.
     /// Default is undefined.
     /// </summary>

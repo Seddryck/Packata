@@ -102,47 +102,48 @@ public class DelimitedReaderTests
         }
         Assert.That(dataReader.Read(), Is.False);
     }
-
+    
     [Test]
-    public void ToDataReader_YearYearMonthDecimalWithFormat_ReturnsIDataReader()
+    public void ToDataReader_MultiFile_ReturnsIDataReader()
     {
         var fileSystem = new Mock<IFileSystem>();
-        fileSystem.Setup(x => x.Exists("my-resource-path")).Returns(true);
-        fileSystem.Setup(x => x.OpenRead("my-resource-path")).Returns(new MemoryStream(Encoding.UTF8.GetBytes("a;b;c;d\r\n2025;Jan.25;107,25;10")));
+        fileSystem.Setup(x => x.Exists("my-resource-path-1")).Returns(true);
+        fileSystem.Setup(x => x.OpenRead("my-resource-path-1")).Returns(new MemoryStream(Encoding.UTF8.GetBytes("a;b\r\n1;foo")));
+        fileSystem.Setup(x => x.Exists("my-resource-path-2")).Returns(true);
+        fileSystem.Setup(x => x.OpenRead("my-resource-path-2")).Returns(new MemoryStream(Encoding.UTF8.GetBytes("2;bar")));
 
         var resource = new Resource
         {
-            Paths = [new LocalPath(fileSystem.Object, "", "my-resource-path")],
+            Paths = [new LocalPath(fileSystem.Object, "", "my-resource-path-1"), new LocalPath(fileSystem.Object, "", "my-resource-path-2")],
             Type = "table",
             Name = "my-resource",
-            Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
+            Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true, HeaderRepeat = false },
             Schema = new Schema()
             {
                 Fields = [
-                    new YearField() { Name = "a", Type = "year" },
-                    new YearMonthField() { Name = "b", Type = "yearmonth", Format="%b.%y" },
-                    new NumberField() { Name = "c", Type = "number", DecimalChar = ',' },
-                    new IntegerField() { Name = "d", Type = "integer", Format="i16" }
+                    new IntegerField() { Name = "a", Type = "integer", Format="i16" },
+                    new StringField() { Name = "b", Type = "string" }
                 ]
             }
         };
         var builder = new DelimitedReaderBuilder();
-        builder.Register("year", typeof(int));
-        builder.Register("yearmonth", typeof(YearMonth));
         builder.Configure(resource);
         var reader = builder.Build();
         var dataReader = reader.ToDataReader(resource);
 
         Assert.That(dataReader, Is.Not.Null);
-        Assert.That(dataReader, Is.InstanceOf<CsvDataReader>());
+        Assert.That(dataReader, Is.InstanceOf<CsvBatchDataReader>());
         Assert.That(dataReader.Read(), Is.True);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(dataReader["a"], Is.EqualTo(2025));
-            Assert.That(dataReader["b"], Is.EqualTo(new YearMonth(2025, 1)));
-            Assert.That(dataReader["c"], Is.EqualTo(107.25m));
-            Assert.That(dataReader["d"], Is.TypeOf<short>());
-            Assert.That(dataReader["d"], Is.EqualTo((short)10));
+            Assert.That(dataReader["a"], Is.EqualTo(1));
+            Assert.That(dataReader["b"], Is.EqualTo("foo"));
+        }
+        Assert.That(dataReader.Read(), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dataReader["a"], Is.EqualTo(2));
+            Assert.That(dataReader["b"], Is.EqualTo("bar"));
         }
         Assert.That(dataReader.Read(), Is.False);
     }
