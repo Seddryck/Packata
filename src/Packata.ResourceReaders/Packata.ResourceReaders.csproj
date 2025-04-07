@@ -16,7 +16,7 @@
   <ItemGroup>
     <PackageReference Include="DubUrl" Version="0.27.1" />
     <PackageReference Include="Parquet.Net" Version="5.1.1" />
-    <PackageReference Include="PocketCsvReader" Version="2.29.0" />
+    <PackageReference Include="PocketCsvReader" Version="2.30.0" />
   </ItemGroup>
 
 </Project>
