@@ -16,6 +16,7 @@ using DubUrl.BulkCopy;
 using System.Data;
 using Packata.Core.ResourceReading;
 using Packata.ResourceReaders;
+using DubUrl.Querying.Dialects.Functions;
 
 namespace Packata.Provisioners.Testing.Database;
 public class DubUrlProvisionerTests
@@ -43,14 +44,19 @@ public class DubUrlProvisionerTests
 
         var script = "CREATE TABLE";
         var typeMapper = new Mock<IDbTypeMapper>();
+        var sqlFunctionMapper = new Mock<ISqlFunctionMapper>();
         var dialect = new Mock<IDialect>();
         dialect.Setup(x => x.DbTypeMapper).Returns(typeMapper.Object).Verifiable();
+        dialect.Setup(x => x.SqlFunctionMapper).Returns(sqlFunctionMapper.Object).Verifiable();
         var connectionUrl = new Mock<ConnectionUrl>("mssql://./mydb");
         connectionUrl.Setup(x => x.Dialect).Returns(dialect.Object);
         var scriptRenderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None);
         scriptRenderer.Setup(x => x.Render(It.IsAny<Schema>())).Returns(script).Verifiable();
         var schemaDeployer = new Mock<SchemaScriptDeployer>();
         schemaDeployer.Setup(x => x.DeploySchema(It.IsAny<ConnectionUrl>(), It.IsAny<string>())).Verifiable();
+
+        var x = dialect.Object;
+        var y = scriptRenderer.Object;
 
         var provisioner = new DubUrlProvisioner(connectionUrl.Object, scriptRenderer.Object, schemaDeployer.Object);
         provisioner.DeploySchema(dataPackage, new());
@@ -83,6 +89,7 @@ public class DubUrlProvisionerTests
 
         var dialect = new Mock<IDialect>();
         dialect.Setup(x => x.DbTypeMapper).Returns(new Mock<IDbTypeMapper>().Object).Verifiable();
+        dialect.Setup(x => x.SqlFunctionMapper).Returns(new Mock<ISqlFunctionMapper>().Object).Verifiable();
         var connectionUrl = new Mock<ConnectionUrl>("mssql://./mydb");
         connectionUrl.Setup(x => x.Dialect).Returns(dialect.Object);
         var bulkCopyEngine = new Mock<IBulkCopyEngine>();
