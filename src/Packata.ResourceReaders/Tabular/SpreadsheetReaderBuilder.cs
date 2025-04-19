@@ -1,16 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Linq;
-using System.Reflection.Emit;
 using System.Text;
-using DubUrl.Registering;
-using ExcelDataReader;
+using DubUrl.Querying.Dialects;
 using Packata.Core;
 using Packata.Core.ResourceReading;
-using PocketCsvReader.Configuration;
+using Packata.Core.Validation;
 
 namespace Packata.ResourceReaders.Tabular;
 public class SpreadsheetReaderBuilder : IResourceReaderBuilder
@@ -20,9 +16,16 @@ public class SpreadsheetReaderBuilder : IResourceReaderBuilder
     public void Configure(Resource resource)
     {
         _dialect = resource.Dialect as TableSpreadsheetDialect ?? new TableSpreadsheetDialect();
+        var validator = new TableSpreadsheetDialectValidator();
+        validator.Validate(_dialect);
+
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }
 
     public IResourceReader Build()
-        => new SpreadsheetReader(new ExcelReaderWrapper(_dialect!));
+    {
+        if (_dialect == null)
+            throw new InvalidOperationException("Configure method must be called before Build.");
+        return new SpreadsheetReader(new ExcelReaderWrapper(_dialect));
+    }
 }

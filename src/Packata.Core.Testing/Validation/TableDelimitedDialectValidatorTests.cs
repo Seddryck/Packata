@@ -27,8 +27,8 @@ public class TableDelimitedDialectValidatorTests
     public void IsValid_EscapeAndQuote_ReturnsTrue(char? escape, char? quote, bool doubleQuote)
     {
         var validator = new TableDelimitedDialectValidator();
-        var TableDialect = new TableDelimitedDialect() { EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote };
-        Assert.That(validator.IsValid(TableDialect), Is.True);
+        var dialect = new TableDelimitedDialect() { EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote };
+        Assert.That(validator.IsValid(dialect), Is.True);
     }
 
     [Test]

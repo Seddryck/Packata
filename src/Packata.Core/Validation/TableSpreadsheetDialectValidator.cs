@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -12,7 +13,21 @@ public class TableSpreadsheetDialectValidator : IValidator<TableSpreadsheetDiale
     public bool IsValid(TableSpreadsheetDialect dialect)
         => IsNumberOrName(dialect, out _) && IsHeaderCoherent(dialect, out _);
 
-    protected virtual bool IsNumberOrName(TableSpreadsheetDialect dialect, out Exception? exception)
+    public void Validate(TableSpreadsheetDialect dialect)
+    {
+        var list = new List<Exception>();
+        if (!IsNumberOrName(dialect, out var exception))
+            list.Add(exception);
+        if (!IsHeaderCoherent(dialect, out exception))
+            list.Add(exception);
+
+        if (list.Count == 0)
+            return;
+
+        throw new AggregateException("Validation of spreadsheet dialect failed.", [.. list]);
+    }
+
+    protected virtual bool IsNumberOrName(TableSpreadsheetDialect dialect, [NotNullWhen(false)] out Exception? exception)
     {
         exception = dialect.SheetName is not null ^ dialect.SheetNumber is not null
             ? null
@@ -20,7 +35,7 @@ public class TableSpreadsheetDialectValidator : IValidator<TableSpreadsheetDiale
         return exception is null;
     }
 
-    protected virtual bool IsHeaderCoherent(TableSpreadsheetDialect dialect, out Exception? exception)
+    protected virtual bool IsHeaderCoherent(TableSpreadsheetDialect dialect, [NotNullWhen(false)] out Exception? exception)
     {
         exception = (dialect.Header && (dialect.HeaderRows is null || dialect.HeaderRows.Count() == 0))
                     || (!dialect.Header && (dialect.HeaderRows is not null && dialect.HeaderRows.Count() > 0))

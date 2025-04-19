@@ -8,10 +8,8 @@ using Moq;
 using NUnit.Framework;
 using Packata.Core;
 using Packata.Core.PathHandling;
-using Packata.Core.ResourceReading;
 using Packata.Core.Testing.PathHandling;
 using Packata.ResourceReaders.Tabular;
-using PocketCsvReader;
 
 namespace Packata.ResourceReaders.Testing.Tabular;
 public class SpreadsheetReaderBuilderTests
@@ -95,5 +93,20 @@ public class SpreadsheetReaderBuilderTests
         var reader = builder.Build();
 
         Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
+    }
+
+    [Test]
+    public void ToDataReader_BothSheetNameAndNumberProvided_Throws()
+    {
+        var resource = new Resource
+        {
+            Paths = [GetPath()],
+            Type = "table",
+            Name = "my-resource",
+            Dialect = new TableSpreadsheetDialect() { SheetNumber = 1, SheetName = "Sheet1" }
+        };
+        var builder = new SpreadsheetReaderBuilder();
+
+        Assert.Throws<AggregateException>(() => builder.Configure(resource));
     }
 }

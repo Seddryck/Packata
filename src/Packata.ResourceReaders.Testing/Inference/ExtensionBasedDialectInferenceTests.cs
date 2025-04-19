@@ -15,7 +15,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         {
             var extractor = new Mock<IExtractExtension>();
             extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
-                .Returns((IPath[] paths, out string value) =>
+                .Returns((IPath[] paths, out string? value) =>
                 {
                     value = extension;
                     return true;
@@ -34,7 +34,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         {
             var extractor = new Mock<IExtractExtension>();
             extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
-                .Returns((IPath[] paths, out string value) =>
+                .Returns((IPath[] paths, out string? value) =>
                 {
                     value = "unknown";
                     return true;
@@ -68,7 +68,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         {
             var extractor = new Mock<IExtractExtension>();
             extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
-                .Returns((IPath[] paths, out string value) =>
+                .Returns((IPath[] paths, out string? value) =>
                 {
                     value = "";
                     return true;
@@ -87,7 +87,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         {
             var extractor = new Mock<IExtractExtension>();
             extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
-                .Returns((IPath[] paths, out string value) =>
+                .Returns((IPath[] paths, out string? value) =>
                 {
                     value = "csv.tar.gz";
                     return true;
@@ -100,7 +100,6 @@ namespace Packata.ResourceReaders.Testing.Inference
             Assert.That(result, Is.False);
             Assert.That(dialect, Is.Null);
         }
-
     }
 }
 

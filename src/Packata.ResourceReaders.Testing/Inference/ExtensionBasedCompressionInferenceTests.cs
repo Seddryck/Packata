@@ -17,7 +17,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         {
             var extractor = new Mock<IExtractExtension>();
             extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
-                .Returns((IPath[] paths, out string value) =>
+                .Returns((IPath[] paths, out string? value) =>
                 {
                     value = extension;
                     return true;
@@ -39,7 +39,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         {
             var extractor = new Mock<IExtractExtension>();
             extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
-                .Returns((IPath[] paths, out string value) =>
+                .Returns((IPath[] paths, out string? value) =>
                 {
                     value = "foo";
                     return true;

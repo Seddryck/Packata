@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Chrononuensis;
 using ExcelDataReader;
 using Moq;
 using NUnit.Framework;
@@ -12,9 +11,6 @@ using Packata.Core;
 using Packata.Core.PathHandling;
 using Packata.Core.Testing.PathHandling;
 using Packata.ResourceReaders.Tabular;
-using PocketCsvReader;
-using PocketCsvReader.Configuration;
-using RichardSzalay.MockHttp;
 
 namespace Packata.ResourceReaders.Testing.Tabular;
 public class SpreadsheetReaderTests
@@ -92,5 +88,36 @@ public class SpreadsheetReaderTests
         for (int i = 1; i < 5; i++)
             Assert.That(dataReader.Read(), Is.True);
         Assert.That(dataReader.Read(), Is.False);
+    }
+
+    [Test]
+    public void ToDataReader_FileNotFound_ThrowsFileNotFoundException()
+    {
+        // Setup a path that doesn't exist
+        var fileSystem = new Mock<IFileSystem>();
+        fileSystem.Setup(x => x.Exists("non-existent-path")).Returns(false);
+        var path = new LocalPath(fileSystem.Object, "", "non-existent-path");
+
+        var resource = new Resource() { Paths = [path], Type = "table", Name = "my-resource" };
+        var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
+        var reader = new SpreadsheetReader(wrapper);
+
+        Assert.Throws<FileNotFoundException>(() => reader.ToDataReader(resource));
+    }
+
+    [Test]
+    public void ToDataReader_IOError_ThrowsIOException()
+    {
+        // Setup a path that throws an IO exception when opened
+        var fileSystem = new Mock<IFileSystem>();
+        fileSystem.Setup(x => x.Exists("error-path")).Returns(true);
+        fileSystem.Setup(x => x.OpenRead("error-path")).Throws<IOException>();
+        var path = new LocalPath(fileSystem.Object, "", "error-path");
+
+        var resource = new Resource() { Paths = [path], Type = "table", Name = "my-resource" };
+        var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
+        var reader = new SpreadsheetReader(wrapper);
+
+        Assert.Throws<IOException>(() => reader.ToDataReader(resource));
     }
 }

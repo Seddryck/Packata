@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Packata.Core;
 /// <summary>
-/// Represents the table dialect as defined by the Data Package Table Dialect profile for the type 'delimited'.
+/// Represents the table dialect as defined by the Data Package Table Dialect profile for the type 'spreadsheet'.
 /// </summary>
 public class TableSpreadsheetDialect : TableDialect
 {
@@ -45,7 +45,7 @@ public class TableSpreadsheetDialect : TableDialect
     /// <example>[2, 5]</example>
     public List<int>? CommentRows { get; set; }
 
-    private int? _sheetNumer = null;
+    private int? _sheetNumber = null;
     /// <summary>
     /// Specifies a sheet number of a table in the spreadsheet file.
     /// Default is '1'.
@@ -53,8 +53,8 @@ public class TableSpreadsheetDialect : TableDialect
     /// <example>2</example>
     public int? SheetNumber
     {
-        get => _sheetNumer ?? (SheetName is null ? 1 : null);
-        set => _sheetNumer = value;
+        get => _sheetNumber ?? (SheetName is null ? 1 : null);
+        set => _sheetNumber = value;
     }
 
     /// <summary>
