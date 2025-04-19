@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -46,5 +46,4 @@ internal class ExcelReaderWrapper
         }
         return reader;
     }
-
 }
