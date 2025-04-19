@@ -23,12 +23,21 @@ internal class ExcelReaderWrapper
         var reader = ExcelReaderFactory.CreateReader(stream, config);
 
         var sheetNumber = 1;
-        do
+        bool hasNext = true;
+        while (hasNext)
         {
             if ((!string.IsNullOrEmpty(Dialect!.SheetName) && reader.Name == Dialect.SheetName)
                 || (Dialect.SheetNumber is not null && Dialect.SheetNumber == sheetNumber))
                     break;
-        } while (reader.NextResult());
+            sheetNumber++;
+            hasNext = reader.NextResult();
+        } 
+
+        if (!string.IsNullOrEmpty(Dialect!.SheetName) && reader.Name != Dialect.SheetName)
+            throw new InvalidOperationException($"Sheet '{Dialect.SheetName}' not found in the Excel file.");
+
+        if (Dialect.SheetNumber is not null && !hasNext)
+            throw new InvalidOperationException($"Sheet '{Dialect.SheetNumber}' not found in the Excel file.");
 
         if (Dialect.HeaderRows is not null && Dialect.HeaderRows.Any())
         {
