@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -16,7 +16,7 @@
   <ItemGroup>
     <PackageReference Include="DubUrl" Version="0.27.11" />
     <PackageReference Include="Parquet.Net" Version="5.1.1" />
-    <PackageReference Include="PocketCsvReader" Version="2.35.0" />
+    <PackageReference Include="PocketCsvReader" Version="2.35.2" />
   </ItemGroup>
 
 </Project>

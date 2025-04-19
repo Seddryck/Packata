@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Packata.Core;
 
-namespace Packata.Core.Inference;
+namespace Packata.ResourceReaders.Inference;
 public class ExtensionBasedCompressionInference : BaseCompressionInference
 {
     private readonly IExtractExtension _extractor;
 
-    public ExtensionBasedCompressionInference(IExtractExtension extractor)
+    public ExtensionBasedCompressionInference(IExtractExtension extractor, IDictionary<string, string> compressionMappings)
+        : base(compressionMappings)
     {
         _extractor = extractor;
     }
@@ -22,9 +24,9 @@ public class ExtensionBasedCompressionInference : BaseCompressionInference
             if (string.IsNullOrEmpty(extension))
                 return false;
             var blocks = extension.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
-            if (blocks.Length!=2)
+            if (blocks.Length < 1 || blocks.Length > 2)
                 return false;
-            return TryInferFromExtension(blocks[1], out compression);
+            return TryInferFromExtension(blocks.Last(), out compression);
         }
         return false;
     }

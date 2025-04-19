@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Packata.Core;
 using Packata.Core.PathHandling;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Net.WebRequestMethods;
 
-namespace Packata.Core.Inference;
+namespace Packata.ResourceReaders.Inference;
 internal class ExtractExtensionFromPathsService : IExtractExtension
 {
     public bool TryGetPathExtension(IPath[]? paths, out string? extension)

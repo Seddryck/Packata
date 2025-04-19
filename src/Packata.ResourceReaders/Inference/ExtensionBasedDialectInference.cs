@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Packata.Core;
 
-namespace Packata.Core.Inference;
+namespace Packata.ResourceReaders.Inference;
 public class ExtensionBasedDialectInference : FormatBasedDialectInference
 {
     private readonly IExtractExtension _extractor;
