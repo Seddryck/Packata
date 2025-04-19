@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.ResourceReaders.Inference;
-internal interface IResourceInferenceService
+public interface IResourceInferenceService
 {
     void Enrich(Resource resource);
 }
