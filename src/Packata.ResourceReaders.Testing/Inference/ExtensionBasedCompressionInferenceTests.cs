@@ -1,6 +1,7 @@
 using Moq;
 using NUnit.Framework;
 using Packata.Core;
+using Packata.Core.PathHandling;
 using Packata.ResourceReaders.Inference;
 
 namespace Packata.ResourceReaders.Testing.Inference
@@ -26,7 +27,7 @@ namespace Packata.ResourceReaders.Testing.Inference
                 extractor.Object
                 , new Dictionary<string, string> { {"gz", "gzip" }, { "gzip", "gzip" } }
             );
-            var resource = new Resource();
+            var resource = new Resource() { Paths = [new LocalPath(@"C:\", $"file.{extension}")] };
             var result = inference.TryInfer(resource, out var compression);
 
             Assert.That(result, Is.True);
