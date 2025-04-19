@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.Inference;
-public class ExtensionBasedCompressionInference : BaseCompressionInference, ICompressionInference
+public class ExtensionBasedCompressionInference : BaseCompressionInference
 {
     private readonly IExtractExtension _extractor;
 
@@ -14,7 +14,7 @@ public class ExtensionBasedCompressionInference : BaseCompressionInference, ICom
         _extractor = extractor;
     }
 
-    public bool TryInfer(Resource resource, out string? compression)
+    public override bool TryInfer(Resource resource, out string? compression)
     {
         compression = null;
         if (_extractor.TryGetPathExtension(resource.Paths.ToArray(), out var extension))

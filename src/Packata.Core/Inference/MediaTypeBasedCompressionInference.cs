@@ -5,12 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.Inference;
-public class MediaTypeBasedCompressionInference : BaseCompressionInference, ICompressionInference
+public class MediaTypeBasedCompressionInference : BaseCompressionInference
 {
-    public MediaTypeBasedCompressionInference()
-    { }
-
-    public bool TryInfer(Resource resource, out string? compression)
+    public override bool TryInfer(Resource resource, out string? compression)
     {
         var mediaType = resource.MediaType;
         compression = null;

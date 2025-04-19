@@ -5,8 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.Inference;
-public class BaseCompressionInference
+public abstract class BaseCompressionInference : ICompressionInference
 {
+    public abstract bool TryInfer(Resource resource, out string? compression);
+
     protected bool TryInferFromExtension(string? extension, out string? compression)
     {
         compression = extension switch

@@ -11,7 +11,11 @@ public class ResourceInferenceService : IResourceInferenceService
     private readonly IDialectInference[] _dialectStrategies;
     private readonly ICompressionInference[] _compressionStrategies;
 
-    public static ResourceInferenceService Instance => new ResourceInferenceService(
+    public static ResourceInferenceService None => _none;
+    private static ResourceInferenceService _none => new ([], []);
+
+    public static ResourceInferenceService Instance => _instance;
+    private static ResourceInferenceService _instance => new (
             new IDialectInference[]
             {
                 new FormatBasedDialectInference(),

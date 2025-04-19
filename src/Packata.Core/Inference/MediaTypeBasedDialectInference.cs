@@ -7,9 +7,6 @@ using System.Threading.Tasks;
 namespace Packata.Core.Inference;
 public class MediaTypeBasedDialectInference : FormatBasedDialectInference
 {
-    public MediaTypeBasedDialectInference()
-    { }
-
     public override bool TryInfer(Resource resource, out TableDelimitedDialect? dialect)
     {
         var mediaType = resource.MediaType;

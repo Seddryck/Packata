@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Packata.Core.PathHandling;
+using static System.Net.Mime.MediaTypeNames;
+using static System.Net.WebRequestMethods;
 
 namespace Packata.Core.Inference;
 internal class ExtractExtensionFromPathsService : IExtractExtension
@@ -21,20 +23,35 @@ internal class ExtractExtensionFromPathsService : IExtractExtension
 
         if (pathTypes.First() == typeof(HttpPath))
         {
-            var files = paths.Where(p => p is HttpPath)
-                            .Select(http => new Uri(http.ToString()!).Segments.LastOrDefault())
-                            .Where(file => !string.IsNullOrEmpty(file))
-                            .Distinct();
-            if (files.Count() != 1)
+            try
+            {
+                var files = paths.Where(p => p is HttpPath)
+                                    .Select(http =>
+                                    {
+                                        try { return new Uri(http.ToString() ?? string.Empty).Segments.LastOrDefault(); }
+                                        catch (UriFormatException) { return null; }
+                                    })
+                                .Where(file => !string.IsNullOrEmpty(file))
+                                .Distinct();
+                if (files.Count() != 1)
+                    return false;
+                var ext = System.IO.Path.GetExtension(files.First());
+                extension = !string.IsNullOrEmpty(ext) ? ext.ToLowerInvariant().TrimStart('.') : null;
+            }
+            catch (Exception)
+            {
                 return false;
-            extension = System.IO.Path.GetExtension(files.First())?.ToLowerInvariant().Substring(1);
+            }
         }
         else
         {
-            var extensions = paths.Select(p => System.IO.Path.GetExtension(p.ToString()!).ToLowerInvariant()).Distinct();
+            var extensions = paths.Select(p => System.IO.Path.GetExtension(p.ToString() ?? string.Empty))
+                                            .Where(ext => !string.IsNullOrEmpty(ext))
+                                            .Select(ext => ext.ToLowerInvariant().TrimStart('.'))
+                                            .Distinct();
             if (extensions.Count() != 1)
                 return false;
-            extension = extensions.First().Substring(1);
+            extension = extensions.First();
         }
         return !string.IsNullOrEmpty(extension);
     }
