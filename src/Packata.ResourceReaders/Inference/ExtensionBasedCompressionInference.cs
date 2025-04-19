@@ -19,6 +19,9 @@ public class ExtensionBasedCompressionInference : BaseCompressionInference
     public override bool TryInfer(Resource resource, out string? compression)
     {
         compression = null;
+        if (resource == null || resource.Paths == null || !resource.Paths.Any())
+            return false;
+        
         if (_extractor.TryGetPathExtension(resource.Paths.ToArray(), out var extension))
         {
             if (string.IsNullOrEmpty(extension))
