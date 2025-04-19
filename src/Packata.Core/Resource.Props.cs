@@ -68,6 +68,13 @@ public partial class Resource
     public string Encoding { get; set; } = "utf-8";
 
     /// <summary>
+    /// The compression format.
+    /// Default: null.
+    /// </summary>
+    /// <example>"gz", "zz", "zip"</example>
+    public string? Compression { get; set; }
+
+    /// <summary>
     /// The size of the resource in bytes.
     /// </summary>
     /// <remarks>Useful for validation and optimization.</remarks>
