@@ -32,16 +32,19 @@ namespace Packata.ResourceReaders.Testing.Inference
         }
 
         [Test]
-        public void TryInfer_ShouldReturnTrueAndSetCompression_WhenMediaTypeIsDeflate()
+        [TestCase("application/x-deflate", "deflate")]
+        [TestCase("application/gzip", "gz")]
+        [TestCase("application/zip", "zip")]
+        public void TryInfer_ShouldReturnTrueAndSetCompression_WhenMediaTypeIsDeflate(string mime, string expected)
         {
             var inference = new MediaTypeBasedCompressionInference(
-                new Dictionary<string, string> { { "gz", "gzip" }, { "deflate", "deflate" } });
-            var resource = new Resource { MediaType = "application/x-deflate" };
+                new Dictionary<string, string> { { "gzip", "gz" }, { "zip", "zip" }, { "deflate", "deflate" } });
+            var resource = new Resource { MediaType = mime };
 
             var result = inference.TryInfer(resource, out var compression);
 
             Assert.That(result, Is.True);
-            Assert.That(compression, Is.EqualTo("deflate"));
+            Assert.That(compression, Is.EqualTo(expected));
         }
 
         [Test]
