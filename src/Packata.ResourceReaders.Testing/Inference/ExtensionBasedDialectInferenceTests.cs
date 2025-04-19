@@ -14,7 +14,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         public void TryInfer_ShouldReturnTrue_WhenExtensionIsKnownFormat(string extension)
         {
             var extractor = new Mock<IExtractExtension>();
-            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
                 .Returns((IPath[] paths, out string value) =>
                 {
                     value = extension;
@@ -33,7 +33,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         public void TryInfer_ShouldReturnFalse_WhenExtensionIsUnknown()
         {
             var extractor = new Mock<IExtractExtension>();
-            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
                 .Returns((IPath[] paths, out string value) =>
                 {
                     value = "unknown";
@@ -52,7 +52,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         public void TryInfer_ShouldReturnFalse_WhenNoExtensionIsExtracted()
         {
             var extractor = new Mock<IExtractExtension>();
-            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
                 .Returns(false);
 
             var inference = new ExtensionBasedDialectInference(extractor.Object);
@@ -67,7 +67,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         public void TryInfer_ShouldReturnFalse_WhenExtensionIsEmpty()
         {
             var extractor = new Mock<IExtractExtension>();
-            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
                 .Returns((IPath[] paths, out string value) =>
                 {
                     value = "";
@@ -86,7 +86,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         public void TryInfer_ShouldReturnFalse_WhenExtensionIsTooLong()
         {
             var extractor = new Mock<IExtractExtension>();
-            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
                 .Returns((IPath[] paths, out string value) =>
                 {
                     value = "csv.tar.gz";
