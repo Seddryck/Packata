@@ -24,8 +24,8 @@ public class TableDelimitedDialectValidator : IValidator<TableDelimitedDialect>
 
     protected virtual bool IsHeaderCoherent(TableDelimitedDialect dialect, out Exception? exception)
     {
-        exception = (dialect.Header && (dialect.HeaderRows is null || dialect.HeaderRows.Count() == 0))
-                    || (!dialect.Header && (dialect.HeaderRows is not null && dialect.HeaderRows.Count() > 0))
+        exception = (dialect.Header && (dialect.HeaderRows is null || !dialect.HeaderRows.Any()))
+                    || (!dialect.Header && (dialect.HeaderRows is not null && dialect.HeaderRows.Any()))
             ? new ArgumentOutOfRangeException(nameof(dialect), $"Properties 'header' and 'headerRows' are not coherent.")
             : null;
         return exception is null;

@@ -68,6 +68,24 @@ public class SpreadsheetReaderTests
     }
 
     [Test]
+    public void ToDataReader_NoResource_Throws()
+    {
+        var resource = new Resource() { Paths = [], Type = "table", Name = "my-resource" };
+        var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
+        var reader = new SpreadsheetReader(wrapper);
+        Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
+    }
+
+    [Test]
+    public void ToDataReader_TwoResources_Throws()
+    {
+        var resource = new Resource() { Paths = [new LocalPath(@"c:\", "file-2.xlsx"), new LocalPath(@"c:\","file-2.xlsx")], Type = "table", Name = "my-resource" };
+        var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
+        var reader = new SpreadsheetReader(wrapper);
+        Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
+    }
+
+    [Test]
     [TestCaseSource(nameof(GetPaths))]
     public void ToDataReader_ExistingLocalResourceWithName_ReturnsIDataReader(IPath path)
     {
