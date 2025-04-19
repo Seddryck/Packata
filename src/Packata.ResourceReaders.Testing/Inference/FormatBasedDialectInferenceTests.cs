@@ -20,9 +20,9 @@ namespace Packata.ResourceReaders.Testing.Inference
         }
 
         [Test]
-        [TestCase("csv", ',', '"', null, true, "\n")]
-        [TestCase("tsv", '\t', '"', null, true, "\n")]
-        [TestCase("psv", '|', '"', '\\', false, "\n")]
+        [TestCase("csv", ',', '"', null, true, "\r\n")]
+        [TestCase("tsv", '\t', '"', null, true, "\r\n")]
+        [TestCase("psv", '|', '"', '\\', false, "\r\n")]
         public void TryInfer_ShouldReturnTrueAndSetDialect_WhenFormatIsKnown(
             string format, char delimiter, char? quoteChar, char? escapeChar, bool doubleQuote, string lineTerminator)
         {
