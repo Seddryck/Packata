@@ -23,6 +23,7 @@ internal class TableDialectConverter : JsonConverter
         {
             "delimited" => new TableDelimitedDialect(),
             "database" => new TableDatabaseDialect(),
+            "spreadsheet" => new TableSpreadsheetDialect(),
             _ => throw new JsonSerializationException($"Unknown type: {type}"),
         };
 
