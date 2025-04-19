@@ -25,21 +25,22 @@ public class ResourceInferenceService : IResourceInferenceService
     }
 
     public static ResourceInferenceService None => _none;
-    private static ResourceInferenceService _none => new ([], []);
+    private static readonly ResourceInferenceService _none = new ([], []);
 
     public static ResourceInferenceService Instance => _instance;
-    private static ResourceInferenceService _instance => new (
-            new IDialectInference[]
-            {
+    private static ResourceInferenceService _instance = CreateInstance();
+
+    private static ResourceInferenceService CreateInstance()
+        => new (
+            [
                 new FormatBasedDialectInference(),
                 new MediaTypeBasedDialectInference(),
                 new ExtensionBasedDialectInference(new ExtractExtensionFromPathsService()),
-            },
-            new ICompressionInference[]
-            {
+            ],
+            [
                 new MediaTypeBasedCompressionInference(_compressionMappings),
                 new ExtensionBasedCompressionInference(new ExtractExtensionFromPathsService(), _compressionMappings)
-            });
+            ]);
 
     protected internal ResourceInferenceService(IDialectInference[] dialectStrategies, ICompressionInference[] compressionStrategies)
         => (_dialectStrategies, _compressionStrategies) = (dialectStrategies, compressionStrategies);

@@ -8,6 +8,7 @@ using Packata.Core.ResourceReading;
 using Packata.ResourceReaders.Inference;
 
 namespace Packata.ResourceReaders;
+
 public class ResourceReaderFactory
 {
     private Dictionary<string, IResourceReaderFactory> Factories { get; } = [];

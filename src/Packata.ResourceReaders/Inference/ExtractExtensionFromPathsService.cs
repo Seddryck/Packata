@@ -26,17 +26,19 @@ internal class ExtractExtensionFromPathsService : IExtractExtension
         {
             try
             {
-                var files = paths.Where(p => p is HttpPath)
+                var extensions = paths.Where(p => p is HttpPath)
                                     .Select(http =>
                                     {
                                         try { return new Uri(http.ToString() ?? string.Empty).Segments.LastOrDefault(); }
                                         catch (UriFormatException) { return null; }
                                     })
                                 .Where(file => !string.IsNullOrEmpty(file))
+                                .Cast<string>()
+                                .Select(file => file.GetLongExtension())
                                 .Distinct();
-                if (files.Count() != 1)
+                if (extensions.Count() != 1)
                     return false;
-                var ext = System.IO.Path.GetExtension(files.First());
+                var ext = extensions.First()!;
                 extension = !string.IsNullOrEmpty(ext) ? ext.ToLowerInvariant().TrimStart('.') : null;
             }
             catch (Exception)
@@ -46,7 +48,7 @@ internal class ExtractExtensionFromPathsService : IExtractExtension
         }
         else
         {
-            var extensions = paths.Select(p => System.IO.Path.GetExtension(p.ToString() ?? string.Empty))
+            var extensions = paths.Select(p => (p.ToString() ?? string.Empty).GetLongExtension())
                                             .Where(ext => !string.IsNullOrEmpty(ext))
                                             .Select(ext => ext.ToLowerInvariant().TrimStart('.'))
                                             .Distinct();

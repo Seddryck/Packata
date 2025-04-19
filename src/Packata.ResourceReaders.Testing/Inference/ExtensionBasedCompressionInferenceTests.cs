@@ -54,5 +54,23 @@ namespace Packata.ResourceReaders.Testing.Inference
             Assert.That(result, Is.False);
             Assert.That(compression, Is.Null);
         }
+
+        [Test]
+        public void TryInfer_ShouldReturnFalse_WhenExtractorFails()
+        {
+            var extractor = new Mock<IExtractExtension>();
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
+                .Returns(false);
+
+            var inference = new ExtensionBasedCompressionInference(
+                extractor.Object,
+                new Dictionary<string, string> { { "gz", "gzip" } }
+            );
+            var resource = new Resource();
+            var result = inference.TryInfer(resource, out var compression);
+
+            Assert.That(result, Is.False);
+            Assert.That(compression, Is.Null);
+        }
     }
 }

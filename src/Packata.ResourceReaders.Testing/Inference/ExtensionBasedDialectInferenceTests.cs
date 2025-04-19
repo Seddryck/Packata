@@ -62,6 +62,45 @@ namespace Packata.ResourceReaders.Testing.Inference
             Assert.That(result, Is.False);
             Assert.That(dialect, Is.Null);
         }
+
+        [Test]
+        public void TryInfer_ShouldReturnFalse_WhenExtensionIsEmpty()
+        {
+            var extractor = new Mock<IExtractExtension>();
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
+                .Returns((IPath[] paths, out string value) =>
+                {
+                    value = "";
+                    return true;
+                });
+
+            var inference = new ExtensionBasedDialectInference(extractor.Object);
+            var resource = new Resource();
+            var result = inference.TryInfer(resource, out var dialect);
+
+            Assert.That(result, Is.False);
+            Assert.That(dialect, Is.Null);
+        }
+
+        [Test]
+        public void TryInfer_ShouldReturnFalse_WhenExtensionIsTooLong()
+        {
+            var extractor = new Mock<IExtractExtension>();
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
+                .Returns((IPath[] paths, out string value) =>
+                {
+                    value = "csv.tar.gz";
+                    return true;
+                });
+
+            var inference = new ExtensionBasedDialectInference(extractor.Object);
+            var resource = new Resource();
+            var result = inference.TryInfer(resource, out var dialect);
+
+            Assert.That(result, Is.False);
+            Assert.That(dialect, Is.Null);
+        }
+
     }
 }
 
