@@ -15,9 +15,9 @@ public class FormatBasedDialectInference : IDialectInference
     {
         dialect = format switch
         {
-            "csv" => new TableDelimitedDialect { Delimiter = ',', QuoteChar = '"', DoubleQuote = true, LineTerminator = "\n" },
-            "tsv" => new TableDelimitedDialect { Delimiter = '\t', QuoteChar = '"', DoubleQuote = true, LineTerminator = "\n" },
-            "psv" => new TableDelimitedDialect { Delimiter = '|', EscapeChar = '\\', DoubleQuote = false, LineTerminator = "\n" },
+            "csv" => new TableDelimitedDialect { Delimiter = ',', QuoteChar = '"', DoubleQuote = true, LineTerminator = "\r\n" },
+            "tsv" => new TableDelimitedDialect { Delimiter = '\t', QuoteChar = '"', DoubleQuote = true, LineTerminator = "\r\n" },
+            "psv" => new TableDelimitedDialect { Delimiter = '|', EscapeChar = '\\', DoubleQuote = false, LineTerminator = "\r\n" },
             _ => null
         };
         return dialect is not null;
