@@ -16,8 +16,8 @@ namespace Packata.ResourceReaders.Testing.Inference
         public void TryInferFromExtension_ShouldReturnTrue_WhenExtensionIsGzip(string extension)
         {
             var extractor = new Mock<IExtractExtension>();
-            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
-                .Returns((IPath[] paths, out string value) =>
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
+                .Returns((IPath[] paths, out string? value) =>
                 {
                     value = extension;
                     return true;
@@ -38,8 +38,8 @@ namespace Packata.ResourceReaders.Testing.Inference
         public void TryInferFromExtension_ShouldReturnFalse_WhenExtensionIsUnknown()
         {
             var extractor = new Mock<IExtractExtension>();
-            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
-                .Returns((IPath[] paths, out string value) =>
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
+                .Returns((IPath[] paths, out string? value) =>
                 {
                     value = "foo";
                     return true;
@@ -60,7 +60,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         public void TryInfer_ShouldReturnFalse_WhenExtractorFails()
         {
             var extractor = new Mock<IExtractExtension>();
-            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string>.IsAny))
+            extractor.Setup(e => e.TryGetPathExtension(It.IsAny<IPath[]>(), out It.Ref<string?>.IsAny))
                 .Returns(false);
 
             var inference = new ExtensionBasedCompressionInference(

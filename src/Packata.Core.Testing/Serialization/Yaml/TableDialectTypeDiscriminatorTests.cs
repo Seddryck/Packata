@@ -73,4 +73,25 @@ internal class TableDialectConverterTests : BaseTypeDiscriminatorTests<TableDial
             Assert.That(dialect.Table, Is.EqualTo("Customer"));
         }
     }
+
+    [Test]
+    public void ReadJson_TypeSpreadsheet_ReturnsCorrectValue()
+    {
+        var yaml = @"
+                    dialect:
+                        type: spreadsheet
+                        sheetName: Customer
+                    ";
+
+        var wrapper = Deserializer.Deserialize<Wrapper>(yaml);
+
+        Assert.That(wrapper?.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Is.TypeOf<TableSpreadsheetDialect>());
+            var dialect = (TableSpreadsheetDialect)wrapper.Object!;
+            Assert.That(dialect.SheetName, Is.EqualTo("Customer"));
+            Assert.That(dialect.SheetNumber, Is.Null);
+        }
+    }
 }

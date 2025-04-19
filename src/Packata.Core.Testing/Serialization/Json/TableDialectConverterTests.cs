@@ -75,4 +75,25 @@ internal class TableDialectConverterTests : BaseConverterTests<TableDialectConve
             Assert.That(dbDialect.Table, Is.EqualTo("Customer"));
         }
     }
+
+    [Test]
+    public void ReadJson_TypeSpreadsheet_ReturnsSpreadsheet()
+    {
+        var json = @"{""dialect"":
+            {
+                ""$schema"": ""https://datapackage.org/profiles/2.0/tabledialect.json"",
+                ""type"": ""spreadsheet"",
+                ""sheetName"": ""Customer""
+            }}";
+        var wrapper = JsonConvert.DeserializeObject<Wrapper>(json, Settings);
+
+        Assert.That(wrapper?.Object, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object, Is.TypeOf<TableSpreadsheetDialect>());
+            var dialect = (TableSpreadsheetDialect)wrapper.Object!;
+            Assert.That(dialect.SheetName, Is.EqualTo("Customer"));
+            Assert.That(dialect.SheetNumber, Is.Null);
+        }
+    }
 }

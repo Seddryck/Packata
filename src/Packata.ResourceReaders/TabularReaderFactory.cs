@@ -32,6 +32,7 @@ internal class TabularReaderFactory : IResourceReaderFactory
     {
         AddOrReplaceReader(Delimited, new DelimitedReaderBuilder());
         AddOrReplaceReader(Database, new DatabaseReaderBuilder());
+        AddOrReplaceReader(Spreadsheet, new SpreadsheetReaderBuilder());
         Heuristic = resource => resource.Dialect?.Type ?? Delimited;
     }
 

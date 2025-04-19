@@ -7,7 +7,7 @@ using NUnit.Framework;
 using Packata.Core.Validation;
 
 namespace Packata.Core.Testing.Validation;
-public class TableDialectValidatorTests
+public class TableDelimitedDialectValidatorTests
 {
     [Test]
     [TestCase('\\', '\"', false)]
@@ -15,7 +15,7 @@ public class TableDialectValidatorTests
     [TestCase('\\', null, true)]
     public void IsValid_EscapeAndQuote_ReturnsFalse(char? escape, char? quote, bool doubleQuote)
     {
-        var validator = new TableDialectValidator();
+        var validator = new TableDelimitedDialectValidator();
         var tableDialect = new TableDelimitedDialect() {EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote};
         Assert.That(validator.IsValid(tableDialect), Is.False);
     }
@@ -26,9 +26,9 @@ public class TableDialectValidatorTests
     [TestCase('\\', null, false)]
     public void IsValid_EscapeAndQuote_ReturnsTrue(char? escape, char? quote, bool doubleQuote)
     {
-        var validator = new TableDialectValidator();
-        var TableDialect = new TableDelimitedDialect() { EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote };
-        Assert.That(validator.IsValid(TableDialect), Is.True);
+        var validator = new TableDelimitedDialectValidator();
+        var dialect = new TableDelimitedDialect() { EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote };
+        Assert.That(validator.IsValid(dialect), Is.True);
     }
 
     [Test]
@@ -36,7 +36,7 @@ public class TableDialectValidatorTests
     [TestCase(false, 1,2)]
     public void IsValid_IsHeaderCoherent_ReturnsFalse(bool header, params int[] headerRows)
     {
-        var validator = new TableDialectValidator();
+        var validator = new TableDelimitedDialectValidator();
         var tableDialect = new TableDelimitedDialect() { Header = header, HeaderRows = [.. headerRows] };
         Assert.That(validator.IsValid(tableDialect), Is.False);
     }
@@ -46,7 +46,7 @@ public class TableDialectValidatorTests
     [TestCase(false)]
     public void IsValid_IsHeaderCoherent_ReturnsTrue(bool header, params int[] headerRows)
     {
-        var validator = new TableDialectValidator();
+        var validator = new TableDelimitedDialectValidator();
         var tableDialect = new TableDelimitedDialect() { Header = header, HeaderRows = [.. headerRows] };
         Assert.That(validator.IsValid(tableDialect), Is.True);
     }

@@ -1,5 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <None Remove="Resources\my-book.xlsx" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\my-book.xlsx" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Chrononuensis" Version="0.23.5" />
   </ItemGroup>
   <ItemGroup>
