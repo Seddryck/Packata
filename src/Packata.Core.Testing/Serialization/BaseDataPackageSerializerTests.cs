@@ -332,6 +332,7 @@ public abstract class BaseDataPackageSerializerTests
             Assert.That(dataPackage.Resources[0].Format, Is.EqualTo("csv"));
             Assert.That(dataPackage.Resources[0].MediaType, Is.EqualTo("text/csv"));
             Assert.That(dataPackage.Resources[0].Encoding, Is.EqualTo("utf-8"));
+            Assert.That(dataPackage.Resources[0].Compression, Is.Null);
             Assert.That(dataPackage.Resources[0].Dialect, Is.Null);
         });
     }

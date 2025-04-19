@@ -154,9 +154,9 @@ public class DelimitedReaderBuilder : IResourceReaderBuilder
 
         var resourceBuilder = new ResourceDescriptorBuilder();
         if (resource.Encoding is not null)
-        {
             resourceBuilder.WithEncoding(resource.Encoding);
-        }
+        if (resource.Compression is not null)
+            resourceBuilder.WithCompression(resource.Compression);
 
         var csvReaderBuilder = new CsvReaderBuilder()
                                     .WithDialect(dialectBuilder)
