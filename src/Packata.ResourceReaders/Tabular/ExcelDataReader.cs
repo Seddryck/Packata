@@ -55,10 +55,17 @@ internal class ExcelDataReader : IDataReader
 
     public bool GetBoolean(int i)
         => _reader.GetBoolean(i);
-    public byte GetByte(int i) => throw new NotImplementedException();
-    public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length) => throw new NotImplementedException();
-    public char GetChar(int i) => throw new NotImplementedException();
-    public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length) => throw new NotImplementedException();
+    public byte GetByte(int i) 
+        => throw new NotSupportedException("Byte access is not supported by ExcelDataReader.");
+
+    public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferOffset, int length)
+        => throw new NotSupportedException("Byte array access is not supported by ExcelDataReader.");
+
+    public char GetChar(int i) 
+        => throw new NotSupportedException("Char access is not supported by ExcelDataReader.");
+
+    public long GetChars(int i, long fieldOffset, char[]? buffer, int bufferOffset, int length)
+        => throw new NotSupportedException("Char array access is not supported by ExcelDataReader.");
     public IDataReader GetData(int i)
         => _reader.GetData(i);
     public string GetDataTypeName(int i)
