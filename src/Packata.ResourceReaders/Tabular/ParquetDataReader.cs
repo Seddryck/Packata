@@ -4,11 +4,11 @@ using Parquet.Schema;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 
+namespace Packata.ResourceReaders.Tabular;
 public class ParquetDataReader : System.Data.IDataReader
 {
-    private readonly List<ParquetReader> _readers = new();
+    private readonly List<Parquet.ParquetReader> _readers = new();
     private readonly List<Stream> _streams = new(); // to dispose later
     private readonly List<DataField[]> _schemas = new();
     private readonly List<object[]> _rows = new();
@@ -24,7 +24,7 @@ public class ParquetDataReader : System.Data.IDataReader
         var reader = new ParquetDataReader();
         foreach (var stream in streams)
         {
-            var parquetReader = await ParquetReader.CreateAsync(stream);
+            var parquetReader = await Parquet.ParquetReader.CreateAsync(stream);
             var dataFields = parquetReader.Schema.GetDataFields();
 
             if (reader._fieldCount == -1)
@@ -58,7 +58,7 @@ public class ParquetDataReader : System.Data.IDataReader
         return true;
     }
 
-    private async Task LoadRowsFromReaderAsync(ParquetReader reader)
+    private async Task LoadRowsFromReaderAsync(Parquet.ParquetReader reader)
     {
         for (int i = 0; i < reader.RowGroupCount; i++)
         {
@@ -117,18 +117,31 @@ public class ParquetDataReader : System.Data.IDataReader
     public object this[int i] => GetValue(i);
     public object this[string name] => GetValue(GetOrdinal(name));
     public int Depth => 0;
-    public bool IsClosed => false;
+    public bool IsClosed => _disposed;
     public int RecordsAffected => -1;
     public void Close() => Dispose();
     public System.Data.DataTable GetSchemaTable() => throw new NotSupportedException();
     public bool NextResult() => false;
 
+    private bool _disposed = false;
+    
     public void Dispose()
     {
-        foreach (var reader in _readers)
-            reader.Dispose();
-        foreach (var stream in _streams)
-            stream.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+        if (disposing)
+        {
+            foreach (var reader in _readers)
+                reader.Dispose();
+            foreach (var stream in _streams)
+                stream.Dispose();
+        }
+        _disposed = true;
     }
 
     public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length) => throw new NotSupportedException();
@@ -144,5 +157,13 @@ public class ParquetDataReader : System.Data.IDataReader
     System.Data.DataTable? System.Data.IDataReader.GetSchemaTable() => throw new NotImplementedException();
     public byte GetByte(int i) => throw new NotImplementedException();
     System.Data.IDataReader System.Data.IDataRecord.GetData(int i) => throw new NotImplementedException();
-    public int GetValues(object[] values) => throw new NotImplementedException();
+    public int GetValues(object[] values)
+    {
+        if (_currentRowIndex< 0 || _currentRowIndex >= _rows.Count)
+            return 0;
+        var current = _rows[_currentRowIndex];
+        var len = Math.Min(values.Length, current.Length);
+        Array.Copy(current, values, len);
+        return len;
+    }
 }

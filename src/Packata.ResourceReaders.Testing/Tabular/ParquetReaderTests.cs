@@ -15,18 +15,20 @@ using Packata.ResourceReaders.Tabular;
 namespace Packata.ResourceReaders.Testing.Tabular;
 public class ParquetReaderTests
 {
-    
     private static IEnumerable<IPath> GetPaths()
     {
         using var stream = Assembly.GetExecutingAssembly()
             .GetManifestResourceStream($"{typeof(ResourceTests).Namespace}.Resources.iris.parquet")
             ?? throw new FileNotFoundException("Resource not found", $"{typeof(ResourceTests).Namespace}.Resources.iris.parquet");
 
-        var fileStream = new MemoryStream();
-        stream.CopyTo(fileStream);
+        using var tmp = new MemoryStream();
+        stream.CopyTo(tmp);
+        var parquetBytes = tmp.ToArray();// cache the bytes once
+        
         var fileSystem = new Mock<IFileSystem>();
-        fileSystem.Setup(x => x.Exists("my-resource-path")).Returns(true);
-        fileSystem.Setup(x => x.OpenRead("my-resource-path")).Returns(fileStream);
+        fileSystem.Setup(fs => fs.Exists("my-resource-path")).Returns(true);
+        fileSystem.Setup(fs => fs.OpenRead("my-resource-path"))
+                          .Returns(() => new MemoryStream(parquetBytes, writable: false)); // fresh stream
         yield return new LocalPath(fileSystem.Object, "", "my-resource-path");
     }
 

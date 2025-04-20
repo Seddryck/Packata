@@ -18,7 +18,8 @@ internal class ParquetReaderWrapper
 
     public IDataReader ToDataReader(IEnumerable<Stream> streams)
     {
-        var reader = ParquetDataReader.CreateAsync(streams).Result;
+        var reader = ParquetDataReader.CreateAsync(streams)
+            .ConfigureAwait(false).GetAwaiter().GetResult();
         return reader;
     }
 }
