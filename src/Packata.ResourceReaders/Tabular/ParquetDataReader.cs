@@ -91,12 +91,16 @@ public class ParquetDataReader : System.Data.IDataReader
 
     public int FieldCount => _dataFields.Length;
 
+    public object GetValue(int i) => _rows[_currentRowIndex][i];
+
+    public string GetName(int i) => _dataFields[i].Name;
+    public string GetDataTypeName(int i) => _dataFields[i].SchemaType.ToString();
+    public Type GetFieldType(int i) => _dataFields[i].ClrType;
     public int GetOrdinal(string name)
     {
         for (int i = 0; i < _dataFields.Length; i++)
-        {
-            if (_dataFields[i].Name == name) return i;
-        }
+            if (_dataFields[i].Name == name)
+                return i;
         throw new ArgumentException($"Column name '{name}' not found", nameof(name));
     }
 
@@ -119,7 +123,7 @@ public class ParquetDataReader : System.Data.IDataReader
     public bool NextResult() => false;
 
     private bool _disposed = false;
-    
+
     public void Dispose()
     {
         Dispose(true);
