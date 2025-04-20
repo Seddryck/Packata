@@ -39,11 +39,24 @@ internal class ExcelReaderWrapper
         if (Dialect.SheetNumber is not null && !hasNext)
             throw new InvalidOperationException($"Sheet '{Dialect.SheetNumber}' not found in the Excel file.");
 
+        var headers = new List<string>();
         if (Dialect.HeaderRows is not null && Dialect.HeaderRows.Any())
         {
             for (int i = 0; i < Dialect.HeaderRows.Max(); i++)
+            {
                 reader.Read();
+                if (i == 0)
+                {
+                    for (int j = 0; j < reader.FieldCount; j++)
+                        headers.Add(reader.GetString(j));
+                }
+                else
+                {
+                    for (int j = 0; j < reader.FieldCount; j++)
+                        headers[j] = $"{headers[j]}{Dialect.HeaderJoin}{reader.GetString(j)}";
+                }
+            }
         }
-        return reader;
+        return new ExcelDataReader(reader, [.. headers]);
     }
 }
