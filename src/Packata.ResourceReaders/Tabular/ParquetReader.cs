@@ -21,10 +21,8 @@ internal class ParquetReader : IResourceReader
             throw new InvalidOperationException(
                 "The resource does not contain any paths, but at least one is required to create a DataReader.");
 
-        if (resource.Paths.Count > 1)
-            throw new InvalidOperationException(
-                "The resource contains more than a single path, cannot create a DataReader for multiple file when using the spreadsheet reader.");
-
-        return Reader.ToDataReader(resource.Paths[0].ToStream());
+        return resource.Paths.Count > 1
+            ? Reader.ToDataReader(resource.Paths.Select(p => p.ToStream()))
+            : Reader.ToDataReader(resource.Paths[0].ToStream());
     }
 }

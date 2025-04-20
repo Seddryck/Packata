@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -66,12 +67,15 @@ public class ParquetReaderTests
     }
 
     [Test]
-    public void ToDataReader_TwoResources_Throws()
+    [TestCaseSource(nameof(GetPaths))]
+    public void ToDataReader_TwoResources_DataReader(IPath path)
     {
-        var resource = new Resource() { Paths = [new LocalPath(@"c:\", "file-2.parquet"), new LocalPath(@"c:\", "file-2.parquet")], Type = "table", Name = "my-resource" };
+        var resource = new Resource() { Paths = [path, path], Type = "table", Name = "my-resource" };
         var wrapper = new ParquetReaderWrapper();
         var reader = new ParquetReader(wrapper);
-        Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
+        var dr = reader.ToDataReader(resource);
+        Assert.That(dr, Is.Not.Null);
+        Assert.That(dr, Is.TypeOf<ParquetDataReader>());
     }
 
     [Test]

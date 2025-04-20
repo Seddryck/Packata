@@ -8,30 +8,61 @@ using System.IO;
 
 public class ParquetDataReader : System.Data.IDataReader
 {
-    private readonly ParquetReader _reader;
-    private readonly DataField[] _dataFields;
-    private readonly List<object[]> _rows = [];
+    private readonly List<ParquetReader> _readers = new();
+    private readonly List<Stream> _streams = new(); // to dispose later
+    private readonly List<DataField[]> _schemas = new();
+    private readonly List<object[]> _rows = new();
+
+    private int _fieldCount = -1;
     private int _currentRowIndex = -1;
+    private DataField[] _dataFields = [];
 
-    private ParquetDataReader(ParquetReader reader)
-    {
-        _reader = reader;
-        _dataFields = _reader.Schema.GetDataFields();
-    }
+    private ParquetDataReader() { }
 
-    public static async Task<ParquetDataReader> CreateAsync(Stream stream)
+    public static async Task<ParquetDataReader> CreateAsync(IEnumerable<Stream> streams)
     {
-        var reader = await ParquetReader.CreateAsync(stream);
-        var dataReader = new ParquetDataReader(reader);
-        await dataReader.LoadRowsAsync();
-        return dataReader;
-    }
-
-    private async Task LoadRowsAsync()
-    {
-        for (int i = 0; i < _reader.RowGroupCount; i++)
+        var reader = new ParquetDataReader();
+        foreach (var stream in streams)
         {
-            using var groupReader = _reader.OpenRowGroupReader(i);
+            var parquetReader = await ParquetReader.CreateAsync(stream);
+            var dataFields = parquetReader.Schema.GetDataFields();
+
+            if (reader._fieldCount == -1)
+            {
+                reader._fieldCount = dataFields.Length;
+                reader._dataFields = dataFields;
+            }
+            else
+            {
+                // Ensure schemas are consistent across files
+                if (!reader.AreSchemasEqual(reader._dataFields, dataFields))
+                    throw new InvalidOperationException("Inconsistent schema across parquet files.");
+            }
+
+            reader._streams.Add(stream);
+            reader._readers.Add(parquetReader);
+            await reader.LoadRowsFromReaderAsync(parquetReader);
+        }
+
+        return reader;
+    }
+
+    private bool AreSchemasEqual(DataField[] a, DataField[] b)
+    {
+        if (a.Length != b.Length) return false;
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (a[i].Name != b[i].Name || a[i].ClrType != b[i].ClrType)
+                return false;
+        }
+        return true;
+    }
+
+    private async Task LoadRowsFromReaderAsync(ParquetReader reader)
+    {
+        for (int i = 0; i < reader.RowGroupCount; i++)
+        {
+            using var groupReader = reader.OpenRowGroupReader(i);
             var columns = new DataColumn[_dataFields.Length];
 
             for (int j = 0; j < _dataFields.Length; j++)
@@ -88,12 +119,17 @@ public class ParquetDataReader : System.Data.IDataReader
     public int Depth => 0;
     public bool IsClosed => false;
     public int RecordsAffected => -1;
-    public void Close() => _reader.Dispose();
+    public void Close() => Dispose();
     public System.Data.DataTable GetSchemaTable() => throw new NotSupportedException();
     public bool NextResult() => false;
 
     public void Dispose()
-        => _reader?.Dispose();
+    {
+        foreach (var reader in _readers)
+            reader.Dispose();
+        foreach (var stream in _streams)
+            stream.Dispose();
+    }
 
     public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length) => throw new NotSupportedException();
     public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length) => throw new NotSupportedException();
