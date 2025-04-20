@@ -55,4 +55,33 @@ public class TabularReaderFactoryTests
         reader = factory.Create(new Resource() { Type = "table" });
         Assert.That(reader, Is.EqualTo(structuredReader.Object));
     }
+
+    [Test]
+    [TestCase("delimited", typeof(DelimitedReader))]
+    [TestCase("spreadsheet", typeof(SpreadsheetReader))]
+    [TestCase("database", typeof(DatabaseReader))]
+    public void Create_WithTableDialectType_ReturnsDelimitedReader(string dialectType, Type expected)
+    {
+        var factory = new TabularReaderFactory();
+        var reader = factory.Create(new Resource() { Type = "table", Dialect = new TableDelimitedDialect() { Type = dialectType } });
+        Assert.That(reader, Is.InstanceOf(expected));
+    }
+
+    [Test]
+    [TestCase("csv", typeof(DelimitedReader))]
+    [TestCase("tsv", typeof(DelimitedReader))]
+    [TestCase("psv", typeof(DelimitedReader))]
+    [TestCase("csv.gz", typeof(DelimitedReader))]
+    [TestCase("tsv.gz", typeof(DelimitedReader))]
+    [TestCase("psv.gz", typeof(DelimitedReader))]
+    [TestCase("parquet", typeof(ParquetReader))]
+    [TestCase("pqt", typeof(ParquetReader))]
+    [TestCase("xls", typeof(SpreadsheetReader))]
+    [TestCase("xlsx", typeof(SpreadsheetReader))]
+    public void Create_WithTableFormat_ReturnsExpectedReader(string format, Type expected)
+    {
+        var factory = new TabularReaderFactory();
+        var reader = factory.Create(new Resource() { Type = "table", Format = format });
+        Assert.That(reader, Is.InstanceOf(expected));
+    }
 }

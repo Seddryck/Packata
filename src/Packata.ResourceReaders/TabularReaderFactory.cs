@@ -35,7 +35,7 @@ internal class TabularReaderFactory : IResourceReaderFactory
         AddOrReplaceReader(Database, new DatabaseReaderBuilder());
         AddOrReplaceReader(Spreadsheet, new SpreadsheetReaderBuilder());
         AddOrReplaceReader(Parquet, new ParquetReaderBuilder());
-        Heuristic = resource => resource.Dialect?.Type ?? Delimited;
+        Heuristic = TabularHeuristic;
     }
 
     public IResourceReader Create(Resource resource)
@@ -48,5 +48,27 @@ internal class TabularReaderFactory : IResourceReaderFactory
 
         builder.Configure(resource);
         return builder.Build();
+    }
+
+    private static string TabularHeuristic(Resource resource)
+    {
+        if (resource.Dialect?.Type is not null)
+            return resource.Dialect.Type;
+
+        if (resource.Format is not null)
+        {
+            var format = resource.Format.ToLowerInvariant();
+            if (format.EndsWith(".gz"))
+                format = format[0..^3];
+
+            return (format) switch
+            {
+                "csv" or "tsv" or "psv" or "txt" => Delimited,
+                "xlsx" or "xls" => Spreadsheet,
+                "parquet" or "pqt" => Parquet,
+                _ => Delimited,
+            };
+        }
+        return Delimited;
     }
 }
