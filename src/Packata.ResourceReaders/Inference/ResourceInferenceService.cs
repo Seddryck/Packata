@@ -11,6 +11,7 @@ namespace Packata.ResourceReaders.Inference;
 public class ResourceInferenceService : IResourceInferenceService
 {
     private readonly IDialectInference[] _dialectStrategies;
+    private readonly IFormatInference[] _formatStrategies;
     private readonly ICompressionInference[] _compressionStrategies;
 
     private static readonly IDictionary<string, string> _compressionMappings = GetCompressionMappings();
@@ -25,7 +26,7 @@ public class ResourceInferenceService : IResourceInferenceService
     }
 
     public static ResourceInferenceService None => _none;
-    private static readonly ResourceInferenceService _none = new ([], []);
+    private static readonly ResourceInferenceService _none = new ([], [], []);
 
     public static ResourceInferenceService Instance => _instance;
     private static ResourceInferenceService _instance = CreateInstance();
@@ -38,22 +39,38 @@ public class ResourceInferenceService : IResourceInferenceService
                 new ExtensionBasedDialectInference(new ExtractExtensionFromPathsService()),
             ],
             [
+                new MediaTypeBasedFormatInference(),
+                new ExtensionBasedFormatInference(new ExtractExtensionFromPathsService()),
+            ],
+            [
                 new MediaTypeBasedCompressionInference(_compressionMappings),
                 new ExtensionBasedCompressionInference(new ExtractExtensionFromPathsService(), _compressionMappings)
             ]);
 
-    protected internal ResourceInferenceService(IDialectInference[] dialectStrategies, ICompressionInference[] compressionStrategies)
-        => (_dialectStrategies, _compressionStrategies) = (dialectStrategies, compressionStrategies);
+    protected internal ResourceInferenceService(IDialectInference[] dialectStrategies, IFormatInference[] formatStrategies, ICompressionInference[] compressionStrategies)
+        => (_dialectStrategies, _formatStrategies, _compressionStrategies) = (dialectStrategies, formatStrategies, compressionStrategies);
 
     public void Enrich(Resource resource)
     {
-        if (resource.Compression is null)
+        if (string.IsNullOrEmpty(resource.Compression))
         {
             foreach (var strategy in _compressionStrategies)
             {
                 if (strategy.TryInfer(resource, out var compression))
                 {
                     resource.Compression = compression;
+                    break;
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(resource.Format))
+        {
+            foreach (var strategy in _formatStrategies)
+            {
+                if (strategy.TryInfer(resource, out var format))
+                {
+                    resource.Format = format;
                     break;
                 }
             }

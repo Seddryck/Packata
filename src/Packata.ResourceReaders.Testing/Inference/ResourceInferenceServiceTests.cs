@@ -22,6 +22,7 @@ namespace Packata.ResourceReaders.Testing.Inference
 
             var service = new ResourceInferenceService(
                 Array.Empty<IDialectInference>(),
+                Array.Empty<IFormatInference>(),
                 new[] { mockCompression.Object }
             );
 
@@ -36,6 +37,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         {
             var service = new ResourceInferenceService(
                 Array.Empty<IDialectInference>(),
+                Array.Empty<IFormatInference>(),
                 Array.Empty<ICompressionInference>()
             );
 
@@ -59,6 +61,7 @@ namespace Packata.ResourceReaders.Testing.Inference
 
             var service = new ResourceInferenceService(
                 new[] { mockDialect.Object },
+                Array.Empty<IFormatInference>(),
                 Array.Empty<ICompressionInference>()
             );
 
@@ -74,10 +77,60 @@ namespace Packata.ResourceReaders.Testing.Inference
         }
 
         [Test]
+        public void Enrich_ShouldSetFormat_WhenFormatIsNull()
+        {
+            var mockFormat = new Mock<IFormatInference>();
+            mockFormat
+                .Setup(m => m.TryInfer(It.IsAny<Resource>(), out It.Ref<string?>.IsAny))
+                .Returns((Resource resource, out string? format) =>
+                {
+                    format = "foo";
+                    return true;
+                });
+
+            var service = new ResourceInferenceService(
+                Array.Empty<IDialectInference>(),
+                new[] { mockFormat.Object },
+                Array.Empty<ICompressionInference>()
+            );
+
+            var resource = new Resource { Format = null };
+            service.Enrich(resource);
+
+            Assert.That(resource.Format, Is.Not.Null);
+            Assert.That(resource.Format, Is.EqualTo("foo"));
+        }
+
+        [Test]
+        public void Enrich_ShouldNotSetFormat_WhenFormatIsNotNull()
+        {
+            var mockFormat = new Mock<IFormatInference>();
+            mockFormat
+                .Setup(m => m.TryInfer(It.IsAny<Resource>(), out It.Ref<string?>.IsAny))
+                .Returns((Resource resource, out string? format) =>
+                {
+                    format = "foo";
+                    return true;
+                });
+
+            var service = new ResourceInferenceService(
+                Array.Empty<IDialectInference>(),
+                new[] { mockFormat.Object },
+                Array.Empty<ICompressionInference>()
+            );
+
+            var resource = new Resource { Format = "bar" };
+            service.Enrich(resource);
+
+            Assert.That(resource.Format, Is.EqualTo("bar"));
+        }
+
+        [Test]
         public void Enrich_ShouldNotSetDialect_WhenDialectIsAlreadySet()
         {
             var service = new ResourceInferenceService(
                 Array.Empty<IDialectInference>(),
+                Array.Empty<IFormatInference>(),
                 Array.Empty<ICompressionInference>()
             );
 
