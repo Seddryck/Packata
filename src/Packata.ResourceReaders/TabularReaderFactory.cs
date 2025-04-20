@@ -13,6 +13,7 @@ internal class TabularReaderFactory : IResourceReaderFactory
     public const string Delimited = "delimited";
     public const string Structured = "structured";
     public const string Spreadsheet = "spreadsheet";
+    public const string Parquet = "parquet";
     public const string Database = "database";
 
     private Func<Resource, string> Heuristic { get; set; }
@@ -33,6 +34,7 @@ internal class TabularReaderFactory : IResourceReaderFactory
         AddOrReplaceReader(Delimited, new DelimitedReaderBuilder());
         AddOrReplaceReader(Database, new DatabaseReaderBuilder());
         AddOrReplaceReader(Spreadsheet, new SpreadsheetReaderBuilder());
+        AddOrReplaceReader(Parquet, new ParquetReaderBuilder());
         Heuristic = resource => resource.Dialect?.Type ?? Delimited;
     }
 
