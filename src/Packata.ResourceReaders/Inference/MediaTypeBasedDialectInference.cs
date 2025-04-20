@@ -15,18 +15,23 @@ public class MediaTypeBasedDialectInference : FormatBasedDialectInference
         if (string.IsNullOrEmpty(mediaType))
             return false;
 
-        if (!mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        mediaType = mediaType.ToLowerInvariant().Substring(5).Split([';'])[0];
-        var format = mediaType switch
+        string? format;
+        if (mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase))
         {
-            "csv" => "csv",
-            "tsv" => "tsv",
-            "tab-separated-values" => "tsv",
-            "psv" => "psv",
-            _ => null
-        };
+            mediaType = mediaType.ToLowerInvariant().Substring(5).Split([';'])[0];
+            format = mediaType switch
+            {
+                "csv" => "csv",
+                "tsv" => "tsv",
+                "tab-separated-values" => "tsv",
+                "psv" => "psv",
+                _ => null
+            };
+        }
+        else
+        {
+            return false;
+        }
 
         return TryInferFromFormat(format, out dialect);
     }

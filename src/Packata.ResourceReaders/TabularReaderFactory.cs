@@ -13,6 +13,7 @@ internal class TabularReaderFactory : IResourceReaderFactory
     public const string Delimited = "delimited";
     public const string Structured = "structured";
     public const string Spreadsheet = "spreadsheet";
+    public const string Parquet = "parquet";
     public const string Database = "database";
 
     private Func<Resource, string> Heuristic { get; set; }
@@ -33,7 +34,8 @@ internal class TabularReaderFactory : IResourceReaderFactory
         AddOrReplaceReader(Delimited, new DelimitedReaderBuilder());
         AddOrReplaceReader(Database, new DatabaseReaderBuilder());
         AddOrReplaceReader(Spreadsheet, new SpreadsheetReaderBuilder());
-        Heuristic = resource => resource.Dialect?.Type ?? Delimited;
+        AddOrReplaceReader(Parquet, new ParquetReaderBuilder());
+        Heuristic = TabularHeuristic;
     }
 
     public IResourceReader Create(Resource resource)
@@ -46,5 +48,27 @@ internal class TabularReaderFactory : IResourceReaderFactory
 
         builder.Configure(resource);
         return builder.Build();
+    }
+
+    private static string TabularHeuristic(Resource resource)
+    {
+        if (resource.Dialect?.Type is not null)
+            return resource.Dialect.Type;
+
+        if (resource.Format is not null)
+        {
+            var format = resource.Format.ToLowerInvariant();
+            if (format.EndsWith(".gz"))
+                format = format[0..^3];
+
+            return (format) switch
+            {
+                "csv" or "tsv" or "psv" or "txt" => Delimited,
+                "xlsx" or "xls" => Spreadsheet,
+                "parquet" or "pqt" => Parquet,
+                _ => Delimited,
+            };
+        }
+        return Delimited;
     }
 }
