@@ -16,10 +16,10 @@ public class MediaTypeBasedFormatInference : IFormatInference
             return false;
 
         // remove the charset value
-        mediaType = mediaType.ToLowerInvariant().Split(';')[0];
+        mediaType = mediaType.ToLowerInvariant().Split(';')[0].Split('+')[0];
         if (mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase))
         {
-            mediaType = mediaType.ToLowerInvariant().Substring("text/".Length).Split('+')[0];
+            mediaType = mediaType.Substring("text/".Length);
             format = mediaType switch
             {
                 "csv" => "csv",
@@ -31,7 +31,7 @@ public class MediaTypeBasedFormatInference : IFormatInference
         }
         else if (mediaType.StartsWith("application/", StringComparison.OrdinalIgnoreCase))
         {
-            mediaType = mediaType.ToLowerInvariant().Substring("application/".Length).Split(['+'])[0];
+            mediaType = mediaType.Substring("application/".Length);
             format = mediaType switch
             {
                 "vnd.ms-excel" => "xls",

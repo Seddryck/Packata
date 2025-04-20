@@ -31,23 +31,23 @@ namespace Packata.ResourceReaders.Testing.Inference
             var inference = new MediaTypeBasedFormatInference();
             var resource = new Resource { MediaType = mime };
 
-            var result = inference.TryInfer(resource, out var dialect);
+            var result = inference.TryInfer(resource, out var format);
 
             Assert.That(result, Is.False);
-            Assert.That(dialect, Is.Null);
+            Assert.That(format, Is.Null);
         }
         
         [Test]
         [TestCase("text/csv;charset=utf-8", "csv")]
-        public void TryInfer_ShouldReturnTrue_WhenCharsetSepecifiedAndTypeKnown(string mime, string expected)
+        public void TryInfer_ShouldReturnTrue_WhenCharsetSpecifiedAndTypeKnown(string mime, string expected)
         {
             var inference = new MediaTypeBasedFormatInference();
             var resource = new Resource { MediaType = mime };
 
-            var result = inference.TryInfer(resource, out var dialect);
+            var result = inference.TryInfer(resource, out var format);
 
             Assert.That(result, Is.True);
-            Assert.That(dialect, Is.EqualTo(expected));
+            Assert.That(format, Is.EqualTo(expected));
         }
     }
 }
