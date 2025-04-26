@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Packata.Core;
-using Packata.Core.PathHandling;
+using Packata.Core.Storage;
 using RichardSzalay.MockHttp;
 
 namespace Packata.ResourceReaders.Testing;
@@ -14,12 +15,12 @@ public class ResourceTests
     [Test]
     public void ToDataReader_SinglePropertySet_ReturnsDataReader()
     {
-        var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When("http://example.com/data.csv")
-                    .Respond("text/csv", "a,b,c\r\n1,2,3\r\n4,5,6\r\n");
-        var path = new HttpPath(mockHttp.ToHttpClient(), "http://example.com/data.csv");
+        var path = new Mock<IPath>();
+        path.SetupGet(p => p.RelativePath).Returns("file.csv");
+        path.Setup(p => p.ExistsAsync()).ReturnsAsync(true);
+        path.Setup(p => p.OpenAsync()).ReturnsAsync(new MemoryStream(Encoding.UTF8.GetBytes("a,b,c\r\n1,2,3\r\n4,5,6\r\n")));
 
-        var resource = new Resource() { Paths = [path], Name = "my-resource", Type = "table" };
+        var resource = new Resource() { Paths = [path.Object], Name = "my-resource", Type = "table" };
         var dataReader = resource.ToDataReader();
 
         Assert.That(dataReader, Is.Not.Null);

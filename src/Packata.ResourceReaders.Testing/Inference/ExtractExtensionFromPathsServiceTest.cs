@@ -4,8 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
-using Packata.Core.PathHandling;
+using Packata.Core.Storage;
 using Packata.ResourceReaders.Inference;
 
 namespace Packata.ResourceReaders.Testing.Inference;
@@ -15,30 +16,44 @@ public class ExtractExtensionFromPathsServiceTest
     [TestCase(@"C:\", "file.csv", "csv")]
     [TestCase(@"C:\foo\", "bar.csv", "csv")]
     [TestCase(@"C:\foo\", "bar.csv.gz", "csv.gz")]
-    public void TryGetPathExtension_ShouldReturnTrue_WhenLocal(string root, string path, string expected)
+    public void TryGetPathExtension_ShouldReturnTrue_WhenLocal(string root, string filename, string expected)
     {
         var extractor = new ExtractExtensionFromPathsService();
-        var paths = new[] { new LocalPath(root, path) };
+        var path = new Mock<IPath>();
+        path.SetupGet(p => p.RelativePath).Returns(filename);
+        var paths = new[] { path.Object };
         var result = extractor.TryGetPathExtension(paths, out var extension);
-        Assert.That(result, Is.True);
-        Assert.That(extension, Is.EqualTo(expected));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.True);
+            Assert.That(extension, Is.EqualTo(expected));
+        }
     }
 
     [Test]
     public void TryGetPathExtension_ShouldReturnTrue_WhenLocalMultiplePathsProvided()
     {
         var extractor = new ExtractExtensionFromPathsService();
-        var paths = new[] { new LocalPath(@"C:\", "file-1.csv"), new LocalPath(@"C:\", "file-2.csv") };
+        var paths = new[] {
+            Mock.Of<IPath>(p => p.RelativePath == "file-1.csv"),
+            Mock.Of<IPath>(p => p.RelativePath == "file-2.csv")
+        };
         var result = extractor.TryGetPathExtension(paths, out var extension);
-        Assert.That(result, Is.True);
-        Assert.That(extension, Is.EqualTo("csv"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.True);
+            Assert.That(extension, Is.EqualTo("csv"));
+        }
     }
 
     [Test]
     public void TryGetPathExtension_ShouldReturnFalse_WhenLocalMultipleIncoherentPathsProvided()
     {
         var extractor = new ExtractExtensionFromPathsService();
-        var paths = new[] { new LocalPath(@"C:\", "file-1.csv"), new LocalPath(@"C:\", "file-2.txt") };
+        var paths = new[] {
+            Mock.Of<IPath>(p => p.RelativePath == "file-1.csv"),
+            Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.org/file-2.csv")
+        };
         var result = extractor.TryGetPathExtension(paths, out var extension);
         Assert.That(result, Is.False);
     }
@@ -50,10 +65,13 @@ public class ExtractExtensionFromPathsServiceTest
     public void TryGetPathExtension_ShouldReturnTrue_WhenHttpExtensionIsExtracted(string path, string expected)
     {
         var extractor = new ExtractExtensionFromPathsService();
-        var paths = new[] { new HttpPath(new HttpClient(), path) };
+        var paths = new[] { Mock.Of<IPath>(p => p.RelativePath == path) };
         var result = extractor.TryGetPathExtension(paths, out var extension);
-        Assert.That(result, Is.True);
-        Assert.That(extension, Is.EqualTo(expected));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.True);
+            Assert.That(extension, Is.EqualTo(expected));
+        }
     }
 
     [Test]
@@ -61,12 +79,15 @@ public class ExtractExtensionFromPathsServiceTest
     {
         var extractor = new ExtractExtensionFromPathsService();
         var paths = new[] {
-            new HttpPath(new HttpClient(), "http://www.foo.com/file-1.csv"),
-            new HttpPath(new HttpClient(), "http://www.foo.com/file-2.csv")
-        };
+                    Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.com/file-1.csv"),
+                    Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.com/file-2.csv")
+                };
         var result = extractor.TryGetPathExtension(paths, out var extension);
-        Assert.That(result, Is.True);
-        Assert.That(extension, Is.EqualTo("csv"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Is.True);
+            Assert.That(extension, Is.EqualTo("csv"));
+        }
     }
 
     [Test]
@@ -74,9 +95,9 @@ public class ExtractExtensionFromPathsServiceTest
     {
         var extractor = new ExtractExtensionFromPathsService();
         var paths = new[] {
-            new HttpPath(new HttpClient(), "http://www.foo.com/file-1.csv"),
-            new HttpPath(new HttpClient(), "http://www.foo.com/file-2.txt")
-        };
+                    Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.com/file-1.csv"),
+                    Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.com/file-2.txt")
+                };
         var result = extractor.TryGetPathExtension(paths, out var extension);
         Assert.That(result, Is.False);
     }

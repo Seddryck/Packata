@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using Packata.Core.Serialization;
 using Packata.Core.Serialization.Json;
+using Packata.Core.Storage;
 
 namespace Packata.Core.Testing.Serialization;
 
@@ -26,7 +27,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetDataPackageProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -47,7 +48,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetContributorsProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage, Is.Not.Null);
         Assert.That(dataPackage.Contributors, Has.Count.EqualTo(2));
         Assert.Multiple(() =>
@@ -70,7 +71,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetSourceProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -94,7 +95,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetFieldsProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         var schema = dataPackage.Resources[0].Schema!;
         Assert.That(schema.Fields, Has.Count.EqualTo(8));
         Assert.Multiple(() =>
@@ -126,7 +127,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetFieldConstraintsProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         var schema = dataPackage.Resources[0].Schema!;
         Assert.That(schema.Fields, Has.Count.EqualTo(2));
         var field = schema.Fields[0];
@@ -164,7 +165,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetResourcesProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -188,7 +189,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetResourcesPathProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage, Is.Not.Null);
         Assert.That(dataPackage.Resources[0], Is.Not.Null);
         Assert.That(dataPackage.Resources[0].Paths, Is.Not.Null.Or.Empty);
@@ -203,7 +204,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetMissingValuesAsStringArrayProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage.Resources[0].Schema, Is.Not.Null);
         var schema = dataPackage.Resources[0].Schema!;
         Assert.That(schema.MissingValues, Has.Count.EqualTo(3));
@@ -218,7 +219,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetMissingValuesAsObjectsProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage.Resources[0].Schema, Is.Not.Null);
         var schema = dataPackage.Resources[0].Schema!;
         Assert.That(schema.MissingValues, Has.Count.EqualTo(3));
@@ -233,7 +234,7 @@ public abstract class BaseDataPackageSerializerTests
     {
         using var stream = GetKeysProperties();
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage, Is.Not.Null);
         Assert.That(dataPackage.Resources[0]?.Schema, Is.Not.Null);
         var schema = dataPackage.Resources[0].Schema!;
@@ -280,7 +281,7 @@ public abstract class BaseDataPackageSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -302,7 +303,7 @@ public abstract class BaseDataPackageSerializerTests
 
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage.Licenses, Has.Count.EqualTo(1));
         Assert.Multiple(() =>
         {
@@ -320,7 +321,7 @@ public abstract class BaseDataPackageSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
         Assert.Multiple(() =>
         {
@@ -345,7 +346,7 @@ public abstract class BaseDataPackageSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
         Assert.That(dataPackage.Resources[1].Dialect, Is.Not.Null);
         var dialect = dataPackage.Resources[1].Dialect!;
@@ -367,7 +368,7 @@ public abstract class BaseDataPackageSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
         Assert.That(dataPackage.Resources[0].Schema, Is.Not.Null);
         var schema = dataPackage.Resources[0].Schema!;
@@ -403,7 +404,7 @@ public abstract class BaseDataPackageSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataPackage = GetSerializer().Deserialize(streamReader, new HttpClient(), "c:\\");
+        var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDataPackageContainer());
         Assert.That(dataPackage.Resources, Has.Count.EqualTo(3));
         Assert.That(dataPackage.Resources[1].Schema!.Fields[5], Is.Not.Null);
         var field = dataPackage.Resources[1].Schema!.Fields[5];

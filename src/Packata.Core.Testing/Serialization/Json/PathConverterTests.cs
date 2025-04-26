@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Packata.Core.PathHandling;
+using Packata.Core.Storage;
 using Packata.Core.Serialization.Json;
 using NUnit.Framework;
 using System.Net.Http;
@@ -17,7 +17,7 @@ internal class PathConverterTests : AbstractConverterTests<PathConverter, List<I
     { }
 
     protected override PathConverter CreateConverter()
-        => new (new HttpClient(), "c:\\");
+        => new (new PathFactory(new LocalDirectoryDataPackageContainer()));
 
     [Test]
     public void ReadJson_ValidJsonArray_ReturnsCorrectFieldList()

@@ -1,6 +1,8 @@
-﻿namespace Packata.Core.Serialization;
+﻿using Packata.Core.Storage;
+
+namespace Packata.Core.Serialization;
 
 public interface IDataPackageSerializer
 {
-    DataPackage Deserialize(StreamReader reader, HttpClient httpClient, string root);
+    DataPackage Deserialize(StreamReader reader, IDataPackageContainer container);
 }

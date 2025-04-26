@@ -7,8 +7,7 @@ using Chrononuensis;
 using Moq;
 using NUnit.Framework;
 using Packata.Core;
-using Packata.Core.PathHandling;
-using Packata.Core.Testing.PathHandling;
+using Packata.Core.Storage;
 using Packata.ResourceReaders.Tabular;
 using PocketCsvReader;
 using PocketCsvReader.Configuration;
@@ -17,25 +16,14 @@ using RichardSzalay.MockHttp;
 namespace Packata.ResourceReaders.Testing.Tabular;
 public class DelimitedReaderTests
 {
-    private static IEnumerable<IPath> GetPaths()
-    {
-        var fileSystem = new Mock<IFileSystem>();
-        fileSystem.Setup(x => x.Exists("my-resource-path")).Returns(true);
-        fileSystem.Setup(x => x.OpenRead("my-resource-path")).Returns(new MemoryStream(Encoding.UTF8.GetBytes("a,b,c\r\n1,2,3\r\n4,5,6\r\n")));
-        yield return new LocalPath(fileSystem.Object, "", "my-resource-path");
-
-        var mockHttp = new MockHttpMessageHandler();
-        mockHttp.When("http://example.com/data.csv")
-                    .Respond("text/csv", "a,b,c\r\n1,2,3\r\n4,5,6\r\n");
-        yield return new HttpPath(mockHttp.ToHttpClient(), "http://example.com/data.csv");
-    }
-
-
     [Test]
-    [TestCaseSource(nameof(GetPaths))]
-    public void ToDataReader_ExistingLocalResource_ReturnsIDataReader(IPath path)
+    public void ToDataReader_ExistingLocalResource_ReturnsIDataReader()
     {
-        var resource = new Resource() { Paths = [path], Type = "table", Name = "my-resource" };
+        var path = new Mock<IPath>();
+        path.Setup(x => x.ExistsAsync()).ReturnsAsync(true);
+        path.Setup(x => x.OpenAsync()).ReturnsAsync(new MemoryStream(Encoding.UTF8.GetBytes("a,b,c\r\n1,2,3\r\n4,5,6\r\n")));
+
+        var resource = new Resource() { Paths = [path.Object], Type = "table", Name = "my-resource" };
         var csvReader = new CsvReaderBuilder().WithDialect(d => d.WithHeader()).Build();
         var reader = new DelimitedReader(csvReader);
         var dataReader = reader.ToDataReader(resource);
@@ -62,13 +50,13 @@ public class DelimitedReaderTests
     [Test]
     public void ToDataReader_YearYearMonthDecimal_ReturnsIDataReader()
     {
-        var fileSystem = new Mock<IFileSystem>();
-        fileSystem.Setup(x => x.Exists("my-resource-path")).Returns(true);
-        fileSystem.Setup(x => x.OpenRead("my-resource-path")).Returns(new MemoryStream(Encoding.UTF8.GetBytes("a;b;c;d\r\n2025;2025-01;107,25;10")));
+        var path = new Mock<IPath>();
+        path.Setup(x => x.ExistsAsync()).ReturnsAsync(true);
+        path.Setup(x => x.OpenAsync()).ReturnsAsync(new MemoryStream(Encoding.UTF8.GetBytes("a;b;c;d\r\n2025;2025-01;107,25;10")));
 
         var resource = new Resource
         {
-            Paths = [new LocalPath(fileSystem.Object, "", "my-resource-path")],
+            Paths = [path.Object],
             Type = "table",
             Name = "my-resource",
             Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true },
@@ -106,15 +94,17 @@ public class DelimitedReaderTests
     [Test]
     public void ToDataReader_MultiFile_ReturnsIDataReader()
     {
-        var fileSystem = new Mock<IFileSystem>();
-        fileSystem.Setup(x => x.Exists("my-resource-path-1")).Returns(true);
-        fileSystem.Setup(x => x.OpenRead("my-resource-path-1")).Returns(new MemoryStream(Encoding.UTF8.GetBytes("a;b\r\n1;foo")));
-        fileSystem.Setup(x => x.Exists("my-resource-path-2")).Returns(true);
-        fileSystem.Setup(x => x.OpenRead("my-resource-path-2")).Returns(new MemoryStream(Encoding.UTF8.GetBytes("2;bar")));
+        var path_1 = new Mock<IPath>();
+        path_1.Setup(x => x.ExistsAsync()).ReturnsAsync(true);
+        path_1.Setup(x => x.OpenAsync()).ReturnsAsync(new MemoryStream(Encoding.UTF8.GetBytes("a;b\r\n1;foo")));
+
+        var path_2 = new Mock<IPath>();
+        path_2.Setup(x => x.ExistsAsync()).ReturnsAsync(true);
+        path_2.Setup(x => x.OpenAsync()).ReturnsAsync(new MemoryStream(Encoding.UTF8.GetBytes("2;bar")));
 
         var resource = new Resource
         {
-            Paths = [new LocalPath(fileSystem.Object, "", "my-resource-path-1"), new LocalPath(fileSystem.Object, "", "my-resource-path-2")],
+            Paths = [path_1.Object, path_2.Object],
             Type = "table",
             Name = "my-resource",
             Dialect = new TableDelimitedDialect() { Delimiter = ';', LineTerminator = "\r\n", Header = true, HeaderRepeat = false },

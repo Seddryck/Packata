@@ -5,13 +5,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Packata.Core.Storage;
 
 namespace Packata.Core.Serialization.Json;
 internal class DataPackageSerializer : IDataPackageSerializer
 {
-    public DataPackage Deserialize(StreamReader reader, HttpClient httpClient, string root)
+    public DataPackage Deserialize(StreamReader reader, IDataPackageContainer container)
     {
-        var resolver = new DataPackagePropertyResolver(httpClient, root);
+        var resolver = new DataPackagePropertyResolver(container);
         var serializer = new JsonSerializer
         {
             ContractResolver = resolver
