@@ -4,9 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Packata.Core;
-public interface IPath
+namespace Packata.Storages;
+public interface IContainerWrapper
 {
-    public bool Exists();
-    public Stream ToStream();
 }

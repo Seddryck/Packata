@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -7,14 +8,13 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Packata.Core;
-using Packata.Core.PathHandling;
-using Packata.Core.Testing.PathHandling;
+using Packata.Core.Storage;
 using Packata.ResourceReaders.Tabular;
 
 namespace Packata.ResourceReaders.Testing.Tabular;
 public class ParquetReaderBuilderTests
 {
-    private static LocalPath GetPath()
+    private static IPath GetPath()
     {
         using var stream = Assembly.GetExecutingAssembly()
             .GetManifestResourceStream($"{typeof(ResourceTests).Namespace}.Resources.iris.parquet")
@@ -22,10 +22,10 @@ public class ParquetReaderBuilderTests
 
         var fileStream = new MemoryStream();
         stream.CopyTo(fileStream);
-        var fileSystem = new Mock<IFileSystem>();
-        fileSystem.Setup(x => x.Exists("my-resource-path")).Returns(true);
-        fileSystem.Setup(x => x.OpenRead("my-resource-path")).Returns(fileStream);
-        return new LocalPath(fileSystem.Object, "", "my-resource-path");
+        var path = new Mock<IPath>();
+        path.Setup(x => x.ExistsAsync()).ReturnsAsync(true);
+        path.Setup(x => x.OpenAsync()).ReturnsAsync(fileStream);
+        return path.Object;
     }
 
     [Test]

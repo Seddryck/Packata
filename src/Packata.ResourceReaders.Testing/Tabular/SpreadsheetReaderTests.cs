@@ -8,8 +8,7 @@ using ExcelDataReader;
 using Moq;
 using NUnit.Framework;
 using Packata.Core;
-using Packata.Core.PathHandling;
-using Packata.Core.Testing.PathHandling;
+using Packata.Core.Storage;
 using Packata.ResourceReaders.Tabular;
 
 namespace Packata.ResourceReaders.Testing.Tabular;
@@ -29,10 +28,10 @@ public class SpreadsheetReaderTests
 
         var fileStream = new MemoryStream();
         stream.CopyTo(fileStream);
-        var fileSystem = new Mock<IFileSystem>();
-        fileSystem.Setup(x => x.Exists("my-resource-path")).Returns(true);
-        fileSystem.Setup(x => x.OpenRead("my-resource-path")).Returns(fileStream);
-        yield return new LocalPath(fileSystem.Object, "", "my-resource-path");
+        var path = new Mock<IPath>();
+        path.Setup(x => x.ExistsAsync()).ReturnsAsync(true);
+        path.Setup(x => x.OpenAsync()).ReturnsAsync(fileStream);
+        yield return path.Object;
     }
 
     [Test]
@@ -78,7 +77,7 @@ public class SpreadsheetReaderTests
     [Test]
     public void ToDataReader_TwoResources_Throws()
     {
-        var resource = new Resource() { Paths = [new LocalPath(@"c:\", "file-2.xlsx"), new LocalPath(@"c:\","file-2.xlsx")], Type = "table", Name = "my-resource" };
+        var resource = new Resource() { Paths = [new Mock<IPath>().Object, new Mock<IPath>().Object], Type = "table", Name = "my-resource" };
         var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
         var reader = new SpreadsheetReader(wrapper);
         Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
@@ -142,11 +141,10 @@ public class SpreadsheetReaderTests
     public void ToDataReader_FileNotFound_ThrowsFileNotFoundException()
     {
         // Setup a path that doesn't exist
-        var fileSystem = new Mock<IFileSystem>();
-        fileSystem.Setup(x => x.Exists("non-existent-path")).Returns(false);
-        var path = new LocalPath(fileSystem.Object, "", "non-existent-path");
+        var path = new Mock<IPath>();
+        path.Setup(x => x.ExistsAsync()).ReturnsAsync(false);
 
-        var resource = new Resource() { Paths = [path], Type = "table", Name = "my-resource" };
+        var resource = new Resource() { Paths = [path.Object], Type = "table", Name = "my-resource" };
         var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
         var reader = new SpreadsheetReader(wrapper);
 
@@ -157,12 +155,11 @@ public class SpreadsheetReaderTests
     public void ToDataReader_IOError_ThrowsIOException()
     {
         // Setup a path that throws an IO exception when opened
-        var fileSystem = new Mock<IFileSystem>();
-        fileSystem.Setup(x => x.Exists("error-path")).Returns(true);
-        fileSystem.Setup(x => x.OpenRead("error-path")).Throws<IOException>();
-        var path = new LocalPath(fileSystem.Object, "", "error-path");
+        var path = new Mock<IPath>();
+        path.Setup(x => x.ExistsAsync()).ReturnsAsync(true);
+        path.Setup(x => x.OpenAsync()).ThrowsAsync(new IOException());
 
-        var resource = new Resource() { Paths = [path], Type = "table", Name = "my-resource" };
+        var resource = new Resource() { Paths = [path.Object], Type = "table", Name = "my-resource" };
         var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
         var reader = new SpreadsheetReader(wrapper);
 

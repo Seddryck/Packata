@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using PocketCsvReader;
 using Packata.Core;
 using Packata.Core.ResourceReading;
+using Packata.Core.Storage;
 
 namespace Packata.ResourceReaders.Tabular;
 internal class DelimitedReader : IResourceReader
@@ -23,7 +24,7 @@ internal class DelimitedReader : IResourceReader
                 "The resource does not contain any paths, but at least one is required to create a DataReader.");
 
         return resource.Paths.Count == 1
-            ? CsvReader.ToDataReader(resource.Paths[0].ToStream())
-            : CsvReader.ToDataReader(resource.Paths.Select(p => p.ToStream()));
+            ? CsvReader.ToDataReader(resource.Paths[0].OpenAsync)
+            : CsvReader.ToDataReader(resource.Paths.Select<IPath, Func<Task<Stream>>>(p => p.OpenAsync));
     }
 }

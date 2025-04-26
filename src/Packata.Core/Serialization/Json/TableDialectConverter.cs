@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Packata.Core.PathHandling;
+using Packata.Core.Storage;
 
 namespace Packata.Core.Serialization.Json;
 internal class TableDialectConverter : JsonConverter

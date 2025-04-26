@@ -28,10 +28,10 @@ internal class ExcelReaderWrapper
         {
             if ((!string.IsNullOrEmpty(Dialect!.SheetName) && reader.Name == Dialect.SheetName)
                 || (Dialect.SheetNumber is not null && Dialect.SheetNumber == sheetNumber))
-                    break;
+                break;
             sheetNumber++;
             hasNext = reader.NextResult();
-        } 
+        }
 
         if (!string.IsNullOrEmpty(Dialect!.SheetName) && reader.Name != Dialect.SheetName)
             throw new InvalidOperationException($"Sheet '{Dialect.SheetName}' not found in the Excel file.");
@@ -40,7 +40,7 @@ internal class ExcelReaderWrapper
             throw new InvalidOperationException($"Sheet '{Dialect.SheetNumber}' not found in the Excel file.");
 
         var headers = new List<string>();
-        if (Dialect.HeaderRows is not null && Dialect.HeaderRows.Any())
+        if (Dialect.HeaderRows is not null && Dialect.HeaderRows.Count != 0)
         {
             for (int i = 0; i < Dialect.HeaderRows.Max(); i++)
             {

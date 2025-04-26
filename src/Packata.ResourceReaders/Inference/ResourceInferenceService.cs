@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Packata.Core;
-using Packata.Core.PathHandling;
+using Packata.Core.Storage;
 using PocketCsvReader.Compression;
 
 namespace Packata.ResourceReaders.Inference;

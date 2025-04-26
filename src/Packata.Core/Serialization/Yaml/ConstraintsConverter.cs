@@ -8,7 +8,7 @@ namespace Packata.Core.Serialization.Yaml;
 
 internal class ConstraintsConverter : IYamlTypeConverter
 {
-    private readonly ConstraintMapper constraintMapper = new();
+    private readonly ConstraintMapper _constraintMapper = new();
 
     public bool Accepts(Type type)
         => type == typeof(FieldConstraintCollection);
@@ -22,7 +22,7 @@ internal class ConstraintsConverter : IYamlTypeConverter
         while (parser.TryConsume<Scalar>(out var scalar))
         {
             if (parser.TryConsume<Scalar>(out var valueScalar))
-                list.Add(constraintMapper.Map(scalar.Value, valueScalar.Value));
+                list.Add(_constraintMapper.Map(scalar.Value, valueScalar.Value));
             else
                 throw new YamlException($"Expected scalar value for constraint '{scalar.Value}'");
         }

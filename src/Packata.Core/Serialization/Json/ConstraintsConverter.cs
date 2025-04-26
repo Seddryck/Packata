@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 namespace Packata.Core.Serialization.Json;
 internal class ConstraintsConverter : JsonConverter
 {
-    private readonly ConstraintMapper constraintMapper = new();
+    private readonly ConstraintMapper _constraintMapper = new();
 
     public override bool CanConvert(Type objectType)
         => objectType == typeof(FieldConstraintCollection);
@@ -27,7 +27,7 @@ internal class ConstraintsConverter : JsonConverter
                 if (reader.Value is null)
                     continue;
                 var value = reader.Value;
-                list.Add(constraintMapper.Map(propertyName, value));
+                list.Add(_constraintMapper.Map(propertyName, value));
             }
         }
 

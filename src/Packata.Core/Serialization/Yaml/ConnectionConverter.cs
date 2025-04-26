@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
-using Packata.Core.PathHandling;
+using Packata.Core.Storage;
 using Newtonsoft.Json;
 using System.Runtime.Serialization;
 

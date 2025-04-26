@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using Packata.Core.Storage;
 
 namespace Packata.Core.Serialization.Json;
 internal class DataPackagePropertyResolver : DefaultContractResolver
@@ -13,10 +14,10 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
     private Dictionary<string, JsonConverter> Converters { get; } = [];
     private Func<string, string> PropertyNameResolver { get; }
 
-    public DataPackagePropertyResolver(HttpClient httpClient, string root)
+    public DataPackagePropertyResolver(IDataPackageContainer container)
     {
-        Converters.Add("resources", new ResourcesConverter(root));
-        Converters.Add("path", new PathConverter(httpClient, root));
+        Converters.Add("resources", new ResourcesConverter(container.BaseUri.ToString()));
+        Converters.Add("path", new PathConverter(new PathFactory(container)));
         Converters.Add("fields", new FieldConverter());
         Converters.Add("missingValues", new MissingValuesConverter());
         Converters.Add("constraints", new ConstraintsConverter());

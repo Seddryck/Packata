@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Packata.Core;
+using Packata.Core.Storage;
 
 namespace Packata.ResourceReaders.Inference;
 /// <summary>

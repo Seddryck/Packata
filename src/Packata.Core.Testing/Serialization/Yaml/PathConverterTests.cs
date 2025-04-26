@@ -4,6 +4,8 @@ using Packata.Core.Serialization.Yaml;
 using NUnit.Framework;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
+using Moq;
+using Packata.Core.Storage;
 
 namespace Packata.Core.Testing.Serialization.Yaml;
 
@@ -14,7 +16,12 @@ internal class PathConverterTests : AbstractConverterTests<PathConverter, List<I
     { }
 
     protected override PathConverter CreateConverter()
-        => new (new HttpClient(), "c:\\");
+    {
+        var container = new Mock<IDataPackageContainer>();
+        container.Setup(c => c.BaseUri).Returns(new Uri("file://c:/"));
+        var pathFactory = new PathFactory(container.Object);
+        return new PathConverter(pathFactory);
+    }
 
     [Test]
     public void ReadJson_ValidJsonArray_ReturnsCorrectFieldList()
