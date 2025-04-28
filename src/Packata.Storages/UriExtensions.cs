@@ -13,7 +13,11 @@ internal static class UriExtensions
             return null;
         var lastSegment = uri.Segments[^1];
         if (lastSegment.Contains('.'))
+<<<<<<< HEAD
             return '.' + lastSegment.Split('.').Last();
+=======
+            return lastSegment.Split('.').Last();
+>>>>>>> b54efe1b3ea41dc884834ea15bf6d4852c1550cb
         return null;
     }
 }
