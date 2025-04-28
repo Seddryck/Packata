@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using Packata.Core.Storage;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization.NodeDeserializers;
@@ -13,7 +14,7 @@ namespace Packata.Core.Serialization.Yaml;
 
 internal class DataPackageSerializer : IDataPackageSerializer
 {
-    public DataPackage Deserialize(StreamReader reader, HttpClient httpClient, string root)
+    public DataPackage Deserialize(StreamReader reader, IDataPackageContainer container, IStorageProvider provider)
     {
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(new DataPackageNamingConvention())
@@ -23,8 +24,8 @@ internal class DataPackageSerializer : IDataPackageSerializer
                     new FieldTypeDiscriminator().Execute(o);
                     new TableDialectTypeDiscriminator().Execute(o);
                 })
-            .WithObjectFactory(new ResourcesObjectFactory(root))
-            .WithTypeConverter(new PathConverter(httpClient, root))
+            .WithObjectFactory(new ResourcesObjectFactory(container.BaseUri.ToString()))
+            .WithTypeConverter(new PathConverter(new PathFactory(container, provider)))
             .WithTypeConverter(new MissingValuesConverter())
             .WithTypeConverter(new SingleOrArrayConverter())
             .WithTypeConverter(new ConstraintsConverter())

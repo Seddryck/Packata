@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Packata.Core.PathHandling;
+using Packata.Core.Storage;
 
 namespace Packata.Core.Serialization.Json;
 internal class ConnectionConverter : JsonConverter

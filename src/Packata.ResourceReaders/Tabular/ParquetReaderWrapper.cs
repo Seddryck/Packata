@@ -12,7 +12,7 @@ internal class ParquetReaderWrapper
 {
     public IDataReader ToDataReader(Stream stream)
     {
-        var reader = ParquetDataReader.CreateAsync(new[] { stream }).Result;
+        var reader = ParquetDataReader.CreateAsync(new[] { stream }).ConfigureAwait(false).GetAwaiter().GetResult();
         return reader;
     }
 

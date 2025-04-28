@@ -4,16 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Packata.Core.PathHandling;
+using Packata.Core.Storage;
 
 namespace Packata.Core.Serialization.Json;
 internal class PathConverter : JsonConverter
 {
-    private readonly HttpClient httpClient;
-    private readonly string root;
+    private readonly PathFactory _factory;
 
-    public PathConverter(HttpClient httpClient, string root)
-        => (this.httpClient, this.root) = (httpClient, root);
+    public PathConverter(PathFactory factory)
+        => (_factory) = (factory);
 
     public override bool CanConvert(Type objectType)
         => typeof(List<IPath>).IsAssignableFrom(objectType);
@@ -27,7 +26,7 @@ internal class PathConverter : JsonConverter
         {
             return new List<IPath>()
             {
-                BuildPath((string)reader.Value!)
+                _factory.Create((string)reader.Value!)
             };
         }
 
@@ -40,16 +39,13 @@ internal class PathConverter : JsonConverter
                     break;
 
                 if (reader.TokenType == JsonToken.String)
-                    list.Add(BuildPath((string)reader.Value!));
+                    list.Add(_factory.Create((string)reader.Value!));
             }
             return list;
         }
 
         throw new JsonSerializationException("Unexpected JSON format.");
     }
-
-    private IPath BuildPath(string value)
-        => value.Contains("://") ? new HttpPath(httpClient, value) : new LocalPath(root, value);
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         => throw new NotImplementedException();

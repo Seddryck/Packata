@@ -25,6 +25,10 @@ internal class SpreadsheetReader : IResourceReader
             throw new InvalidOperationException(
                 "The resource contains more than a single path, cannot create a DataReader for multiple file when using the spreadsheet reader.");
 
-        return Reader.ToDataReader(resource.Paths[0].ToStream());
+        var path = resource.Paths.First();
+        if (!path.ExistsAsync().ConfigureAwait(false).GetAwaiter().GetResult())
+            throw new FileNotFoundException($"The path '{path.Value}' doesn't exist.");
+
+        return Reader.ToDataReader(path.OpenAsync);
     }
 }

@@ -44,6 +44,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Provisioners", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Provisioners.Testing", "src\Packata.Provisioners.Testing\Packata.Provisioners.Testing.csproj", "{8BAE720D-3F03-4D53-A5B4-CDA95DA97697}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ResourceReaders", "ResourceReaders", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Provisioners", "Provisioners", "{3EC93812-5079-426E-89E5-7785B87B7D55}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Storages", "Storages", "{93ECC912-96B7-463A-BAA4-9A2274C97329}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Storages", "src\Packata.Storages\Packata.Storages.csproj", "{357BFF0A-876E-BDD1-52C3-F4F9BDD35AF8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Storages.Testing", "src\Packata.Storages.Testing\Packata.Storages.Testing.csproj", "{CB16B305-A39F-23A9-FDCB-7996C42F2EC5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -74,9 +84,25 @@ Global
 		{8BAE720D-3F03-4D53-A5B4-CDA95DA97697}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8BAE720D-3F03-4D53-A5B4-CDA95DA97697}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8BAE720D-3F03-4D53-A5B4-CDA95DA97697}.Release|Any CPU.Build.0 = Release|Any CPU
+		{357BFF0A-876E-BDD1-52C3-F4F9BDD35AF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{357BFF0A-876E-BDD1-52C3-F4F9BDD35AF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{357BFF0A-876E-BDD1-52C3-F4F9BDD35AF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{357BFF0A-876E-BDD1-52C3-F4F9BDD35AF8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CB16B305-A39F-23A9-FDCB-7996C42F2EC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CB16B305-A39F-23A9-FDCB-7996C42F2EC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CB16B305-A39F-23A9-FDCB-7996C42F2EC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CB16B305-A39F-23A9-FDCB-7996C42F2EC5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B17B8F9D-6832-4215-A388-EC9398E7C071} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{7A9C53DD-A0D6-4771-8934-4DE37C10ECAD} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{B5B47B86-1EF3-4C24-B6CC-A9749C750E42} = {3EC93812-5079-426E-89E5-7785B87B7D55}
+		{8BAE720D-3F03-4D53-A5B4-CDA95DA97697} = {3EC93812-5079-426E-89E5-7785B87B7D55}
+		{357BFF0A-876E-BDD1-52C3-F4F9BDD35AF8} = {93ECC912-96B7-463A-BAA4-9A2274C97329}
+		{CB16B305-A39F-23A9-FDCB-7996C42F2EC5} = {93ECC912-96B7-463A-BAA4-9A2274C97329}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4AF64100-8E3B-4ACF-8266-89231A365F92}

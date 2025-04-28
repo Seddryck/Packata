@@ -4,13 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Packata.Core.PathHandling;
+using Packata.Core.Storage;
 using Packata.Core.Validation;
 
 namespace Packata.Core.Testing.Validation;
 public class ResourceValidatorTests
 {
-    private PathFactory _factory = new PathFactory();
+    private readonly PathFactory _factory = new (new LocalDirectoryDataPackageContainer(), new StorageProvider());
 
     [Test]
     [TestCase("any", "data.csv")]
