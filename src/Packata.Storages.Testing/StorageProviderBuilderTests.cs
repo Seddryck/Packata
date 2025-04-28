@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Packata.Core.Storage;
-using Stowage;
-using Stowage.Impl;
 
 namespace Packata.Storages.Testing;
 
@@ -44,5 +41,14 @@ internal class StorageProviderBuilderTests
             Assert.That(storageProvider.CanHandle("https://www.foo.com/bar.csv"), Is.True);
             Assert.That(storageProvider.CanHandle("file://C:/goo/bar.csv"), Is.False);
         }
+    }
+
+    [Test]
+    public void Build_RegisterTwice_Throws()
+    {
+        var builder = new StorageProviderBuilder()
+            .Register("http", b => b.UseHttp())
+            .Register("http", b => b.UseHttp());
+        Assert.Throws<InvalidOperationException>(()=> builder.Build());
     }
 }

@@ -24,7 +24,7 @@ internal class PathConverterTests : AbstractConverterTests<PathConverter, List<I
     }
 
     [Test]
-    public void ReadJson_ValidJsonArray_ReturnsCorrectFieldList()
+    public void ReadYaml_ValidJsonArray_ReturnsCorrectFieldList()
     {
         var yaml = @"
             path:
@@ -46,7 +46,7 @@ internal class PathConverterTests : AbstractConverterTests<PathConverter, List<I
     }
 
     [Test]
-    public void ReadJson_ValidJsonValue_ReturnsCorrectFieldList()
+    public void ReadYaml_ValidJsonValue_ReturnsCorrectFieldList()
     {
         var yaml = @"path: path_01.dat";
 
@@ -61,7 +61,7 @@ internal class PathConverterTests : AbstractConverterTests<PathConverter, List<I
     }
 
     [Test]
-    public void ReadJson_ValidJsonArrayFullyQualified_ReturnsCorrectFieldList()
+    public void ReadYaml_ValidJsonArrayFullyQualified_ReturnsCorrectFieldList()
     {
         var yaml = @"
             path:
@@ -83,7 +83,7 @@ internal class PathConverterTests : AbstractConverterTests<PathConverter, List<I
     }
 
     [Test]
-    public void ReadJson_ValidJsonValueFullyQualified_ReturnsCorrectFieldList()
+    public void ReadYaml_ValidJsonValueFullyQualified_ReturnsCorrectFieldList()
     {
         var yaml = @"path: http://foo.org/path_01.dat";
 

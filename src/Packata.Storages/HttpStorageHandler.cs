@@ -47,8 +47,8 @@ public class HttpStorageHandler : IStorageHandler
     }
 
     private bool _disposed = false;
-    private void ThrowIfDisposed()
-        => ObjectDisposedException.ThrowIf(_disposed, nameof(HttpDataPackageContainer));
+    protected virtual void ThrowIfDisposed()
+        => ObjectDisposedException.ThrowIf(_disposed, nameof(HttpStorageHandler));
 
     protected virtual void Dispose(bool disposing)
     {

@@ -21,9 +21,17 @@ public class StorageProvider : IStorageProvider
         if (string.IsNullOrEmpty(absolutePath))
             return false;
 
-        var scheme = new Uri(absolutePath).Scheme;
-        return _handlers.ContainsKey(scheme);
+        try
+        {
+            var scheme = new Uri(absolutePath).Scheme;
+            return _handlers.ContainsKey(scheme);
+        }
+        catch (UriFormatException)
+        {
+            return false;
+        }
     }
+
     public Task<bool> ExistsAsync(string absolutePath)
     {
         var scheme = new Uri(absolutePath).Scheme;

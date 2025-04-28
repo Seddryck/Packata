@@ -26,9 +26,4 @@ public class HttpDataPackageContainer : HttpStorageHandler, IDataPackageContaine
 
     public override Task<bool> ExistsAsync(string relativePath)
         => ExistsAsync(new Uri(BaseUri, relativePath));
-
-    ~HttpDataPackageContainer()
-    {
-        Dispose(disposing: false);
-    }
 }

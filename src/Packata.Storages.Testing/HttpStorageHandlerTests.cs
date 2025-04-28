@@ -19,7 +19,7 @@ internal class HttpStorageHandlerTests
     public async Task ExistsAsync_OnExisting_True()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp!.When(HttpMethod.Head, "https://example.com/base/foo.csv").Respond(HttpStatusCode.OK);
+        mockHttp.When(HttpMethod.Head, "https://example.com/base/foo.csv").Respond(HttpStatusCode.OK);
 
         using var httpClient = mockHttp.ToHttpClient();
         var handler = new HttpStorageHandler(httpClient);
@@ -33,7 +33,7 @@ internal class HttpStorageHandlerTests
     public async Task ExistsAsync_OnNotExisting_False()
     {
         var mockHttp = new MockHttpMessageHandler();
-        mockHttp!.When(HttpMethod.Head, "https://example.com/base/foo.csv").Respond(HttpStatusCode.NotFound);
+        mockHttp.When(HttpMethod.Head, "https://example.com/base/foo.csv").Respond(HttpStatusCode.NotFound);
 
         using var httpClient = mockHttp.ToHttpClient();
         var handler = new HttpStorageHandler(httpClient);
