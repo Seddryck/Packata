@@ -8,7 +8,7 @@ using Packata.Core.Storage;
 using Stowage;
 
 namespace Packata.Storages;
-internal class StowageDataPackageContainer : IDataPackageContainer
+internal class StowageDataPackageContainer : IDataPackageContainer, IDataPackageContainerListable
 {
     public Uri BaseUri { get; }
     internal IFileStorage Storage { get; }
@@ -26,7 +26,7 @@ internal class StowageDataPackageContainer : IDataPackageContainer
             ?? throw new FileNotFoundException($"File '{relativePath}' not found.");
     }
 
-    public async Task<IEnumerable<string>> ListFilesAsync()
+    public async Task<IEnumerable<string>> ListAsync()
     {
         ThrowIfDisposed();
         var entries = await Storage.Ls("");
@@ -55,7 +55,6 @@ internal class StowageDataPackageContainer : IDataPackageContainer
             _disposed = true;
         }
     }
-
     public void Dispose()
     {
         Dispose(disposing: true);

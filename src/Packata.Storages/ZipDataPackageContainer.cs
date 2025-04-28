@@ -17,7 +17,7 @@ public class ZipDataPackageContainer : IDataPackageContainer
     public ZipDataPackageContainer(Uri uri, Stream zipStream)
     {
         BaseUri = uri;
-        _archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
+        _archive = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: false);
 
         _entries = _archive.Entries
             .Where(e => !string.IsNullOrEmpty(e.Name)) // exclude directories

@@ -15,10 +15,10 @@ internal static class ParquetReaderWrapperExtensions
             throw new InvalidOperationException(
                 "The resource does not contain any paths, but at least one is required to create a DataReader.");
 
-        var streams = streamFactories.Select(factory => factory().Result).ToArray();
+        var streams = streamFactories.Select(factory => factory().ConfigureAwait(false).GetAwaiter().GetResult()).ToArray();
         return reader.ToDataReader(streams);
     }
 
     public static IDataReader ToDataReader(this ParquetReaderWrapper reader, Func<Task<Stream>> streamFactory)
-        => reader.ToDataReader(streamFactory().Result);
+        => reader.ToDataReader(streamFactory().ConfigureAwait(false).GetAwaiter().GetResult());
 }

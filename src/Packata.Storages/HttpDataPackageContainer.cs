@@ -17,17 +17,26 @@ public class HttpDataPackageContainer : IDataPackageContainer
 
     public HttpDataPackageContainer(Uri baseUri, HttpClient? httpClient = null)
     {
-        BaseUri = baseUri;
+        BaseUri = baseUri.ToString().EndsWith('/')
+            ? baseUri
+            : new Uri(baseUri.ToString() + '/');
         _disposeClient = httpClient is null;
         _client = httpClient ?? new HttpClient();
         _client.BaseAddress = BaseUri;
     }
 
-    public Task<Stream> OpenAsync(string relativePath)
+    public async Task<Stream> OpenAsync(string relativePath)
     {
         ThrowIfDisposed();
         var resolved = new Uri(BaseUri, relativePath);
-        return _client.GetStreamAsync(resolved);
+        try
+        {
+            return await _client.GetStreamAsync(resolved);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new FileNotFoundException($"'{relativePath}' not found at '{resolved}'.", ex);
+        }
     }
 
     public async Task<bool> ExistsAsync(string relativePath)
@@ -40,7 +49,7 @@ public class HttpDataPackageContainer : IDataPackageContainer
     }
 
     private bool _disposed = false;
-    
+
     private void ThrowIfDisposed()
         => ObjectDisposedException.ThrowIf(_disposed, nameof(HttpDataPackageContainer));
 

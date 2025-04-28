@@ -33,14 +33,16 @@ public class DataPackageFactory
     protected DataPackage LoadFromStream(Stream stream, IDataPackageContainer container, string extension)
     {
         var serializer = _serializerFactory.Instantiate(extension);
-        var dataPackage = serializer.Deserialize(new StreamReader(stream), container);
+        using var reader = new StreamReader(stream);
+        var dataPackage = serializer.Deserialize(reader, container);
         return dataPackage;
     }
 
     protected DataPackage LoadFromStream(Stream stream, IDataPackageContainer container, SerializationFormat format)
     {
         var serializer = _serializerFactory.Instantiate(format);
-        var dataPackage = serializer.Deserialize(new StreamReader(stream), container);
+        using var reader = new StreamReader(stream);
+        var dataPackage = serializer.Deserialize(reader, container);
         return dataPackage;
     }
 
@@ -49,8 +51,8 @@ public class DataPackageFactory
         if (!File.Exists(path))
             throw new FileNotFoundException("The specified file does not exist.", path);
         using var stream = File.OpenRead(path);
-        var directory = new DirectoryInfo(path);
-        return LoadFromStream(stream, new LocalDirectoryDataPackageContainer(new Uri(directory.Parent!.FullName)), Path.GetExtension(path));
+        var fileInfo = new FileInfo(path);
+        return LoadFromStream(stream, new LocalDirectoryDataPackageContainer(new Uri(fileInfo.Directory!.FullName)), Path.GetExtension(path));
     }
 
     public async Task<DataPackage> LoadFromContainer(Uri containerUri, string descriptorPath = "datapackage.json")

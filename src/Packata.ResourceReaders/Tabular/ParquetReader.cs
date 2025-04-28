@@ -23,25 +23,18 @@ internal class ParquetReader : IResourceReader
             throw new InvalidOperationException(
                 "The resource does not contain any paths, but at least one is required to create a DataReader.");
 
-        try
-        {
-            return resource.Paths.Count == 1
-            ? Reader.ToDataReader(ExistsThenOpen(resource.Paths[0]))
-            : Reader.ToDataReader(resource.Paths.Select<IPath, Func<Task<Stream>>>(p => ExistsThenOpen(p)));
-        }
-        catch (AggregateException ex)
-        {
-            if (ex.InnerException is not null)
-                throw ex.InnerException;
-            else
-                throw;
-        }
+        return resource.Paths.Count == 1
+        ? Reader.ToDataReader(ExistsThenOpen(resource.Paths[0]))
+        : Reader.ToDataReader(resource.Paths.Select<IPath, Func<Task<Stream>>>(p => ExistsThenOpen(p)));
 
         static Func<Task<Stream>> ExistsThenOpen(IPath path)
         {
-            if (!path.ExistsAsync().Result)
-                throw new FileNotFoundException($"The path '{path.RelativePath}' doesn't exist.");
-            return path.OpenAsync;
+            return async () =>
+            {
+                if (!await path.ExistsAsync())
+                    throw new FileNotFoundException($"The path '{path.Value}' doesn't exist.");
+                return await path.OpenAsync();
+            };
         }
     }
 }

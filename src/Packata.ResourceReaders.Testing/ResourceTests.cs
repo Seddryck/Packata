@@ -16,7 +16,7 @@ public class ResourceTests
     public void ToDataReader_SinglePropertySet_ReturnsDataReader()
     {
         var path = new Mock<IPath>();
-        path.SetupGet(p => p.RelativePath).Returns("file.csv");
+        path.SetupGet(p => p.Value).Returns("file.csv");
         path.Setup(p => p.ExistsAsync()).ReturnsAsync(true);
         path.Setup(p => p.OpenAsync()).ReturnsAsync(new MemoryStream(Encoding.UTF8.GetBytes("a,b,c\r\n1,2,3\r\n4,5,6\r\n")));
 

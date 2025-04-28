@@ -11,5 +11,5 @@ namespace Packata.ResourceReaders.Tabular;
 internal static class ExcelReaderWrapperExtensions
 {
     public static IDataReader ToDataReader(this ExcelReaderWrapper reader, Func<Task<Stream>> streamFactory)
-        => reader.ToDataReader(streamFactory().Result);
+        => reader.ToDataReader(streamFactory().GetAwaiter().GetResult());
 }

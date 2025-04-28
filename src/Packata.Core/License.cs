@@ -22,7 +22,7 @@ public class License
     public string? Name { get; set; }
 
     /// <summary>
-    /// Path to the license.
+    /// Value to the license.
     /// A fully qualified URL, or a POSIX file path.
     /// Context: Implementations need to negotiate the type of path provided, and dereference the data accordingly.
     /// </summary>

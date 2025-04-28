@@ -5,8 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Packata.Core;
 using Packata.Core.Storage;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Net.WebRequestMethods;
 
 namespace Packata.ResourceReaders.Inference;
 internal class ExtractExtensionFromPathsService : IExtractExtension
@@ -17,13 +15,13 @@ internal class ExtractExtensionFromPathsService : IExtractExtension
         if (paths == null || paths.Length == 0)
             return false;
 
-        var hasRemote = paths.Any(p => p.RelativePath.Contains("://"));
-        var hasLocal = paths.Any(p => !p.RelativePath.Contains("://"));
+        var hasRemote = paths.Any(p => p.IsFullyQualified);
+        var hasLocal = paths.Any(p => !p.IsFullyQualified);
 
         if (hasRemote && hasLocal)
             return false;
 
-        var extensions = paths.Select(p => (p.RelativePath ?? string.Empty).GetLongExtension())
+        var extensions = paths.Select(p => (p.Value ?? string.Empty).GetLongExtension())
                                         .Where(ext => !string.IsNullOrEmpty(ext))
                                         .Select(ext => ext.ToLowerInvariant().TrimStart('.'))
                                         .Distinct();

@@ -71,4 +71,18 @@ internal class HttpDataPackageContainerTests
         // ensure no stray expectations
         mockHttp.VerifyNoOutstandingExpectation();
     }
+
+    [Test]
+    public void OpenAsync_Failure()
+    {
+        var mockHttp = new MockHttpMessageHandler();
+        mockHttp
+            .When(HttpMethod.Get, _baseUri + "foo.csv")
+            .Respond(HttpStatusCode.NotFound);
+
+        using var httpClient = mockHttp.ToHttpClient();
+
+        using var container = new HttpDataPackageContainer(_baseUri, httpClient);
+        Assert.ThrowsAsync<FileNotFoundException>(async () => await container.OpenAsync("foo.csv"));
+    }
 }

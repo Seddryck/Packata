@@ -20,7 +20,7 @@ public class ExtractExtensionFromPathsServiceTest
     {
         var extractor = new ExtractExtensionFromPathsService();
         var path = new Mock<IPath>();
-        path.SetupGet(p => p.RelativePath).Returns(filename);
+        path.SetupGet(p => p.Value).Returns(filename);
         var paths = new[] { path.Object };
         var result = extractor.TryGetPathExtension(paths, out var extension);
         using (Assert.EnterMultipleScope())
@@ -35,8 +35,8 @@ public class ExtractExtensionFromPathsServiceTest
     {
         var extractor = new ExtractExtensionFromPathsService();
         var paths = new[] {
-            Mock.Of<IPath>(p => p.RelativePath == "file-1.csv"),
-            Mock.Of<IPath>(p => p.RelativePath == "file-2.csv")
+            Mock.Of<IPath>(p => p.Value == "file-1.csv" && p.IsFullyQualified == false),
+            Mock.Of<IPath>(p => p.Value == "file-2.csv" && p.IsFullyQualified == false)
         };
         var result = extractor.TryGetPathExtension(paths, out var extension);
         using (Assert.EnterMultipleScope())
@@ -51,8 +51,8 @@ public class ExtractExtensionFromPathsServiceTest
     {
         var extractor = new ExtractExtensionFromPathsService();
         var paths = new[] {
-            Mock.Of<IPath>(p => p.RelativePath == "file-1.csv"),
-            Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.org/file-2.csv")
+            Mock.Of<IPath>(p => p.Value == "file-1.csv" && p.IsFullyQualified == false),
+            Mock.Of<IPath>(p => p.Value == "http://www.foo.org/file-2.csv" && p.IsFullyQualified == true)
         };
         var result = extractor.TryGetPathExtension(paths, out var extension);
         Assert.That(result, Is.False);
@@ -65,7 +65,7 @@ public class ExtractExtensionFromPathsServiceTest
     public void TryGetPathExtension_ShouldReturnTrue_WhenHttpExtensionIsExtracted(string path, string expected)
     {
         var extractor = new ExtractExtensionFromPathsService();
-        var paths = new[] { Mock.Of<IPath>(p => p.RelativePath == path) };
+        var paths = new[] { Mock.Of<IPath>(p => p.Value == path) };
         var result = extractor.TryGetPathExtension(paths, out var extension);
         using (Assert.EnterMultipleScope())
         {
@@ -79,8 +79,8 @@ public class ExtractExtensionFromPathsServiceTest
     {
         var extractor = new ExtractExtensionFromPathsService();
         var paths = new[] {
-                    Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.com/file-1.csv"),
-                    Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.com/file-2.csv")
+                    Mock.Of<IPath>(p => p.Value == "http://www.foo.com/file-1.csv"),
+                    Mock.Of<IPath>(p => p.Value == "http://www.foo.com/file-2.csv")
                 };
         var result = extractor.TryGetPathExtension(paths, out var extension);
         using (Assert.EnterMultipleScope())
@@ -95,8 +95,8 @@ public class ExtractExtensionFromPathsServiceTest
     {
         var extractor = new ExtractExtensionFromPathsService();
         var paths = new[] {
-                    Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.com/file-1.csv"),
-                    Mock.Of<IPath>(p => p.RelativePath == "http://www.foo.com/file-2.txt")
+                    Mock.Of<IPath>(p => p.Value == "http://www.foo.com/file-1.csv"),
+                    Mock.Of<IPath>(p => p.Value == "http://www.foo.com/file-2.txt")
                 };
         var result = extractor.TryGetPathExtension(paths, out var extension);
         Assert.That(result, Is.False);

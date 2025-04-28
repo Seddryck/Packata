@@ -16,7 +16,8 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
 
     public DataPackagePropertyResolver(IDataPackageContainer container)
     {
-        Converters.Add("resources", new ResourcesConverter(container.BaseUri.ToString()));
+        ArgumentNullException.ThrowIfNull(container);
+        Converters.Add("resources", new ResourcesConverter(container.BaseUri?.ToString() ?? string.Empty));
         Converters.Add("path", new PathConverter(new PathFactory(container)));
         Converters.Add("fields", new FieldConverter());
         Converters.Add("missingValues", new MissingValuesConverter());

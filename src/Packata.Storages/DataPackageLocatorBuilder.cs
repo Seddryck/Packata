@@ -7,6 +7,7 @@ using Stowage.Impl.Microsoft;
 using Stowage;
 using Packata.Core.Storage;
 using System.Net.Sockets;
+using System.Numerics;
 
 namespace Packata.Storages;
 public class DataPackageLocatorBuilder
@@ -74,23 +75,23 @@ public class DataPackageLocatorBuilder
             => _scheme = scheme;
 
         public KeyValuePair<string, Func<Uri, IDataPackageContainer>> UseLocalFileSystem()
-            => new(_scheme ?? "file",
+            => new(_scheme,
                 uri =>
                 {
-                    var path = uri.LocalPath;
+                    var path = Path.GetFullPath(Uri.UnescapeDataString(uri.AbsolutePath));
                     var store = Files.Of.LocalDisk(path);
                     return new StowageDataPackageContainer(uri, store);
                 });
 
         public KeyValuePair<string, Func<Uri, IDataPackageContainer>> UseHttp(HttpClient client)
-            => new(_scheme ?? "http",
+            => new(_scheme,
                 (uri) => new HttpDataPackageContainer(uri, client));
 
         public IAzureBuilder UseAzure(string accountName)
-            => new AzureBuilder(_scheme ?? "az", accountName);
+            => new AzureBuilder(_scheme, accountName);
 
         public KeyValuePair<string, Func<Uri, IDataPackageContainer>> UseAws(string accessKeyId, string secretAccessKey, string region)
-            => new(_scheme ?? "s3",
+            => new(_scheme,
                 (uri) => new StowageDataPackageContainer(uri, Files.Of.AmazonS3(accessKeyId, secretAccessKey, region)));
 
         public class AzureBuilder : IAzureBuilder
@@ -107,10 +108,21 @@ public class DataPackageLocatorBuilder
                         Files.Of.AzureBlobStorage(_accountName, sharedKey)));
 
             public KeyValuePair<string, Func<Uri, IDataPackageContainer>> WithClientSecret(string tenantId, string clientId, string clientSecret)
-                => new (_scheme,
-                    (uri) => new StowageDataPackageContainer(uri,
-                        Files.Of.AzureBlobStorage(_accountName,
-                            new ClientSecretCredential(tenantId, clientId, clientSecret))));
+                => new(_scheme, uri =>
+                {
+                    try
+                    {
+                        var storage = Files.Of.AzureBlobStorage(
+                            _accountName,
+                            new ClientSecretCredential(tenantId, clientId, clientSecret));
+                        return new StowageDataPackageContainer(uri, storage);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException(
+                            $"Failed to create Blob storage for account '{_accountName}'.Please verify your tenant, client ID, and secret.", ex);
+                    }
+                });
         }
     }
 
@@ -122,7 +134,7 @@ public class DataPackageLocatorBuilder
             => _extension = extension;
 
         public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseZipArchive()
-            => new(_extension,
+            => new(_extension.StartsWith('.') ? _extension : '.' + _extension,
                 uri =>
                 {
                     return new ZipContainerWrapper();

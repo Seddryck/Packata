@@ -11,6 +11,6 @@ internal class ZipContainerWrapper : IContainerWrapper
     public async Task<IDataPackageContainer> WrapAsync(IDataPackageContainer baseContainer, Uri uri)
     {
         var stream = await baseContainer.OpenAsync("");
-        return new ZipDataPackageContainer(new Uri("zip"), stream);
+        return new ZipDataPackageContainer(uri, stream);
     }
 }

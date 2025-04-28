@@ -28,7 +28,7 @@ public class ExtensionBasedCompressionInferenceTests
             , new Dictionary<string, string> { {"gz", "gzip" }, { "gzip", "gzip" } }
         );
         var path = new Mock<IPath>();
-        path.SetupGet(p => p.RelativePath).Returns($"file.{extension}");
+        path.SetupGet(p => p.Value).Returns($"file.{extension}");
         var resource = new Resource() { Paths = [path.Object] };
         var result = inference.TryInfer(resource, out var compression);
 

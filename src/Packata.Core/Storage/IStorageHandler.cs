@@ -5,11 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.Storage;
-public interface IPath
+public interface IStorageHandler
 {
-    string Value { get; }
-    bool IsFullyQualified { get; }
-
-    Task<Stream> OpenAsync();
-    Task<bool> ExistsAsync();
+    Task<bool> ExistsAsync(string path);
+    Task<Stream> OpenAsync(string path);
 }
