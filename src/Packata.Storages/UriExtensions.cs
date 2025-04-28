@@ -12,8 +12,9 @@ internal static class UriExtensions
         if (uri.Segments.Length == 0)
             return null;
         var lastSegment = uri.Segments[^1];
-        if (lastSegment.Contains('.'))
-            return '.' + lastSegment.Split('.').Last();
+        var lastDotIndex = lastSegment.LastIndexOf('.');
+        if (lastDotIndex >= 0)
+            return lastSegment.Substring(lastDotIndex);
         return null;
     }
 }

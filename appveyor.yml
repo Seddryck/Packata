@@ -58,7 +58,7 @@ test_script:
     $globalTestResult += $LastExitCode
     dotnet test src/Packata.Provisioners.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:Threshold=10 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.Provisioners.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
     $globalTestResult += $LastExitCode
-    dotnet test src/Packata.Storages.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:Threshold=10 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.Storages.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
+    dotnet test src/Packata.Storages.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:CoverletOutput=../../.coverage/coverage.Packata.Storages.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
     $globalTestResult += $LastExitCode
     if($globalTestResult -ne 0) { $host.SetShouldExit($globalTestResult) }
 

@@ -119,7 +119,7 @@ public class DataPackageLocatorBuilder
                     catch (Exception ex)
                     {
                         throw new InvalidOperationException(
-                            $"Failed to create Blob storage for account '{_accountName}'.Please verify your tenant, client ID, and secret.", ex);
+                            $"Failed to create Blob storage for account '{_accountName}'. Please verify your tenant, client ID, and secret.", ex);
                     }
                 });
         }
@@ -134,9 +134,6 @@ public class DataPackageLocatorBuilder
 
         public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseZipArchive()
             => new(_extension.StartsWith('.') ? _extension : '.' + _extension,
-                uri =>
-                {
-                    return new ZipContainerWrapper();
-                });
+                uri => new ZipContainerWrapper());
     }
 }
