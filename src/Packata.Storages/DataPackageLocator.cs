@@ -34,11 +34,7 @@ public class DataPackageLocator : IDataPackageLocator
         throw new NotSupportedException($"No container found for URI: {uri}");
     }
 
-<<<<<<< HEAD
     protected internal virtual IContainerWrapper GetWrapper(Uri uri)
-=======
-    protected internal virtual IContainerWrapper? GetWrapper(Uri uri)
->>>>>>> b54efe1b3ea41dc884834ea15bf6d4852c1550cb
     {
         if (_wrappers.TryGetValue(uri.GetExtension() ?? string.Empty, out var storage))
             return storage.Invoke(uri);
@@ -54,12 +50,8 @@ public class DataPackageLocator : IDataPackageLocator
         };
 
     public virtual bool CanHandle(Uri uri)
-<<<<<<< HEAD
     {
         ArgumentNullException.ThrowIfNull(uri);
         return CanHandle(UriComponents.Scheme, uri) && CanHandle(UriComponents.Path, uri);
     }
-=======
-        => CanHandle(UriComponents.Scheme, uri) && CanHandle(UriComponents.Path, uri);
->>>>>>> b54efe1b3ea41dc884834ea15bf6d4852c1550cb
 }

@@ -15,7 +15,7 @@ public class ResourceInferenceService : IResourceInferenceService
     private readonly ICompressionInference[] _compressionStrategies;
 
     private static readonly IDictionary<string, string> _compressionMappings = GetCompressionMappings();
-    private static IDictionary<string, string> GetCompressionMappings()
+    private static Dictionary<string, string> GetCompressionMappings()
     {
         var factory = DecompressorFactory.Streaming();
         var keys = factory.GetSupportedKeys();
@@ -29,7 +29,7 @@ public class ResourceInferenceService : IResourceInferenceService
     private static readonly ResourceInferenceService _none = new ([], [], []);
 
     public static ResourceInferenceService Instance => _instance;
-    private static ResourceInferenceService _instance = CreateInstance();
+    private static readonly ResourceInferenceService _instance = CreateInstance();
 
     private static ResourceInferenceService CreateInstance()
         => new (

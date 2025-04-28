@@ -7,10 +7,21 @@ using System.Threading.Tasks;
 namespace Packata.Core.Storage;
 internal class StorageProvider : IStorageProvider
 {
-    private readonly Dictionary<string, IStorageHandler> _handlers = new();
+    private readonly Dictionary<string, IStorageHandler> _handlers = [];
+
+    public void Register(string scheme, IStorageHandler handler)
+    {
+        if (string.IsNullOrEmpty(scheme))
+            throw new ArgumentException("Scheme cannot be null or empty", nameof(scheme));
+
+        _handlers[scheme] = handler ?? throw new ArgumentNullException(nameof(handler));
+    }
 
     public bool CanHandle(string absolutePath)
     {
+        if (string.IsNullOrEmpty(absolutePath))
+            return false;
+
         var scheme = new Uri(absolutePath).Scheme;
         return _handlers.ContainsKey(scheme);
     }

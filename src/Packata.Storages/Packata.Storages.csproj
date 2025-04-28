@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Description>Packata is a library for consumming Data Package v2 files. The Packata.Storages package specializes in providing access to the package and resources wherever they are located.</Description>
+    <Description>Packata is a library for consumming Data Package v2 files. The Packata.Storages package specializes in providing access to the package and resources wherever they are located (local file system, https(s), AWS S3 and Azure Data Lake Storage).</Description>
   </PropertyGroup>
 
   <ItemGroup>

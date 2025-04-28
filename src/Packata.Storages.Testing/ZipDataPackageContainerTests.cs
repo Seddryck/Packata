@@ -38,9 +38,6 @@ internal class ZipDataPackageContainerTests
 
         // Rewind before reading
         _zipStream.Position = 0;
-
-        // Instantiate the container under test
-        
     }
 
     [TearDown]
