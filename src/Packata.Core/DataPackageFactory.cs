@@ -14,35 +14,37 @@ namespace Packata.Core;
 public class DataPackageFactory
 {
     private readonly IDataPackageLocator _locator;
+    private readonly IStorageProvider _provider;
     private readonly ISerializerFactory _serializerFactory;
 
     public DataPackageFactory()
-        : this(new SimpleDataPackageLocator(), new SerializerFactory())
+        : this(new SimpleDataPackageLocator(), new StorageProvider(), new SerializerFactory())
     { }
 
     public DataPackageFactory(IDataPackageLocator locator)
-        : this(locator, new SerializerFactory())
+        : this(locator, new StorageProvider(), new SerializerFactory())
     { }
 
-    protected internal DataPackageFactory(IDataPackageLocator locator, ISerializerFactory serializerFactory)
-        => (_locator, _serializerFactory) = (locator, serializerFactory);
+    public DataPackageFactory(IDataPackageLocator locator, IStorageProvider provider)
+        : this(locator, provider, new SerializerFactory())
+    { }
+
+    protected internal DataPackageFactory(IDataPackageLocator locator, IStorageProvider provider, ISerializerFactory serializerFactory)
+        => (_locator, _provider, _serializerFactory) = (locator, provider, serializerFactory);
 
     public DataPackage LoadFromStream(Stream stream, SerializationFormat format = SerializationFormat.Json)
         => LoadFromStream(stream, new LocalDirectoryDataPackageContainer(), format);
 
     protected DataPackage LoadFromStream(Stream stream, IDataPackageContainer container, string extension)
-    {
-        var serializer = _serializerFactory.Instantiate(extension);
-        using var reader = new StreamReader(stream);
-        var dataPackage = serializer.Deserialize(reader, container);
-        return dataPackage;
-    }
+        => LoadFromStream(stream, container, _serializerFactory.Instantiate(extension));
 
     protected DataPackage LoadFromStream(Stream stream, IDataPackageContainer container, SerializationFormat format)
+        => LoadFromStream(stream, container, _serializerFactory.Instantiate(format));
+
+    protected DataPackage LoadFromStream(Stream stream, IDataPackageContainer container, IDataPackageSerializer serializer)
     {
-        var serializer = _serializerFactory.Instantiate(format);
         using var reader = new StreamReader(stream);
-        var dataPackage = serializer.Deserialize(reader, container);
+        var dataPackage = serializer.Deserialize(reader, container, _provider);
         return dataPackage;
     }
 

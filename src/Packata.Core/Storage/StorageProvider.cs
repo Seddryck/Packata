@@ -5,17 +5,16 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.Storage;
-internal class StorageProvider : IStorageProvider
+public class StorageProvider : IStorageProvider
 {
-    private readonly Dictionary<string, IStorageHandler> _handlers = [];
+    private readonly Dictionary<string, IStorageHandler> _handlers;
 
-    public void Register(string scheme, IStorageHandler handler)
-    {
-        if (string.IsNullOrEmpty(scheme))
-            throw new ArgumentException("Scheme cannot be null or empty", nameof(scheme));
+    public StorageProvider()
+        : this([])
+    { }
 
-        _handlers[scheme] = handler ?? throw new ArgumentNullException(nameof(handler));
-    }
+    public StorageProvider(Dictionary<string, IStorageHandler> handlers)
+        => _handlers = handlers;
 
     public bool CanHandle(string absolutePath)
     {

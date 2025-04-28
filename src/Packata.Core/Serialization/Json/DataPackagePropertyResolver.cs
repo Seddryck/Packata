@@ -14,11 +14,11 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
     private Dictionary<string, JsonConverter> Converters { get; } = [];
     private Func<string, string> PropertyNameResolver { get; }
 
-    public DataPackagePropertyResolver(IDataPackageContainer container)
+    public DataPackagePropertyResolver(IDataPackageContainer container, IStorageProvider provider)
     {
         ArgumentNullException.ThrowIfNull(container);
         Converters.Add("resources", new ResourcesConverter(container.BaseUri?.ToString() ?? string.Empty));
-        Converters.Add("path", new PathConverter(new PathFactory(container)));
+        Converters.Add("path", new PathConverter(new PathFactory(container, provider)));
         Converters.Add("fields", new FieldConverter());
         Converters.Add("missingValues", new MissingValuesConverter());
         Converters.Add("constraints", new ConstraintsConverter());

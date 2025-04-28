@@ -14,7 +14,7 @@ namespace Packata.Core.Serialization.Yaml;
 
 internal class DataPackageSerializer : IDataPackageSerializer
 {
-    public DataPackage Deserialize(StreamReader reader, IDataPackageContainer container)
+    public DataPackage Deserialize(StreamReader reader, IDataPackageContainer container, IStorageProvider provider)
     {
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(new DataPackageNamingConvention())
@@ -25,7 +25,7 @@ internal class DataPackageSerializer : IDataPackageSerializer
                     new TableDialectTypeDiscriminator().Execute(o);
                 })
             .WithObjectFactory(new ResourcesObjectFactory(container.BaseUri.ToString()))
-            .WithTypeConverter(new PathConverter(new PathFactory(container)))
+            .WithTypeConverter(new PathConverter(new PathFactory(container, provider)))
             .WithTypeConverter(new MissingValuesConverter())
             .WithTypeConverter(new SingleOrArrayConverter())
             .WithTypeConverter(new ConstraintsConverter())

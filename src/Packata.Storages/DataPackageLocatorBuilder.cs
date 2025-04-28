@@ -82,9 +82,9 @@ public class DataPackageLocatorBuilder
                     return new StowageDataPackageContainer(uri, store);
                 });
 
-        public KeyValuePair<string, Func<Uri, IDataPackageContainer>> UseHttp(HttpClient client)
+        public KeyValuePair<string, Func<Uri, IDataPackageContainer>> UseHttp(HttpClient? client = null)
             => new(_scheme,
-                (uri) => new HttpDataPackageContainer(uri, client));
+                (uri) => new HttpDataPackageContainer(uri, client ?? new HttpClient()));
 
         public IAzureBuilder UseAzure(string accountName)
             => new AzureBuilder(_scheme, accountName);

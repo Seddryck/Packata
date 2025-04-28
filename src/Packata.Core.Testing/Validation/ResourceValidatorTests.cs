@@ -10,7 +10,7 @@ using Packata.Core.Validation;
 namespace Packata.Core.Testing.Validation;
 public class ResourceValidatorTests
 {
-    private readonly PathFactory _factory = new (new LocalDirectoryDataPackageContainer());
+    private readonly PathFactory _factory = new (new LocalDirectoryDataPackageContainer(), new StorageProvider());
 
     [Test]
     [TestCase("any", "data.csv")]

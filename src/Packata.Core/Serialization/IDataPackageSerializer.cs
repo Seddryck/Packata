@@ -4,5 +4,5 @@ namespace Packata.Core.Serialization;
 
 public interface IDataPackageSerializer
 {
-    DataPackage Deserialize(StreamReader reader, IDataPackageContainer container);
+    DataPackage Deserialize(StreamReader reader, IDataPackageContainer container, IStorageProvider provider);
 }
