@@ -15,8 +15,10 @@ internal static class CsvReaderExtensions
             throw new InvalidOperationException(
                 "The resource does not contain any paths, but at least one is required to create a DataReader.");
 
-        var streams = streamFactories.Select(factory => factory().ConfigureAwait(false).GetAwaiter().GetResult()).ToArray();
-        return reader.ToDataReader(streams);
+        var syncFuncs = streamFactories.Select(
+            asyncFunc => (Func<Stream>)(() => asyncFunc().ConfigureAwait(false).GetAwaiter().GetResult())
+        );  
+        return reader.ToDataReader(syncFuncs);
     }
 
     public static IDataReader ToDataReader(this CsvReader reader, Func<Task<Stream>> streamFactory)
