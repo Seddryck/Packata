@@ -13,7 +13,7 @@ public class Field
     public string? Name { get; set; }
 
     /// <summary>
-    /// The type keyword, which identifies the class inheriting from `Field` to deserialize",
+    /// The type keyword, which identifies the class inheriting from `Field` to deserialize
     /// </summary>
     public string? Type { get; set; }
 
@@ -23,12 +23,12 @@ public class Field
     public string? Format { get; set; }
 
     /// <summary>
-    /// "A human-readable title.
+    /// A human-readable title.
     /// </summary>
     public string? Title { get; set; }
 
     /// <summary>
-    /// "A text description. Markdown is encouraged.
+    /// A text description. Markdown is encouraged.
     /// </summary>
     public string? Description { get; set; }
 
