@@ -32,6 +32,7 @@ bld/
 [Ll]ogs/
 .[Pp]ublish/
 .[Pp]rofile/
+.[Ss]chemas/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
