@@ -218,7 +218,7 @@ function Publish-Release {
 		[string] $tag,
 		[string] $name,
         [switch] $releaseNotes,
-		[string] $discussionCategory
+		[string] $discussionCategory,
         [string] $discussionText
 	)
 	$body = [PSCustomObject]@{
