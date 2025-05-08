@@ -219,6 +219,7 @@ function Publish-Release {
 		[string] $name,
         [switch] $releaseNotes,
 		[string] $discussionCategory
+        [string] $discussionText
 	)
 	$body = [PSCustomObject]@{
 				tag_name=$tag
@@ -228,12 +229,37 @@ function Publish-Release {
 	if ($discussionCategory) {
 		$body | Add-Member -MemberType NoteProperty -Name 'discussion_category_name' -Value $discussionCategory
 	}
+
+    if ($discussionText) {
+        $body | Add-Member -MemberType NoteProperty -Name 'body' -Value $discussionText
+    }
+
 	$response = Send-GitHub-Post-Request `
 					-Owner $context.Owner `
 					-Repository $context.Repository `
 					-Segments @('releases') `
 					-Headers $($context.SecretToken | Get-GitHub-Headers) `
 					-Body $body
+}
+
+function Get-First-PR-Comment-From-User {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$true)]
+        [object] $context,
+        [Parameter(Mandatory=$true)]
+        [string] $username
+    )
+
+    $headers = $context.SecretToken | Get-GitHub-Headers
+    $comments = Send-GitHub-Get-Request `
+        -Owner $context.Owner `
+        -Repository $context.Repository `
+        -Segments @("issues", $context.Id, "comments") `
+        -Headers $headers
+
+    $parsed = $comments.Content | ConvertFrom-Json
+    return $parsed | Where-Object { $_.user.login -eq $username } | Select-Object -First 1
 }
 
 function Download-Release-Asset {

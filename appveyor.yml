@@ -69,23 +69,7 @@ test_script:
 
 after_test:
 - dotnet tool install -g Schemathief-cli
-- pwsh: |
-    $dir = "./.schemas"    
-    if (Test-Path $dir) {
-        Remove-Item -Recurse -Force $dir
-    } else {
-        New-Item -Path $dir -ItemType Directory
-    } 
-    & .\create-delta-schemas.cmd
-- pwsh: |
-    $dir = "./.publish"    
-    if (Test-Path $dir) {
-        Remove-Item -Recurse -Force $dir
-    } else {
-        New-Item -Path $dir -ItemType Directory
-    } 
-    7z a ./.publish/schemas-$env:GitVersion_SemVer.zip ./.schemas/*.*
-
+- pwsh: .\package-delta-schemas.ps1
 - dotnet pack src/Packata.Core -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.ResourceReaders -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.Provisioners -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
@@ -116,11 +100,15 @@ on_success:
                 SecretToken = $env:github_access_token
             }
             if (-not ($context | Check-Release-Published -Tag "v$($env:GitVersion_SemVer)")) {
+                $comment = Get-First-PR-Comment-From-User -Context $context -Username "coderabbitai"
+                $commentBody = $comment.body
+                
                 $context | Publish-Release `
                     -Tag "v$($env:GitVersion_SemVer)" `
                     -Name "$(($env:APPVEYOR_REPO_NAME -Split '/')[1]) $($env:GitVersion_SemVer)" `
                     -ReleaseNotes `
                     -DiscussionCategory 'Announcements'
+                    -DiscussionText "$commentBody"
 
                 Start-Sleep -Seconds 5
 
