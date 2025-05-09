@@ -1,0 +1,44 @@
+﻿"$schema": https://packata.dev/profiles/2.0/datapackage.json
+name: extension_package
+id: 116f49c1-8603-463e-a908-68de98327266
+version: 1.0
+created: 2025-05-04T12:45:21Z
+temporal:
+  start: "2020-01-01"
+  end: "2021-01-01"
+resources:
+- name: measures
+  path: sensor_measures.csv
+  type: table
+  "$schema": https://packata.dev/profiles/1.0/dataresource.json
+  title: "Sensors' temperatures & hygrometry"
+  format: csv
+  mediatype: text/csv
+  encoding: utf-8
+  schema:
+    fields:
+    - name: sensor_id
+      type: string
+    - name: building
+      type: string
+    - name: manufacturer
+      type: string
+    - name: timestamp
+      type: datetime
+    - name: temperature
+      type: numeric
+    - name: hygrometry
+      type: numeric
+    metrics:
+    - name: average_temperature
+      type: numeric
+      title: Average temperature
+      description: Average temperature of the sensor
+      aggregation: avg
+      expression: temperature
+    - name: max_temperature
+      type: numeric
+      title: Maximum temperature
+      aggregation: max
+      expression: temperature
+    "$schema": https://packata.dev/profiles/1.0/tableschema.json

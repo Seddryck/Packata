@@ -48,4 +48,6 @@ public class Schema
     ///     {"foreignKeys": [ { "fields": "state", "reference": { "fields": "id" } } ] }
     /// ]
     public List<ForeignKey>? ForeignKeys { get; set; } = null;
+
+    public List<Metric>? Metrics { get; set; }
 }

@@ -1,10 +1,19 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <Compile Remove="PathHandling\**" />
+    <EmbeddedResource Remove="PathHandling\**" />
+    <None Remove="PathHandling\**" />
+  </ItemGroup>
+  <ItemGroup>
     <None Remove="Serialization\Json\Resources\example.json" />
+    <None Remove="Serialization\Json\Resources\extension.json" />
+    <None Remove="Serialization\Yaml\Resources\extension.yaml" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Serialization\Json\Resources\example.json" />
+    <EmbeddedResource Include="Serialization\Json\Resources\extension.json" />
     <EmbeddedResource Include="Serialization\Yaml\Resources\example.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\extension.yaml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Chrononuensis" Version="0.23.6" />
@@ -37,8 +46,5 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Packata.Core\Packata.Core.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="PathHandling\" />
   </ItemGroup>
 </Project>
