@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ public class ExtensionBasedFormatInference : IFormatInference
         _extractor = extractor;
     }
 
-    public bool TryInfer(Resource resource, out string? format)
+    public bool TryInfer(Resource resource, [NotNullWhen(true)] out string? format)
     {
         format = null;
         if (_extractor.TryGetPathExtension(resource.Paths.ToArray(), out var extension))

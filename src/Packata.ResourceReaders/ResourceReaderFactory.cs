@@ -12,7 +12,7 @@ namespace Packata.ResourceReaders;
 public class ResourceReaderFactory
 {
     private Dictionary<string, IResourceReaderFactory> Factories { get; } = [];
-    private readonly IResourceInferenceService _inferenceService = ResourceInferenceService.Instance;
+    private readonly IResourceInferenceService _inferenceService = ResourceInferenceServiceBuilder.Default;
 
     public ResourceReaderFactory()
     {

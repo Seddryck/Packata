@@ -7,7 +7,7 @@ using Packata.Core;
 
 namespace Packata.ResourceReaders.Inference;
 /// <summary>
-/// Interface for strategies that infer table dialect information from a resource.
+/// Interface for strategies that infer kind information from a resource.
 /// </summary>
-public interface IDialectInference : IInferenceStrategy<TableDelimitedDialect>
+public interface IKindInference : IInferenceStrategy<string>
 { }

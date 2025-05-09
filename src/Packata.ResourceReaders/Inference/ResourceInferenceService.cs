@@ -10,82 +10,63 @@ using PocketCsvReader.Compression;
 namespace Packata.ResourceReaders.Inference;
 public class ResourceInferenceService : IResourceInferenceService
 {
-    private readonly IDialectInference[] _dialectStrategies;
-    private readonly IFormatInference[] _formatStrategies;
-    private readonly ICompressionInference[] _compressionStrategies;
+    private readonly IReadOnlyCollection<IInferenceStrategy> _strategies;
 
-    private static readonly IDictionary<string, string> _compressionMappings = GetCompressionMappings();
-    private static Dictionary<string, string> GetCompressionMappings()
+    protected internal ResourceInferenceService(IEnumerable<IInferenceStrategy> strategies)
+        => _strategies = strategies.ToArray();
+
+    private static void InferIfUnset<T>(
+        Resource resource,
+        Func<Resource, T?> getter,
+        Action<Resource, T> setter,
+        IEnumerable<IInferenceStrategy<T>> strategies,
+        Func<T?, bool> isUnset)
     {
-        var factory = DecompressorFactory.Streaming();
-        var keys = factory.GetSupportedKeys();
-        var dict = new Dictionary<string, string>(keys.Length);
-        foreach (var key in keys)
-            dict.Add(key, factory.GetCompression(key));
-        return dict;
+        if (isUnset(getter(resource)))
+        {
+            foreach (var strategy in strategies)
+            {
+                if (strategy.TryInfer(resource, out var value))
+                {
+                    setter(resource, value);
+                    break;
+                }
+            }
+        }
     }
-
-    public static ResourceInferenceService None => _none;
-    private static readonly ResourceInferenceService _none = new ([], [], []);
-
-    public static ResourceInferenceService Instance => _instance;
-    private static readonly ResourceInferenceService _instance = CreateInstance();
-
-    private static ResourceInferenceService CreateInstance()
-        => new (
-            [
-                new FormatBasedDialectInference(),
-                new MediaTypeBasedDialectInference(),
-                new ExtensionBasedDialectInference(new ExtractExtensionFromPathsService()),
-            ],
-            [
-                new MediaTypeBasedFormatInference(),
-                new ExtensionBasedFormatInference(new ExtractExtensionFromPathsService()),
-            ],
-            [
-                new MediaTypeBasedCompressionInference(_compressionMappings),
-                new ExtensionBasedCompressionInference(new ExtractExtensionFromPathsService(), _compressionMappings)
-            ]);
-
-    protected internal ResourceInferenceService(IDialectInference[] dialectStrategies, IFormatInference[] formatStrategies, ICompressionInference[] compressionStrategies)
-        => (_dialectStrategies, _formatStrategies, _compressionStrategies) = (dialectStrategies, formatStrategies, compressionStrategies);
 
     public void Enrich(Resource resource)
     {
-        if (string.IsNullOrEmpty(resource.Compression))
-        {
-            foreach (var strategy in _compressionStrategies)
-            {
-                if (strategy.TryInfer(resource, out var compression))
-                {
-                    resource.Compression = compression;
-                    break;
-                }
-            }
-        }
+        InferIfUnset(
+            resource,
+            r => r.Compression,
+            (r, v) => r.Compression = v,
+            _strategies.OfType<ICompressionInference>(),
+            string.IsNullOrEmpty
+        );
 
-        if (string.IsNullOrEmpty(resource.Format))
-        {
-            foreach (var strategy in _formatStrategies)
-            {
-                if (strategy.TryInfer(resource, out var format))
-                {
-                    resource.Format = format;
-                    break;
-                }
-            }
-        }
+        InferIfUnset(
+            resource,
+            r => r.Format,
+            (r, v) => r.Format = v,
+            _strategies.OfType<IFormatInference>(),
+            string.IsNullOrEmpty
+        );
 
-        if (resource.Dialect is null)
-        {
-            foreach (var strategy in _dialectStrategies)
-            {
-                if (strategy.TryInfer(resource, out var dialect))
-                {
-                    resource.Dialect = dialect;
-                    break;
-                }
-            }
-        }
+        InferIfUnset<TableDelimitedDialect>(
+            resource,
+            r => r.Dialect as TableDelimitedDialect,
+            (r, v) => r.Dialect = v,
+            _strategies.OfType<IDialectInference>(),
+            v => v == null
+        );
+
+        InferIfUnset(
+            resource,
+            r => r.Kind,
+            (r, v) => r.Kind = v,
+            _strategies.OfType<IKindInference>(),
+            v => v == null
+        );
     }
 }

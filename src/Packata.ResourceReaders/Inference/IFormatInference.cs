@@ -6,7 +6,5 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.ResourceReaders.Inference;
-public interface IFormatInference
-{
-    bool TryInfer(Resource resource, out string? format);
-}
+public interface IFormatInference : IInferenceStrategy<string>
+{ }

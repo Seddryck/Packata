@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,7 +9,7 @@ using Packata.Core;
 namespace Packata.ResourceReaders.Inference;
 public class MediaTypeBasedDialectInference : FormatBasedDialectInference
 {
-    public override bool TryInfer(Resource resource, out TableDelimitedDialect? dialect)
+    public override bool TryInfer(Resource resource, [NotNullWhen(true)] out TableDelimitedDialect? dialect)
     {
         var mediaType = resource.MediaType;
         dialect = null;

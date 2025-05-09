@@ -20,11 +20,9 @@ namespace Packata.ResourceReaders.Testing.Inference
                     return true;
                 });
 
-            var service = new ResourceInferenceService(
-                Array.Empty<IDialectInference>(),
-                Array.Empty<IFormatInference>(),
-                new[] { mockCompression.Object }
-            );
+            var builder = new ResourceInferenceServiceBuilder();
+            builder.AddStrategy(mockCompression.Object);
+            var service = builder.Build();
 
             var resource = new Resource { Compression = null };
             service.Enrich(resource);
@@ -35,11 +33,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         [Test]
         public void Enrich_ShouldNotSetCompression_WhenCompressionIsAlreadySet()
         {
-            var service = new ResourceInferenceService(
-                Array.Empty<IDialectInference>(),
-                Array.Empty<IFormatInference>(),
-                Array.Empty<ICompressionInference>()
-            );
+            var service = ResourceInferenceServiceBuilder.None;
 
             var resource = new Resource { Compression = "gzip" };
             service.Enrich(resource);
@@ -59,11 +53,9 @@ namespace Packata.ResourceReaders.Testing.Inference
                     return true;
                 });
 
-            var service = new ResourceInferenceService(
-                new[] { mockDialect.Object },
-                Array.Empty<IFormatInference>(),
-                Array.Empty<ICompressionInference>()
-            );
+            var builder = new ResourceInferenceServiceBuilder();
+            builder.AddStrategy(mockDialect.Object);
+            var service = builder.Build();
 
             var resource = new Resource { Dialect = null };
             service.Enrich(resource);
@@ -88,11 +80,9 @@ namespace Packata.ResourceReaders.Testing.Inference
                     return true;
                 });
 
-            var service = new ResourceInferenceService(
-                Array.Empty<IDialectInference>(),
-                new[] { mockFormat.Object },
-                Array.Empty<ICompressionInference>()
-            );
+            var builder = new ResourceInferenceServiceBuilder();
+            builder.AddStrategy(mockFormat.Object);
+            var service = builder.Build();
 
             var resource = new Resource { Format = null };
             service.Enrich(resource);
@@ -113,11 +103,9 @@ namespace Packata.ResourceReaders.Testing.Inference
                     return true;
                 });
 
-            var service = new ResourceInferenceService(
-                Array.Empty<IDialectInference>(),
-                new[] { mockFormat.Object },
-                Array.Empty<ICompressionInference>()
-            );
+            var builder = new ResourceInferenceServiceBuilder();
+            builder.AddStrategy(mockFormat.Object);
+            var service = builder.Build();
 
             var resource = new Resource { Format = "bar" };
             service.Enrich(resource);
@@ -128,11 +116,7 @@ namespace Packata.ResourceReaders.Testing.Inference
         [Test]
         public void Enrich_ShouldNotSetDialect_WhenDialectIsAlreadySet()
         {
-            var service = new ResourceInferenceService(
-                Array.Empty<IDialectInference>(),
-                Array.Empty<IFormatInference>(),
-                Array.Empty<ICompressionInference>()
-            );
+            var service = ResourceInferenceServiceBuilder.None;
 
             var resource = new Resource
             {
@@ -146,6 +130,39 @@ namespace Packata.ResourceReaders.Testing.Inference
             Assert.That(dialect.Delimiter, Is.EqualTo('\t'));
             Assert.That(dialect.QuoteChar, Is.EqualTo('"'));
             Assert.That(dialect.DoubleQuote, Is.True);
+        }
+
+        [Test]
+        public void Enrich_ShouldSetKind_WhenKindIsNull()
+        {
+            var mockKind = new Mock<IKindInference>();
+            mockKind
+                .Setup(m => m.TryInfer(It.IsAny<Resource>(), out It.Ref<string?>.IsAny))
+                .Returns((Resource resource, out string value) =>
+                {
+                    value = "mssql";
+                    return true;
+                });
+
+            var builder = new ResourceInferenceServiceBuilder();
+            builder.AddStrategy(mockKind.Object);
+            var service = builder.Build();
+
+            var resource = new Resource { Kind = null };
+            service.Enrich(resource);
+
+            Assert.That(resource.Kind, Is.EqualTo("mssql"));
+        }
+
+        [Test]
+        public void Enrich_ShouldNotSetKind_WhenKindIsAlreadySet()
+        {
+            var service = ResourceInferenceServiceBuilder.None;
+
+            var resource = new Resource { Kind = "service" };
+            service.Enrich(resource);
+
+            Assert.That(resource.Kind, Is.EqualTo("service"));
         }
     }
 }

@@ -48,6 +48,13 @@ public partial class Resource
     public string? Type { get; set; }
 
     /// <summary>
+    /// The type of the resource.
+    /// </summary>
+    /// <remarks>Specifies the nature of the resource, such as "table".</remarks>
+    /// <example>"virtual", "local", "service", "remote"</example>
+    public string? Kind { get; set; }
+
+    /// <summary>
     /// The file format of the resource.
     /// </summary>
     /// <remarks>Should be a file extension such as "csv" or "json".</remarks>
