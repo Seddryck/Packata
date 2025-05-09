@@ -14,4 +14,11 @@
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\.schemas\**\*">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles/any/any/schemas/%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+    </None>
+  </ItemGroup>
+
 </Project>

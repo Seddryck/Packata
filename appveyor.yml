@@ -68,6 +68,8 @@ test_script:
     .\codecov.exe --dir "./.coverage/"
 
 after_test:
+- dotnet tool install -g Schemathief-cli
+- pwsh: .\package-delta-schemas.ps1
 - dotnet pack src/Packata.Core -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.ResourceReaders -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.Provisioners -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
@@ -76,6 +78,7 @@ after_test:
 artifacts:
 - path: '**\*.nupkg'
 - path: '**\*.snupkg'
+- path: '**\*.zip'
 
 deploy:
 - provider: NuGet
@@ -92,11 +95,13 @@ on_success:
     if (($env:APPVEYOR_REPO_BRANCH -eq "main") -and ($null -eq $env:APPVEYOR_PULL_REQUEST_NUMBER)) {
         if ($env:GitVersion_Patch -eq '0' -or $env:GitVersion_Patch -eq 0) {
             $context = [PSCustomObject] @{
+                Id = $env:APPVEYOR_PULL_REQUEST_NUMBER
                 Owner = ($env:APPVEYOR_REPO_NAME -Split '/')[0]
                 Repository = ($env:APPVEYOR_REPO_NAME -Split '/')[1]
                 SecretToken = $env:github_access_token
             }
             if (-not ($context | Check-Release-Published -Tag "v$($env:GitVersion_SemVer)")) {
+                
                 $context | Publish-Release `
                     -Tag "v$($env:GitVersion_SemVer)" `
                     -Name "$(($env:APPVEYOR_REPO_NAME -Split '/')[1]) $($env:GitVersion_SemVer)" `
@@ -104,6 +109,12 @@ on_success:
                     -DiscussionCategory 'Announcements'
 
                 Start-Sleep -Seconds 5
+
+                if (Test-Path -Path "./.publish") {
+                    $context | Upload-Release-Assets `
+                        -Tag "v$($env:GitVersion_SemVer)" `
+                        -Path "./.publish"
+                }
             }
         } else {
             Write-Host "No release published on GitHub when patch is not set to zero."
