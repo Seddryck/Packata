@@ -18,7 +18,7 @@ $dir = ".\.schemas"
 foreach ($schema in $schemas) {
     try {
         Write-Host "Generating schema for $($schema.Class)..."
-        schemathief delta -a $assemblyPath -c $schema.Class -b $schema.Url -x "paths|profile" | Out-File -Encoding UTF8 -FilePath $schema.Output
+        schemathief delta -a $assemblyPath -c $schema.Class -b $schema.Url -x "paths|profile" -o $schema.Output
     } catch {
         Write-Error $schema.Error
         exit 1
