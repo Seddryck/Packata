@@ -4,12 +4,14 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
+using DubUrl.Mapping;
 using PocketCsvReader.Compression;
 
 namespace Packata.ResourceReaders.Inference;
 internal class ResourceInferenceServiceBuilder
 {
     private readonly Dictionary<Type, IInferenceStrategy> _strategies = new();
+    private SchemeMapperBuilder? _schemeMapperBuilder;
 
     public ResourceInferenceServiceBuilder AddStrategy<T>(IInferenceStrategy<T> strategy)
     {
@@ -32,11 +34,16 @@ internal class ResourceInferenceServiceBuilder
         return dict;
     }
 
-    private static Func<string, bool> GetDatabaseSchemes()
+    private Func<string, bool> GetDatabaseSchemes()
     {
-        var schemer = new DubUrl.Mapping.SchemeMapperBuilder();
-        schemer.Build();
-        return (scheme) => schemer.CanHandle(scheme);
+        static SchemeMapperBuilder create()
+        {
+            var builder = new DubUrl.Mapping.SchemeMapperBuilder();
+            builder.Build();
+            return builder!;
+        }
+        _schemeMapperBuilder ??= create();
+        return (scheme) => _schemeMapperBuilder.CanHandle(scheme);
     }
 
     public static ResourceInferenceService None => _none;
@@ -55,7 +62,7 @@ internal class ResourceInferenceServiceBuilder
         builder.AddStrategy(new ExtensionBasedFormatInference(new ExtractExtensionFromPathsService()));
         builder.AddStrategy(new MediaTypeBasedCompressionInference(_compressionMappings));
         builder.AddStrategy(new ExtensionBasedCompressionInference(new ExtractExtensionFromPathsService(), _compressionMappings));
-        builder.AddStrategy(new SchemeBasedKindInference((string value) => new string[] { "http", "https" }.Any(x => StringComparer.InvariantCultureIgnoreCase.Compare(x, value) == 0), GetDatabaseSchemes()));
+        builder.AddStrategy(new SchemeBasedKindInference((string value) => new string[] { "http", "https" }.Any(x => StringComparer.InvariantCultureIgnoreCase.Compare(x, value) == 0), builder.GetDatabaseSchemes()));
         return builder.Build();
     }
 }
