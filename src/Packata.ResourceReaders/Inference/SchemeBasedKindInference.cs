@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -34,7 +34,6 @@ internal class SchemeBasedKindInference : IKindInference
         {
                 kind = "local";
                 return true;
-            
         }
 
         if (resource.Paths.First() is FullyQualifiedPath absolutePath)
