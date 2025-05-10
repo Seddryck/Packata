@@ -9,7 +9,7 @@ using Packata.Core;
 namespace Packata.ResourceReaders.Inference;
 public class MediaTypeBasedDialectInference : FormatBasedDialectInference
 {
-    public override bool TryInfer(Resource resource, [NotNullWhen(true)] out TableDelimitedDialect? dialect)
+    public override bool TryInfer(Resource resource, [NotNullWhen(true)] out TableDialect? dialect)
     {
         var mediaType = resource.MediaType;
         dialect = null;

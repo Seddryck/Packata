@@ -53,9 +53,9 @@ public class ResourceInferenceService : IResourceInferenceService
             string.IsNullOrEmpty
         );
 
-        InferIfUnset<TableDelimitedDialect>(
+        InferIfUnset<TableDialect>(
             resource,
-            r => r.Dialect as TableDelimitedDialect,
+            r => r.Dialect,
             (r, v) => r.Dialect = v,
             _strategies.OfType<IDialectInference>(),
             v => v == null

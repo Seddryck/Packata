@@ -9,10 +9,10 @@ using Packata.Core;
 namespace Packata.ResourceReaders.Inference;
 public class FormatBasedDialectInference : IDialectInference
 {
-    public virtual bool TryInfer(Resource resource, [NotNullWhen(true)] out TableDelimitedDialect? dialect)
+    public virtual bool TryInfer(Resource resource, [NotNullWhen(true)] out TableDialect? dialect)
         => TryInferFromFormat(resource.Format, out dialect);
 
-    protected bool TryInferFromFormat(string? format, [NotNullWhen(true)] out TableDelimitedDialect? dialect)
+    protected bool TryInferFromFormat(string? format, [NotNullWhen(true)] out TableDialect? dialect)
     {
         dialect = format switch
         {

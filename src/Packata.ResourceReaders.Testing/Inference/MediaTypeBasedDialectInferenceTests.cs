@@ -45,7 +45,9 @@ namespace Packata.ResourceReaders.Testing.Inference
 
             Assert.That(result, Is.True);
             Assert.That(dialect, Is.Not.Null);
-            Assert.That(dialect!.Delimiter, Is.EqualTo(delimiter));
+            Assert.That(dialect, Is.TypeOf<TableDelimitedDialect>());
+            var tdDialect = (TableDelimitedDialect)dialect;
+            Assert.That(tdDialect.Delimiter, Is.EqualTo(delimiter));
         }
 
         [Test]

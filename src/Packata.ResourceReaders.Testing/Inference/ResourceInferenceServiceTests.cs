@@ -46,8 +46,8 @@ namespace Packata.ResourceReaders.Testing.Inference
         {
             var mockDialect = new Mock<IDialectInference>();
             mockDialect
-                .Setup(m => m.TryInfer(It.IsAny<Resource>(), out It.Ref<TableDelimitedDialect?>.IsAny))
-                .Returns((Resource resource, out TableDelimitedDialect? dialect) =>
+                .Setup(m => m.TryInfer(It.IsAny<Resource>(), out It.Ref<TableDialect?>.IsAny))
+                .Returns((Resource resource, out TableDialect? dialect) =>
                 {
                     dialect = new TableDelimitedDialect { Delimiter = ',', QuoteChar = '"', DoubleQuote = true };
                     return true;
