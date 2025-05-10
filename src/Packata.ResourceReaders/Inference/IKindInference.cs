@@ -6,5 +6,8 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.ResourceReaders.Inference;
-public interface IFormatInference : IInferenceStrategy<string>
+/// <summary>
+/// Interface for strategies that infer kind information from a resource.
+/// </summary>
+public interface IKindInference : IInferenceStrategy<string>
 { }

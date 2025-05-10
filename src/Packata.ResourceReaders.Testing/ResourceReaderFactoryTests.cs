@@ -65,7 +65,7 @@ public class ResourceReaderFactoryTests
                 };
             });
 
-        var factory = new ResourceReaderFactory(ResourceInferenceService.None);
+        var factory = new ResourceReaderFactory(ResourceInferenceServiceBuilder.None);
         var reader = factory.Create(resource);
         Assert.That(resource.Dialect, Is.Null);
 

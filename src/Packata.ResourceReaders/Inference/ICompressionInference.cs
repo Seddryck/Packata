@@ -6,7 +6,5 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.ResourceReaders.Inference;
-public interface ICompressionInference
-{
-    bool TryInfer(Resource resource, out string? compression);
-}
+public interface ICompressionInference : IInferenceStrategy<string>
+{ }

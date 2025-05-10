@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ public class MediaTypeBasedCompressionInference : BaseCompressionInference
         : base(compressionMappings)
     { }
 
-    public override bool TryInfer(Resource resource, out string? compression)
+    public override bool TryInfer(Resource resource, [NotNullWhen(true)] out string? compression)
     {
         var mediaType = resource.MediaType;
         compression = null;

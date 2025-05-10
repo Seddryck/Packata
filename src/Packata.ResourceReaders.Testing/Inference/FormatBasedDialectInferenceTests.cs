@@ -15,8 +15,11 @@ namespace Packata.ResourceReaders.Testing.Inference
 
             var result = inference.TryInfer(resource, out var dialect);
 
-            Assert.That(result, Is.False);
-            Assert.That(dialect, Is.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result, Is.False);
+                Assert.That(dialect, Is.Null);
+            }
         }
 
         [Test]
@@ -33,11 +36,16 @@ namespace Packata.ResourceReaders.Testing.Inference
 
             Assert.That(result, Is.True);
             Assert.That(dialect, Is.Not.Null);
-            Assert.That(dialect!.Delimiter, Is.EqualTo(delimiter));
-            Assert.That(dialect.QuoteChar, Is.EqualTo(quoteChar));
-            Assert.That(dialect.EscapeChar, Is.EqualTo(escapeChar));
-            Assert.That(dialect.DoubleQuote, Is.EqualTo(doubleQuote));
-            Assert.That(dialect.LineTerminator, Is.EqualTo(lineTerminator));
+            Assert.That(dialect, Is.TypeOf<TableDelimitedDialect>());
+            var tdDialect = (TableDelimitedDialect)dialect;
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(tdDialect.Delimiter, Is.EqualTo(delimiter));
+                Assert.That(tdDialect.QuoteChar, Is.EqualTo(quoteChar));
+                Assert.That(tdDialect.EscapeChar, Is.EqualTo(escapeChar));
+                Assert.That(tdDialect.DoubleQuote, Is.EqualTo(doubleQuote));
+                Assert.That(tdDialect.LineTerminator, Is.EqualTo(lineTerminator));
+            }
         }
 
         [Test]
@@ -48,8 +56,11 @@ namespace Packata.ResourceReaders.Testing.Inference
 
             var result = inference.TryInfer(resource, out var dialect);
 
-            Assert.That(result, Is.False);
-            Assert.That(dialect, Is.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result, Is.False);
+                Assert.That(dialect, Is.Null);
+            }
         }
     }
 }

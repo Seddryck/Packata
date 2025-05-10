@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ public class ExtensionBasedDialectInference : FormatBasedDialectInference
         _extractor = extractor;
     }
 
-    public override bool TryInfer(Resource resource, out TableDelimitedDialect? dialect)
+    public override bool TryInfer(Resource resource, [NotNullWhen(true)] out TableDialect? dialect)
     {
         dialect = null;
         if (_extractor.TryGetPathExtension(resource.Paths.ToArray(), out var extension))

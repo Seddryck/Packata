@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,7 +14,7 @@ public abstract class BaseCompressionInference : ICompressionInference
     protected BaseCompressionInference(IDictionary<string, string> compressionMappings)
         => CompressionMappings = compressionMappings;
 
-    public abstract bool TryInfer(Resource resource, out string? compression);
+    public abstract bool TryInfer(Resource resource, [NotNullWhen(true)] out string? compression);
 
     protected bool TryInferFromExtension(string? extension, out string? compression)
     {

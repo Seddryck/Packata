@@ -53,6 +53,21 @@ public class ExtensionSerializerTests
         });
     }
 
+
+    [TestCaseSource(nameof(GetData))]
+    public void Deserialize_ResourceKind_Success((Stream Stream, IDataPackageSerializer Serializer) value)
+    {
+        using var streamReader = new StreamReader(value.Stream);
+        var dataPackage = value.Serializer.Deserialize(streamReader, new LocalDirectoryDataPackageContainer(), new StorageProvider());
+        Assert.That(dataPackage.Resources, Is.Not.Null);
+        Assert.That(dataPackage.Resources, Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(dataPackage.Resources[0].Kind, Is.EqualTo("local"));
+        });
+    }
+
+
     [TestCaseSource(nameof(GetData))]
     public void Deserialize_Metrics_Success((Stream Stream, IDataPackageSerializer Serializer) value)
     {

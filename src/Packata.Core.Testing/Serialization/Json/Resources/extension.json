@@ -13,6 +13,7 @@
             "name": "measures",
             "path": "sensor_measures.csv",
             "type": "table",
+            "kind": "local",
             "$schema": "https://packata.dev/profiles/1.0/dataresource.json",
             "title": "Sensors' temperatures & hygrometry",
             "format": "csv",
