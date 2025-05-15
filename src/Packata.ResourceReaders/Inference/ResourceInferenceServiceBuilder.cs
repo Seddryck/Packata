@@ -11,7 +11,7 @@ namespace Packata.ResourceReaders.Inference;
 internal class ResourceInferenceServiceBuilder
 {
     private readonly Dictionary<Type, IInferenceStrategy> _strategies = new();
-    private SchemeMapperBuilder? _schemeMapperBuilder;
+    private SchemeRegistry? _schemeRegistry;
 
     public ResourceInferenceServiceBuilder AddStrategy<T>(IInferenceStrategy<T> strategy)
     {
@@ -36,14 +36,11 @@ internal class ResourceInferenceServiceBuilder
 
     private Func<string, bool> GetDatabaseSchemes()
     {
-        static SchemeMapperBuilder create()
-        {
-            var builder = new DubUrl.Mapping.SchemeMapperBuilder();
-            builder.Build();
-            return builder!;
-        }
-        _schemeMapperBuilder ??= create();
-        return (scheme) => _schemeMapperBuilder.CanHandle(scheme);
+        _schemeRegistry ??= new SchemeRegistryBuilder()
+                                        .WithAssemblies(typeof(SchemeRegistryBuilder).Assembly)
+                                        .WithAutoDiscoveredMappings()
+                                        .Build();
+        return (scheme) => _schemeRegistry.CanHandle(scheme);
     }
 
     public static ResourceInferenceService None => _none;

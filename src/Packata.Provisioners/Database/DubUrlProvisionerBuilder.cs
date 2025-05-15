@@ -17,13 +17,16 @@ public class DubUrlProvisionerBuilder : IDubUrlTypeStep, IDubUrlLocationStep, ID
     private string? Database { get; set; } = null;
     private string? Username { get; set; } = null;
     private string? Password { get; set; } = null;
-    protected SchemeMapperBuilder SchemeMapperBuilder { get; }
+    protected SchemeRegistry SchemeRegistry { get; }
 
     public DubUrlProvisionerBuilder()
-        : this(new()) { }
+        : this(new SchemeRegistryBuilder()
+                        .WithAssemblies(typeof(SchemeRegistryBuilder).Assembly)
+                        .WithAutoDiscoveredMappings()
+                        .Build()) { }
 
-    protected internal DubUrlProvisionerBuilder(SchemeMapperBuilder schemeMapperBuilder)
-        => SchemeMapperBuilder = schemeMapperBuilder;
+    protected internal DubUrlProvisionerBuilder(SchemeRegistry schemeRegistry)
+        => SchemeRegistry = schemeRegistry;
 
     public IDubUrlLocationStep Using(string databaseType)
     {
@@ -81,7 +84,7 @@ public class DubUrlProvisionerBuilder : IDubUrlTypeStep, IDubUrlLocationStep, ID
 
         var url = $"{DatabaseType}://{credentials}{server}{port}{database}";
 
-        return new DubUrlProvisioner(new ConnectionUrl(url, SchemeMapperBuilder));
+        return new DubUrlProvisioner(new ConnectionUrl(url, SchemeRegistry));
     }
 
     IPackageProvisioner IPackageProvisionerBuilder.Build()
