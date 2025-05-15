@@ -48,10 +48,10 @@ public class DubUrlProvisioner : IPackageProvisioner
         }
         catch
         {
-            var builder = new DialectBuilder();
-            builder.AddAliases<AnsiDialect>(["ansi"]);
-            builder.Build();
-            return builder.Get<AnsiDialect>();
+            var builder = new DialectRegistryBuilder();
+            builder.AddDialect<AnsiDialect>(["ansi"]);
+            var registry = builder.Build();
+            return registry.Get<AnsiDialect>();
         }
     }
 

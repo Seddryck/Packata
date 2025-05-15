@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DubUrl;
+using DubUrl.Mapping;
 using Packata.Core;
 using Packata.Core.ResourceReading;
 
@@ -14,7 +15,12 @@ internal class DatabaseReader : IResourceReader
     private readonly ConnectionUrlFactory _connectionUrlFactory;
 
     public DatabaseReader(string rootPath)
-        : this(new ConnectionUrlFactory(new DubUrl.Mapping.SchemeMapperBuilder(rootPath)))
+        : this(new ConnectionUrlFactory(
+            new SchemeRegistryBuilder()
+                  .WithRootPath(rootPath)
+                  .WithAssemblies(typeof(SchemeRegistryBuilder).Assembly)
+                  .WithAutoDiscoveredMappings()
+                  .Build()))
     { }
 
     public DatabaseReader(ConnectionUrlFactory connectionUrlFactory)

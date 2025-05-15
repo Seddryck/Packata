@@ -44,7 +44,9 @@ public class DatabaseReaderTests
         mockConnectionUrl.Setup(x => x.Open()).Returns(mockConnection.Object);
         mockConnectionUrl.SetupGet(x => x.Dialect).Returns(mockDialect.Object);
 
-        var mockFactory = new Mock<ConnectionUrlFactory>(new SchemeMapperBuilder());
+        var schemeRegistryMock = new Mock<ISchemeRegistry>();
+
+        var mockFactory = new Mock<ConnectionUrlFactory>(schemeRegistryMock.Object);
         mockFactory.Setup(x => x.Instantiate(It.IsAny<string>())).Returns(mockConnectionUrl.Object);
 
         var reader = new DatabaseReader(mockFactory.Object);
