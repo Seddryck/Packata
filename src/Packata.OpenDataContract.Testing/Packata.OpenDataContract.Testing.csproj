@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <None Remove="Serialization\Yaml\Resources\all-data-types.odcs.yaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.8.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+    <PackageReference Include="Appveyor.TestLogger" Version="2.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.msbuild" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.25">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+    <ProjectReference Include="..\Packata.OpenDataContract\Packata.OpenDataContract.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Serialization\Yaml\Resources\kafka-schema.odcs.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\table-column-description.odcs.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\table-columns-with-partition.odcs.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\kafka-server.odcs.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\kafka-schemaregistry.odcs.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\all-data-types.odcs.yaml" />
+  </ItemGroup>
+</Project>

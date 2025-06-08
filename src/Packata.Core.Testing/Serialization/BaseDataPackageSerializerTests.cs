@@ -272,7 +272,6 @@ public abstract class BaseDataPackageSerializerTests
         }
     }
 
-
     [Test]
     public void Deserialize_EmbeddedFile_CorrectPackageInfo()
     {
