@@ -21,10 +21,10 @@ public class ArrayLogicalType : ILogicalType
         MaxItems = ConvertInt(dict.GetValueOrDefault("maxItems"));
     }
 
-    protected virtual int? ConvertInt(object? value)
+    private static int? ConvertInt(object? value)
         => value is string str && !string.IsNullOrEmpty(str) ? int.TryParse(str, out var result) ? result : null : null;
 
-    protected virtual bool? ConvertBool(object? value)
+    private static bool? ConvertBool(object? value)
         => value is string str && !string.IsNullOrEmpty(str) ? bool.TryParse(str, out var result) ? result : null : null;
 
     /// <summary>

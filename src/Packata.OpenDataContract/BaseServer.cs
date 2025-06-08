@@ -40,7 +40,7 @@ public class BaseServer
     /// List of roles that have access to the server.
     /// </summary>
     [Label("Roles")]
-    public List<string>? Roles { get; set; } = [];
+    public List<string> Roles { get; set; } = [];
 
     /// <summary>
     /// Custom properties that are not part of the standard.

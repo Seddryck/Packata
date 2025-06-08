@@ -9,7 +9,7 @@ namespace Packata.OpenDataContract.ServerTypes;
 public class SftpServer : BaseServer, ILocationAware, IFormatAware
 {
     /// <summary>
-    /// S3 URL, starting with s3://
+    /// SFTP URL, starting with sftp://. The URL should include the port number.
     /// </summary>
     [Label("Location")]
     public required string Location { get; set; }

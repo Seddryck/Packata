@@ -15,7 +15,10 @@ public class CustomPropertyListConverter : IYamlTypeConverter
     public object? ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
     {
         var deserializer = new DeserializerBuilder().Build();
-        var list = deserializer.Deserialize<List<Dictionary<string, object>>>(parser);
+        var list = rootDeserializer(typeof(List<Dictionary<string, object>>)) as List<Dictionary<string, object>>;
+
+        if (list == null)
+            return new CustomProperties();
 
         var dict = new CustomProperties();
         foreach (var item in list)
