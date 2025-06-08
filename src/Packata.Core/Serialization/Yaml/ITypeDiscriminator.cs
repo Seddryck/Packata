@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using YamlDotNet.Serialization.BufferedDeserialization;
 
 namespace Packata.Core.Serialization.Yaml;
-internal interface ITypeDiscriminator
+public interface ITypeDiscriminator
 {
     void Execute(ITypeDiscriminatingNodeDeserializerOptions options);
 }
