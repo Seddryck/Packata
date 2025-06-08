@@ -16,10 +16,16 @@ public class ArrayLogicalType : ILogicalType
         if (dict is null)
             return;
 
-        UniqueItems = dict.GetValueOrDefault("uniqueItems") as bool? ?? false;
-        MinItems = dict.GetValueOrDefault("minItems") as int?;
-        MaxItems = dict.GetValueOrDefault("maxItems") as int?;
+        UniqueItems = ConvertBool(dict.GetValueOrDefault("uniqueItems")) ?? false;
+        MinItems = ConvertInt(dict.GetValueOrDefault("minItems"));
+        MaxItems = ConvertInt(dict.GetValueOrDefault("maxItems"));
     }
+
+    protected virtual int? ConvertInt(object? value)
+        => value is string str && !string.IsNullOrEmpty(str) ? int.TryParse(str, out var result) ? result : null : null;
+
+    protected virtual bool? ConvertBool(object? value)
+        => value is string str && !string.IsNullOrEmpty(str) ? bool.TryParse(str, out var result) ? result : null : null;
 
     /// <summary>
     /// If set to true, all items in the array are unique.

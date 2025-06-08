@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <None Remove="Serialization\Yaml\Resources\all-data-types.odcs.yaml" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="NUnit" Version="4.3.2" />
@@ -31,6 +34,6 @@
     <ProjectReference Include="..\Packata.OpenDataContract\Packata.OpenDataContract.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Serialization\Yaml\Resources\" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\all-data-types.odcs.yaml" />
   </ItemGroup>
 </Project>

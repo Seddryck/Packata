@@ -283,4 +283,98 @@ public abstract class BaseDataContractSerializerTests
             Assert.That(azure.Format, Is.EqualTo("parquet"));
         });
     }
+
+    [Test]
+    public void Deserialize_AllDataTypes_CorrectDataTypes()
+    {
+        string resourceName = $"{GetType().Namespace}.Resources.all-data-types.odcs.{GetFormat()}";
+        using var stream = GetType().Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
+
+        using var streamReader = new StreamReader(stream);
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        Assert.That(dataContract, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dataContract.Name, Is.EqualTo("my_table"));
+            Assert.That(dataContract.Id, Is.EqualTo("53581432-6c55-4ba2-a65f-72344a91553a"));
+            Assert.That(dataContract.Version, Is.EqualTo("1.0.0"));
+        });
+        Assert.That(dataContract.Schema, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dataContract.Schema, Has.Count.EqualTo(1));
+            Assert.That(dataContract.Schema[0].Name, Is.EqualTo("transactions_tbl"));
+            Assert.That(dataContract.Schema[0].Description, Is.EqualTo("Provides core payment metrics"));
+            Assert.That(dataContract.Schema[0].DataGranularityDescription, Is.EqualTo("Aggregation on names txn_ref_dt, pmt_txn_id"));
+            Assert.That(dataContract.Schema[0].PhysicalType, Is.EqualTo("table"));
+        });
+
+        Assert.That(dataContract.Schema[0].Properties, Is.Not.Null);
+        var props = dataContract.Schema[0].Properties;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(props[0].Name, Is.EqualTo("account_id"));
+            Assert.That(props[0].PhysicalType, Is.EqualTo("string"));
+            Assert.That(props[0].LogicalType, Is.TypeOf<StringLogicalType>());
+            var stringProp = (StringLogicalType)props[0].LogicalType!;
+            Assert.That(stringProp.MinLength, Is.EqualTo(11));
+            Assert.That(stringProp.MaxLength, Is.EqualTo(11));
+            Assert.That(stringProp.Pattern, Is.EqualTo("ACC[0-9]{8}"));
+
+            Assert.That(props[1].Name, Is.EqualTo("txn_ref_date"));
+            Assert.That(props[1].PhysicalType, Is.EqualTo("date"));
+            Assert.That(props[1].LogicalType, Is.TypeOf<DateLogicalType>());
+            var dateProp = (DateLogicalType)props[1].LogicalType!;
+            Assert.That(dateProp.Minimum, Is.EqualTo(new DateTime(2020, 01, 01)));
+            Assert.That(dateProp.Maximum, Is.EqualTo(new DateTime(2021, 01, 01)));
+            Assert.That(dateProp.Format, Is.EqualTo("yyyy-MM-dd"));
+
+            Assert.That(props[2].Name, Is.EqualTo("txn_timestamp"));
+            Assert.That(props[2].PhysicalType, Is.EqualTo("timestamp"));
+            Assert.That(props[2].LogicalType, Is.TypeOf<DateLogicalType>());
+            var tsProp = (DateLogicalType)props[2].LogicalType!;
+            Assert.That(tsProp.Minimum, Is.EqualTo(new DateTime(2020, 01, 01)));
+            Assert.That(tsProp.Maximum, Is.EqualTo(new DateTime(2021, 01, 01)));
+            Assert.That(tsProp.Format, Is.EqualTo("yyyy-MM-dd HH:mm:ss"));
+
+            Assert.That(props[3].Name, Is.EqualTo("amount"));
+            Assert.That(props[3].PhysicalType, Is.EqualTo("double"));
+            Assert.That(props[3].LogicalType, Is.TypeOf<NumberLogicalType>());
+            var numberProp = (NumberLogicalType)props[3].LogicalType!;
+            Assert.That(numberProp.Minimum, Is.EqualTo(0));
+            Assert.That(numberProp.Format, Is.EqualTo("f32"));
+
+            Assert.That(props[4].Name, Is.EqualTo("age"));
+            Assert.That(props[4].PhysicalType, Is.EqualTo("int"));
+            Assert.That(props[4].LogicalType, Is.TypeOf<IntegerLogicalType>());
+            var intProp = (IntegerLogicalType)props[4].LogicalType!;
+            Assert.That(intProp.Minimum, Is.EqualTo(18));
+            Assert.That(intProp.Maximum, Is.EqualTo(100));
+            Assert.That(intProp.ExclusiveMaximum, Is.True);
+            Assert.That(intProp.Format, Is.EqualTo("i64"));
+
+            Assert.That(props[5].Name, Is.EqualTo("is_open"));
+            Assert.That(props[5].PhysicalType, Is.EqualTo("bool"));
+            Assert.That(props[5].LogicalType, Is.TypeOf<BooleanLogicalType>());
+
+            Assert.That(props[6].Name, Is.EqualTo("latest_txns"));
+            Assert.That(props[6].PhysicalType, Is.EqualTo("list"));
+            Assert.That(props[6].LogicalType, Is.TypeOf<ArrayLogicalType>());
+            var arrayProp = (ArrayLogicalType)props[6].LogicalType!;
+            Assert.That(arrayProp.MinItems, Is.EqualTo(0));
+            Assert.That(arrayProp.MaxItems, Is.EqualTo(3));
+            Assert.That(arrayProp.UniqueItems, Is.True);
+
+            Assert.That(props[7].Name, Is.EqualTo("customer_details"));
+            Assert.That(props[7].PhysicalType, Is.EqualTo("json"));
+            Assert.That(props[7].LogicalType, Is.TypeOf<ObjectLogicalType>());
+            var objProp = (ObjectLogicalType)props[7].LogicalType!;
+            Assert.That(objProp.MaxProperties, Is.EqualTo(5));
+            Assert.That(objProp.Required, Has.Length.EqualTo(2));
+            Assert.That(objProp.Required, Does.Contain("num_children"));
+            Assert.That(objProp.Required, Does.Contain("date_of_birth"));
+        });
+    }
 }

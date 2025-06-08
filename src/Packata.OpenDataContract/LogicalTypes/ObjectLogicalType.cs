@@ -16,10 +16,13 @@ public class ObjectLogicalType : ILogicalType
         if (dict is null)
             return;
 
-        Required = dict.GetValueOrDefault("required") as string[] ?? [];
-        MinProperties = dict.GetValueOrDefault("minProperties") as int?;
-        MaxProperties = dict.GetValueOrDefault("maxProperties") as int?;
+        Required = (dict.GetValueOrDefault("required") as List<object> ?? []).Select(x => x.ToString() ?? string.Empty).ToArray() ?? [];
+        MinProperties = ConvertInt(dict.GetValueOrDefault("minProperties"));
+        MaxProperties = ConvertInt(dict.GetValueOrDefault("maxProperties"));
     }
+
+    protected virtual int? ConvertInt(object? value)
+        => value is string str && !string.IsNullOrEmpty(str) ? int.TryParse(str, out var result) ? result : null : null;
 
     /// <summary>
     /// Property names that are required to exist in the object.
