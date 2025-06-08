@@ -18,8 +18,8 @@ $dir = ".\.schemas"
 
 foreach ($schema in $schemas) {
     try {
-        Write-Host "Generating schema for $($schema.Class)..."
-        schemathief delta -a $assemblyPath -c $schema.Class -b ($schema.Url + $schema.Value) -x "paths|profile" -o ($dir + $schema.Value)
+        Write-Host "Generating schema for $($schema.Class) based on $($baseUrl + $schema.Value)"
+        schemathief delta -a $assemblyPath -c $schema.Class -b ($baseUrl + $schema.Value) -x "paths|profile" -o (Join-Path $dir $schema.Value)
     } catch {
         Write-Error $schema.Error
         exit 1
