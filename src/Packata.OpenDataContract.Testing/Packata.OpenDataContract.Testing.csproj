@@ -34,6 +34,11 @@
     <ProjectReference Include="..\Packata.OpenDataContract\Packata.OpenDataContract.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Serialization\Yaml\Resources\kafka-schema.odcs.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\table-column-description.odcs.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\table-columns-with-partition.odcs.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\kafka-server.odcs.yaml" />
+    <EmbeddedResource Include="Serialization\Yaml\Resources\kafka-schemaregistry.odcs.yaml" />
     <EmbeddedResource Include="Serialization\Yaml\Resources\all-data-types.odcs.yaml" />
   </ItemGroup>
 </Project>
