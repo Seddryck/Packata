@@ -62,6 +62,8 @@ test_script:
     $globalTestResult += $LastExitCode
     dotnet test src/Packata.OpenDataContract.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:CoverletOutput=../../.coverage/coverage.Packata.OpenDataContract.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
     $globalTestResult += $LastExitCode
+    dotnet test src/Packata.DataContractSpecification.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:CoverletOutput=../../.coverage/coverage.Packata.DataContractSpecification.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
+    $globalTestResult += $LastExitCode
     if($globalTestResult -ne 0) { $host.SetShouldExit($globalTestResult) }
 
 - pwsh: |
@@ -77,6 +79,7 @@ after_test:
 - dotnet pack src/Packata.Provisioners -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.Storages -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.OpenDataContract -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
+- dotnet pack src/Packata.DataContractSpecification -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 
 artifacts:
 - path: '**\*.nupkg'
