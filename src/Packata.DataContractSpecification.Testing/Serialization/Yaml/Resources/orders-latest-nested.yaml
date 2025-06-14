@@ -1,0 +1,108 @@
+dataContractSpecification: 0.9.3
+id: urn:datacontract:checkout:orders-latest-nested
+info:
+  title: Orders Latest (Nested)
+  version: 1.0.0
+  description: |
+    Successful customer orders in the webshop. 
+    All orders since 2020-01-01. 
+    Orders with their line items are in their current state (no history included).
+  owner: Checkout Team
+  contact:
+    name: John Doe (Data Product Owner)
+    url: https://teams.microsoft.com/l/channel/example/checkout
+terms:
+  usage: |
+    Data can be used for reports, analytics and machine learning use cases.
+    Order may be linked and joined by other tables
+  limitations: |
+    Not suitable for real-time use cases.
+    Data may not be used to identify individual customers.
+    Max data processing per day: 10 TiB
+  billing: 5000 USD per month
+  noticePeriod: P3M
+models:
+  orders:
+    description: One record per order. Includes cancelled and deleted orders.
+    type: table
+    fields:
+      order_id:
+        $ref: '#/definitions/order_id'
+        required: true
+        unique: true
+        primary: true
+      order_timestamp:
+        description: The business timestamp in UTC when the order was successfully registered in the source system and the payment was successful.
+        type: timestamp
+        required: true
+      order_total:
+        description: Total amount the smallest monetary unit (e.g., cents).
+        type: long
+        required: true
+      customer_id:
+        description: Unique identifier for the customer.
+        type: text
+        minLength: 10
+        maxLength: 20
+      customer_email_address:
+        description: The email address, as entered by the customer. The email address was not verified.
+        type: text
+        format: email
+        required: true
+      address:
+        type: object
+        description: The delivery address of the customer.
+        fields:
+          street:
+            description: The street name and house number.
+            type: text
+          city:
+            description: The city name.
+            type: text
+          additional_lines:
+            description: Additional address lines, such as floor, apartment, or company name.
+            type: array
+            items:
+              type: text
+              description: Additional line
+      processed_timestamp:
+        description: The timestamp when the record was processed by the data platform.
+        type: timestamp
+        required: true
+  line_items:
+    description: A single article that is part of an order.
+    type: table
+    fields:
+      lines_item_id:
+        type: text
+        description: Primary key of the lines_item_id table
+        required: true
+        unique: true
+        primary: true
+      order_id:
+        $ref: '#/definitions/order_id'
+        references: orders.order_id
+      sku:
+        description: The purchased article number
+        $ref: '#/definitions/sku'
+definitions:
+  order_id:
+    domain: checkout
+    name: order_id
+    title: Order ID
+    type: text
+    format: uuid
+    description: An internal ID that identifies an order in the online shop.
+    example: 243c25e5-a081-43a9-aeab-6d5d5b6cb5e2
+    pii: true
+    classification: restricted
+  sku:
+    domain: inventory
+    name: sku
+    title: Stock Keeping Unit
+    type: text
+    pattern: ^[A-Za-z0-9]{8,14}$
+    example: "96385074"
+    description: |
+      A Stock Keeping Unit (SKU) is an internal unique identifier for an article. 
+      It is typically associated with an article's barcode, such as the EAN/GTIN.

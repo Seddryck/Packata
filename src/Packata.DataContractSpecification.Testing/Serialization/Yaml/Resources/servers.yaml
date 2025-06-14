@@ -1,0 +1,17 @@
+dataContractSpecification: 0.9.3
+id: servers
+servers:
+  s3-csv:
+    type: s3
+    location: s3://covid19-lake/enigma-jhu/csv/*.csv
+    format: csv
+  kafka-orders:
+    type: kafka
+    host: pkc-7xoy1.eu-central-1.aws.confluent.cloud:9092
+    topic: orders.v1
+    format: avro
+  pg-customers:
+    type: postgresql
+    host: postgres.crm.2
+    database: crm
+    schema: main

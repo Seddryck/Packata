@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Description>Packata.DataContractSpecification is a Packata extension that supports deserialization of data contracts following the datacontract-specification available at datacontract.com. It maps info, models and servers directly into strongly typed C# models, enabling validation, introspection, and integration into data platform pipelines.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+  </ItemGroup>
+
+</Project>
