@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -258,6 +258,5 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             Assert.That(pgCustomers.Database, Is.EqualTo("crm"));
             Assert.That(pgCustomers.Schema, Is.EqualTo("main"));
         });
-
     }
 }
