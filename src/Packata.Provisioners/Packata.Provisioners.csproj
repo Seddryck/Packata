@@ -10,8 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DubUrl.BulkCopy" Version="0.29.2" />
-    <PackageReference Include="DubUrl.Schema" Version="0.29.2" />
+    <PackageReference Include="DubUrl.BulkCopy" Version="0.29.14" />
+    <PackageReference Include="DubUrl.Schema" Version="0.29.14" />
   </ItemGroup>
 
   <ItemGroup>
