@@ -59,4 +59,49 @@ public class DatabaseReaderTests
         mockConnectionUrl.VerifyAll();
         mockFactory.Verify(x => x.Instantiate("mssql://server/database"), Times.Once);
     }
+
+    [Test]
+    public void ToDataReader_TableAndNamespaceDefined_ExpectedCommand()
+    {
+        var resource = new Resource
+        {
+            Connection = new LiteralConnectionUrl("mssql://server/database"),
+            Type = "table",
+            Name = "my-resource",
+            Dialect = new TableDatabaseDialect() { Table = "Customer", Namespace = "Sales" },
+        };
+        var mockCommand = new Mock<IDbCommand>();
+        mockCommand.Setup(x => x.ExecuteReader()).Returns(Mock.Of<DbDataReader>);
+        mockCommand.SetupSet(x => x.CommandText = It.IsAny<string>());
+
+        var mockConnection = new Mock<IDbConnection>();
+        mockConnection.Setup(x => x.CreateCommand()).Returns(mockCommand.Object);
+
+        var mockRenderer = new Mock<IRenderer>();
+        mockRenderer.Setup(x => x.Render("Customer", It.IsAny<string>())).Returns("Customer");
+        mockRenderer.Setup(x => x.Render("Sales", It.IsAny<string>())).Returns("Sales");
+
+        var mockDialect = new Mock<IDialect>();
+        mockDialect.SetupGet(x => x.Renderer).Returns(mockRenderer.Object);
+
+        var mockConnectionUrl = new Mock<ConnectionUrl>(It.IsAny<string>());
+        mockConnectionUrl.Setup(x => x.Open()).Returns(mockConnection.Object);
+        mockConnectionUrl.SetupGet(x => x.Dialect).Returns(mockDialect.Object);
+
+        var schemeRegistryMock = new Mock<ISchemeRegistry>();
+
+        var mockFactory = new Mock<ConnectionUrlFactory>(schemeRegistryMock.Object);
+        mockFactory.Setup(x => x.Instantiate(It.IsAny<string>())).Returns(mockConnectionUrl.Object);
+
+        var reader = new DatabaseReader(mockFactory.Object);
+        var dataReader = reader.ToDataReader(resource);
+
+        Assert.That(dataReader, Is.Not.Null);
+        mockRenderer.VerifyAll();
+        mockCommand.Verify(x => x.ExecuteReader(), Times.Once);
+        mockCommand.VerifySet(x => x.CommandText = "SELECT * FROM Sales.Customer", Times.Once);
+        mockConnection.VerifyAll();
+        mockConnectionUrl.VerifyAll();
+        mockFactory.Verify(x => x.Instantiate("mssql://server/database"), Times.Once);
+    }
 }

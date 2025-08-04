@@ -63,7 +63,8 @@ internal class TableDialectConverterTests : BaseConverterTests<TableDialectConve
             {
                 ""$schema"": ""https://datapackage.org/profiles/2.0/tabledialect.json"",
                 ""type"": ""database"",
-                ""table"": ""Customer""
+                ""table"": ""Customer"",
+                ""namespace"": ""dbo""
             }}";
         var wrapper = JsonConvert.DeserializeObject<Wrapper>(json, Settings);
 
@@ -73,6 +74,7 @@ internal class TableDialectConverterTests : BaseConverterTests<TableDialectConve
             Assert.That(wrapper.Object, Is.TypeOf<TableDatabaseDialect>());
             var dbDialect = (TableDatabaseDialect)wrapper.Object!;
             Assert.That(dbDialect.Table, Is.EqualTo("Customer"));
+            Assert.That(dbDialect.Namespace, Is.EqualTo("dbo"));
         }
     }
 

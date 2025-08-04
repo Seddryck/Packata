@@ -61,6 +61,7 @@ internal class TableDialectConverterTests : BaseTypeDiscriminatorTests<TableDial
                     dialect:
                         type: database
                         table: Customer
+                        namespace: Sales
                     ";
 
         var wrapper = Deserializer.Deserialize<Wrapper>(yaml);
@@ -71,6 +72,7 @@ internal class TableDialectConverterTests : BaseTypeDiscriminatorTests<TableDial
             Assert.That(wrapper.Object, Is.TypeOf<TableDatabaseDialect>());
             var dialect = (TableDatabaseDialect)wrapper.Object!;
             Assert.That(dialect.Table, Is.EqualTo("Customer"));
+            Assert.That(dialect.Namespace, Is.EqualTo("Sales"));
         }
     }
 

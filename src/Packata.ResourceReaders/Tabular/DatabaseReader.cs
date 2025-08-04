@@ -35,7 +35,9 @@ internal class DatabaseReader : IResourceReader
         using (var connection = connectionUrl.Open())
         {
             var command = connection.CreateCommand();
-            command.CommandText = $"SELECT * FROM {connectionUrl.Dialect.Renderer.Render(dialect.Table, "identity")}";
+            command.CommandText = string.IsNullOrEmpty(dialect.Namespace)
+                                ? $"SELECT * FROM {connectionUrl.Dialect.Renderer.Render(dialect.Table, "identity")}"
+                                : $"SELECT * FROM {connectionUrl.Dialect.Renderer.Render(dialect.Namespace, "identity")}.{connectionUrl.Dialect.Renderer.Render(dialect.Table, "identity")}";
             return command.ExecuteReader();
         }
     }
