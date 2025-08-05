@@ -10,11 +10,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DubUrl.BulkCopy" Version="0.29.2" />
-    <PackageReference Include="DubUrl.Schema" Version="0.29.2" />
+    <PackageReference Include="DubUrl.BulkCopy" Version="0.29.18" />
+    <PackageReference Include="DubUrl.Schema" Version="0.29.18" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="DubUrl" Version="0.29.18" />
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
     <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
   </ItemGroup>
