@@ -14,10 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DubUrl" Version="0.29.2" />
+    <PackageReference Include="DubUrl" Version="0.29.32" />
     <PackageReference Include="ExcelDataReader" Version="3.7.0" />
     <PackageReference Include="Parquet.Net" Version="5.1.1" />
-    <PackageReference Include="PocketCsvReader" Version="2.36.7" />
+    <PackageReference Include="PocketCsvReader" Version="2.36.9" />
   </ItemGroup>
 
 </Project>
