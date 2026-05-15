@@ -81,6 +81,6 @@ internal class HttpStorageHandlerTests
 
         using var httpClient = mockHttp.ToHttpClient();
         var handler = new HttpStorageHandler(httpClient);
-        Assert.ThrowsAsync<FileNotFoundException>(async () => await handler.OpenAsync("https://example.com/base/foo.csv"));
+        Assert.That(() => handler.OpenAsync("https://example.com/base/foo.csv"), Throws.TypeOf<FileNotFoundException>());
     }
 }

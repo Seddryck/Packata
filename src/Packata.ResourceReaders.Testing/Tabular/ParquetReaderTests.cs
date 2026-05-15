@@ -63,7 +63,7 @@ public class ParquetReaderTests
         var resource = new Resource() { Paths = [], Type = "table", Name = "my-resource" };
         var wrapper = new ParquetReaderWrapper();
         var reader = new ParquetReader(wrapper);
-        Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
+        Assert.That(() => reader.ToDataReader(resource), Throws.TypeOf<InvalidOperationException>());
     }
 
     [Test]
@@ -89,7 +89,7 @@ public class ParquetReaderTests
         var wrapper = new ParquetReaderWrapper();
         var reader = new ParquetReader(wrapper);
 
-        Assert.Throws<FileNotFoundException>(() => reader.ToDataReader(resource));
+        Assert.That(() => reader.ToDataReader(resource), Throws.TypeOf<FileNotFoundException>());
     }
 
     [Test]
@@ -104,6 +104,6 @@ public class ParquetReaderTests
         var wrapper = new ParquetReaderWrapper();
         var reader = new ParquetReader(wrapper);
 
-        Assert.Throws<IOException>(() => reader.ToDataReader(resource));
+        Assert.That(() => reader.ToDataReader(resource), Throws.TypeOf<IOException>());
     }
 }

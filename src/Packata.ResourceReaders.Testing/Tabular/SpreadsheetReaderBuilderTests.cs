@@ -72,7 +72,7 @@ public class SpreadsheetReaderBuilderTests
         builder.Configure(resource);
         var reader = builder.Build();
 
-        Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
+        Assert.That(() => reader.ToDataReader(resource), Throws.TypeOf<InvalidOperationException>());
     }
 
     [Test]
@@ -91,7 +91,7 @@ public class SpreadsheetReaderBuilderTests
         builder.Configure(resource);
         var reader = builder.Build();
 
-        Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
+        Assert.That(() => reader.ToDataReader(resource), Throws.TypeOf<InvalidOperationException>());
     }
 
     [Test]
@@ -106,6 +106,6 @@ public class SpreadsheetReaderBuilderTests
         };
         var builder = new SpreadsheetReaderBuilder();
 
-        Assert.Throws<AggregateException>(() => builder.Configure(resource));
+        Assert.That(() => builder.Configure(resource), Throws.TypeOf<AggregateException>());
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -22,7 +22,7 @@ public class DataPackageLocatorTests
             new Dictionary<string, Func<Uri, IContainerWrapper>>()
             );
         var handle = await locator.LocateAsync(new Uri("mock://foo"));
-        Assert.DoesNotThrowAsync(handle.ValidateAsync);
+        Assert.That(handle.ValidateAsync, Throws.Nothing);
         container.Verify(c => c.ExistsAsync("datapackage.json"), Times.Once);
     }
 
@@ -36,7 +36,7 @@ public class DataPackageLocatorTests
             new Dictionary<string, Func<Uri, IContainerWrapper>>()
             );
         var handle = await locator.LocateAsync(new Uri("mock://foo"), "datapackage.yaml");
-        Assert.DoesNotThrowAsync(handle.ValidateAsync);
+        Assert.That(handle.ValidateAsync, Throws.Nothing);
         container.Verify(c => c.ExistsAsync("datapackage.yaml"), Times.Once);
     }
 
@@ -50,7 +50,8 @@ public class DataPackageLocatorTests
             new Dictionary<string, Func<Uri, IContainerWrapper>>()
             );
         var handle = await locator.LocateAsync(new Uri("mock://foo"));
-        Assert.ThrowsAsync<FileNotFoundException>(handle.ValidateAsync);
+        Assert.That(handle.ValidateAsync, Throws.TypeOf<FileNotFoundException>());
         container.Verify(c => c.ExistsAsync("datapackage.json"), Times.Once);
     }
 }
+

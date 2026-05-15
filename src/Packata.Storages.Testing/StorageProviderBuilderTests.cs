@@ -49,6 +49,6 @@ internal class StorageProviderBuilderTests
         var builder = new StorageProviderBuilder()
             .Register("http", b => b.UseHttp())
             .Register("http", b => b.UseHttp());
-        Assert.Throws<InvalidOperationException>(()=> builder.Build());
+        Assert.That(() => builder.Build(), Throws.TypeOf<InvalidOperationException>());
     }
 }

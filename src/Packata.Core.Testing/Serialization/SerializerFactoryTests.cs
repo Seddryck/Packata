@@ -27,5 +27,5 @@ public class SerializerFactoryTests
 
     [Test]
     public void Instantiate_ShouldThrowArgumentOutOfRangeException_WhenFormatIsUnknown()
-        => Assert.Throws<ArgumentOutOfRangeException>(() => new SerializerFactory().Instantiate("unknown"));
+        => Assert.That(() => new SerializerFactory().Instantiate("unknown"), Throws.TypeOf<ArgumentOutOfRangeException>());
 }
