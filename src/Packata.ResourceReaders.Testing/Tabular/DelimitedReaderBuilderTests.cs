@@ -153,7 +153,7 @@ public class DelimitedReaderBuilderTests
             Assert.That(dataReader.GetValue(0), Is.EqualTo(-2000));
             Assert.That(dataReader.GetValue(1), Is.EqualTo(new DateOnly(2025, 1, 5)));
             Assert.That(dataReader.GetValue(2), Is.EqualTo(7010120.12m));
-            Assert.Throws<FormatException>(() => dataReader.GetDecimal(3));
+            Assert.That(() => dataReader.GetDecimal(3), Throws.TypeOf<FormatException>());
         }
         Assert.That(dataReader.Read(), Is.False);
     }

@@ -83,6 +83,6 @@ internal class HttpDataPackageContainerTests
         using var httpClient = mockHttp.ToHttpClient();
 
         using var container = new HttpDataPackageContainer(_baseUri, httpClient);
-        Assert.ThrowsAsync<FileNotFoundException>(async () => await container.OpenAsync("foo.csv"));
+        Assert.That(() => container.OpenAsync("foo.csv"), Throws.TypeOf<FileNotFoundException>());
     }
 }

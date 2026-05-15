@@ -71,7 +71,7 @@ public class SpreadsheetReaderTests
         var resource = new Resource() { Paths = [], Type = "table", Name = "my-resource" };
         var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
         var reader = new SpreadsheetReader(wrapper);
-        Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
+        Assert.That(() => reader.ToDataReader(resource), Throws.TypeOf<InvalidOperationException>());
     }
 
     [Test]
@@ -80,7 +80,7 @@ public class SpreadsheetReaderTests
         var resource = new Resource() { Paths = [new Mock<IPath>().Object, new Mock<IPath>().Object], Type = "table", Name = "my-resource" };
         var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
         var reader = new SpreadsheetReader(wrapper);
-        Assert.Throws<InvalidOperationException>(() => reader.ToDataReader(resource));
+        Assert.That(() => reader.ToDataReader(resource), Throws.TypeOf<InvalidOperationException>());
     }
 
     [Test]
@@ -148,7 +148,7 @@ public class SpreadsheetReaderTests
         var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
         var reader = new SpreadsheetReader(wrapper);
 
-        Assert.Throws<FileNotFoundException>(() => reader.ToDataReader(resource));
+        Assert.That(() => reader.ToDataReader(resource), Throws.TypeOf<FileNotFoundException>());
     }
 
     [Test]
@@ -163,6 +163,6 @@ public class SpreadsheetReaderTests
         var wrapper = new ExcelReaderWrapper(new TableSpreadsheetDialect());
         var reader = new SpreadsheetReader(wrapper);
 
-        Assert.Throws<IOException>(() => reader.ToDataReader(resource));
+        Assert.That(() => reader.ToDataReader(resource), Throws.TypeOf<IOException>());
     }
 }
