@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Packata.Core.Storage;
-using Packata.Core.Serialization.Json;
+using Packata.DataPackage.Serialization.Json;
 using NUnit.Framework;
 using System.Net.Http;
 using Newtonsoft.Json.Serialization;
 
-namespace Packata.Core.Testing.Serialization.Json;
+namespace Packata.DataPackage.Testing.Serialization.Json;
 
 internal class PathConverterTests : AbstractConverterTests<PathConverter, List<IPath>>
 {

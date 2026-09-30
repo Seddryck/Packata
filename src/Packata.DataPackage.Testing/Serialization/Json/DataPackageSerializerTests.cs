@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -6,10 +6,10 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
-using Packata.Core.Serialization;
-using Packata.Core.Serialization.Json;
+using Packata.DataPackage.Serialization;
+using Packata.DataPackage.Serialization.Json;
 
-namespace Packata.Core.Testing.Serialization.Json;
+namespace Packata.DataPackage.Testing.Serialization.Json;
 
 public class DataPackageSerializerTests : BaseDataPackageSerializerTests
 {

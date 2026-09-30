@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Packata.Core.Storage;
 
-namespace Packata.Core;
+namespace Packata.DataPackage;
 /// <summary>
 /// Represents a data resource as defined by the Data Resource profile.
 /// </summary>

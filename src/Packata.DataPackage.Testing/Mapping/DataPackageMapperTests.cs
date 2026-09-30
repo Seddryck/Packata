@@ -1,9 +1,9 @@
-using Packata.Core;
+using Packata.DataPackage;
 using Packata.Core.Storage;
 using Packata.DataPackage.Mapping;
 using NUnit.Framework;
 
-namespace Packata.Core.Testing.Mapping;
+namespace Packata.DataPackage.Testing.Mapping;
 
 public class DataPackageMapperTests
 {

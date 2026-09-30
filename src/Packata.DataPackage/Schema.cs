@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using Packata.Core.Serialization.Json;
+using Packata.DataPackage.Serialization.Json;
 
-namespace Packata.Core;
+namespace Packata.DataPackage;
 public class Schema
 {
     public string? Profile { get; set; }

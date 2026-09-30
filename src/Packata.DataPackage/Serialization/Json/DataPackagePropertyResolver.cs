@@ -8,7 +8,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Packata.Core.Storage;
 
-namespace Packata.Core.Serialization.Json;
+namespace Packata.DataPackage.Serialization.Json;
 internal class DataPackagePropertyResolver : DefaultContractResolver
 {
     private Dictionary<string, JsonConverter> Converters { get; } = [];

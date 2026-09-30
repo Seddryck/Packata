@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using Packata.Core.Serialization.Yaml;
+using Packata.DataPackage.Serialization.Yaml;
 using NUnit.Framework;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
 
-namespace Packata.Core.Testing.Serialization.Yaml;
+namespace Packata.DataPackage.Testing.Serialization.Yaml;
 
 internal class ConnectionConverterTests : BaseConverterTests<ConnectionConverter, IConnection>
 {

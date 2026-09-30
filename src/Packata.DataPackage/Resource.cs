@@ -1,13 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Packata.Core.ResourceReading;
 
-namespace Packata.Core;
+namespace Packata.DataPackage;
 
 public partial class Resource
 {

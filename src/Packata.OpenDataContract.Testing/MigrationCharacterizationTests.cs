@@ -1,6 +1,8 @@
 using Moq;
 using NUnit.Framework;
 using Packata.Core.Storage;
+using Packata.DataPackage.Mapping;
+using Packata.OpenDataContract.Mapping;
 using OdcsSerializer = Packata.OpenDataContract.Serialization.Yaml.DataContractSerializer;
 
 namespace Packata.OpenDataContract.Testing;
@@ -47,8 +49,10 @@ public class MigrationCharacterizationTests
         using var packageStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(dataPackageJson));
         using var contractReader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(odcsYaml)));
 
-        var package = new Packata.Core.DataPackageFactory().LoadFromStream(packageStream);
+        var package = new Packata.DataPackage.DataPackageFactory().LoadFromStream(packageStream);
         var contract = new OdcsSerializer().Deserialize(contractReader, container, provider);
+        var packageMapping = new DataPackageMapper().Map(package);
+        var contractMapping = new OpenDataContractMapper().Map(contract);
 
         Assert.Multiple(() =>
         {
@@ -58,6 +62,8 @@ public class MigrationCharacterizationTests
             Assert.That(contract.Name, Is.EqualTo("orders"));
             Assert.That(contract.Schema, Has.Count.EqualTo(1));
             Assert.That(contract.Schema[0].Properties[0].Name, Is.EqualTo("id"));
+            Assert.That(packageMapping.Value!.Assets[0].Schema!.Fields[0].Name, Is.EqualTo("id"));
+            Assert.That(contractMapping.Value!.Assets[0].Schema!.Fields[0].Name, Is.EqualTo("id"));
         });
     }
 }

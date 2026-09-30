@@ -5,11 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Packata.Core.Serialization;
-using Packata.Core.Serialization.Json;
+using Packata.DataPackage.Serialization;
+using Packata.DataPackage.Serialization.Json;
 using Packata.Core.Storage;
 
-namespace Packata.Core;
+namespace Packata.DataPackage;
 
 public class DataPackageFactory
 {

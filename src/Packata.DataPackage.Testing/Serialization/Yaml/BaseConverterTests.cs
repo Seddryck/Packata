@@ -8,7 +8,7 @@ using YamlDotNet.Serialization;
 using System.Text.RegularExpressions;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace Packata.Core.Testing.Serialization.Yaml;
+namespace Packata.DataPackage.Testing.Serialization.Yaml;
 
 public abstract class AbstractConverterTests<T, U> where T : IYamlTypeConverter
 {

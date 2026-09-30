@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Packata.Core.Validation;
+namespace Packata.DataPackage.Validation;
 internal interface IValidator<T>
 {
     bool IsValid(T obj);

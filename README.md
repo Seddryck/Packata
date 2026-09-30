@@ -2,7 +2,7 @@
 
 ![Logo](https://raw.githubusercontent.com/Seddryck/Packata/main/assets/packata-icon-256.png)
 
-Packata is a library for consuming Data Package v2 files, enabling seamless access to their referenced data. It supports unpacking, schema validation, and metadata inspection. With a focus on user-friendliness, Packata ensures full compliance with the Data Package specification, making it an essential tool for developers and analysts.
+Packata provides a standards-neutral runtime for data assets, schemas, endpoints, readers, and provisioners. Data Package v2 and the Open Data Contract Standard (ODCS) are supported as independent document formats that map into the canonical `Packata.Core` model.
 
 [About][] | [Installing][] | [Quickstart][]
 
@@ -38,4 +38,6 @@ More to come ...
 
 ## QuickStart
 
-More to come ...
+Use `Packata.DataPackage` for Data Package v2 JSON/YAML or `Packata.OpenDataContract` for ODCS YAML, then map the native document into `Packata.Core.Contracts.DataContract`. Readers and provisioners consume that canonical model and do not depend on either source format.
+
+See [MIGRATION.md](MIGRATION.md) for the major-version API changes and examples.

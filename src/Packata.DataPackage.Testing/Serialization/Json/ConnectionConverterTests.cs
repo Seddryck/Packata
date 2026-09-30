@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
-using Packata.Core.Serialization.Json;
+using Packata.DataPackage.Serialization.Json;
 using NUnit.Framework;
 
-namespace Packata.Core.Testing.Serialization.Json;
+namespace Packata.DataPackage.Testing.Serialization.Json;
 
 internal class ConnectionConverterTests : BaseConverterTests<ConnectionConverter, IConnection>
 {

@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using YamlDotNet.Serialization.BufferedDeserialization;
 
-namespace Packata.Core.Serialization.Yaml;
+namespace Packata.DataPackage.Serialization.Yaml;
 internal class TableDialectTypeDiscriminator : ITypeDiscriminator
 {
     private static Dictionary<string, Type> GetValueMappings()

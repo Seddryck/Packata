@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Packata.Core.Testing</RootNamespace>
+    <RootNamespace>Packata.DataPackage.Testing</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="PathHandling\**" />

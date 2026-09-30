@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Packata.Core.Storage;
 
-namespace Packata.Core.Serialization.Json;
+namespace Packata.DataPackage.Serialization.Json;
 internal class FieldConverter : JsonConverter
 {
     public override bool CanConvert(Type objectType)

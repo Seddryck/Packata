@@ -1,5 +1,5 @@
 using Packata.Core.Contracts;
-using Native = Packata.Core;
+using Native = Packata.DataPackage;
 
 namespace Packata.DataPackage.Mapping;
 
