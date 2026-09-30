@@ -19,12 +19,16 @@ namespace Packata.ResourceReaders;
 public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 {
     private readonly IEndpointStreamResolver _streams;
-    private readonly string _rootPath;
+    private readonly IDatabaseSessionFactory _databases;
 
     public ResourceReaderFactory(IEndpointStreamResolver? streams = null, string? rootPath = null)
+        : this(streams, new DubUrlDatabaseSessionFactory(rootPath ?? string.Empty))
+    { }
+
+    internal ResourceReaderFactory(IEndpointStreamResolver? streams, IDatabaseSessionFactory databases)
     {
         _streams = streams ?? new DefaultEndpointStreamResolver();
-        _rootPath = rootPath ?? string.Empty;
+        _databases = databases;
     }
 
     public async ValueTask<IDataReader> OpenAsync(DataEndpoint endpoint, DataSchema? schema = null,
@@ -37,17 +41,17 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         if (endpoint.Location is not PathLocation paths || paths.Paths.Count == 0)
             throw new NotSupportedException($"Endpoint '{endpoint.Id}' does not expose readable paths or a connection.");
 
-        var format = InferFormat(endpoint, paths);
+        var format = ResolveFormat(endpoint, paths);
         var opened = new List<Stream>();
         try
         {
             foreach (var path in paths.Paths)
                 opened.Add(await _streams.OpenAsync(path, cancellationToken).ConfigureAwait(false));
-            IDataReader reader = format switch
+            IDataReader reader = format.Name switch
             {
                 "xlsx" or "xls" => OpenSpreadsheet(opened, endpoint.Format),
                 "parquet" or "pqt" => await ParquetDataReader.CreateAsync(opened).ConfigureAwait(false),
-                _ => OpenDelimited(opened, endpoint.Format, schema)
+                _ => OpenDelimited(opened, endpoint.Format, schema, format)
             };
             return new OwnedDataReader(reader, opened.Cast<IDisposable>().ToArray());
         }
@@ -58,22 +62,31 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         }
     }
 
-    private static string InferFormat(DataEndpoint endpoint, PathLocation paths)
+    private static ResolvedFormat ResolveFormat(DataEndpoint endpoint, PathLocation paths)
     {
-        var explicitFormat = endpoint.Format?.Name?.TrimStart('.').ToLowerInvariant();
-        if (!string.IsNullOrWhiteSpace(explicitFormat))
-            return explicitFormat.EndsWith(".gz") ? explicitFormat[..^3] : explicitFormat;
-        var value = paths.Paths[0];
-        if (Uri.TryCreate(value, UriKind.Absolute, out var uri)) value = uri.AbsolutePath;
-        var extension = Path.GetExtension(value).TrimStart('.').ToLowerInvariant();
-        return extension == "gz"
-            ? Path.GetExtension(Path.GetFileNameWithoutExtension(value)).TrimStart('.').ToLowerInvariant()
-            : extension;
+        var explicitFormat = Normalize(endpoint.Format?.Name);
+        var compression = Normalize(endpoint.Format?.Compression);
+        if (explicitFormat?.EndsWith(".gz", StringComparison.Ordinal) == true)
+        {
+            explicitFormat = explicitFormat[..^3];
+            compression ??= "gzip";
+        }
+
+        var pathFormats = paths.Paths.Select(PathFormat).Where(value => value is not null).Distinct().ToArray();
+        if (pathFormats.Length > 1)
+            throw new InvalidOperationException("All paths in an endpoint must use the same format.");
+
+        var mediaType = endpoint.Format?.MediaType?.Split(';', '+')[0].Trim().ToLowerInvariant();
+        var name = explicitFormat ?? MediaTypeFormat(mediaType) ?? pathFormats.SingleOrDefault()?.Name ?? string.Empty;
+        compression ??= MediaTypeCompression(mediaType) ?? pathFormats.SingleOrDefault()?.Compression;
+        var delimiter = name switch { "tsv" => '\t', "psv" => '|', _ => ',' };
+        return new ResolvedFormat(name, compression, delimiter);
     }
 
-    private static IDataReader OpenDelimited(IReadOnlyList<Stream> streams, DataFormat? format, DataSchema? schema)
+    private static IDataReader OpenDelimited(IReadOnlyList<Stream> streams, DataFormat? format, DataSchema? schema,
+        ResolvedFormat resolved)
     {
-        var dialect = new DialectDescriptorBuilder();
+        var dialect = new DialectDescriptorBuilder().WithDelimiter(resolved.Delimiter);
         if (TryOption(format, "delimiter", out char delimiter)) dialect.WithDelimiter(delimiter);
         if (TryOption(format, "lineTerminator", out string? terminator) && terminator is not null) dialect.WithLineTerminator(terminator);
         if (TryOption(format, "header", out bool header)) dialect.WithHeader(header);
@@ -91,7 +104,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
         var resource = new ResourceDescriptorBuilder();
         if (!string.IsNullOrWhiteSpace(format?.Encoding)) resource.WithEncoding(format.Encoding);
-        if (!string.IsNullOrWhiteSpace(format?.Compression)) resource.WithCompression(format.Compression);
+        if (!string.IsNullOrWhiteSpace(resolved.Compression)) resource.WithCompression(resolved.Compression);
         var builder = new CsvReaderBuilder().WithDialect(dialect).WithResource(resource);
         if (schemaBuilder is not null) builder.WithSchema(schemaBuilder);
         var reader = builder.Build();
@@ -100,6 +113,42 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
             : reader.ToDataReader(streams.Select(stream => (Func<Stream>)(() => stream)));
     }
 
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim().TrimStart('.').ToLowerInvariant();
+
+    private static ResolvedFormat? PathFormat(string path)
+    {
+        if (Uri.TryCreate(path, UriKind.Absolute, out var uri)) path = uri.AbsolutePath;
+        var extension = Normalize(Path.GetExtension(path));
+        if (extension is null) return null;
+        string? compression = null;
+        if (extension is "gz" or "gzip")
+        {
+            compression = "gzip";
+            extension = Normalize(Path.GetExtension(Path.GetFileNameWithoutExtension(path)));
+        }
+        return extension is null ? null : new ResolvedFormat(extension, compression, ',');
+    }
+
+    private static string? MediaTypeFormat(string? mediaType) => mediaType switch
+    {
+        "text/csv" => "csv",
+        "text/tsv" or "text/tab-separated-values" => "tsv",
+        "text/psv" => "psv",
+        "application/vnd.ms-excel" => "xls",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
+        "application/vnd.apache.parquet" => "parquet",
+        _ => null
+    };
+
+    private static string? MediaTypeCompression(string? mediaType) => mediaType switch
+    {
+        "application/gzip" => "gzip",
+        "application/x-deflate" => "deflate",
+        "application/zip" => "zip",
+        _ => null
+    };
+
     private static IDataReader OpenSpreadsheet(IReadOnlyList<Stream> streams, DataFormat? format)
     {
         if (streams.Count != 1) throw new InvalidOperationException("Spreadsheet endpoints require exactly one path.");
@@ -107,6 +156,8 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         var reader = ExcelReaderFactory.CreateReader(streams[0]);
         var sheetNumber = TryOption(format, "sheetNumber", out int number) ? number : 1;
         var sheetName = TryOption(format, "sheetName", out string? name) ? name : null;
+        if (sheetName is not null && TryOption<int>(format, "sheetNumber", out _))
+            throw new ArgumentException("Specify either sheetName or sheetNumber, not both.", nameof(format));
         for (var current = 1; current < sheetNumber || (sheetName is not null && reader.Name != sheetName); current++)
             if (!reader.NextResult()) throw new InvalidOperationException("The configured spreadsheet sheet was not found.");
         var headers = new List<string>();
@@ -120,25 +171,25 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     {
         cancellationToken.ThrowIfCancellationRequested();
         var url = location.ConnectionUrl ?? throw new ArgumentException("ConnectionUrl is required.", nameof(endpoint));
-        new ProviderFactoriesRegistrator().Register();
-        var factory = new ConnectionUrlFactory(new SchemeRegistryBuilder().WithRootPath(_rootPath)
-            .WithAssemblies(typeof(SchemeRegistryBuilder).Assembly).WithAutoDiscoveredMappings().Build());
-        var connectionUrl = factory.Instantiate(url);
-        var connection = connectionUrl.Open();
+        var session = _databases.Open(url);
+        var connection = session.Connection;
+        IDbCommand? command = null;
         try
         {
-            var command = connection.CreateCommand();
+            command = connection.CreateCommand();
             var table = OptionString(endpoint.Format, "table")
                 ?? throw new ArgumentException("Database endpoint format requires a table option.", nameof(endpoint));
             var ns = location.Namespace ?? OptionString(endpoint.Format, "namespace");
             command.CommandText = string.IsNullOrEmpty(ns)
-                ? $"SELECT * FROM {connectionUrl.Dialect.Renderer.Render(table, "identity")}" :
-                  $"SELECT * FROM {connectionUrl.Dialect.Renderer.Render(ns, "identity")}.{connectionUrl.Dialect.Renderer.Render(table, "identity")}";
+                ? $"SELECT * FROM {session.RenderIdentifier(table)}" :
+                  $"SELECT * FROM {session.RenderIdentifier(ns)}.{session.RenderIdentifier(table)}";
             var reader = command.ExecuteReader();
             return new OwnedDataReader(reader, command, connection);
         }
-        catch { connection.Dispose(); throw; }
+        catch { command?.Dispose(); connection.Dispose(); throw; }
     }
+
+    private sealed record ResolvedFormat(string Name, string? Compression, char Delimiter);
 
     private static string? OptionString(DataFormat? format, string name) =>
         format?.Options.TryGetValue(name, out var value) == true ? value?.ToString() : null;
@@ -148,6 +199,26 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         if (format?.Options.TryGetValue(name, out var raw) == true && raw is T typed)
         { value = typed; return true; }
         value = default!; return false;
+    }
+}
+
+internal interface IDatabaseSessionFactory
+{
+    DatabaseSession Open(string connectionUrl);
+}
+
+internal sealed record DatabaseSession(IDbConnection Connection, Func<string, string> RenderIdentifier);
+
+internal sealed class DubUrlDatabaseSessionFactory(string rootPath) : IDatabaseSessionFactory
+{
+    public DatabaseSession Open(string url)
+    {
+        new ProviderFactoriesRegistrator().Register();
+        var factory = new ConnectionUrlFactory(new SchemeRegistryBuilder().WithRootPath(rootPath)
+            .WithAssemblies(typeof(SchemeRegistryBuilder).Assembly).WithAutoDiscoveredMappings().Build());
+        var connectionUrl = factory.Instantiate(url);
+        return new DatabaseSession(connectionUrl.Open(),
+            value => connectionUrl.Dialect.Renderer.Render(value, "identity"));
     }
 }
 
