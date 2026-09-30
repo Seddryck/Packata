@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Castle.Core.Resource;
 using Moq;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Packata.Core.Storage;
 using Packata.DataContractSpecification;

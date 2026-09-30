@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+    <ProjectReference Include="..\Packata.DataPackage\Packata.DataPackage.csproj" />
   </ItemGroup>
 
   <ItemGroup>
