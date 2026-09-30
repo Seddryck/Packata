@@ -10,15 +10,13 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\.schemas\**\*">
-      <Pack>true</Pack>
-      <PackagePath>contentFiles/any/any/schemas/%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
-    </None>
+    <InternalsVisibleTo Include="Packata.Core.Testing" />
+    <InternalsVisibleTo Include="Packata.DataPackage" />
+    <InternalsVisibleTo Include="Packata.DataPackage.Testing" />
   </ItemGroup>
 
 </Project>
