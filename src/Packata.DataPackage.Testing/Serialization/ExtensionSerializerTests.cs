@@ -8,12 +8,12 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions.Interfaces;
 using Newtonsoft.Json;
 using NUnit.Framework;
-using Packata.Core.Serialization;
-using SerJson = Packata.Core.Serialization.Json;
-using SerYaml = Packata.Core.Serialization.Yaml;
+using Packata.DataPackage.Serialization;
+using SerJson = Packata.DataPackage.Serialization.Json;
+using SerYaml = Packata.DataPackage.Serialization.Yaml;
 using Packata.Core.Storage;
 
-namespace Packata.Core.Testing.Serialization;
+namespace Packata.DataPackage.Testing.Serialization;
 
 public class ExtensionSerializerTests
 {

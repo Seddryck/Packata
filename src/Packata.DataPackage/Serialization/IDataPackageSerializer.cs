@@ -1,6 +1,6 @@
 using Packata.Core.Storage;
 
-namespace Packata.Core.Serialization;
+namespace Packata.DataPackage.Serialization;
 
 public interface IDataPackageSerializer
 {

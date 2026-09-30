@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using YamlDotNet.Core.Tokens;
 
-namespace Packata.Core;
+namespace Packata.DataPackage;
 
 public interface ILength { }
 public interface IMinimum { }

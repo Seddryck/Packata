@@ -4,6 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Description>Packata's native Data Package v2 document model, serialization, validation, and adapter.</Description>
+    <PackageReleaseNotes>Breaking: Data Package types now use Packata.DataPackage namespaces. Use DataPackageMapper to obtain Packata.Core.Contracts.DataContract.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

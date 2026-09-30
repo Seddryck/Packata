@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Packata.Core.Validation;
+namespace Packata.DataPackage.Validation;
 public class ResourceValidator : IValidator<Resource>
 {
     protected virtual string PathRegex { get => DefaultRegex.PathRegex; }

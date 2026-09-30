@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
-namespace Packata.Core.Serialization.Json;
+namespace Packata.DataPackage.Serialization.Json;
 internal class ConstraintsConverter : JsonConverter
 {
     private readonly ConstraintMapper _constraintMapper = new();

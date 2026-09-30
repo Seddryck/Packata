@@ -5,9 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Packata.Core.Storage;
-using Packata.Core.Validation;
+using Packata.DataPackage.Validation;
 
-namespace Packata.Core.Testing.Validation;
+namespace Packata.DataPackage.Testing.Validation;
 public class ResourceValidatorTests
 {
     private readonly PathFactory _factory = new (new LocalDirectoryDocumentContainer(), new StorageProvider());

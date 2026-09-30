@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Packata.Core.Validation;
+using Packata.DataPackage.Validation;
 
-namespace Packata.Core.Testing.Validation;
+namespace Packata.DataPackage.Testing.Validation;
 public class ContributorValidatorTests
 {
     [Test]
