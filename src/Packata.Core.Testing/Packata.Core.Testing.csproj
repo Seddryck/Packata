@@ -1,25 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <Compile Remove="PathHandling\**" />
-    <EmbeddedResource Remove="PathHandling\**" />
-    <None Remove="PathHandling\**" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove="Serialization\Json\Resources\example.json" />
-    <None Remove="Serialization\Json\Resources\extension.json" />
-    <None Remove="Serialization\Yaml\Resources\extension.yaml" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Serialization\Json\Resources\example.json" />
-    <EmbeddedResource Include="Serialization\Json\Resources\extension.json" />
-    <EmbeddedResource Include="Serialization\Yaml\Resources\example.yaml" />
-    <EmbeddedResource Include="Serialization\Yaml\Resources\extension.yaml" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Chrononuensis" Version="0.24.15" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
-    <PackageReference Include="Moq" Version="4.21.0" />
-    <PackageReference Include="RichardSzalay.MockHttp" Version="7.1.0" />
     <PackageReference Include="NUnit" Version="4.6.1" />
     <PackageReference Include="NUnit.Analyzers" Version="4.15.0">
       <PrivateAssets>all</PrivateAssets>
@@ -27,24 +9,16 @@
     </PackageReference>
     <PackageReference Include="NUnit3TestAdapter" Version="6.3.0" />
     <PackageReference Include="Appveyor.TestLogger" Version="2.0.0" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="coverlet.msbuild" Version="10.0.1">
       <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="coverlet.collector" Version="10.0.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Update="DotNet.ReproducibleBuilds" Version="2.0.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Packata.Core\Packata.Core.csproj" />
+    <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
   </ItemGroup>
 </Project>

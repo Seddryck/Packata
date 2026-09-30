@@ -21,7 +21,7 @@ public class ExtensionSerializerTests
     {
         var uformat = format.ToUpper()[0] + format.Substring(1);
         var assembly = Assembly.GetExecutingAssembly();
-        var resourceName = $"{assembly.GetName().Name}.Serialization.{uformat}.Resources.extension.{format}";
+        var resourceName = $"{typeof(ExtensionSerializerTests).Namespace}.{uformat}.Resources.extension.{format}";
         var stream = assembly.GetManifestResourceStream(resourceName)
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
         return stream;
