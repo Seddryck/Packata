@@ -11,7 +11,20 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
-    <ProjectReference Include="..\Packata.DataPackage\Packata.DataPackage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Inference\**\*.cs" />
+    <Compile Remove="ResourceExtensions.cs" />
+    <Compile Remove="TabularReaderFactory.cs" />
+    <Compile Remove="Tabular\CsvReaderExtensions.cs" />
+    <Compile Remove="Tabular\DatabaseReader*.cs" />
+    <Compile Remove="Tabular\DelimitedReader*.cs" />
+    <Compile Remove="Tabular\ExcelReaderWrapper*.cs" />
+    <Compile Remove="Tabular\ParquetReader.cs" />
+    <Compile Remove="Tabular\ParquetReaderBuilder.cs" />
+    <Compile Remove="Tabular\ParquetReaderWrapper*.cs" />
+    <Compile Remove="Tabular\SpreadsheetReader*.cs" />
   </ItemGroup>
 
   <ItemGroup>
