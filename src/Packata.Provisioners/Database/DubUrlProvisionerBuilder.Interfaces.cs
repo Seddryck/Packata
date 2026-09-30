@@ -18,7 +18,12 @@ public interface IDubUrlLocationStep
     IDubUrlSettingsStep Local();
 }
 
-public interface IDubUrlSettingsStep : IPackageProvisionerBuilder
+public interface IDataContractProvisionerBuilder
+{
+    IDataContractProvisioner Build();
+}
+
+public interface IDubUrlSettingsStep : IDataContractProvisionerBuilder
 {
     IDubUrlSettingsStep WithCredentials(string username, string password);
     IDubUrlSettingsStep WithDatabase(string dbname);

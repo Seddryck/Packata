@@ -1,112 +1,101 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Data;
 using DubUrl;
+using DubUrl.BulkCopy;
+using DubUrl.Querying.Dialects;
+using DubUrl.Querying.Dialects.Functions;
+using DubUrl.Querying.TypeMapping;
 using DubUrl.Schema;
 using Moq;
-using Core = Packata.Core;
-using Packata.Provisioners.Database;
-using YamlDotNet.Serialization.Schemas;
 using NUnit.Framework;
-using DubUrl.Querying.Dialects;
-using DubUrl.Querying.TypeMapping;
-using DubUrl.BulkCopy;
-using System.Data;
-using Packata.Core.ResourceReading;
-using Packata.ResourceReaders;
-using DubUrl.Querying.Dialects.Functions;
+using Packata.Core.Contracts;
+using Packata.Core.Provisioning;
+using Packata.Core.Reading;
+using Packata.Provisioners.Database;
 
 namespace Packata.Provisioners.Testing.Database;
+
 public class DubUrlProvisionerTests
 {
     [Test]
-    public void DeploySchema_Default_CallScriptRendererAndDeployer()
+    public void DeploySchema_maps_canonical_assets_and_reports_unsupported_relationships()
     {
-        var dataPackage = new Core.DataPackage()
-        {
-            Resources = [
-                    new Core.Resource { Name = "Customer",
-                        Schema = new Core.Schema()
-                        { Fields =
-                            [new Core.Field() { Name="CustomerId", Type="integer" }
-                            , new Core.Field() { Name = "Fullname", Type = "string" }]
-                        } },
-                    new Core.Resource { Name = "Sales",
-                        Schema = new Core.Schema()
-                        { Fields =
-                            [new Core.Field() { Name="SalesId", Type="integer" }
-                            , new Core.Field() { Name = "Amount", Type = "number" }]
-                        } }
-                ]
-        };
+        var fixture = CreateFixture();
+        var contract = Contract(new DataSchema(
+            [new DataField("CustomerId", "integer", Required: true), new DataField("Name", "string")],
+            ["CustomerId"],
+            [new DataRelationship(["CustomerId"], "Other", ["Id"])]));
 
-        var script = "CREATE TABLE";
-        var typeMapper = new Mock<IDbTypeMapper>();
-        var sqlFunctionMapper = new Mock<ISqlFunctionMapper>();
-        var dialect = new Mock<IDialect>();
-        dialect.Setup(x => x.DbTypeMapper).Returns(typeMapper.Object).Verifiable();
-        dialect.Setup(x => x.SqlFunctionMapper).Returns(sqlFunctionMapper.Object).Verifiable();
-        var connectionUrl = new Mock<ConnectionUrl>("mssql://./mydb");
-        connectionUrl.Setup(x => x.Dialect).Returns(dialect.Object);
-        var scriptRenderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None);
-        scriptRenderer.Setup(x => x.Render(It.IsAny<Schema>())).Returns(script).Verifiable();
-        var schemaDeployer = new Mock<SchemaScriptDeployer>();
-        schemaDeployer.Setup(x => x.DeploySchema(It.IsAny<ConnectionUrl>(), It.IsAny<string>())).Verifiable();
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
 
-        var x = dialect.Object;
-        var y = scriptRenderer.Object;
-
-        var provisioner = new DubUrlProvisioner(connectionUrl.Object, scriptRenderer.Object, schemaDeployer.Object);
-        provisioner.DeploySchema(dataPackage, new());
-
-        dialect.VerifyAll();
-        scriptRenderer.Verify(x => x.Render(It.IsAny<Schema>()), Times.Once);
-        schemaDeployer.Verify(x => x.DeploySchema(connectionUrl.Object, script), Times.Once);
+        fixture.Renderer.Verify(x => x.Render(It.IsAny<Schema>()), Times.Once);
+        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object, "CREATE TABLE"), Times.Once);
+        Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV003"));
     }
 
     [Test]
-    public void LoadData_Default_CallScriptRendererAndDeployer()
+    public async Task LoadDataAsync_resolves_binding_through_canonical_reader_contract()
     {
-        var dataPackage = new Core.DataPackage()
-        {
-            Resources = [
-                    new Core.Resource { Name = "Customer",
-                        Schema = new Core.Schema()
-                        { Fields =
-                            [new Core.Field() { Name="CustomerId", Type="integer" }
-                            , new Core.Field() { Name = "Fullname", Type = "string" }]
-                        } },
-                    new Core.Resource { Name = "Sales",
-                        Schema = new Core.Schema()
-                        { Fields =
-                            [new Core.Field() { Name="SalesId", Type="integer" }
-                            , new Core.Field() { Name = "Amount", Type = "number" }]
-                        } }
-                ]
-        };
+        var fixture = CreateFixture();
+        var endpoint = new DataEndpoint("customers-source", null, EndpointKind.File, null,
+            new PathLocation(["customers.csv"]), new DataFormat("csv"));
+        var asset = new DataAsset("customers", "Customer", "Customer", null, AssetKind.Table,
+            new DataSchema([new DataField("CustomerId", "integer")]), [new EndpointBinding(endpoint.Id)]);
+        var contract = new DataContract(new("contract"), new(), [asset], [endpoint], new());
+        var reader = new Mock<IDataReader>();
+        var readerFactory = new Mock<IDataEndpointReaderFactory>();
+        readerFactory.Setup(x => x.OpenAsync(endpoint, asset.Schema, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(reader.Object);
+        var provisioner = fixture.WithReader(readerFactory.Object);
 
+        var diagnostics = await provisioner.LoadDataAsync(contract);
+
+        Assert.That(diagnostics, Is.Empty);
+        fixture.BulkCopy.Verify(x => x.Write("Customer", reader.Object), Times.Once);
+        readerFactory.VerifyAll();
+    }
+
+    [Test]
+    public async Task LoadDataAsync_reports_missing_endpoint_binding()
+    {
+        var fixture = CreateFixture();
+        var readerFactory = new Mock<IDataEndpointReaderFactory>();
+        var diagnostics = await fixture.WithReader(readerFactory.Object).LoadDataAsync(Contract(
+            new DataSchema([new DataField("Id", "integer")])));
+        Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV001"));
+    }
+
+    private static DataContract Contract(DataSchema schema)
+    {
+        var asset = new DataAsset("customers", "Customer", "Customer", null, AssetKind.Table, schema);
+        return new DataContract(new("contract"), new(), [asset], [], new());
+    }
+
+    private static Fixture CreateFixture()
+    {
+        var typeMapper = new Mock<IDbTypeMapper>();
+        var functionMapper = new Mock<ISqlFunctionMapper>();
         var dialect = new Mock<IDialect>();
-        dialect.Setup(x => x.DbTypeMapper).Returns(new Mock<IDbTypeMapper>().Object).Verifiable();
-        dialect.Setup(x => x.SqlFunctionMapper).Returns(new Mock<ISqlFunctionMapper>().Object).Verifiable();
-        var connectionUrl = new Mock<ConnectionUrl>("mssql://./mydb");
-        connectionUrl.Setup(x => x.Dialect).Returns(dialect.Object);
-        var bulkCopyEngine = new Mock<IBulkCopyEngine>();
-        bulkCopyEngine.Setup(x => x.Write(It.IsAny<string>(), It.IsAny<IDataReader>())).Verifiable();
-        var bulkCopyEngineFactory = new Mock<BulkCopyEngineFactory>();
-        bulkCopyEngineFactory.Setup(x => x.Create(It.IsAny<ConnectionUrl>())).Returns(bulkCopyEngine.Object).Verifiable();
-        var resourceReader = new Mock<IResourceReader>();
-        resourceReader.Setup(x => x.ToDataReader(It.IsAny<Core.Resource>())).Returns(new Mock<IDataReader>().Object).Verifiable();
-        var resourceReaderFactory = new Mock<ResourceReaderFactory>();
-        resourceReaderFactory.Setup(x => x.Create(It.IsAny<Core.Resource>())).Returns(resourceReader.Object).Verifiable();
+        dialect.Setup(x => x.DbTypeMapper).Returns(typeMapper.Object);
+        dialect.Setup(x => x.SqlFunctionMapper).Returns(functionMapper.Object);
+        var connection = new Mock<ConnectionUrl>("mssql://./mydb");
+        connection.Setup(x => x.Dialect).Returns(dialect.Object);
+        var renderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None);
+        renderer.Setup(x => x.Render(It.IsAny<Schema>())).Returns("CREATE TABLE");
+        var deployer = new Mock<SchemaScriptDeployer>();
+        var bulkCopy = new Mock<IBulkCopyEngine>();
+        var bulkFactory = new Mock<BulkCopyEngineFactory>();
+        bulkFactory.Setup(x => x.Create(connection.Object)).Returns(bulkCopy.Object);
+        var provisioner = new DubUrlProvisioner(connection.Object, renderer.Object, deployer.Object,
+            bulkCopyEngineFactory: bulkFactory.Object);
+        return new(provisioner, connection, renderer, deployer, bulkFactory, bulkCopy);
+    }
 
-
-        var provisioner = new DubUrlProvisioner(connectionUrl.Object, null, null, null, bulkCopyEngineFactory.Object, resourceReaderFactory.Object);
-        provisioner.LoadData(dataPackage);
-
-        bulkCopyEngineFactory.Verify(x => x.Create(connectionUrl.Object));
-        bulkCopyEngine.Verify(x => x.Write("Customer", It.IsAny<IDataReader>()), Times.Once);
-        bulkCopyEngine.Verify(x => x.Write("Sales", It.IsAny<IDataReader>()), Times.Once);
+    private sealed record Fixture(DubUrlProvisioner Provisioner, Mock<ConnectionUrl> Connection,
+        Mock<SchemaScriptRenderer> Renderer, Mock<SchemaScriptDeployer> Deployer,
+        Mock<BulkCopyEngineFactory> BulkFactory, Mock<IBulkCopyEngine> BulkCopy)
+    {
+        public DubUrlProvisioner WithReader(IDataEndpointReaderFactory reader) =>
+            new(Connection.Object, Renderer.Object, Deployer.Object,
+                bulkCopyEngineFactory: BulkFactory.Object, readerFactory: reader);
     }
 }
