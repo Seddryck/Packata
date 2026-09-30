@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -45,7 +45,7 @@ public class ExtensionSerializerTests
     public void Deserialize_Package_Success((Stream Stream, IDataPackageSerializer Serializer) value)
     {
         using var streamReader = new StreamReader(value.Stream);
-        var dataPackage = value.Serializer.Deserialize(streamReader, new LocalDirectoryDataPackageContainer(), new StorageProvider());
+        var dataPackage = value.Serializer.Deserialize(streamReader, new LocalDirectoryDocumentContainer(), new StorageProvider());
         Assert.That(dataPackage, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -58,7 +58,7 @@ public class ExtensionSerializerTests
     public void Deserialize_ResourceKind_Success((Stream Stream, IDataPackageSerializer Serializer) value)
     {
         using var streamReader = new StreamReader(value.Stream);
-        var dataPackage = value.Serializer.Deserialize(streamReader, new LocalDirectoryDataPackageContainer(), new StorageProvider());
+        var dataPackage = value.Serializer.Deserialize(streamReader, new LocalDirectoryDocumentContainer(), new StorageProvider());
         Assert.That(dataPackage.Resources, Is.Not.Null);
         Assert.That(dataPackage.Resources, Has.Count.EqualTo(1));
         Assert.Multiple(() =>
@@ -72,7 +72,7 @@ public class ExtensionSerializerTests
     public void Deserialize_Metrics_Success((Stream Stream, IDataPackageSerializer Serializer) value)
     {
         using var streamReader = new StreamReader(value.Stream);
-        var dataPackage = value.Serializer.Deserialize(streamReader, new LocalDirectoryDataPackageContainer(), new StorageProvider());
+        var dataPackage = value.Serializer.Deserialize(streamReader, new LocalDirectoryDocumentContainer(), new StorageProvider());
         Assert.That(dataPackage.Resources[0].Schema?.Metrics, Is.Not.Null);
         var metrics = dataPackage.Resources[0].Schema?.Metrics;
         Assert.Multiple(() =>

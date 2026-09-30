@@ -17,7 +17,7 @@ internal class PathConverterTests : AbstractConverterTests<PathConverter, List<I
     { }
 
     protected override PathConverter CreateConverter()
-        => new (new PathFactory(new LocalDirectoryDataPackageContainer(), new StorageProvider()));
+        => new (new PathFactory(new LocalDirectoryDocumentContainer(), new StorageProvider()));
 
     [Test]
     public void ReadJson_ValidJsonArrayRelative_ReturnsCorrectFieldList()

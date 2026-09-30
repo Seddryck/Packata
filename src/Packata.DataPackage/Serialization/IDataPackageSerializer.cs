@@ -1,8 +1,8 @@
-﻿using Packata.Core.Storage;
+using Packata.Core.Storage;
 
 namespace Packata.Core.Serialization;
 
 public interface IDataPackageSerializer
 {
-    DataPackage Deserialize(StreamReader reader, IDataPackageContainer container, IStorageProvider provider);
+    DataPackage Deserialize(StreamReader reader, IDocumentContainer container, IStorageProvider provider);
 }

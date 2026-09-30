@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,35 +13,35 @@ namespace Packata.Core;
 
 public class DataPackageFactory
 {
-    private readonly IDataPackageLocator _locator;
+    private readonly IDocumentLocator _locator;
     private readonly IStorageProvider _provider;
     private readonly ISerializerFactory _serializerFactory;
 
     public DataPackageFactory()
-        : this(new SimpleDataPackageLocator(), new StorageProvider(), new SerializerFactory())
+        : this(new SimpleDocumentLocator(), new StorageProvider(), new SerializerFactory())
     { }
 
-    public DataPackageFactory(IDataPackageLocator locator)
+    public DataPackageFactory(IDocumentLocator locator)
         : this(locator, new StorageProvider(), new SerializerFactory())
     { }
 
-    public DataPackageFactory(IDataPackageLocator locator, IStorageProvider provider)
+    public DataPackageFactory(IDocumentLocator locator, IStorageProvider provider)
         : this(locator, provider, new SerializerFactory())
     { }
 
-    protected internal DataPackageFactory(IDataPackageLocator locator, IStorageProvider provider, ISerializerFactory serializerFactory)
+    protected internal DataPackageFactory(IDocumentLocator locator, IStorageProvider provider, ISerializerFactory serializerFactory)
         => (_locator, _provider, _serializerFactory) = (locator, provider, serializerFactory);
 
     public DataPackage LoadFromStream(Stream stream, SerializationFormat format = SerializationFormat.Json)
-        => LoadFromStream(stream, new LocalDirectoryDataPackageContainer(), format);
+        => LoadFromStream(stream, new LocalDirectoryDocumentContainer(), format);
 
-    protected DataPackage LoadFromStream(Stream stream, IDataPackageContainer container, string extension)
+    protected DataPackage LoadFromStream(Stream stream, IDocumentContainer container, string extension)
         => LoadFromStream(stream, container, _serializerFactory.Instantiate(extension));
 
-    protected DataPackage LoadFromStream(Stream stream, IDataPackageContainer container, SerializationFormat format)
+    protected DataPackage LoadFromStream(Stream stream, IDocumentContainer container, SerializationFormat format)
         => LoadFromStream(stream, container, _serializerFactory.Instantiate(format));
 
-    protected DataPackage LoadFromStream(Stream stream, IDataPackageContainer container, IDataPackageSerializer serializer)
+    protected DataPackage LoadFromStream(Stream stream, IDocumentContainer container, IDataPackageSerializer serializer)
     {
         using var reader = new StreamReader(stream);
         var dataPackage = serializer.Deserialize(reader, container, _provider);
@@ -54,7 +54,7 @@ public class DataPackageFactory
             throw new FileNotFoundException("The specified file does not exist.", path);
         using var stream = File.OpenRead(path);
         var fileInfo = new FileInfo(path);
-        return LoadFromStream(stream, new LocalDirectoryDataPackageContainer(new Uri(fileInfo.Directory!.FullName)), Path.GetExtension(path));
+        return LoadFromStream(stream, new LocalDirectoryDocumentContainer(new Uri(fileInfo.Directory!.FullName)), Path.GetExtension(path));
     }
 
     public async Task<DataPackage> LoadFromContainer(Uri containerUri, string descriptorPath = "datapackage.json")

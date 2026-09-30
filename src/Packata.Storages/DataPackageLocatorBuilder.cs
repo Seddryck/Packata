@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,17 +11,17 @@ using System.Net.Sockets;
 namespace Packata.Storages;
 public class DataPackageLocatorBuilder
 {
-    private readonly List<KeyValuePair<string, Func<Uri, IDataPackageContainer>>> _containers = [];
+    private readonly List<KeyValuePair<string, Func<Uri, IDocumentContainer>>> _containers = [];
     private readonly List<KeyValuePair<string, Func<Uri, IContainerWrapper>>> _wrappers = [];
 
     public DataPackageLocatorBuilder Register(
         string scheme,
-        Func<ContainerBuilder, KeyValuePair<string, Func<Uri, IDataPackageContainer>>> builder)
+        Func<ContainerBuilder, KeyValuePair<string, Func<Uri, IDocumentContainer>>> builder)
         => Register([scheme], builder);
 
     public DataPackageLocatorBuilder Register(
         string[] schemes,
-        Func<ContainerBuilder, KeyValuePair<string, Func<Uri, IDataPackageContainer>>> builder)
+        Func<ContainerBuilder, KeyValuePair<string, Func<Uri, IDocumentContainer>>> builder)
     {
         _containers.AddRange(schemes.Select(scheme => builder(new ContainerBuilder(scheme))));
         return this;
@@ -40,7 +40,7 @@ public class DataPackageLocatorBuilder
         return this;
     }
 
-    public IDataPackageLocator Build()
+    public IDocumentLocator Build()
         => new DataPackageLocator(_containers
             .GroupBy(b => b.Key, StringComparer.OrdinalIgnoreCase)
             .Select(group =>
@@ -62,8 +62,8 @@ public class DataPackageLocatorBuilder
 
     public interface IAzureBuilder
     {
-        KeyValuePair<string, Func<Uri, IDataPackageContainer>> WithSharedKey(string sharedKey);
-        KeyValuePair<string, Func<Uri, IDataPackageContainer>> WithClientSecret(string tenantId, string clientId, string clientSecret);
+        KeyValuePair<string, Func<Uri, IDocumentContainer>> WithSharedKey(string sharedKey);
+        KeyValuePair<string, Func<Uri, IDocumentContainer>> WithClientSecret(string tenantId, string clientId, string clientSecret);
     }
 
     public class ContainerBuilder
@@ -73,7 +73,7 @@ public class DataPackageLocatorBuilder
         internal ContainerBuilder(string scheme)
             => _scheme = scheme;
 
-        public KeyValuePair<string, Func<Uri, IDataPackageContainer>> UseLocalFileSystem()
+        public KeyValuePair<string, Func<Uri, IDocumentContainer>> UseLocalFileSystem()
             => new(_scheme,
                 uri =>
                 {
@@ -82,14 +82,14 @@ public class DataPackageLocatorBuilder
                     return new StowageDataPackageContainer(uri, store);
                 });
 
-        public KeyValuePair<string, Func<Uri, IDataPackageContainer>> UseHttp(HttpClient? client = null)
+        public KeyValuePair<string, Func<Uri, IDocumentContainer>> UseHttp(HttpClient? client = null)
             => new(_scheme,
                 (uri) => new HttpDataPackageContainer(uri, client ?? new HttpClient()));
 
         public IAzureBuilder UseAzure(string accountName)
             => new AzureBuilder(_scheme, accountName);
 
-        public KeyValuePair<string, Func<Uri, IDataPackageContainer>> UseAws(string accessKeyId, string secretAccessKey, string region)
+        public KeyValuePair<string, Func<Uri, IDocumentContainer>> UseAws(string accessKeyId, string secretAccessKey, string region)
             => new(_scheme,
                 (uri) => new StowageDataPackageContainer(uri, Files.Of.AmazonS3(accessKeyId, secretAccessKey, region)));
 
@@ -101,12 +101,12 @@ public class DataPackageLocatorBuilder
             public AzureBuilder(string scheme, string accountName)
                 => (_scheme, _accountName) = (scheme, accountName);
 
-            public KeyValuePair<string, Func<Uri,IDataPackageContainer>> WithSharedKey(string sharedKey)
+            public KeyValuePair<string, Func<Uri,IDocumentContainer>> WithSharedKey(string sharedKey)
                 => new (_scheme,
                     (uri) => new StowageDataPackageContainer(uri,
                         Files.Of.AzureBlobStorage(_accountName, sharedKey)));
 
-            public KeyValuePair<string, Func<Uri, IDataPackageContainer>> WithClientSecret(string tenantId, string clientId, string clientSecret)
+            public KeyValuePair<string, Func<Uri, IDocumentContainer>> WithClientSecret(string tenantId, string clientId, string clientSecret)
                 => new(_scheme, uri =>
                 {
                     try
