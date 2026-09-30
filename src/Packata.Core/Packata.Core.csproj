@@ -10,10 +10,6 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="YamlDotNet" Version="18.1.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <InternalsVisibleTo Include="Packata.Core.Testing" />
     <InternalsVisibleTo Include="Packata.DataPackage" />
     <InternalsVisibleTo Include="Packata.DataPackage.Testing" />

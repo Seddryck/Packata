@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Packata.Core.Storage;
 
 namespace Packata.Storages;
-public class HttpDataPackageContainer : HttpStorageHandler, IDataPackageContainer
+public class HttpDataPackageContainer : HttpStorageHandler, IDocumentContainer
 {
     public Uri BaseUri { get; }
 

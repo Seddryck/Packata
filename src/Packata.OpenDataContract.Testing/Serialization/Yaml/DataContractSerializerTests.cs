@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -222,7 +222,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -316,7 +316,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -354,7 +354,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
 
         Assert.That(dataContract, Is.Not.Null);
         Assert.Multiple(() =>
@@ -425,7 +425,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
 
         Assert.That(dataContract, Is.Not.Null);
         Assert.Multiple(() =>
@@ -479,7 +479,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
 
         Assert.That(dataContract, Is.Not.Null);
         Assert.Multiple(() =>
@@ -560,7 +560,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
 
         Assert.That(dataContract, Is.Not.Null);
         Assert.Multiple(() =>

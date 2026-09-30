@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -9,7 +9,7 @@ using Stowage;
 
 namespace Packata.Storages;
 
-internal class StowageDataPackageContainer : IDataPackageContainer, IDataPackageContainerListable
+internal class StowageDataPackageContainer : IDocumentContainer, IDocumentContainerListable
 {
     public Uri BaseUri { get; }
     internal IFileStorage Storage { get; }

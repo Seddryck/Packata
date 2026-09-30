@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -30,7 +30,7 @@ public abstract class BaseDataContractSerializerTests
     {
         using var stream = GetDataContractFundamentals();
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.Multiple(() =>
         {
@@ -51,7 +51,7 @@ public abstract class BaseDataContractSerializerTests
     {
         using var stream = GetDataContractFundamentals();
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.That(dataContract.Description, Is.Not.Null);
         Assert.Multiple(() =>
@@ -74,7 +74,7 @@ public abstract class BaseDataContractSerializerTests
     {
         using var stream = GetDataContractFundamentals();
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.That(dataContract.Description, Is.Not.Null);
         Assert.Multiple(() =>
@@ -92,7 +92,7 @@ public abstract class BaseDataContractSerializerTests
     {
         using var stream = GetDataContractFundamentals();
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.That(dataContract.Description, Is.Not.Null);
         Assert.Multiple(() =>
@@ -110,7 +110,7 @@ public abstract class BaseDataContractSerializerTests
     {
         using var stream = GetDataContractSchema();
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.That(dataContract.Schema, Is.Not.Null);
         Assert.Multiple(() =>
@@ -132,7 +132,7 @@ public abstract class BaseDataContractSerializerTests
     {
         using var stream = GetDataContractSchema();
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.That(dataContract.Schema, Is.Not.Null);
         Assert.That(dataContract.Schema[0].Properties, Has.Count.EqualTo(3));
@@ -167,7 +167,7 @@ public abstract class BaseDataContractSerializerTests
     {
         using var stream = GetDataContractSchemaTypedProps();
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.That(dataContract.Schema, Is.Not.Null);
         Assert.That(dataContract.Schema, Has.Count.EqualTo(1));
@@ -240,7 +240,7 @@ public abstract class BaseDataContractSerializerTests
     {
         using var stream = GetDataContractServers();
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
         Assert.That(dataContract, Is.Not.Null);
         Assert.That(dataContract.Servers, Is.Not.Null);
         Assert.That(dataContract.Servers, Has.Count.EqualTo(3));

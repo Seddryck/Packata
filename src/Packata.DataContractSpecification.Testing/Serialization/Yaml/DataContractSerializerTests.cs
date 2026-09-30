@@ -31,7 +31,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
 
         Assert.That(dataContract, Is.Not.Null);
 
@@ -96,7 +96,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
 
         Assert.That(dataContract, Is.Not.Null);
 
@@ -181,7 +181,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
 
         Assert.That(dataContract, Is.Not.Null);
 
@@ -225,7 +225,7 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
         using var streamReader = new StreamReader(stream);
-        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDataPackageContainer>(), new StorageProvider());
+        var dataContract = GetSerializer().Deserialize(streamReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
 
         Assert.That(dataContract, Is.Not.Null);
         var servers = dataContract.Servers;

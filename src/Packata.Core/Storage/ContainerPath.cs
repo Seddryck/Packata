@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,11 +9,11 @@ public class ContainerPath : IPath
 {
     public string RelativePath { get; }
     public string Value => RelativePath;
-    private readonly IDataPackageContainer _container;
+    private readonly IDocumentContainer _container;
 
     public bool IsFullyQualified => false;
 
-    public ContainerPath(string relativePath, IDataPackageContainer container)
+    public ContainerPath(string relativePath, IDocumentContainer container)
     {
         RelativePath = relativePath ?? throw new ArgumentNullException(nameof(relativePath));
         _container = container ?? throw new ArgumentNullException(nameof(container));
