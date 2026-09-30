@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions.Interfaces;
 using Newtonsoft.Json;
 using NUnit.Framework;
-using Packata.Core.Serialization;
-using Packata.Core.Serialization.Json;
+using Packata.DataPackage.Serialization;
+using Packata.DataPackage.Serialization.Json;
 using Packata.Core.Storage;
 
-namespace Packata.Core.Testing.Serialization;
+namespace Packata.DataPackage.Testing.Serialization;
 
 public abstract class BaseDataPackageSerializerTests
 {

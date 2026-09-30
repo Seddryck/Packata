@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization.ObjectFactories;
 
-namespace Packata.Core.Serialization.Yaml;
+namespace Packata.DataPackage.Serialization.Yaml;
 internal class ResourcesObjectFactory : DefaultObjectFactory
 {
     private string RootPath { get; }

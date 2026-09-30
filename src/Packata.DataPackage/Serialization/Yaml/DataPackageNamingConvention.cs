@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace Packata.Core.Serialization.Yaml;
+namespace Packata.DataPackage.Serialization.Yaml;
 
 internal class DataPackageNamingConvention : INamingConvention
 {

@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Packata.Core;
+namespace Packata.DataPackage;
 
 /// <summary>
 /// Represents a Data Package as defined by the datapackage.org specification.

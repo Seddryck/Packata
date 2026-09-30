@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
-using Packata.Core.Serialization.Yaml;
+using Packata.DataPackage.Serialization.Yaml;
 using YamlDotNet.Serialization.ObjectFactories;
 
-namespace Packata.Core.Testing.Serialization.Yaml;
+namespace Packata.DataPackage.Testing.Serialization.Yaml;
 
 internal abstract class BaseObjectFactoryTests<T, U> where T : DefaultObjectFactory
 {

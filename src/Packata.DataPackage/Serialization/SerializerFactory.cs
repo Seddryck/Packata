@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Packata.Core.Serialization;
+namespace Packata.DataPackage.Serialization;
 internal class SerializerFactory : ISerializerFactory
 {
     public IDataPackageSerializer Instantiate(string extension)

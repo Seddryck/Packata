@@ -4,7 +4,7 @@ using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 
-namespace Packata.Core.Serialization.Yaml;
+namespace Packata.DataPackage.Serialization.Yaml;
 
 internal class CategoriesConverter : IYamlTypeConverter
 {

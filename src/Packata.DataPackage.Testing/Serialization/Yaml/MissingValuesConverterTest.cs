@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Packata.Core.Serialization.Yaml;
+using Packata.DataPackage.Serialization.Yaml;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
 
-namespace Packata.Core.Testing.Serialization.Yaml;
+namespace Packata.DataPackage.Testing.Serialization.Yaml;
 internal class MissingValuesConverterTest : BaseConverterTests<MissingValuesConverter, List<MissingValue>>
 {
     public MissingValuesConverterTest()

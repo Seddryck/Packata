@@ -7,7 +7,7 @@ using Packata.Core.Storage;
 using Newtonsoft.Json;
 using System.Runtime.Serialization;
 
-namespace Packata.Core.Serialization.Yaml;
+namespace Packata.DataPackage.Serialization.Yaml;
 
 internal class ConnectionConverter : IYamlTypeConverter
 {

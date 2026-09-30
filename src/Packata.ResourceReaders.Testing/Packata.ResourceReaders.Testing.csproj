@@ -1,9 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <Compile Remove="**\*.cs" />
-    <Compile Include="CanonicalReaderFactoryTests.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <None Remove="Resources\iris.parquet" />
     <None Remove="Resources\my-book.xlsx" />
   </ItemGroup>

@@ -5,7 +5,7 @@ using NUnit.Framework;
 using Newtonsoft.Json.Serialization;
 using NUnit.Framework.Internal;
 
-namespace Packata.Core.Testing.Serialization.Json;
+namespace Packata.DataPackage.Testing.Serialization.Json;
 
 public abstract class AbstractConverterTests<T, U> where T : JsonConverter
 {

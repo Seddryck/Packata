@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
-using Packata.Core.Serialization.Yaml;
+using Packata.DataPackage.Serialization.Yaml;
 
-namespace Packata.Core.Testing.Serialization.Yaml;
+namespace Packata.DataPackage.Testing.Serialization.Yaml;
 
 internal abstract class BaseTypeDiscriminatorTests<T, U> where T : ITypeDiscriminator, new()
 {

@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
-using Packata.Core.Serialization.Yaml;
+using Packata.DataPackage.Serialization.Yaml;
 using NUnit.Framework;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization;
 using Moq;
 using Packata.Core.Storage;
 
-namespace Packata.Core.Testing.Serialization.Yaml;
+namespace Packata.DataPackage.Testing.Serialization.Yaml;
 
 internal class PathConverterTests : AbstractConverterTests<PathConverter, List<IPath>>
 {

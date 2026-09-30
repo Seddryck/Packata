@@ -10,7 +10,7 @@ using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization.NodeDeserializers;
 
-namespace Packata.Core.Serialization.Yaml;
+namespace Packata.DataPackage.Serialization.Yaml;
 
 internal class DataPackageSerializer : IDataPackageSerializer
 {

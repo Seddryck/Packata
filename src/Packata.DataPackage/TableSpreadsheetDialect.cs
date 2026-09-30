@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Packata.Core;
+namespace Packata.DataPackage;
 /// <summary>
 /// Represents the table dialect as defined by the Data Package Table Dialect profile for the type 'spreadsheet'.
 /// </summary>
