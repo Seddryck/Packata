@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -9,10 +9,10 @@ using Packata.Core.Storage;
 namespace Packata.Core.Storage;
 public class PathFactory
 {
-    private readonly IDataPackageContainer _container;
+    private readonly IDocumentContainer _container;
     private readonly IStorageProvider _provider;
 
-    public PathFactory(IDataPackageContainer container, IStorageProvider provider)
+    public PathFactory(IDocumentContainer container, IStorageProvider provider)
         => (_container, _provider) = (container, provider);
 
     public IPath Create(string path)

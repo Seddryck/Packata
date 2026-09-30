@@ -1,0 +1,31 @@
+using System;
+using Packata.DataPackage.Serialization;
+using SerJson = Packata.DataPackage.Serialization.Json;
+using SerYaml = Packata.DataPackage.Serialization.Yaml;
+using NUnit;
+using NUnit.Framework;
+
+namespace Packata.DataPackage.Testing.Serialization;
+
+public class SerializerFactoryTests
+{
+    [Test]
+    public void Instantiate_ShouldReturnJsonSerializer_WhenFormatIsJson()
+    {
+        var serializer = new SerializerFactory().Instantiate("json");
+        Assert.That(serializer, Is.TypeOf<SerJson.DataPackageSerializer>());
+    }
+
+    [Test]
+    [TestCase("yaml")]
+    [TestCase("yml")]
+    public void Instantiate_ShouldReturnYamlSerializer_WhenFormatIsYaml(string format)
+    {
+        var serializer = new SerializerFactory().Instantiate(format);
+        Assert.That(serializer, Is.TypeOf<SerYaml.DataPackageSerializer>());
+    }
+
+    [Test]
+    public void Instantiate_ShouldThrowArgumentOutOfRangeException_WhenFormatIsUnknown()
+        => Assert.That(() => new SerializerFactory().Instantiate("unknown"), Throws.TypeOf<ArgumentOutOfRangeException>());
+}

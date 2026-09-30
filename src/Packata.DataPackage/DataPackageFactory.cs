@@ -1,0 +1,67 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Packata.DataPackage.Serialization;
+using Packata.DataPackage.Serialization.Json;
+using Packata.Core.Storage;
+
+namespace Packata.DataPackage;
+
+public class DataPackageFactory
+{
+    private readonly IDocumentLocator _locator;
+    private readonly IStorageProvider _provider;
+    private readonly ISerializerFactory _serializerFactory;
+
+    public DataPackageFactory()
+        : this(new SimpleDocumentLocator(), new StorageProvider(), new SerializerFactory())
+    { }
+
+    public DataPackageFactory(IDocumentLocator locator)
+        : this(locator, new StorageProvider(), new SerializerFactory())
+    { }
+
+    public DataPackageFactory(IDocumentLocator locator, IStorageProvider provider)
+        : this(locator, provider, new SerializerFactory())
+    { }
+
+    protected internal DataPackageFactory(IDocumentLocator locator, IStorageProvider provider, ISerializerFactory serializerFactory)
+        => (_locator, _provider, _serializerFactory) = (locator, provider, serializerFactory);
+
+    public DataPackage LoadFromStream(Stream stream, SerializationFormat format = SerializationFormat.Json)
+        => LoadFromStream(stream, new LocalDirectoryDocumentContainer(), format);
+
+    protected DataPackage LoadFromStream(Stream stream, IDocumentContainer container, string extension)
+        => LoadFromStream(stream, container, _serializerFactory.Instantiate(extension));
+
+    protected DataPackage LoadFromStream(Stream stream, IDocumentContainer container, SerializationFormat format)
+        => LoadFromStream(stream, container, _serializerFactory.Instantiate(format));
+
+    protected DataPackage LoadFromStream(Stream stream, IDocumentContainer container, IDataPackageSerializer serializer)
+    {
+        using var reader = new StreamReader(stream);
+        var dataPackage = serializer.Deserialize(reader, container, _provider);
+        return dataPackage;
+    }
+
+    public DataPackage LoadFromFile(string path)
+    {
+        if (!File.Exists(path))
+            throw new FileNotFoundException("The specified file does not exist.", path);
+        using var stream = File.OpenRead(path);
+        var fileInfo = new FileInfo(path);
+        return LoadFromStream(stream, new LocalDirectoryDocumentContainer(new Uri(fileInfo.Directory!.FullName)), Path.GetExtension(path));
+    }
+
+    public async Task<DataPackage> LoadFromContainer(Uri containerUri, string descriptorPath = "datapackage.json")
+    {
+        var handle = await _locator.LocateAsync(containerUri, descriptorPath);
+        await handle.ValidateAsync();
+        var stream = handle.Container.OpenAsync(handle.DescriptorPath);
+        return LoadFromStream(await stream, handle.Container, Path.GetExtension(handle.DescriptorPath));
+    }
+}

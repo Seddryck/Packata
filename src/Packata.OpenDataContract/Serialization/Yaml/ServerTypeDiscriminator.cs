@@ -4,11 +4,15 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Packata.Core.Serialization.Yaml;
 using Packata.OpenDataContract.ServerTypes;
 using YamlDotNet.Serialization.BufferedDeserialization;
 
 namespace Packata.OpenDataContract.Serialization.Yaml;
+internal interface ITypeDiscriminator
+{
+    void Execute(ITypeDiscriminatingNodeDeserializerOptions options);
+}
+
 internal class ServerTypeDiscriminator : ITypeDiscriminator
 {
     private static Dictionary<string, Type> GetValueMappings()

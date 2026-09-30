@@ -70,7 +70,7 @@ public class DubUrlProvisionerBuilder : IDubUrlTypeStep, IDubUrlLocationStep, ID
         return this;
     }
 
-    protected IPackageProvisioner Build()
+    protected IDataContractProvisioner Build()
     {
         if (DatabaseType is null)
             throw new InvalidOperationException("Database type must be specified.");
@@ -87,6 +87,6 @@ public class DubUrlProvisionerBuilder : IDubUrlTypeStep, IDubUrlLocationStep, ID
         return new DubUrlProvisioner(new ConnectionUrl(url, SchemeRegistry));
     }
 
-    IPackageProvisioner IPackageProvisionerBuilder.Build()
+    IDataContractProvisioner IDataContractProvisionerBuilder.Build()
         => Build();
 }

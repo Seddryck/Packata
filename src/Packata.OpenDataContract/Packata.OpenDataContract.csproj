@@ -7,10 +7,15 @@
 
   <PropertyGroup>
     <Description>Packata.OpenDataContract is a Packata extension that supports deserialization of Open Data Contract Specifications (ODCS). It maps schema elements, properties, quality checks, and metadata directly into strongly typed C# models, enabling validation, introspection, and integration into data platform pipelines..</Description>
+    <PackageReleaseNotes>ODCS remains supported and maps to the standards-neutral Packata.Core model through OpenDataContractMapper.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Packata.Core.Storage;
 
 namespace Packata.Storages;
-public class ZipDataPackageContainer : IDataPackageContainer
+public class ZipDataPackageContainer : IDocumentContainer
 {
     private readonly Dictionary<string, ZipArchiveEntry> _entries;
     private readonly ZipArchive _archive;

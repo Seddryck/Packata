@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.Storage;
-public interface IDataPackageLocator
+public interface IDocumentLocator
 {
-    Task<DataPackageHandle> LocateAsync(Uri containerUri, string descriptorName = "datapackage.json");
+    Task<DocumentHandle> LocateAsync(Uri containerUri, string descriptorName = "datapackage.json");
 
     bool CanHandle(Uri containerUri);
 }

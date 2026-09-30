@@ -31,6 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+    <ProjectReference Include="..\Packata.DataPackage\Packata.DataPackage.csproj" />
     <ProjectReference Include="..\Packata.OpenDataContract\Packata.OpenDataContract.csproj" />
   </ItemGroup>
   <ItemGroup>
