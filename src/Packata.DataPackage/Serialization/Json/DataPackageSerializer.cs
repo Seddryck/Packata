@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,7 +10,7 @@ using Packata.Core.Storage;
 namespace Packata.Core.Serialization.Json;
 internal class DataPackageSerializer : IDataPackageSerializer
 {
-    public DataPackage Deserialize(StreamReader reader, IDataPackageContainer container, IStorageProvider provider)
+    public DataPackage Deserialize(StreamReader reader, IDocumentContainer container, IStorageProvider provider)
     {
         var resolver = new DataPackagePropertyResolver(container, provider);
         var serializer = new JsonSerializer

@@ -14,7 +14,7 @@ namespace Packata.Core.Serialization.Yaml;
 
 internal class DataPackageSerializer : IDataPackageSerializer
 {
-    public DataPackage Deserialize(StreamReader reader, IDataPackageContainer container, IStorageProvider provider)
+    public DataPackage Deserialize(StreamReader reader, IDocumentContainer container, IStorageProvider provider)
     {
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(new DataPackageNamingConvention())

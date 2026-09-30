@@ -17,7 +17,7 @@ internal class PathConverterTests : AbstractConverterTests<PathConverter, List<I
 
     protected override PathConverter CreateConverter()
     {
-        var container = new Mock<IDataPackageContainer>();
+        var container = new Mock<IDocumentContainer>();
         container.Setup(c => c.BaseUri).Returns(new Uri("file://c:/"));
         var pathFactory = new PathFactory(container.Object, new StorageProvider());
         return new PathConverter(pathFactory);

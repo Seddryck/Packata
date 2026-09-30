@@ -41,7 +41,7 @@ public class MigrationCharacterizationTests
                     logicalType: integer
             """;
 
-        var container = Mock.Of<IDataPackageContainer>();
+        var container = Mock.Of<IDocumentContainer>();
         var provider = Mock.Of<IStorageProvider>();
 
         using var packageStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(dataPackageJson));

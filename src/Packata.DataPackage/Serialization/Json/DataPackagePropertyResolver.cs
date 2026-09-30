@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -14,7 +14,7 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
     private Dictionary<string, JsonConverter> Converters { get; } = [];
     private Func<string, string> PropertyNameResolver { get; }
 
-    public DataPackagePropertyResolver(IDataPackageContainer container, IStorageProvider provider)
+    public DataPackagePropertyResolver(IDocumentContainer container, IStorageProvider provider)
     {
         ArgumentNullException.ThrowIfNull(container);
         Converters.Add("resources", new ResourcesConverter(container.BaseUri?.ToString() ?? string.Empty));

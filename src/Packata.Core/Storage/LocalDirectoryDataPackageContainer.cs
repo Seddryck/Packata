@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.Storage;
-internal class LocalDirectoryDataPackageContainer : IDataPackageContainer
+internal class LocalDirectoryDocumentContainer : IDocumentContainer
 {
     private static readonly Uri _fileRoot = new UriBuilder
     {
@@ -17,10 +17,10 @@ internal class LocalDirectoryDataPackageContainer : IDataPackageContainer
 
     public Uri BaseUri { get; }
 
-    public LocalDirectoryDataPackageContainer()
+    public LocalDirectoryDocumentContainer()
         => BaseUri = _fileRoot;
 
-    public LocalDirectoryDataPackageContainer(Uri baseUri)
+    public LocalDirectoryDocumentContainer(Uri baseUri)
     {
         if (baseUri.ToString().EndsWith('/'))
             BaseUri = baseUri;

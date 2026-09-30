@@ -14,7 +14,7 @@ namespace Packata.DataContractSpecification.Serialization.Yaml;
 
 internal class DataContractSerializer : IDataContractSerializer
 {
-    public DataContract Deserialize(StreamReader reader, IDataPackageContainer container, IStorageProvider provider)
+    public DataContract Deserialize(StreamReader reader, IDocumentContainer container, IStorageProvider provider)
     {
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(new DataContractNamingConvention())

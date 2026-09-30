@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,7 +10,7 @@ using Packata.Core.Validation;
 namespace Packata.Core.Testing.Validation;
 public class ResourceValidatorTests
 {
-    private readonly PathFactory _factory = new (new LocalDirectoryDataPackageContainer(), new StorageProvider());
+    private readonly PathFactory _factory = new (new LocalDirectoryDocumentContainer(), new StorageProvider());
 
     [Test]
     [TestCase("any", "data.csv")]

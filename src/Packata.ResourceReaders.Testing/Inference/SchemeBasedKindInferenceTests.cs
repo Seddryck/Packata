@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,7 +27,7 @@ public class SchemeBasedKindInferenceTests
         bool service(string value) => (_serviceArray).Any(x => x.Equals(value, StringComparison.OrdinalIgnoreCase));
         var inference = new SchemeBasedKindInference(remote, service);
 
-        var factory = new PathFactory(Mock.Of<IDataPackageContainer>(), Mock.Of<IStorageProvider>());
+        var factory = new PathFactory(Mock.Of<IDocumentContainer>(), Mock.Of<IStorageProvider>());
         var resource = path  is null
             ? new Resource()
             : new Resource() { Paths = [factory.Create(path)] };

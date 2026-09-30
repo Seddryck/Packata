@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,25 +9,25 @@ using Stowage;
 using Stowage.Impl.Microsoft;
 
 namespace Packata.Storages;
-public class DataPackageLocator : IDataPackageLocator
+public class DataPackageLocator : IDocumentLocator
 {
-    private readonly IDictionary<string, Func<Uri, IDataPackageContainer>> _containers;
+    private readonly IDictionary<string, Func<Uri, IDocumentContainer>> _containers;
     private readonly IDictionary<string, Func<Uri, IContainerWrapper>> _wrappers;
 
     protected internal DataPackageLocator(
-        IDictionary<string, Func<Uri, IDataPackageContainer>> containers,
+        IDictionary<string, Func<Uri, IDocumentContainer>> containers,
         IDictionary<string, Func<Uri, IContainerWrapper>> wrappers)
     {
         (_containers, _wrappers) = (containers, wrappers);
     }
 
-    public Task<DataPackageHandle> LocateAsync(Uri containerUri, string descriptorName = "datapackage.json")
+    public Task<DocumentHandle> LocateAsync(Uri containerUri, string descriptorName = "datapackage.json")
     {
         var container = GetContainer(containerUri);
-        return Task.FromResult(new DataPackageHandle(container, descriptorName));
+        return Task.FromResult(new DocumentHandle(container, descriptorName));
     }
 
-    protected internal virtual IDataPackageContainer GetContainer(Uri uri)
+    protected internal virtual IDocumentContainer GetContainer(Uri uri)
     {
         if (_containers.TryGetValue(uri.Scheme, out var storage))
             return storage.Invoke(uri);

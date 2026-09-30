@@ -15,10 +15,10 @@ public class DataPackageLocatorTests
     [Test]
     public async Task LocateAsync_CheckIfExists_Success()
     {
-        var container = new Mock<IDataPackageContainer>();
+        var container = new Mock<IDocumentContainer>();
         container.Setup(c => c.ExistsAsync(It.IsAny<string>())).ReturnsAsync(true);
         var locator = new DataPackageLocator(
-            new Dictionary<string, Func<Uri, IDataPackageContainer>> { { "mock", (uri) => container.Object } },
+            new Dictionary<string, Func<Uri, IDocumentContainer>> { { "mock", (uri) => container.Object } },
             new Dictionary<string, Func<Uri, IContainerWrapper>>()
             );
         var handle = await locator.LocateAsync(new Uri("mock://foo"));
@@ -29,10 +29,10 @@ public class DataPackageLocatorTests
     [Test]
     public async Task LocateAsync_CheckIfExistsExplicitDescriptor_Success()
     {
-        var container = new Mock<IDataPackageContainer>();
+        var container = new Mock<IDocumentContainer>();
         container.Setup(c => c.ExistsAsync(It.IsAny<string>())).ReturnsAsync(true);
         var locator = new DataPackageLocator(
-            new Dictionary<string, Func<Uri, IDataPackageContainer>> { { "mock", (uri) => container.Object } },
+            new Dictionary<string, Func<Uri, IDocumentContainer>> { { "mock", (uri) => container.Object } },
             new Dictionary<string, Func<Uri, IContainerWrapper>>()
             );
         var handle = await locator.LocateAsync(new Uri("mock://foo"), "datapackage.yaml");
@@ -43,10 +43,10 @@ public class DataPackageLocatorTests
     [Test]
     public async Task LocateAsync_NotExisting_Failure()
     {
-        var container = new Mock<IDataPackageContainer>();
+        var container = new Mock<IDocumentContainer>();
         container.Setup(c => c.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
         var locator = new DataPackageLocator(
-            new Dictionary<string, Func<Uri, IDataPackageContainer>> { { "mock", (uri) => container.Object } },
+            new Dictionary<string, Func<Uri, IDocumentContainer>> { { "mock", (uri) => container.Object } },
             new Dictionary<string, Func<Uri, IContainerWrapper>>()
             );
         var handle = await locator.LocateAsync(new Uri("mock://foo"));

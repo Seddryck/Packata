@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -6,12 +6,12 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.Core.Storage;
-public class DataPackageHandle
+public class DocumentHandle
 {
     public string DescriptorPath { get; }
-    public IDataPackageContainer Container { get; }
+    public IDocumentContainer Container { get; }
 
-    public DataPackageHandle(IDataPackageContainer container, string descriptorPath)
+    public DocumentHandle(IDocumentContainer container, string descriptorPath)
         => (Container, DescriptorPath) = (container, descriptorPath);
 
     public async Task ValidateAsync()
