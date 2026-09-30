@@ -59,6 +59,8 @@ test_script:
     $ErrorActionPreference = "Stop"
     dotnet test src/Packata.Core.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:Threshold=10 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.Core.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
     $globalTestResult = $LastExitCode
+    dotnet test src/Packata.DataPackage.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:CoverletOutput=../../.coverage/coverage.Packata.DataPackage.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
+    $globalTestResult += $LastExitCode
     dotnet test src/Packata.ResourceReaders.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:Threshold=10 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.ResourceReaders.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
     $globalTestResult += $LastExitCode
     dotnet test src/Packata.Provisioners.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:Threshold=10 /p:ThresholdType=line /p:CoverletOutput=../../.coverage/coverage.Packata.Provisioners.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
@@ -66,8 +68,6 @@ test_script:
     dotnet test src/Packata.Storages.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:CoverletOutput=../../.coverage/coverage.Packata.Storages.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
     $globalTestResult += $LastExitCode
     dotnet test src/Packata.OpenDataContract.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:CoverletOutput=../../.coverage/coverage.Packata.OpenDataContract.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
-    $globalTestResult += $LastExitCode
-    dotnet test src/Packata.DataContractSpecification.Testing -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:Exclude="[Packata.*.Testing]*" /p:CoverletOutput=../../.coverage/coverage.Packata.DataContractSpecification.xml --test-adapter-path:. --logger:Appveyor --no-build --nologo
     $globalTestResult += $LastExitCode
     if($globalTestResult -ne 0) { $host.SetShouldExit($globalTestResult) }
 
@@ -80,11 +80,11 @@ after_test:
 - dotnet tool install -g Schemathief-cli
 - pwsh: .\package-delta-schemas.ps1
 - dotnet pack src/Packata.Core -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
+- dotnet pack src/Packata.DataPackage -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.ResourceReaders -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.Provisioners -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.Storages -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 - dotnet pack src/Packata.OpenDataContract -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
-- dotnet pack src/Packata.DataContractSpecification -p:version="%GitVersion_SemVer%" -c Release --include-symbols --no-build --nologo
 
 artifacts:
 - path: '**\*.nupkg'
