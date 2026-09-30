@@ -8,7 +8,11 @@ public sealed record DataContract(
     ContractMetadata Metadata,
     IReadOnlyList<DataAsset> Assets,
     IReadOnlyList<DataEndpoint> Endpoints,
-    ContractGovernance Governance);
+    ContractGovernance Governance,
+    ExtensionMetadata? Extensions = null)
+{
+    public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
+}
 
 public sealed record ContractIdentity(
     string Id,
@@ -33,10 +37,12 @@ public sealed record DataAsset(
     AssetKind Kind,
     DataSchema? Schema,
     IReadOnlyList<EndpointBinding>? EndpointBindings = null,
-    IReadOnlyList<DataQualityRule>? QualityRules = null)
+    IReadOnlyList<DataQualityRule>? QualityRules = null,
+    ExtensionMetadata? Extensions = null)
 {
     public IReadOnlyList<EndpointBinding> EndpointBindings { get; init; } = EndpointBindings ?? [];
     public IReadOnlyList<DataQualityRule> QualityRules { get; init; } = QualityRules ?? [];
+    public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
 }
 
 public enum AssetKind
@@ -52,10 +58,12 @@ public enum AssetKind
 public sealed record DataSchema(
     IReadOnlyList<DataField> Fields,
     IReadOnlyList<string>? PrimaryKey = null,
-    IReadOnlyList<DataRelationship>? Relationships = null)
+    IReadOnlyList<DataRelationship>? Relationships = null,
+    ExtensionMetadata? Extensions = null)
 {
     public IReadOnlyList<string> PrimaryKey { get; init; } = PrimaryKey ?? [];
     public IReadOnlyList<DataRelationship> Relationships { get; init; } = Relationships ?? [];
+    public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
 }
 
 public sealed record DataField(
@@ -66,11 +74,13 @@ public sealed record DataField(
     bool Required = false,
     IReadOnlyList<DataConstraint>? Constraints = null,
     IReadOnlyList<DataQualityRule>? QualityRules = null,
-    IReadOnlyList<DataField>? Children = null)
+    IReadOnlyList<DataField>? Children = null,
+    ExtensionMetadata? Extensions = null)
 {
     public IReadOnlyList<DataConstraint> Constraints { get; init; } = Constraints ?? [];
     public IReadOnlyList<DataQualityRule> QualityRules { get; init; } = QualityRules ?? [];
     public IReadOnlyList<DataField> Children { get; init; } = Children ?? [];
+    public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
 }
 
 public sealed record DataConstraint(string Kind, object? Value);
@@ -93,7 +103,11 @@ public sealed record DataEndpoint(
     EndpointKind Kind,
     string? Environment,
     DataLocation Location,
-    DataFormat? Format = null);
+    DataFormat? Format = null,
+    ExtensionMetadata? Extensions = null)
+{
+    public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
+}
 
 public enum EndpointKind
 {
@@ -135,10 +149,12 @@ public sealed record ContractGovernance(
     Ownership? Ownership = null,
     TermsOfUse? Terms = null,
     IReadOnlyList<ServiceLevel>? ServiceLevels = null,
-    IReadOnlyList<AuthoritativeReference>? References = null)
+    IReadOnlyList<AuthoritativeReference>? References = null,
+    ExtensionMetadata? Extensions = null)
 {
     public IReadOnlyList<ServiceLevel> ServiceLevels { get; init; } = ServiceLevels ?? [];
     public IReadOnlyList<AuthoritativeReference> References { get; init; } = References ?? [];
+    public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
 }
 
 public sealed record Ownership(
