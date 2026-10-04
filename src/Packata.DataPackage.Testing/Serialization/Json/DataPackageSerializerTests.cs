@@ -54,7 +54,6 @@ public class DataPackageSerializerTests : BaseDataPackageSerializerTests
             ]
         }"));
 
-
     protected override Stream GetSourceProperties()
         => new MemoryStream(Encoding.UTF8.GetBytes(@"{
             ""name"": ""my-data-package"",

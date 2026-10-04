@@ -53,7 +53,6 @@ public class ExtensionSerializerTests
         });
     }
 
-
     [TestCaseSource(nameof(GetData))]
     public void Deserialize_ResourceKind_Success((Stream Stream, IDataPackageSerializer Serializer) value)
     {
@@ -66,7 +65,6 @@ public class ExtensionSerializerTests
             Assert.That(dataPackage.Resources[0].Kind, Is.EqualTo("local"));
         });
     }
-
 
     [TestCaseSource(nameof(GetData))]
     public void Deserialize_Metrics_Success((Stream Stream, IDataPackageSerializer Serializer) value)

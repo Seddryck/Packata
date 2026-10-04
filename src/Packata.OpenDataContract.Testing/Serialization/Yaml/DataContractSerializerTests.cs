@@ -128,7 +128,6 @@ public class DataContractSerializerTests : BaseDataContractSerializerTests
                         encryptedName: rcvr_cntry_code_encrypted
             "));
 
-
     protected override Stream GetDataContractSchemaTypedProps()
         => new MemoryStream(Encoding.UTF8.GetBytes(@"
                 version: 1.0.0

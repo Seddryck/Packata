@@ -17,7 +17,6 @@ internal class MissingValuesConverterTest : BaseConverterTests<MissingValuesConv
     [TestCase("missingValues:\r\n  - value: \"\"\r\n    label: blue\r\n  - value: \"NA\"\r\n    label: blue\r\n  - value: \"NaN\"\r\n    label: red\r\n")]
     public void DeserializeYamlWithMissingValues(string yaml)
     {
-        
         var result = Deserializer.Deserialize<Wrapper>(yaml);
         Assert.That(result!.Object, Has.Count.EqualTo(3));
         Assert.That(result!.Object, Has.One.Property(nameof(MissingValue.Value)).EqualTo("NaN"));
