@@ -23,6 +23,7 @@ internal class DataContractSerializer : IDataContractSerializer
             {
                 new ServerTypeDiscriminator().Execute(o);
             })
+            .WithTypeConverter(new TeamConverter())
             .WithTypeConverter(new CustomPropertyListConverter())
             .IncludeNonPublicProperties()
             .WithAttributeOverride(typeof(SchemaProperty), nameof(SchemaProperty.LogicalType), new YamlIgnoreAttribute())
@@ -41,6 +42,7 @@ internal class DataContractSerializer : IDataContractSerializer
 
         return new SerializerBuilder()
             .WithNamingConvention(new DataContractNamingConvention())
+            .WithTypeConverter(new TeamConverter())
             .WithTypeConverter(new CustomPropertyListConverter())
             .IncludeNonPublicProperties()
             .WithAttributeOverride(typeof(SchemaProperty), nameof(SchemaProperty.LogicalType), new YamlIgnoreAttribute())
