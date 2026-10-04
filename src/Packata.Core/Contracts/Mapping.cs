@@ -30,6 +30,45 @@ public sealed record MappingResult<T>(
 
     public static MappingResult<T> Failure(params MappingDiagnostic[] diagnostics)
         => new(default, diagnostics);
+
+    public MappingResult<T> ReportDiagnostics(Action<MappingDiagnostic> report)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        foreach (var diagnostic in Diagnostics)
+            report(diagnostic);
+        return this;
+    }
+
+    public MappingResult<T> ThrowOnErrors()
+    {
+        var errors = Diagnostics.Where(x => x.Severity == MappingSeverity.Error).ToArray();
+        if (errors.Length > 0)
+            throw new CanonicalMappingException(errors);
+        return this;
+    }
+
+    public T RequireValue()
+    {
+        ThrowOnErrors();
+        return Value ?? throw new CanonicalMappingException(Diagnostics);
+    }
+}
+
+public sealed class CanonicalMappingException : InvalidOperationException
+{
+    public IReadOnlyList<MappingDiagnostic> Diagnostics { get; }
+
+    public CanonicalMappingException(IReadOnlyList<MappingDiagnostic> diagnostics)
+        : base(BuildMessage(diagnostics))
+        => Diagnostics = diagnostics;
+
+    private static string BuildMessage(IReadOnlyList<MappingDiagnostic> diagnostics)
+    {
+        var errors = diagnostics.Where(x => x.Severity == MappingSeverity.Error).ToArray();
+        if (errors.Length == 0)
+            return "Canonical mapping did not produce a value.";
+        return $"Canonical mapping failed: {string.Join("; ", errors.Select(x => $"{x.Code}: {x.Message}"))}";
+    }
 }
 
 public sealed class ExtensionMetadata
