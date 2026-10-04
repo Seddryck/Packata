@@ -86,31 +86,46 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     private static IDataReader OpenDelimited(IReadOnlyList<Stream> streams, DataFormat? format, DataSchema? schema,
         ResolvedFormat resolved)
     {
-        var dialect = new DialectDescriptorBuilder().WithDelimiter(resolved.Delimiter);
-        if (TryOption(format, "delimiter", out char delimiter)) dialect.WithDelimiter(delimiter);
-        if (TryOption(format, "lineTerminator", out string? terminator) && terminator is not null) dialect.WithLineTerminator(terminator);
-        if (TryOption(format, "header", out bool header)) dialect.WithHeader(header);
-        if (TryOption(format, "quoteChar", out char quote)) dialect.WithQuoteChar(quote);
-
-        ISchemaDescriptorBuilder? schemaBuilder = null;
-        if (schema is { Fields.Count: > 0 })
-        {
-            schemaBuilder = new SchemaDescriptorBuilder().Indexed();
-            var mapper = new RuntimeTypeMapper();
-            foreach (var field in schema.Fields)
-                schemaBuilder.WithField(mapper.Map(field.LogicalType, field.Format), field.Name,
-                    builder => field.LogicalType is null ? builder : builder.WithDataSourceTypeName(field.LogicalType));
-        }
-
-        var resource = new ResourceDescriptorBuilder();
-        if (!string.IsNullOrWhiteSpace(format?.Encoding)) resource.WithEncoding(format.Encoding);
-        if (!string.IsNullOrWhiteSpace(resolved.Compression)) resource.WithCompression(resolved.Compression);
+        var dialect = CreateDialect(format, resolved.Delimiter);
+        var resource = CreateResource(format, resolved.Compression);
         var builder = new CsvReaderBuilder().WithDialect(dialect).WithResource(resource);
+        var schemaBuilder = CreateSchema(schema);
         if (schemaBuilder is not null) builder.WithSchema(schemaBuilder);
         var reader = builder.Build();
         return streams.Count == 1
             ? reader.ToDataReader(streams[0])
             : reader.ToDataReader(streams.Select(stream => (Func<Stream>)(() => stream)));
+    }
+
+    private static DialectDescriptorBuilder CreateDialect(DataFormat? format, char defaultDelimiter)
+    {
+        var dialect = new DialectDescriptorBuilder();
+        dialect.WithDelimiter(defaultDelimiter);
+        if (TryOption(format, "delimiter", out char delimiter)) dialect.WithDelimiter(delimiter);
+        if (TryOption(format, "lineTerminator", out string? terminator) && terminator is not null) dialect.WithLineTerminator(terminator);
+        if (TryOption(format, "header", out bool header)) dialect.WithHeader(header);
+        if (TryOption(format, "quoteChar", out char quote)) dialect.WithQuoteChar(quote);
+        return dialect;
+    }
+
+    private static ISchemaDescriptorBuilder? CreateSchema(DataSchema? schema)
+    {
+        if (schema is not { Fields.Count: > 0 }) return null;
+
+        var schemaBuilder = new SchemaDescriptorBuilder().Indexed();
+        var mapper = new RuntimeTypeMapper();
+        foreach (var field in schema.Fields)
+            schemaBuilder.WithField(mapper.Map(field.LogicalType, field.Format), field.Name,
+                builder => field.LogicalType is null ? builder : builder.WithDataSourceTypeName(field.LogicalType));
+        return schemaBuilder;
+    }
+
+    private static ResourceDescriptorBuilder CreateResource(DataFormat? format, string? compression)
+    {
+        var resource = new ResourceDescriptorBuilder();
+        if (!string.IsNullOrWhiteSpace(format?.Encoding)) resource.WithEncoding(format.Encoding);
+        if (!string.IsNullOrWhiteSpace(compression)) resource.WithCompression(compression);
+        return resource;
     }
 
     private static string? Normalize(string? value) =>
@@ -154,17 +169,33 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         if (streams.Count != 1) throw new InvalidOperationException("Spreadsheet endpoints require exactly one path.");
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         var reader = ExcelReaderFactory.CreateReader(streams[0]);
+        var (sheetNumber, sheetName) = ResolveSheet(format);
+        MoveToSheet(reader, sheetNumber, sheetName);
+        return new Packata.ResourceReaders.Tabular.ExcelDataReader(reader, ReadHeaders(reader, format));
+    }
+
+    private static (int Number, string? Name) ResolveSheet(DataFormat? format)
+    {
         var sheetNumber = TryOption(format, "sheetNumber", out int number) ? number : 1;
         var sheetName = TryOption(format, "sheetName", out string? name) ? name : null;
         if (sheetName is not null && TryOption<int>(format, "sheetNumber", out _))
             throw new ArgumentException("Specify either sheetName or sheetNumber, not both.", nameof(format));
+        return (sheetNumber, sheetName);
+    }
+
+    private static void MoveToSheet(IExcelDataReader reader, int sheetNumber, string? sheetName)
+    {
         for (var current = 1; current < sheetNumber || (sheetName is not null && reader.Name != sheetName); current++)
             if (!reader.NextResult()) throw new InvalidOperationException("The configured spreadsheet sheet was not found.");
+    }
+
+    private static string[] ReadHeaders(IExcelDataReader reader, DataFormat? format)
+    {
         var headers = new List<string>();
         var hasHeader = !TryOption(format, "header", out bool header) || header;
         if (hasHeader && reader.Read())
             for (var index = 0; index < reader.FieldCount; index++) headers.Add(reader.GetValue(index)?.ToString() ?? string.Empty);
-        return new Packata.ResourceReaders.Tabular.ExcelDataReader(reader, [.. headers]);
+        return [.. headers];
     }
 
     private IDataReader OpenDatabase(DataEndpoint endpoint, ConnectionLocation location, CancellationToken cancellationToken)

@@ -131,7 +131,6 @@ public class TimeField : TemporalField
 public class DateTimeField : TemporalField
 { }
 
-
 /// <summary>
 /// A calendar year, being an integer with 4 digits. Equivalent to [gYear in XML Schema](https://www.w3.org/TR/xmlschema-2/#gYear)
 /// </summary>

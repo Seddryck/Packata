@@ -300,7 +300,6 @@ public abstract class BaseDataPackageSerializerTests
         using var stream = GetType().Assembly.GetManifestResourceStream(resourceName)
             ?? throw new FileNotFoundException($"The embedded file {resourceName} doesn't exist.");
 
-
         using var streamReader = new StreamReader(stream);
         var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDocumentContainer(), new StorageProvider());
         Assert.That(dataPackage.Licenses, Has.Count.EqualTo(1));
@@ -393,7 +392,6 @@ public abstract class BaseDataPackageSerializerTests
             Assert.That(schema.Fields[4].Type, Is.EqualTo("string"));
         });
     }
-
 
     [Test]
     public void Deserialize_EmbeddedFile_ReturnsCategories()
