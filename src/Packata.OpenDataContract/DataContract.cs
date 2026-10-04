@@ -105,4 +105,10 @@ public class DataContract
     /// </summary>
     [Label("Support")]
     public List<SupportChannel> Support { get; set; } = [];
+
+    /// <summary>
+    /// Optional pricing information for consuming the data product.
+    /// </summary>
+    [Label("Price")]
+    public Price? Price { get; set; }
 }
