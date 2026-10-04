@@ -48,7 +48,7 @@ public class DataPackageValidatorTests
             ]
         };
 
-        var result = new DataPackageValidator().Validate(package);
+        var result = DataPackageValidator.Validate(package);
 
         Assert.That(result.IsValid, Is.True, string.Join(Environment.NewLine, result.Issues));
     }
@@ -74,7 +74,7 @@ public class DataPackageValidatorTests
             ]
         };
 
-        var result = new DataPackageValidator().Validate(package);
+        var result = DataPackageValidator.Validate(package);
 
         Assert.That(result.IsValid, Is.False);
         Assert.That(result.Issues.Select(issue => issue.Path), Does.Contain("$.resources[1].name"));
@@ -89,7 +89,7 @@ public class DataPackageValidatorTests
     {
         var package = new DataPackage { Resources = [new Resource { Name = "metadata" }] };
 
-        var result = new DataPackageValidator().Validate(package);
+        var result = DataPackageValidator.Validate(package);
 
         Assert.That(result.IsValid, Is.True);
     }

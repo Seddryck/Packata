@@ -21,9 +21,9 @@ internal class TableDialectConverter : JsonConverter
         TableDialect tableDialect = type switch
         {
             "delimited" => new TableDelimitedDialect(),
-            "structured" => new TableStructuredDialect(),
+            TableStructuredDialect.DialectType => new TableStructuredDialect(),
             "database" => new TableDatabaseDialect(),
-            "spreadsheet" => new TableSpreadsheetDialect(),
+            TableSpreadsheetDialect.DialectType => new TableSpreadsheetDialect(),
             _ => throw new JsonSerializationException($"Unknown type: {type}"),
         };
 
@@ -35,9 +35,9 @@ internal class TableDialectConverter : JsonConverter
     private static string InferType(JObject obj)
     {
         if (obj.ContainsKey("property") || obj.ContainsKey("itemType") || obj.ContainsKey("itemKeys"))
-            return "structured";
+            return TableStructuredDialect.DialectType;
         if (obj.ContainsKey("sheetNumber") || obj.ContainsKey("sheetName"))
-            return "spreadsheet";
+            return TableSpreadsheetDialect.DialectType;
         if (obj.ContainsKey("table"))
             return "database";
         return "delimited";

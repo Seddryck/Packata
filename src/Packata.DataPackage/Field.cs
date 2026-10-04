@@ -163,8 +163,8 @@ public class BooleanField : Field
 public class ObjectField : Field
 { }
 
-public class GeoPointField : Field { }
-public class GeoJsonField : Field { }
-public class ArrayField : Field { }
-public class DurationField : Field { }
-public class AnyField : Field { }
+public class GeoPointField : Field { public const string DataType = "geopoint"; }
+public class GeoJsonField : Field { public const string DataType = "geojson"; }
+public class ArrayField : Field { public const string DataType = "array"; }
+public class DurationField : Field { public const string DataType = "duration"; }
+public class AnyField : Field { public const string DataType = "any"; }
