@@ -10,10 +10,10 @@ namespace Packata.DataPackage.Testing.Validation;
 public class TableDelimitedDialectValidatorTests
 {
     [Test]
-    [TestCase('\\', '\"', false)]
-    [TestCase('\\', '\"', true)]
-    [TestCase('\\', null, true)]
-    public void IsValid_EscapeAndQuote_ReturnsFalse(char? escape, char? quote, bool doubleQuote)
+    [TestCase("\\", "\"", false)]
+    [TestCase("\\", "\"", true)]
+    [TestCase("\\", null, true)]
+    public void IsValid_EscapeAndQuote_ReturnsFalse(string? escape, string? quote, bool doubleQuote)
     {
         var validator = new TableDelimitedDialectValidator();
         var tableDialect = new TableDelimitedDialect() {EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote};
@@ -21,10 +21,10 @@ public class TableDelimitedDialectValidatorTests
     }
 
     [Test]
-    [TestCase(null, '\"', false)]
-    [TestCase(null, '\"', true)]
-    [TestCase('\\', null, false)]
-    public void IsValid_EscapeAndQuote_ReturnsTrue(char? escape, char? quote, bool doubleQuote)
+    [TestCase(null, "\"", false)]
+    [TestCase(null, "\"", true)]
+    [TestCase("\\", null, false)]
+    public void IsValid_EscapeAndQuote_ReturnsTrue(string? escape, string? quote, bool doubleQuote)
     {
         var validator = new TableDelimitedDialectValidator();
         var dialect = new TableDelimitedDialect() { EscapeChar = escape, QuoteChar = quote, DoubleQuote = doubleQuote };

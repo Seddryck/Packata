@@ -29,12 +29,11 @@ internal class TableDialectConverterTests : BaseTypeDiscriminatorTests<TableDial
         {
             Assert.That(wrapper.Object, Is.TypeOf<TableDelimitedDialect>());
             var dialect = (TableDelimitedDialect)wrapper.Object!;
-            Assert.That(dialect.Delimiter, Is.EqualTo(';'));
+            Assert.That(dialect.Delimiter, Is.EqualTo(";"));
         }
     }
 
     [Test]
-    [Ignore("missing dialect type is not supported for Yaml")]
     public void ReadJson_TypeMissing_ReturnsCorrectValue()
     {
         var yaml = @"
@@ -48,9 +47,8 @@ internal class TableDialectConverterTests : BaseTypeDiscriminatorTests<TableDial
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(wrapper.Object, Is.TypeOf<TableDelimitedDialect>());
-            var dialect = (TableDelimitedDialect)wrapper.Object!;
-            Assert.That(dialect.Delimiter, Is.EqualTo(';'));
+            Assert.That(wrapper.Object, Is.TypeOf<TableDialect>());
+            Assert.That(wrapper.Object!.Delimiter, Is.EqualTo(";"));
         }
     }
 
@@ -94,6 +92,27 @@ internal class TableDialectConverterTests : BaseTypeDiscriminatorTests<TableDial
             var dialect = (TableSpreadsheetDialect)wrapper.Object!;
             Assert.That(dialect.SheetName, Is.EqualTo("Customer"));
             Assert.That(dialect.SheetNumber, Is.Null);
+        }
+    }
+
+    [Test]
+    public void ReadYaml_StructuredPropertiesWithoutType_PreservesProperties()
+    {
+        const string yaml = """
+            dialect:
+              property: rows
+              itemType: object
+              itemKeys: [id, name]
+            """;
+
+        var wrapper = Deserializer.Deserialize<Wrapper>(yaml);
+
+        Assert.That(wrapper.Object, Is.TypeOf<TableDialect>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object!.Property, Is.EqualTo("rows"));
+            Assert.That(wrapper.Object.ItemType, Is.EqualTo("object"));
+            Assert.That(wrapper.Object.ItemKeys, Is.EqualTo(new[] { "id", "name" }));
         }
     }
 }

@@ -35,7 +35,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
 
             assets.Add(new DataAsset(
                 assetId, resource.Title ?? assetId,
-                resource.Dialect is Native.TableDatabaseDialect database ? database.Table : resource.Name,
+                resource.Dialect?.Table ?? resource.Name,
                 resource.Description, MapAssetKind(resource),
                 MapSchema(resource.Schema, assetId, document, sourcePath, diagnostics), bindings,
                 Extensions: ExtensionMetadata.For("datapackage", ResourceExtensions(resource))));
@@ -208,19 +208,17 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         if (dialect is null) return values;
         values["dialectType"] = dialect.Type;
         values["dialectProfile"] = dialect.Profile;
-        switch (dialect)
-        {
-            case Native.TableDelimitedDialect x:
-                values["delimiter"] = x.Delimiter; values["lineTerminator"] = x.LineTerminator;
-                values["quoteChar"] = x.QuoteChar; values["escapeChar"] = x.EscapeChar;
-                values["header"] = x.Header; values["headerRows"] = x.HeaderRows;
-                values["headerRepeat"] = x.HeaderRepeat; break;
-            case Native.TableSpreadsheetDialect x:
-                values["sheetName"] = x.SheetName; values["sheetNumber"] = x.SheetNumber;
-                values["header"] = x.Header; break;
-            case Native.TableDatabaseDialect x:
-                values["table"] = x.Table; values["namespace"] = x.Namespace; break;
-        }
+        values["header"] = dialect.Header; values["headerRows"] = dialect.HeaderRows;
+        values["headerJoin"] = dialect.HeaderJoin; values["commentRows"] = dialect.CommentRows;
+        values["commentChar"] = dialect.CommentChar; values["delimiter"] = dialect.Delimiter;
+        values["lineTerminator"] = dialect.LineTerminator; values["quoteChar"] = dialect.QuoteChar;
+        values["doubleQuote"] = dialect.DoubleQuote; values["escapeChar"] = dialect.EscapeChar;
+        values["nullSequence"] = dialect.NullSequence; values["skipInitialSpace"] = dialect.SkipInitialSpace;
+        values["property"] = dialect.Property; values["itemType"] = dialect.ItemType;
+        values["itemKeys"] = dialect.ItemKeys; values["sheetName"] = dialect.SheetName;
+        values["sheetNumber"] = dialect.SheetNumber; values["table"] = dialect.Table;
+        if (dialect is Native.TableDelimitedDialect delimited) values["headerRepeat"] = delimited.HeaderRepeat;
+        if (dialect is Native.TableDatabaseDialect database) values["namespace"] = database.Namespace;
         return values;
     }
 }

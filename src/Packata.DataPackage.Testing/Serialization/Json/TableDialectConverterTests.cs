@@ -33,7 +33,7 @@ internal class TableDialectConverterTests : BaseConverterTests<TableDialectConve
         {
             Assert.That(wrapper.Object, Is.TypeOf<TableDelimitedDialect>());
             var delimitedDialect = (TableDelimitedDialect)wrapper.Object!;
-            Assert.That(delimitedDialect.Delimiter, Is.EqualTo(';'));
+            Assert.That(delimitedDialect.Delimiter, Is.EqualTo(";"));
         }
     }
 
@@ -52,7 +52,7 @@ internal class TableDialectConverterTests : BaseConverterTests<TableDialectConve
         {
             Assert.That(wrapper.Object, Is.TypeOf<TableDelimitedDialect>());
             var delimitedDialect = (TableDelimitedDialect)wrapper.Object!;
-            Assert.That(delimitedDialect.Delimiter, Is.EqualTo(';'));
+            Assert.That(delimitedDialect.Delimiter, Is.EqualTo(";"));
         }
     }
 
@@ -97,5 +97,43 @@ internal class TableDialectConverterTests : BaseConverterTests<TableDialectConve
             Assert.That(dialect.SheetName, Is.EqualTo("Customer"));
             Assert.That(dialect.SheetNumber, Is.Null);
         }
+    }
+
+    [Test]
+    public void ReadJson_StructuredPropertiesWithoutType_ReturnsStructuredDialect()
+    {
+        const string json = """
+            {"dialect":{"property":"rows","itemType":"object","itemKeys":["id","name"]}}
+            """;
+
+        var wrapper = JsonConvert.DeserializeObject<Wrapper>(json, Settings);
+
+        Assert.That(wrapper!.Object, Is.TypeOf<TableStructuredDialect>());
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(wrapper.Object!.Property, Is.EqualTo("rows"));
+            Assert.That(wrapper.Object.ItemType, Is.EqualTo("object"));
+            Assert.That(wrapper.Object.ItemKeys, Is.EqualTo(new[] { "id", "name" }));
+        }
+    }
+
+    [Test]
+    public void ReadJson_MultiCharacterDelimiter_PreservesValue()
+    {
+        const string json = """{"dialect":{"delimiter":"||","commentChar":"//"}}""";
+
+        var wrapper = JsonConvert.DeserializeObject<Wrapper>(json, Settings);
+
+        Assert.That(wrapper!.Object!.Delimiter, Is.EqualTo("||"));
+        Assert.That(wrapper.Object.CommentChar, Is.EqualTo("//"));
+    }
+
+    [TestCase("{\"dialect\":{\"sheetName\":\"Data\"}}", typeof(TableSpreadsheetDialect))]
+    [TestCase("{\"dialect\":{\"table\":\"customers\"}}", typeof(TableDatabaseDialect))]
+    public void ReadJson_FormatSpecificPropertyWithoutType_InfersDialect(string json, Type expectedType)
+    {
+        var wrapper = JsonConvert.DeserializeObject<Wrapper>(json, Settings);
+
+        Assert.That(wrapper!.Object, Is.TypeOf(expectedType));
     }
 }

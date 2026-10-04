@@ -29,7 +29,7 @@ public class DataPackageMapperTests
                 new Resource
                 {
                     Name = "orders", Format = "csv", Paths = [new StubPath("orders.csv")],
-                    Dialect = new TableDelimitedDialect { Delimiter = ';' },
+                    Dialect = new TableDelimitedDialect { Delimiter = ";" },
                     Schema = new Schema
                     {
                         PrimaryKey = ["id"],
@@ -55,7 +55,7 @@ public class DataPackageMapperTests
             Assert.That(result.Value.Assets[1].Schema!.Fields[0].Required, Is.True);
             Assert.That(result.Value.Assets[1].Schema!.Fields[0].Constraints.Single().Kind, Is.EqualTo("minimum"));
             Assert.That(result.Value.Assets[1].Schema!.Relationships.Single().TargetAsset, Is.EqualTo("customers"));
-            Assert.That(result.Value.Endpoints[1].Format!.Options["delimiter"], Is.EqualTo(';'));
+            Assert.That(result.Value.Endpoints[1].Format!.Options["delimiter"], Is.EqualTo(";"));
         });
     }
 

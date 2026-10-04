@@ -13,7 +13,8 @@ internal class TableDialectTypeDiscriminator : ITypeDiscriminator
         {
             { "database", typeof(TableDatabaseDialect)},
             { "delimited", typeof(TableDelimitedDialect)},
-            { "spreadsheet", typeof(TableSpreadsheetDialect)}
+            { "spreadsheet", typeof(TableSpreadsheetDialect)},
+            { "structured", typeof(TableStructuredDialect)}
         };
 
     public void Execute(ITypeDiscriminatingNodeDeserializerOptions options)
