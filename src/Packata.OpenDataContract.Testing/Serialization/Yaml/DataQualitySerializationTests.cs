@@ -110,4 +110,27 @@ public class DataQualitySerializationTests
             Assert.That(rule.MustBe, Is.Not.Null);
         });
     }
+
+    [Test]
+    public void Deserialize_CustomQualityRule_PreservesVendorImplementation()
+    {
+        var contract = Deserialize("""
+                          - id: soda-duplicates
+                            type: custom
+                            engine: soda
+                            implementation: |
+                              type: duplicate_percent
+                              columns:
+                                - email
+            """);
+        var rule = contract.Schema[0].Properties[0].Quality[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rule.Type, Is.EqualTo("custom"));
+            Assert.That(rule.Engine, Is.EqualTo("soda"));
+            Assert.That(rule.Implementation, Does.Contain("duplicate_percent"));
+            Assert.That(rule.Implementation, Does.Contain("- email"));
+        });
+    }
 }

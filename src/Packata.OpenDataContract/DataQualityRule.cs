@@ -52,6 +52,12 @@ public class DataQualityRule
     [Label("SQL Query")]
     public string? Query { get; set; }
 
+    [Label("Engine")]
+    public string? Engine { get; set; }
+
+    [Label("Implementation")]
+    public string? Implementation { get; set; }
+
     [Label("Authoritative Definitions")]
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
 
