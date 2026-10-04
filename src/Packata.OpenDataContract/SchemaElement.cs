@@ -46,6 +46,6 @@ public class SchemaElement
     /// <summary>
     /// Custom properties that are not part of the standard.
     /// </summary>
-    //[Label("Custom Properties")]
-    //public CustomProperties CustomProperties { get; set; } = [];
+    [Label("Custom Properties")]
+    public CustomProperties CustomProperties { get; set; } = [];
 }

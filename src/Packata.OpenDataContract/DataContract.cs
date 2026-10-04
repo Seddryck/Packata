@@ -10,10 +10,10 @@ namespace Packata.OpenDataContract;
 public class DataContract
 {
     /// <summary>
-    /// Version of the standard used to build data contract. Default value is v3.0.2.
+    /// Version of the standard used to build data contract. Default value is v3.2.0.
     /// </summary>
     [Label("Standard version")]
-    public string ApiVersion { get; set; } = "v3.0.2";
+    public string ApiVersion { get; set; } = "v3.2.0";
 
     /// <summary>
     /// The kind of file this is. Valid value is DataContract.
@@ -68,6 +68,12 @@ public class DataContract
     /// </summary>
     [Label("Authoritative Definitions")]
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
+
+    /// <summary>
+    /// Custom properties attached to the contract.
+    /// </summary>
+    [Label("Custom Properties")]
+    public CustomProperties CustomProperties { get; set; } = [];
 
     /// <summary>
     /// Object containing the descriptions.

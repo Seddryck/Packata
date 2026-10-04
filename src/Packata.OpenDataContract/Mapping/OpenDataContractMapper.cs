@@ -27,11 +27,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             .Select(schema => MapAsset(schema, canBindEndpoints ? endpoints : []))
             .ToArray();
 
-        var extensions = document.Description?.CustomProperties.Count > 0
-            ? ExtensionMetadata.For(
-                "odcs",
-                document.Description.CustomProperties.ToDictionary(x => x.Key, x => (object?)x.Value))
-            : ExtensionMetadata.Empty;
+        var extensions = MapCustomProperties(document.Description?.CustomProperties);
 
         var contract = new CoreContract(
             new ContractIdentity(document.Id, document.Name, document.Version, document.Status),
@@ -127,12 +123,25 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             server.Environment,
             location,
             server is IFormatAware formatted ? new DataFormat(formatted.Format) : null,
-            server.CustomProperties.Count == 0
-                ? ExtensionMetadata.Empty
-                : ExtensionMetadata.For(
-                    "odcs",
-                    server.CustomProperties.ToDictionary(x => x.Key, x => (object?)x.Value)));
+            MapCustomProperties(server.CustomProperties));
     }
+
+    private static ExtensionMetadata MapCustomProperties(CustomProperties? properties)
+        => properties is null || properties.Count == 0
+            ? ExtensionMetadata.Empty
+            : ExtensionMetadata.For(
+                "odcs",
+                new Dictionary<string, object?>
+                {
+                    ["customProperties"] = properties.Select(x => new Dictionary<string, object?>
+                    {
+                        ["id"] = x.Id,
+                        ["property"] = x.Property,
+                        ["value"] = x.Value,
+                        ["description"] = x.Description,
+                        ["vendor"] = x.Vendor
+                    }).ToArray()
+                });
 
     private static AssetKind MapAssetKind(string? type)
         => type?.ToLowerInvariant() switch
