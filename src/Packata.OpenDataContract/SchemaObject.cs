@@ -31,4 +31,10 @@ public class SchemaObject : SchemaElement
     /// </summary>
     [Label("Properties")]
     public List<SchemaProperty> Properties { get; set; } = [];
+
+    /// <summary>
+    /// Data quality checks applied to the schema object.
+    /// </summary>
+    [Label("Quality")]
+    public List<DataQualityRule> Quality { get; set; } = [];
 }

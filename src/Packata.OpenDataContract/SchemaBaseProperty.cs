@@ -114,5 +114,5 @@ public abstract class SchemaBaseProperty : SchemaElement
     /// <summary>
     /// Data quality checks applied to the element.
     /// </summary>
-    public object? Quality { get; set; } // Replace with proper type if DataQualityChecks is defined
+    public List<DataQualityRule> Quality { get; set; } = [];
 }
