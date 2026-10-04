@@ -353,7 +353,7 @@ public abstract class BaseDataPackageSerializerTests
             Assert.That(dialect.Profile, Is.EqualTo("https://datapackage.org/profiles/2.0/tabledialect.json"));
             Assert.That(dialect, Is.TypeOf<TableDelimitedDialect>());
             var delimitedDialect = (TableDelimitedDialect)dialect;
-            Assert.That(delimitedDialect.Delimiter, Is.EqualTo('\t'));
+            Assert.That(delimitedDialect.Delimiter, Is.EqualTo("\t"));
             Assert.That(delimitedDialect.LineTerminator, Is.EqualTo("\r\n"));
         });
     }

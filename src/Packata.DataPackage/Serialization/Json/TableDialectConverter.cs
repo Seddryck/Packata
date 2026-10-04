@@ -17,11 +17,11 @@ internal class TableDialectConverter : JsonConverter
     {
         var obj = JObject.Load(reader);
 
-        // Read the "type" property to determine the class to instantiate
-        var type = obj["type"]?.ToString() ?? "delimited";
+        var type = obj["type"]?.ToString() ?? InferType(obj);
         TableDialect tableDialect = type switch
         {
             "delimited" => new TableDelimitedDialect(),
+            "structured" => new TableStructuredDialect(),
             "database" => new TableDatabaseDialect(),
             "spreadsheet" => new TableSpreadsheetDialect(),
             _ => throw new JsonSerializationException($"Unknown type: {type}"),
@@ -30,6 +30,17 @@ internal class TableDialectConverter : JsonConverter
         // Populate the object properties
         serializer.Populate(obj.CreateReader(), tableDialect);
         return tableDialect;
+    }
+
+    private static string InferType(JObject obj)
+    {
+        if (obj.ContainsKey("property") || obj.ContainsKey("itemType") || obj.ContainsKey("itemKeys"))
+            return "structured";
+        if (obj.ContainsKey("sheetNumber") || obj.ContainsKey("sheetName"))
+            return "spreadsheet";
+        if (obj.ContainsKey("table"))
+            return "database";
+        return "delimited";
     }
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
