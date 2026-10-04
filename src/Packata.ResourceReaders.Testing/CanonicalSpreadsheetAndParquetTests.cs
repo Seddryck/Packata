@@ -22,6 +22,24 @@ public class CanonicalSpreadsheetAndParquetTests
     }
 
     [Test]
+    public async Task OpenAsync_reads_parquet_values()
+    {
+        var resolver = new ResourceResolver(("iris.parquet", "iris.parquet"));
+        var endpoint = Endpoint(["iris.parquet"], new DataFormat("parquet"));
+
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(endpoint);
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(reader[0], Is.EqualTo(5.10));
+            Assert.That(reader["Species"], Is.EqualTo("setosa"));
+            Assert.That(reader.GetString(4), Is.EqualTo("setosa"));
+            Assert.That(reader.GetFieldType(4), Is.EqualTo(typeof(string)));
+        });
+    }
+
+    [Test]
     public async Task OpenAsync_reads_named_spreadsheet_sheet_and_headers()
     {
         var resolver = new ResourceResolver(("my-book.xlsx", "my-book.xlsx"));
