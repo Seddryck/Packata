@@ -34,4 +34,19 @@ internal class DataContractSerializer : IDataContractSerializer
                           ?? throw new YamlDotNet.Core.YamlException("The YAML data is not valid.");
         return dataContract;
     }
+
+    public string Serialize(DataContract dataContract)
+    {
+        ArgumentNullException.ThrowIfNull(dataContract);
+
+        return new SerializerBuilder()
+            .WithNamingConvention(new DataContractNamingConvention())
+            .WithTypeConverter(new CustomPropertyListConverter())
+            .IncludeNonPublicProperties()
+            .WithAttributeOverride(typeof(SchemaProperty), nameof(SchemaProperty.LogicalType), new YamlIgnoreAttribute())
+            .WithAttributeOverride(typeof(SchemaProperty), "LogicalTypeDiscriminator", new YamlMemberAttribute { Alias = "logicalType" })
+            .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+            .Build()
+            .Serialize(dataContract);
+    }
 }

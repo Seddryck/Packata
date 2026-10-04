@@ -14,28 +14,19 @@ public class CustomPropertyListConverter : IYamlTypeConverter
 
     public object? ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
     {
-        var deserializer = new DeserializerBuilder().Build();
-        var list = rootDeserializer(typeof(List<Dictionary<string, object>>)) as List<Dictionary<string, object>>;
+        var list = rootDeserializer(typeof(List<CustomProperty>)) as List<CustomProperty>;
 
         if (list == null)
             return new CustomProperties();
 
-        var dict = new CustomProperties();
-        foreach (var item in list)
-        {
-            if (item.TryGetValue("property", out var keyObj) &&
-                item.TryGetValue("value", out var valObj) &&
-                keyObj is string key)
-            {
-                dict[key] = valObj;
-            }
-        }
-
-        return dict;
+        var properties = new CustomProperties();
+        properties.AddRange(list);
+        return properties;
     }
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
     {
-        throw new NotImplementedException("Serialization not supported");
+        var properties = value as CustomProperties ?? [];
+        serializer(properties.ToList());
     }
 }

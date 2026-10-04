@@ -13,6 +13,12 @@ namespace Packata.OpenDataContract;
 public class CustomProperty
 {
     /// <summary>
+    /// Stable identifier for this custom property.
+    /// </summary>
+    [Label("ID")]
+    public string? Id { get; set; }
+
+    /// <summary>
     /// The name of the key. Names should be in camel case–the same as if they were permanent properties in the contract.
     /// </summary>
     [Label("Property")]
@@ -22,5 +28,18 @@ public class CustomProperty
     /// The value of the key.
     /// </summary>
     [Label("Value")]
-    public string? Value { get; set; }
+    public object? Value { get; set; }
+
+    /// <summary>
+    /// Human-readable description of the custom property.
+    /// </summary>
+    [Label("Description")]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Vendor, provider, or external system associated with the property.
+    /// Unknown identifiers are intentionally preserved.
+    /// </summary>
+    [Label("Vendor")]
+    public string? Vendor { get; set; }
 }
