@@ -117,4 +117,10 @@ public class DataContract
     /// </summary>
     [Label("Team")]
     public Team? Team { get; set; }
+
+    /// <summary>
+    /// IAM roles that provide access to the dataset.
+    /// </summary>
+    [Label("Roles")]
+    public List<AccessRole> Roles { get; set; } = [];
 }
