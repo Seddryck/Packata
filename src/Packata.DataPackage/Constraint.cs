@@ -89,3 +89,19 @@ public class PatternConstraint : CheckConstraint
     public PatternConstraint(string value)
         => Value = value;
 }
+
+public class EnumConstraint : CheckConstraint
+{
+    public new IReadOnlyList<object?> Value { get; }
+
+    public EnumConstraint(IEnumerable<object?> value)
+        => Value = [.. value];
+}
+
+public class JsonSchemaConstraint : CheckConstraint
+{
+    public new IReadOnlyDictionary<string, object?> Value { get; }
+
+    public JsonSchemaConstraint(IReadOnlyDictionary<string, object?> value)
+        => Value = value;
+}
