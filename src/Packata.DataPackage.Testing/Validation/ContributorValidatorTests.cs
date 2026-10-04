@@ -26,6 +26,15 @@ public class ContributorValidatorTests
     }
 
     [Test]
+    public void IsValid_OnlyRolesSet_ReturnsTrue()
+    {
+        var validator = new ContributorValidator();
+        var contributor = new Contributor { Roles = ["creator"] };
+
+        Assert.That(validator.IsValid(contributor), Is.True);
+    }
+
+    [Test]
     [TestCase("this-is-no-an-email")]
     public void IsValid_WithEmail_ReturnsFalse(string email)
     {
