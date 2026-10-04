@@ -24,6 +24,8 @@ public class TemporalLogicalTypeTests
                     logicalType: timestamp
                     logicalTypeOptions:
                       format: yyyy-MM-ddTHH:mm:ssZ
+                      timezone: true
+                      defaultTimezone: Australia/Sydney
                   - name: starts_at
                     logicalType: time
                     logicalTypeOptions:
@@ -38,8 +40,11 @@ public class TemporalLogicalTypeTests
         {
             Assert.That(contract.Schema[0].Properties[0].LogicalType, Is.TypeOf<TimestampLogicalType>());
             Assert.That(((TimestampLogicalType)contract.Schema[0].Properties[0].LogicalType!).Format, Is.EqualTo("yyyy-MM-ddTHH:mm:ssZ"));
+            Assert.That(((TimestampLogicalType)contract.Schema[0].Properties[0].LogicalType!).Timezone, Is.True);
+            Assert.That(((TimestampLogicalType)contract.Schema[0].Properties[0].LogicalType!).DefaultTimezone, Is.EqualTo("Australia/Sydney"));
             Assert.That(contract.Schema[0].Properties[1].LogicalType, Is.TypeOf<TimeLogicalType>());
             Assert.That(((TimeLogicalType)contract.Schema[0].Properties[1].LogicalType!).Format, Is.EqualTo("HH:mm:ss"));
+            Assert.That(((TimeLogicalType)contract.Schema[0].Properties[1].LogicalType!).DefaultTimezone, Is.EqualTo("Etc/UTC"));
         });
     }
 }
