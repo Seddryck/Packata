@@ -18,7 +18,7 @@ public class DremioServer : BaseServer, IHostAware, ISchemaAware
     /// The port to the database server.
     /// </summary>
     [Label("Port")]
-    public required int Port { get; set; }
+    public object? Port { get; set; }
 
     /// <summary>
     /// The name of the schema in the database.

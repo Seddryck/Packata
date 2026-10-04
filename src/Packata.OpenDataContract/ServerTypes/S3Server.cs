@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.OpenDataContract.ServerTypes;
-public class S3Server : BaseServer, ILocationAware, IFormatAware
+public class S3Server : BaseServer, ILocationAware, IFormatAware, IEncodingAware
 {
     /// <summary>
     /// S3 URL, starting with s3://
@@ -31,4 +31,6 @@ public class S3Server : BaseServer, ILocationAware, IFormatAware
     /// </summary>
     [Label("Delimiter")]
     public string? Delimiter { get; set; }
+
+    public string Encoding { get; set; } = "UTF-8";
 }

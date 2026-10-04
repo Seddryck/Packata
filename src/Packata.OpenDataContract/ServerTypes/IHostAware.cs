@@ -18,6 +18,6 @@ public interface IHostAware
     /// The port to the database server.
     /// </summary>
     [Label("Port")]
-    public int Port { get; set; }
+    public object? Port { get; set; }
 }
 

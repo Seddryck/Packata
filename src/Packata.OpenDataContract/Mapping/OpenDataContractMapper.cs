@@ -106,7 +106,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             IHostAware hosted => new ConnectionLocation(
                 server.Type,
                 hosted.Host,
-                hosted.Port,
+                ConvertPort(hosted.Port),
                 (server as IDatabaseAware)?.Database,
                 (server as ISchemaAware)?.Schema),
             IDatabaseAware database => new ConnectionLocation(
@@ -142,6 +142,15 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                         ["vendor"] = x.Vendor
                     }).ToArray()
                 });
+
+    private static int? ConvertPort(object? port)
+        => port switch
+        {
+            int value => value,
+            long value when value is >= int.MinValue and <= int.MaxValue => (int)value,
+            string value when int.TryParse(value, out var parsed) => parsed,
+            _ => null
+        };
 
     private static AssetKind MapAssetKind(string? type)
         => type?.ToLowerInvariant() switch

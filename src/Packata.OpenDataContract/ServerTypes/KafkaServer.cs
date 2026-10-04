@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.OpenDataContract.ServerTypes;
-public class KafkaServer : BaseServer, IHostAware, IFormatAware
+public class KafkaServer : BaseServer, IHostAware, IFormatAware, IEncodingAware
 {
     /// <summary>
     /// The bootstrap server of the kafka cluster.
@@ -16,11 +16,13 @@ public class KafkaServer : BaseServer, IHostAware, IFormatAware
     /// <summary>
     /// The port of the bootstrap server of the kafka cluster. Default is 9092.
     /// </summary>
-    public required int Port { get; set; } = 9092;
+    public object? Port { get; set; } = 9092;
 
     /// <summary>
     /// File format.
     /// </summary>
     [Label("Format")]
     public required string Format { get; set; }
+
+    public string Encoding { get; set; } = "UTF-8";
 }

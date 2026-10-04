@@ -16,7 +16,7 @@ public class SnowflakeServer : BaseServer, IHostAware, IDatabaseAware, ISchemaAw
     /// <summary>
     /// The port to the database server.
     /// </summary>
-    public required int Port { get; set; }
+    public object? Port { get; set; }
 
     /// <summary>
     /// The Snowflake account used by the server.

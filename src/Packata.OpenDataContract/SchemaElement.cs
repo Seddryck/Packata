@@ -48,4 +48,10 @@ public class SchemaElement
     /// </summary>
     [Label("Custom Properties")]
     public CustomProperties CustomProperties { get; set; } = [];
+
+    /// <summary>Alternative names by which this schema element is known.</summary>
+    public List<Synonym> Synonyms { get; set; } = [];
+
+    /// <summary>Marks this element as retained for compatibility but no longer recommended.</summary>
+    public bool Deprecated { get; set; }
 }

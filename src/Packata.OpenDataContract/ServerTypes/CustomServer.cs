@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.OpenDataContract.ServerTypes;
-public class CustomServer : BaseServer
+public class CustomServer : BaseServer, IEncodingAware
 {
     /// <summary>
     /// Account used by the server.
@@ -72,7 +72,9 @@ public class CustomServer : BaseServer
     /// Port to the server. No default value is assumed for custom servers.
     /// </summary>
     [Label("Port")]
-    public int? Port { get; set; }
+    public object? Port { get; set; }
+
+    public string Encoding { get; set; } = "UTF-8";
 
     /// <summary>
     /// Project name.

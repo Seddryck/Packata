@@ -15,7 +15,7 @@ public class InformixServer : BaseServer, IHostAware, IDatabaseAware
     /// <summary>
     /// The port to the database server. Default is 9088.
     /// </summary>
-    public required int Port { get; set; } = 9088;
+    public object? Port { get; set; } = 9088;
 
     /// <summary>
     /// The name of the database.

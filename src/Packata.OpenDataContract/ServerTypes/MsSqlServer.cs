@@ -16,7 +16,7 @@ public class MsSqlServer : BaseServer, IHostAware, IDatabaseAware, ISchemaAware
     /// <summary>
     /// The port to the database server. Default is 1433.
     /// </summary>
-    public required int Port { get; set; } = 1433;
+    public object? Port { get; set; } = 1433;
 
     /// <summary>
     /// The name of the database.

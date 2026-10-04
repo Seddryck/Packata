@@ -18,7 +18,7 @@ public class PrestorServer : BaseServer, IHostAware, ICatalogAware, ISchemaAware
     /// The port to the database server. Default is 8080.
     /// </summary>
     [Label("Port")]
-    public required int Port { get; set; } = 8080;
+    public object? Port { get; set; } = 8080;
 
     /// <summary>
     /// The name of the catalog.

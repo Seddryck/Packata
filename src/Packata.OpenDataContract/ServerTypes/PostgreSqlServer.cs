@@ -16,7 +16,7 @@ internal class PostgreSqlServer : BaseServer, IHostAware, IDatabaseAware, ISchem
     /// <summary>
     /// The port to the database server. Default is 5432.
     /// </summary>
-    public required int Port { get; set; } = 5432;
+    public object? Port { get; set; } = 5432;
 
     /// <summary>
     /// The name of the database.
