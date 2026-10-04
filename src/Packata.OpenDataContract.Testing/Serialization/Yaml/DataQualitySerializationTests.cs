@@ -87,4 +87,27 @@ public class DataQualitySerializationTests
             Assert.That(rules[1].MustBe, Is.Not.Null);
         });
     }
+
+    [Test]
+    public void Deserialize_SqlQualityRule_PreservesQueryAndPlaceholders()
+    {
+        var contract = Deserialize("""
+                          - id: sql-email
+                            type: sql
+                            query: |
+                              SELECT COUNT(*)
+                              FROM {object}
+                              WHERE {property} IS NULL
+                            mustBe: 0
+            """);
+        var rule = contract.Schema[0].Properties[0].Quality[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rule.Type, Is.EqualTo("sql"));
+            Assert.That(rule.Query, Does.Contain("FROM {object}"));
+            Assert.That(rule.Query, Does.Contain("{property} IS NULL"));
+            Assert.That(rule.MustBe, Is.Not.Null);
+        });
+    }
 }

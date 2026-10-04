@@ -49,6 +49,9 @@ public class DataQualityRule
     public List<object> MustBeBetween { get; set; } = [];
     public List<object> MustNotBeBetween { get; set; } = [];
 
+    [Label("SQL Query")]
+    public string? Query { get; set; }
+
     [Label("Authoritative Definitions")]
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
 
