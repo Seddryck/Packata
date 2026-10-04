@@ -8,6 +8,33 @@ namespace Packata.OpenDataContract.Testing.Serialization.Yaml;
 public class ServiceLevelAgreementSerializationTests
 {
     [Test]
+    public void DeserializeAndSerialize_SlaDescription_PreservesText()
+    {
+        const string yaml = """
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: sla-description
+            version: 1.0.0
+            status: active
+            slaProperties:
+              - property: generalAvailability
+                value: 2026-10-04T09:30:00Z
+                description: General availability in Europe
+            """;
+        var serializer = new DataContractSerializer();
+
+        using var reader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(yaml)));
+        var contract = serializer.Deserialize(reader, Mock.Of<IDocumentContainer>(), new StorageProvider());
+        var serialized = serializer.Serialize(contract);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(contract.SlaProperties[0].Description, Is.EqualTo("General availability in Europe"));
+            Assert.That(serialized, Does.Contain("description: General availability in Europe"));
+        });
+    }
+
+    [Test]
     public void Deserialize_ServiceLevelAgreements_PreservesV32Fields()
     {
         const string yaml = """
