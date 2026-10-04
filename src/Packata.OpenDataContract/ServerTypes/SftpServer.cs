@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.OpenDataContract.ServerTypes;
-public class SftpServer : BaseServer, ILocationAware, IFormatAware
+public class SftpServer : BaseServer, ILocationAware, IFormatAware, IEncodingAware
 {
     /// <summary>
     /// SFTP URL, starting with sftp://. The URL should include the port number.
@@ -25,4 +25,6 @@ public class SftpServer : BaseServer, ILocationAware, IFormatAware
     /// </summary>
     [Label("Delimiter")]
     public string? Delimiter { get; set; }
+
+    public string Encoding { get; set; } = "UTF-8";
 }

@@ -48,6 +48,8 @@ public abstract class SchemaBaseProperty : SchemaElement
             "integer" => new IntegerLogicalType(dict),
             "object" => new ObjectLogicalType(dict),
             "array" => new ArrayLogicalType(dict),
+            "map" => new MapLogicalType(dict),
+            "vector" => new VectorLogicalType(dict),
             "boolean" => new BooleanLogicalType(dict),
             _ => new UnknownLogicalType(discriminator)
         };
@@ -122,4 +124,19 @@ public abstract class SchemaBaseProperty : SchemaElement
     /// Relationships originating at this property. The source is implicit when omitted.
     /// </summary>
     public List<Relationship> Relationships { get; set; } = [];
+
+    /// <summary>Semantic role of the property: column, measure, or dimension.</summary>
+    public string? SemanticType { get; set; }
+
+    /// <summary>Permitted values and their descriptive metadata.</summary>
+    public List<EnumerationValue>? Enum { get; set; }
+
+    /// <summary>Key and value definitions when <c>logicalType</c> is map.</summary>
+    public MapDefinition? Map { get; set; }
+
+    /// <summary>Element definition when <c>logicalType</c> is array.</summary>
+    public SchemaProperty? Items { get; set; }
+
+    /// <summary>Nested fields when <c>logicalType</c> is object.</summary>
+    public List<SchemaProperty> Properties { get; set; } = [];
 }

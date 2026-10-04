@@ -18,7 +18,7 @@ public class Db2Server : BaseServer, IHostAware, IDatabaseAware, ISchemaAware
     /// The port to the database server.
     /// </summary>
     [Label("Port")]
-    public required int Port { get; set; }
+    public object? Port { get; set; }
 
     /// <summary>
     /// Path to duckdb database file.

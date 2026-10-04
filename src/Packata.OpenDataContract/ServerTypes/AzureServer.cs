@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.OpenDataContract.ServerTypes;
-public class AzureServer : BaseServer, ILocationAware, IFormatAware
+public class AzureServer : BaseServer, ILocationAware, IFormatAware, IEncodingAware
 {
     /// <summary>
     /// Fully qualified path to Azure Blob Storage or Azure Data Lake Storage (ADLS), supports globs.
@@ -25,4 +25,6 @@ public class AzureServer : BaseServer, ILocationAware, IFormatAware
     /// </summary>
     [Label("Delimiter")]
     public string? Delimiter { get; set; }
+
+    public string Encoding { get; set; } = "UTF-8";
 }

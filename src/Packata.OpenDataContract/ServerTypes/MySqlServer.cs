@@ -16,7 +16,7 @@ public class MySqlServer : BaseServer, IHostAware, IDatabaseAware
     /// <summary>
     /// The port to the database server. Default is 3306.
     /// </summary>
-    public required int Port { get; set; } = 3306;
+    public object? Port { get; set; } = 3306;
 
     /// <summary>
     /// The name of the database.

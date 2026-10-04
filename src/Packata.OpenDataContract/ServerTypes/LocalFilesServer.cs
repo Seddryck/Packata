@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Packata.Core;
 
 namespace Packata.OpenDataContract.ServerTypes;
-public class LocalFilesServer : BaseServer, IFormatAware
+public class LocalFilesServer : BaseServer, IFormatAware, IEncodingAware
 {
     /// <summary>
     /// The relative or absolute path to the data file(s).
@@ -19,4 +19,6 @@ public class LocalFilesServer : BaseServer, IFormatAware
     /// </summary>
     [Label("Format")]
     public required string Format { get; set; }
+
+    public string Encoding { get; set; } = "UTF-8";
 }

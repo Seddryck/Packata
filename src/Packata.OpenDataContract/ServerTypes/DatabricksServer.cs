@@ -16,7 +16,7 @@ public class DatabricksServer : BaseServer, IHostAware, ICatalogAware, ISchemaAw
     /// <summary>
     /// The port to the database server.
     /// </summary>
-    public required int Port { get; set; } = 15001;
+    public object? Port { get; set; } = 15001;
 
     /// <summary>
     /// The name of the catalog.
