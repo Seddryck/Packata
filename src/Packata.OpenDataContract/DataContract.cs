@@ -111,4 +111,10 @@ public class DataContract
     /// </summary>
     [Label("Price")]
     public Price? Price { get; set; }
+
+    /// <summary>
+    /// Team responsible for the contract.
+    /// </summary>
+    [Label("Team")]
+    public Team? Team { get; set; }
 }
