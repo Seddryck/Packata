@@ -166,6 +166,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         Native.ExclusiveMinimumConstraint x => new("exclusiveMinimum", x.Value),
         Native.ExclusiveMaximumConstraint x => new("exclusiveMaximum", x.Value),
         Native.PatternConstraint x => new("pattern", x.Value),
+        Native.EnumConstraint x => new("enum", x.Value),
+        Native.JsonSchemaConstraint x => new("jsonSchema", x.Value),
         Native.UnknownConstraint x => new(x.Name, x.Value),
         _ => new(constraint.GetType().Name, constraint.Value)
     };
