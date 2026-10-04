@@ -18,6 +18,9 @@ internal class DataContractSerializer : IDataContractSerializer
 {
     public DataContract Deserialize(StreamReader reader, IDocumentContainer container, IStorageProvider provider)
     {
+        var yaml = reader.ReadToEnd();
+        DataContractValidator.ValidateYamlStructure(yaml);
+
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(new DataContractNamingConvention())
             .WithTypeDiscriminatingNodeDeserializer((o) =>
@@ -33,7 +36,7 @@ internal class DataContractSerializer : IDataContractSerializer
             .IgnoreUnmatchedProperties()
             .Build();
 
-        var dataContract = deserializer.Deserialize<DataContract>(reader)
+        var dataContract = deserializer.Deserialize<DataContract>(yaml)
                           ?? throw new YamlDotNet.Core.YamlException("The YAML data is not valid.");
         DataContractValidator.Validate(dataContract);
         return dataContract;
