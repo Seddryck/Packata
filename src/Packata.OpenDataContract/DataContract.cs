@@ -99,4 +99,10 @@ public class DataContract
     /// </summary>
     [Label("Servers")]
     public List<BaseServer> Servers { get; set; } = [];
+
+    /// <summary>
+    /// Support and communication channels for consumers.
+    /// </summary>
+    [Label("Support")]
+    public List<SupportChannel> Support { get; set; } = [];
 }
