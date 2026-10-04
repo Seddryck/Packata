@@ -123,4 +123,16 @@ public class DataContract
     /// </summary>
     [Label("Roles")]
     public List<AccessRole> Roles { get; set; } = [];
+
+    /// <summary>
+    /// Service-level agreement entries.
+    /// </summary>
+    [Label("SLA")]
+    public List<ServiceLevelAgreementProperty> SlaProperties { get; set; } = [];
+
+    /// <summary>
+    /// Deprecated ODCS v3 default element retained for read compatibility.
+    /// </summary>
+    [Obsolete("Use the element on each SLA property instead.")]
+    public string? SlaDefaultElement { get; set; }
 }
