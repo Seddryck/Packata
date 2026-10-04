@@ -58,6 +58,12 @@ public class DataQualityRule
     [Label("Implementation")]
     public string? Implementation { get; set; }
 
+    [Label("Scheduler")]
+    public string? Scheduler { get; set; }
+
+    [Label("Schedule")]
+    public string? Schedule { get; set; }
+
     [Label("Authoritative Definitions")]
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
 
