@@ -13,6 +13,9 @@ public class ServiceLevelAgreementProperty
     [Label("Value")]
     public required object Value { get; set; }
 
+    [Label("Description")]
+    public string? Description { get; set; }
+
     [Label("Extended Value")]
     public object? ValueExt { get; set; }
 
