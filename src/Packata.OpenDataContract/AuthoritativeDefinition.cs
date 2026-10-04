@@ -23,4 +23,10 @@ public class AuthoritativeDefinition
     /// </summary>
     [Label("Type")]
     public string? Type { get; set; }
+
+    [Label("Description")]
+    public string? Description { get; set; }
+
+    [Label("Custom Properties")]
+    public CustomProperties CustomProperties { get; set; } = [];
 }

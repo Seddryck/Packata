@@ -76,6 +76,12 @@ public class DataContract
     public CustomProperties CustomProperties { get; set; } = [];
 
     /// <summary>
+    /// AI and semantic guidance applying to the complete contract.
+    /// </summary>
+    [Label("Context")]
+    public DataContractContext? Context { get; set; }
+
+    /// <summary>
     /// Object containing the descriptions.
     /// </summary>
     [Label("Description")]

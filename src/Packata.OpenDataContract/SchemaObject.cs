@@ -43,4 +43,10 @@ public class SchemaObject : SchemaElement
     /// </summary>
     [Label("Relationships")]
     public List<Relationship> Relationships { get; set; } = [];
+
+    /// <summary>
+    /// AI and semantic guidance applying to this schema object.
+    /// </summary>
+    [Label("Context")]
+    public DataContractContext? Context { get; set; }
 }
