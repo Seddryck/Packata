@@ -172,6 +172,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             UnknownLogicalType unknown => unknown.Type,
             StringLogicalType => "string",
             DateLogicalType => "date",
+            TimestampLogicalType => "timestamp",
+            TimeLogicalType => "time",
             NumberLogicalType => "number",
             IntegerLogicalType => "integer",
             ObjectLogicalType => "object",
@@ -185,6 +187,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         {
             StringLogicalType value => value.Format,
             DateLogicalType value => value.Format,
+            TimestampLogicalType value => value.Format,
+            TimeLogicalType value => value.Format,
             NumberLogicalType value => value.Format,
             IntegerLogicalType value => value.Format,
             _ => null

@@ -42,6 +42,8 @@ public abstract class SchemaBaseProperty : SchemaElement
         {
             "string" => new StringLogicalType(dict),
             "date" => new DateLogicalType(dict),
+            "timestamp" => new TimestampLogicalType(dict),
+            "time" => new TimeLogicalType(dict),
             "number" => new NumberLogicalType(dict),
             "integer" => new IntegerLogicalType(dict),
             "object" => new ObjectLogicalType(dict),
