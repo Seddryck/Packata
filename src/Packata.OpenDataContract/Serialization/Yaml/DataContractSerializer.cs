@@ -24,6 +24,7 @@ internal class DataContractSerializer : IDataContractSerializer
             {
                 new ServerTypeDiscriminator().Execute(o);
             })
+            .WithTypeConverter(new ContextConverter())
             .WithTypeConverter(new TeamConverter())
             .WithTypeConverter(new CustomPropertyListConverter())
             .IncludeNonPublicProperties()
@@ -44,6 +45,7 @@ internal class DataContractSerializer : IDataContractSerializer
 
         return new SerializerBuilder()
             .WithNamingConvention(new DataContractNamingConvention())
+            .WithTypeConverter(new ContextConverter())
             .WithTypeConverter(new TeamConverter())
             .WithTypeConverter(new CustomPropertyListConverter())
             .IncludeNonPublicProperties()
