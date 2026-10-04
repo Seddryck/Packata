@@ -33,6 +33,11 @@ internal class FieldConverter : JsonConverter
                 "yearmonth" => ((JObject)field).ToObject<YearMonthField>(serializer)!,
                 "boolean" => ((JObject)field).ToObject<BooleanField>(serializer)!,
                 "object" => ((JObject)field).ToObject<ObjectField>(serializer)!,
+                "geopoint" => ((JObject)field).ToObject<GeoPointField>(serializer)!,
+                "geojson" => ((JObject)field).ToObject<GeoJsonField>(serializer)!,
+                "array" => ((JObject)field).ToObject<ArrayField>(serializer)!,
+                "duration" => ((JObject)field).ToObject<DurationField>(serializer)!,
+                "any" => ((JObject)field).ToObject<AnyField>(serializer)!,
                 _ => ((JObject)field).ToObject<Field>(serializer)!,
             });
         }

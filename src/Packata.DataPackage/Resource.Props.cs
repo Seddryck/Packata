@@ -40,6 +40,9 @@ public partial class Resource
     /// <example>"This is a description of the resource."</example>
     public string? Description { get; set; }
 
+    /// <summary>The home on the web related to this resource.</summary>
+    public string? Homepage { get; set; }
+
     /// <summary>
     /// The type of the resource.
     /// </summary>
@@ -142,4 +145,7 @@ public partial class Resource
     /// <remarks>Sources can be URLs or other identifiers.</remarks>
     /// <example>["http://example.com/source.csv"]</example>
     public List<Source> Sources { get; set; } = [];
+
+    /// <summary>Resource-specific licenses; inherited from the package when empty.</summary>
+    public List<License> Licenses { get; set; } = [];
 }

@@ -20,6 +20,7 @@ public sealed class DataPackageValidator
 
         ValidateContributors(package.Contributors, "$.contributors", issues);
         ValidateLicenses(package.Licenses, "$.licenses", issues);
+        ValidateSources(package.Sources, "$.sources", issues);
 
         var names = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < package.Resources.Count; index++)
@@ -60,6 +61,7 @@ public sealed class DataPackageValidator
             Add(issues, $"{path}.bytes", "Resource bytes cannot be negative.");
 
         ValidateSources(resource.Sources, $"{path}.sources", issues);
+        ValidateLicenses(resource.Licenses, $"{path}.licenses", issues);
         ValidateSchema(resource.Schema, $"{path}.schema", resource, package, issues);
         ValidateDialect(resource.Dialect, $"{path}.dialect", issues);
     }
@@ -179,7 +181,7 @@ public sealed class DataPackageValidator
         foreach (var source in sources)
         {
             var sourcePath = $"{path}[{index}]";
-            if (source.Title is null && source.Path is null && source.Email is null)
+            if (source.Title is null && source.Path is null && source.Email is null && source.Version is null)
                 Add(issues, sourcePath, "A source must define at least one property.");
             if (source.Email is not null && !Regex.IsMatch(source.Email, DefaultRegex.EmailRegex))
                 Add(issues, $"{sourcePath}.email", "Source email is invalid.");

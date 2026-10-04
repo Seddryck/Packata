@@ -93,6 +93,9 @@ public partial class DataPackage
     /// </summary>
     public List<License> Licenses { get; set; } = [];
 
+    /// <summary>The raw sources used to create this package.</summary>
+    public List<Source> Sources { get; set; } = [];
+
     /// <summary>
     /// A list of resources contained in the data package.
     /// </summary>

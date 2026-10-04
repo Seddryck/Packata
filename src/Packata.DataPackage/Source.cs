@@ -38,4 +38,7 @@ public class Source
     /// </example>
     [EmailAddress(ErrorMessage = "Invalid email address.")]
     public string? Email { get; set; }
+
+    /// <summary>The version of the source used by the descriptor.</summary>
+    public string? Version { get; set; }
 }

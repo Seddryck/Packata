@@ -25,7 +25,12 @@ internal class FieldTypeDiscriminator : ITypeDiscriminator
             { "year", typeof(YearField)},
             { "yearmonth", typeof(YearMonthField)},
             { "boolean", typeof(BooleanField)},
-            { "object", typeof(ObjectField)}
+            { "object", typeof(ObjectField)},
+            { "geopoint", typeof(GeoPointField)},
+            { "geojson", typeof(GeoJsonField)},
+            { "array", typeof(ArrayField)},
+            { "duration", typeof(DurationField)},
+            { "any", typeof(AnyField)}
         };
 
     public void Execute(ITypeDiscriminatingNodeDeserializerOptions options)

@@ -15,7 +15,8 @@ internal class DataPackageSerializer : IDataPackageSerializer
         var resolver = new DataPackagePropertyResolver(container, provider);
         var serializer = new JsonSerializer
         {
-            ContractResolver = resolver
+            ContractResolver = resolver,
+            ObjectCreationHandling = ObjectCreationHandling.Replace
         };
         var dataPackage = serializer.Deserialize<DataPackage>(new JsonTextReader(reader))
                             ?? throw new JsonSerializationException("The JSON data is not valid.");

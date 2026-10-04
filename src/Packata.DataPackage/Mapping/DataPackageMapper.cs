@@ -62,7 +62,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             {
                 ["profile"] = document.Profile,
                 ["created"] = document.Created == default ? null : document.Created,
-                ["image"] = document.Image
+                ["image"] = document.Image,
+                ["sources"] = document.Sources
             }));
         return new MappingResult<DataContract>(contract, diagnostics);
     }
@@ -128,12 +129,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             return new DataField(name, field.Type, Format: field.Format,
                 Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
                 Constraints: constraints,
-                Extensions: ExtensionMetadata.For("datapackage", new Dictionary<string, object?>
-                {
-                    ["title"] = field.Title, ["description"] = field.Description,
-                    ["examples"] = field.Examples, ["rdfType"] = field.RdfType,
-                    ["categories"] = field.Categories, ["categoriesOrdered"] = field.CategoriesOrdered
-                }));
+                Extensions: ExtensionMetadata.For("datapackage", FieldExtensions(field)));
         }).ToArray();
 
         var relationships = (schema.ForeignKeys ?? []).Select(foreignKey =>
@@ -193,6 +189,10 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
     {
         var values = new List<AuthoritativeReference>();
         if (!string.IsNullOrWhiteSpace(package.Homepage)) values.Add(new(package.Homepage, "homepage"));
+        values.AddRange(package.Sources.Where(x => !string.IsNullOrWhiteSpace(x.Path))
+            .Select(x => new AuthoritativeReference(x.Path!, "source", x.Title)));
+        values.AddRange(package.Resources.Where(x => !string.IsNullOrWhiteSpace(x.Homepage))
+            .Select(x => new AuthoritativeReference(x.Homepage!, "resource-homepage", x.Title)));
         values.AddRange(package.Resources.SelectMany(x => x.Sources).Where(x => !string.IsNullOrWhiteSpace(x.Path))
             .Select(x => new AuthoritativeReference(x.Path!, "source", x.Title)));
         return values;
@@ -200,7 +200,24 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
 
     private static IReadOnlyDictionary<string, object?> ResourceExtensions(Native.Resource resource) =>
         new Dictionary<string, object?> { ["profile"] = resource.Profile, ["type"] = resource.Type,
-            ["kind"] = resource.Kind, ["sources"] = resource.Sources };
+            ["kind"] = resource.Kind, ["homepage"] = resource.Homepage,
+            ["sources"] = resource.Sources, ["licenses"] = resource.Licenses };
+
+    private static IReadOnlyDictionary<string, object?> FieldExtensions(Native.Field field)
+    {
+        var values = new Dictionary<string, object?>
+        {
+            ["title"] = field.Title, ["description"] = field.Description,
+            ["example"] = field.Example, ["rdfType"] = field.RdfType,
+            ["categories"] = field.Categories, ["categoriesOrdered"] = field.CategoriesOrdered
+        };
+        if (field is Native.BooleanField boolean)
+        {
+            values["trueValues"] = boolean.TrueValues;
+            values["falseValues"] = boolean.FalseValues;
+        }
+        return values;
+    }
 
     private static IReadOnlyDictionary<string, object?> DialectOptions(Native.TableDialect? dialect)
     {
