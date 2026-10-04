@@ -117,4 +117,9 @@ public abstract class SchemaBaseProperty : SchemaElement
     /// Data quality checks applied to the element.
     /// </summary>
     public List<DataQualityRule> Quality { get; set; } = [];
+
+    /// <summary>
+    /// Relationships originating at this property. The source is implicit when omitted.
+    /// </summary>
+    public List<Relationship> Relationships { get; set; } = [];
 }

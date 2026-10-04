@@ -37,4 +37,10 @@ public class SchemaObject : SchemaElement
     /// </summary>
     [Label("Quality")]
     public List<DataQualityRule> Quality { get; set; } = [];
+
+    /// <summary>
+    /// Relationships between schema elements.
+    /// </summary>
+    [Label("Relationships")]
+    public List<Relationship> Relationships { get; set; } = [];
 }
