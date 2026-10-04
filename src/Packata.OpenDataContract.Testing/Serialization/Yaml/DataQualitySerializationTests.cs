@@ -133,4 +133,23 @@ public class DataQualitySerializationTests
             Assert.That(rule.Implementation, Does.Contain("- email"));
         });
     }
+
+    [Test]
+    public void Deserialize_QualityScheduling_PreservesSchedulerAndExpression()
+    {
+        var contract = Deserialize("""
+                          - id: scheduled-email-check
+                            type: sql
+                            query: SELECT COUNT(*) FROM {object}
+                            scheduler: airflow
+                            schedule: 0 20 * * *
+            """);
+        var rule = contract.Schema[0].Properties[0].Quality[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rule.Scheduler, Is.EqualTo("airflow"));
+            Assert.That(rule.Schedule, Is.EqualTo("0 20 * * *"));
+        });
+    }
 }
