@@ -3,15 +3,17 @@ using System.Text.RegularExpressions;
 namespace Packata.DataPackage.Validation;
 
 /// <summary>Validates a complete Data Package v2 descriptor and reports JSON-path diagnostics.</summary>
-public sealed class DataPackageValidator
+public static class DataPackageValidator
 {
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
+
     private static readonly HashSet<string> FieldTypes =
     [
         "string", "number", "integer", "date", "time", "datetime", "year", "yearmonth",
         "boolean", "object", "geopoint", "geojson", "array", "duration", "any"
     ];
 
-    public DataPackageValidationResult Validate(DataPackage package)
+    public static DataPackageValidationResult Validate(DataPackage package)
     {
         ArgumentNullException.ThrowIfNull(package);
         var issues = new List<DataPackageValidationIssue>();
@@ -37,26 +39,14 @@ public sealed class DataPackageValidator
         return new DataPackageValidationResult(issues);
     }
 
-    public bool IsValid(DataPackage package) => Validate(package).IsValid;
+    public static bool IsValid(DataPackage package) => Validate(package).IsValid;
 
     private static void ValidateResource(Resource resource, string path, DataPackage package,
         ICollection<DataPackageValidationIssue> issues)
     {
-        var hasPaths = resource.Paths.Count > 0;
-        var hasData = resource.Data is not null;
-        if (hasPaths && hasData)
-            Add(issues, path, "A resource cannot define both path and data.");
-        if (string.Equals(resource.Type, "table", StringComparison.OrdinalIgnoreCase) && !hasPaths && !hasData)
-            Add(issues, path, "A tabular resource must define path or data.");
-        if (resource.Type is not null && !resource.Type.Equals("table", StringComparison.OrdinalIgnoreCase))
-            Add(issues, $"{path}.type", "The only standard Data Package v2 resource type is 'table'.");
-
-        if (hasPaths)
-        {
-            var fullyQualified = resource.Paths.Select(item => item.IsFullyQualified).Distinct().ToArray();
-            if (fullyQualified.Length > 1)
-                Add(issues, $"{path}.path", "A path array cannot mix relative paths and fully qualified URLs.");
-        }
+        ValidateResourceLocation(resource, path, issues);
+        ValidateResourceType(resource, path, issues);
+        ValidateResourcePaths(resource, path, issues);
         if (resource.Bytes < 0)
             Add(issues, $"{path}.bytes", "Resource bytes cannot be negative.");
 
@@ -66,18 +56,53 @@ public sealed class DataPackageValidator
         ValidateDialect(resource.Dialect, $"{path}.dialect", issues);
     }
 
+    private static void ValidateResourceLocation(Resource resource, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        var hasPaths = resource.Paths.Count > 0;
+        var hasData = resource.Data is not null;
+        if (hasPaths && hasData)
+            Add(issues, path, "A resource cannot define both path and data.");
+        if (string.Equals(resource.Type, "table", StringComparison.OrdinalIgnoreCase) && !hasPaths && !hasData)
+            Add(issues, path, "A tabular resource must define path or data.");
+    }
+
+    private static void ValidateResourceType(Resource resource, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        if (resource.Type is not null && !resource.Type.Equals("table", StringComparison.OrdinalIgnoreCase))
+            Add(issues, $"{path}.type", "The only standard Data Package v2 resource type is 'table'.");
+    }
+
+    private static void ValidateResourcePaths(Resource resource, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        var fullyQualified = resource.Paths.Select(item => item.IsFullyQualified).Distinct().ToArray();
+        if (fullyQualified.Length > 1)
+            Add(issues, $"{path}.path", "A path array cannot mix relative paths and fully qualified URLs.");
+    }
+
     private static void ValidateSchema(Schema? schema, string path, Resource resource, DataPackage package,
         ICollection<DataPackageValidationIssue> issues)
     {
         if (schema is null) return;
-        if (schema.Fields.Count == 0)
-            Add(issues, $"{path}.fields", "A table schema must contain at least one field.");
+        var fields = ValidateFields(schema.Fields, $"{path}.fields", issues);
+        ValidateKey(schema.PrimaryKey, $"{path}.primaryKey", fields, issues);
+        ValidateUniqueKeys(schema.UniqueKeys, path, fields, issues);
+        ValidateForeignKeys(schema.ForeignKeys, path, fields, resource, package, issues);
+    }
+
+    private static HashSet<string> ValidateFields(IReadOnlyList<Field> schemaFields, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        if (schemaFields.Count == 0)
+            Add(issues, path, "A table schema must contain at least one field.");
 
         var fields = new HashSet<string>(StringComparer.Ordinal);
-        for (var index = 0; index < schema.Fields.Count; index++)
+        for (var index = 0; index < schemaFields.Count; index++)
         {
-            var field = schema.Fields[index];
-            var fieldPath = $"{path}.fields[{index}]";
+            var field = schemaFields[index];
+            var fieldPath = $"{path}[{index}]";
             if (string.IsNullOrWhiteSpace(field.Name))
                 Add(issues, $"{fieldPath}.name", "A field name is required.");
             else if (!fields.Add(field.Name))
@@ -87,37 +112,58 @@ public sealed class DataPackageValidator
             if (field.CategoriesOrdered is not null && field.Categories is null)
                 Add(issues, $"{fieldPath}.categoriesOrdered", "categoriesOrdered requires categories.");
         }
+        return fields;
+    }
 
-        ValidateKey(schema.PrimaryKey, $"{path}.primaryKey", fields, issues);
-        for (var index = 0; index < (schema.UniqueKeys?.Count ?? 0); index++)
-            ValidateKey(schema.UniqueKeys![index], $"{path}.uniqueKeys[{index}]", fields, issues);
+    private static void ValidateUniqueKeys(IReadOnlyList<List<string>>? uniqueKeys, string path,
+        ISet<string> fields, ICollection<DataPackageValidationIssue> issues)
+    {
+        if (uniqueKeys is null) return;
+        for (var index = 0; index < uniqueKeys.Count; index++)
+            ValidateKey(uniqueKeys[index], $"{path}.uniqueKeys[{index}]", fields, issues);
+    }
 
-        for (var index = 0; index < (schema.ForeignKeys?.Count ?? 0); index++)
+    private static void ValidateForeignKeys(IReadOnlyList<ForeignKey>? foreignKeys, string path,
+        ISet<string> fields, Resource resource, DataPackage package,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        if (foreignKeys is null) return;
+        for (var index = 0; index < foreignKeys.Count; index++)
         {
-            var foreignKey = schema.ForeignKeys![index];
+            var foreignKey = foreignKeys[index];
             var foreignPath = $"{path}.foreignKeys[{index}]";
-            ValidateKey(foreignKey.Fields, $"{foreignPath}.fields", fields, issues);
-            if (foreignKey.Reference is null)
-            {
-                Add(issues, $"{foreignPath}.reference", "A foreign key reference is required.");
-                continue;
-            }
-            if (foreignKey.Fields.Count != foreignKey.Reference.Fields.Count)
-                Add(issues, foreignPath, "Foreign-key fields and reference fields must have the same length.");
-            var target = string.IsNullOrWhiteSpace(foreignKey.Reference.Resource)
-                ? resource
-                : package.Resources.FirstOrDefault(item => item.Name == foreignKey.Reference.Resource);
-            if (target is null)
-            {
-                Add(issues, $"{foreignPath}.reference.resource",
-                    $"Referenced resource '{foreignKey.Reference.Resource}' does not exist.");
-                continue;
-            }
-            var targetFields = target.Schema?.Fields.Where(item => item.Name is not null)
-                .Select(item => item.Name!).ToHashSet(StringComparer.Ordinal) ?? [];
-            ValidateKey(foreignKey.Reference.Fields, $"{foreignPath}.reference.fields", targetFields, issues);
+            ValidateForeignKey(foreignKey, foreignPath, fields, resource, package, issues);
         }
     }
+
+    private static void ValidateForeignKey(ForeignKey foreignKey, string path, ISet<string> fields,
+        Resource resource, DataPackage package, ICollection<DataPackageValidationIssue> issues)
+    {
+        ValidateKey(foreignKey.Fields, $"{path}.fields", fields, issues);
+        if (foreignKey.Reference is null)
+        {
+            Add(issues, $"{path}.reference", "A foreign key reference is required.");
+            return;
+        }
+        if (foreignKey.Fields.Count != foreignKey.Reference.Fields.Count)
+            Add(issues, path, "Foreign-key fields and reference fields must have the same length.");
+
+        var target = FindReferencedResource(foreignKey.Reference, resource, package);
+        if (target is null)
+        {
+            Add(issues, $"{path}.reference.resource",
+                $"Referenced resource '{foreignKey.Reference.Resource}' does not exist.");
+            return;
+        }
+        var targetFields = target.Schema?.Fields.Where(item => item.Name is not null)
+            .Select(item => item.Name!).ToHashSet(StringComparer.Ordinal) ?? [];
+        ValidateKey(foreignKey.Reference.Fields, $"{path}.reference.fields", targetFields, issues);
+    }
+
+    private static Resource? FindReferencedResource(Reference reference, Resource resource, DataPackage package)
+        => string.IsNullOrWhiteSpace(reference.Resource)
+            ? resource
+            : package.Resources.FirstOrDefault(item => item.Name == reference.Resource);
 
     private static void ValidateKey(IReadOnlyCollection<string>? key, string path, ISet<string> fields,
         ICollection<DataPackageValidationIssue> issues)
@@ -134,18 +180,48 @@ public sealed class DataPackageValidator
         ICollection<DataPackageValidationIssue> issues)
     {
         if (dialect is null) return;
+        ValidateDialectHeader(dialect, path, issues);
+        ValidateDialectRows(dialect, path, issues);
+        ValidateDialectCharacters(dialect, path, issues);
+        ValidateSpreadsheetDialect(dialect, path, issues);
+        ValidateStructuredDialect(dialect, path, issues);
+    }
+
+    private static void ValidateDialectHeader(TableDialect dialect, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
         if (dialect.Header && (dialect.HeaderRows is null || dialect.HeaderRows.Count == 0))
             Add(issues, $"{path}.headerRows", "headerRows must be present when header is true.");
         if (!dialect.Header && dialect.HeaderRows is { Count: > 0 })
             Add(issues, $"{path}.headerRows", "headerRows must be absent when header is false.");
+    }
+
+    private static void ValidateDialectRows(TableDialect dialect, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
         if (dialect.HeaderRows?.Any(row => row < 1) == true || dialect.CommentRows?.Any(row => row < 1) == true)
             Add(issues, path, "Header and comment row numbers must be positive.");
+    }
+
+    private static void ValidateDialectCharacters(TableDialect dialect, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
         if (dialect.EscapeChar is not null && dialect.QuoteChar is not null)
             Add(issues, path, "escapeChar and quoteChar are mutually exclusive.");
+    }
+
+    private static void ValidateSpreadsheetDialect(TableDialect dialect, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
         if (dialect.SheetName is not null && dialect.SheetNumber is not null)
             Add(issues, path, "sheetName and sheetNumber are mutually exclusive.");
         if (dialect.SheetNumber < 1)
             Add(issues, $"{path}.sheetNumber", "sheetNumber must be positive.");
+    }
+
+    private static void ValidateStructuredDialect(TableDialect dialect, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
         if (dialect.ItemType is not null && dialect.ItemType is not ("array" or "object"))
             Add(issues, $"{path}.itemType", "itemType must be 'array' or 'object'.");
     }
@@ -180,15 +256,37 @@ public sealed class DataPackageValidator
         var index = 0;
         foreach (var source in sources)
         {
-            var sourcePath = $"{path}[{index}]";
-            if (source.Title is null && source.Path is null && source.Email is null && source.Version is null)
-                Add(issues, sourcePath, "A source must define at least one property.");
-            if (source.Email is not null && !Regex.IsMatch(source.Email, DefaultRegex.EmailRegex))
-                Add(issues, $"{sourcePath}.email", "Source email is invalid.");
-            if (source.Path is not null && !Regex.IsMatch(source.Path, DefaultRegex.PathRegex))
-                Add(issues, $"{sourcePath}.path", "Source path is invalid.");
+            ValidateSource(source, $"{path}[{index}]", issues);
             index++;
         }
+    }
+
+    private static void ValidateSource(Source source, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        if (IsEmpty(source))
+            Add(issues, path, "A source must define at least one property.");
+        ValidateSourceEmail(source.Email, path, issues);
+        ValidateSourcePath(source.Path, path, issues);
+    }
+
+    private static bool IsEmpty(Source source)
+        => source.Title is null && source.Path is null && source.Email is null && source.Version is null;
+
+    private static void ValidateSourceEmail(string? email, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        if (email is not null &&
+            !Regex.IsMatch(email, DefaultRegex.EmailRegex, RegexOptions.None, RegexTimeout))
+            Add(issues, $"{path}.email", "Source email is invalid.");
+    }
+
+    private static void ValidateSourcePath(string? sourcePath, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        if (sourcePath is not null &&
+            !Regex.IsMatch(sourcePath, DefaultRegex.PathRegex, RegexOptions.None, RegexTimeout))
+            Add(issues, $"{path}.path", "Source path is invalid.");
     }
 
     private static void Add(ICollection<DataPackageValidationIssue> issues, string path, string message)
