@@ -35,7 +35,7 @@ public class Field
     /// <summary>
     /// An example value for the field.
     /// </summary>
-    public List<string> Examples { get; set; } = [];
+    public object? Example { get; set; }
 
     /// <summary>
     /// Values that when encountered in the source, should be considered as `null`, 'not present', or 'blank' values.
@@ -152,10 +152,19 @@ public abstract class CustomField : Field
 /// The field contains boolean (true/false) data.
 /// </summary>
 public class BooleanField : Field
-{ }
+{
+    public List<string> TrueValues { get; set; } = ["true", "True", "TRUE", "1"];
+    public List<string> FalseValues { get; set; } = ["false", "False", "FALSE", "0"];
+}
 
 /// <summary>
 /// The field contains data which can be parsed as a valid JSON object.
 /// </summary>
 public class ObjectField : Field
 { }
+
+public class GeoPointField : Field { }
+public class GeoJsonField : Field { }
+public class ArrayField : Field { }
+public class DurationField : Field { }
+public class AnyField : Field { }

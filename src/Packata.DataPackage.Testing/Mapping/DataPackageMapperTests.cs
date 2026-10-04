@@ -73,6 +73,51 @@ public class DataPackageMapperTests
         });
     }
 
+    [Test]
+    public void Map_preserves_remaining_v2_metadata()
+    {
+        var package = new DataPackage
+        {
+            Name = "sample",
+            Sources = [new Source { Title = "Registry", Path = "https://example.com/source", Version = "2" }],
+            Resources =
+            [
+                new Resource
+                {
+                    Name = "data", Homepage = "https://example.com/data",
+                    Licenses = [new License { Name = "CC0-1.0" }],
+                    Data = Array.Empty<object>(),
+                    Schema = new Schema
+                    {
+                        Fields =
+                        [
+                            new BooleanField
+                            {
+                                Name = "flag", Type = "boolean", Example = "yes",
+                                TrueValues = ["yes"], FalseValues = ["no"]
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+
+        var contract = new DataPackageMapper().Map(package).RequireValue();
+        var fieldExtensions = contract.Assets.Single().Schema!.Fields.Single().Extensions["datapackage"];
+        var resourceExtensions = contract.Assets.Single().Extensions["datapackage"];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(contract.Governance!.References.Select(reference => reference.Url),
+                Does.Contain("https://example.com/source"));
+            Assert.That(contract.Governance.References.Select(reference => reference.Url),
+                Does.Contain("https://example.com/data"));
+            Assert.That(fieldExtensions["example"], Is.EqualTo("yes"));
+            Assert.That(fieldExtensions["trueValues"], Is.EqualTo(new[] { "yes" }));
+            Assert.That(resourceExtensions["licenses"], Is.EqualTo(package.Resources[0].Licenses));
+        }
+    }
+
     private static FieldConstraintCollection Constraints(params Constraint[] values)
     {
         var collection = new FieldConstraintCollection(); collection.AddRange(values); return collection;
