@@ -54,4 +54,37 @@ public class DataQualitySerializationTests
             Assert.That(rule.CustomProperties["owner"], Is.EqualTo("crm"));
         });
     }
+
+    [Test]
+    public void Deserialize_LibraryQualityRules_SupportsExplicitAndShorthandForms()
+    {
+        var contract = Deserialize("""
+                          - id: missing-email
+                            type: library
+                            metric: missingValues
+                            arguments:
+                              missingValues: [null, '', N/A]
+                            mustBeLessThan: 5
+                            unit: percent
+                          - id: invalid-email
+                            metric: invalidValues
+                            arguments:
+                              pattern: '^[^@]+@[^@]+$'
+                            mustBe: 0
+            """);
+        var rules = contract.Schema[0].Properties[0].Quality;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rules, Has.Count.EqualTo(2));
+            Assert.That(rules[0].Type, Is.EqualTo("library"));
+            Assert.That(rules[0].Metric, Is.EqualTo("missingValues"));
+            Assert.That(rules[0].Arguments, Contains.Key("missingValues"));
+            Assert.That(rules[0].MustBeLessThan, Is.Not.Null);
+            Assert.That(rules[0].Unit, Is.EqualTo("percent"));
+            Assert.That(rules[1].Type, Is.Null);
+            Assert.That(rules[1].Metric, Is.EqualTo("invalidValues"));
+            Assert.That(rules[1].MustBe, Is.Not.Null);
+        });
+    }
 }

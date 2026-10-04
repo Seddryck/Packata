@@ -28,6 +28,27 @@ public class DataQualityRule
     [Label("Severity")]
     public string? Severity { get; set; }
 
+    [Label("Metric")]
+    public string? Metric { get; set; }
+
+    [Obsolete("Use Metric instead.")]
+    public string? Rule { get; set; }
+
+    [Label("Arguments")]
+    public Dictionary<string, object> Arguments { get; set; } = [];
+
+    [Label("Unit")]
+    public string? Unit { get; set; }
+
+    public object? MustBe { get; set; }
+    public object? MustNotBe { get; set; }
+    public object? MustBeGreaterThan { get; set; }
+    public object? MustBeGreaterOrEqualTo { get; set; }
+    public object? MustBeLessThan { get; set; }
+    public object? MustBeLessOrEqualTo { get; set; }
+    public List<object> MustBeBetween { get; set; } = [];
+    public List<object> MustNotBeBetween { get; set; } = [];
+
     [Label("Authoritative Definitions")]
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
 
