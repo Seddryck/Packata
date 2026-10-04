@@ -32,6 +32,62 @@ public class MappingTests
     }
 
     [Test]
+    public void ReportDiagnostics_ReportsEveryDiagnosticAndReturnsSameResult()
+    {
+        var diagnostics = new[]
+        {
+            new MappingDiagnostic("TEST001", MappingSeverity.Information, "$", "Information"),
+            new MappingDiagnostic("TEST002", MappingSeverity.Warning, "$", "Warning")
+        };
+        var result = new MappingResult<DataContract>(EmptyContract(), diagnostics);
+        var reported = new List<MappingDiagnostic>();
+
+        var returned = result.ReportDiagnostics(reported.Add);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(returned, Is.SameAs(result));
+            Assert.That(reported, Is.EqualTo(diagnostics));
+        });
+    }
+
+    [Test]
+    public void ThrowOnErrors_WithError_ThrowsCanonicalMappingException()
+    {
+        var diagnostic = new MappingDiagnostic("TEST003", MappingSeverity.Error, "$", "Invalid source");
+        var result = new MappingResult<DataContract>(EmptyContract(), [diagnostic]);
+
+        var exception = Assert.Throws<CanonicalMappingException>(() => result.ThrowOnErrors());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(exception!.Diagnostics, Is.EqualTo(new[] { diagnostic }));
+            Assert.That(exception.Message, Does.Contain("TEST003: Invalid source"));
+        });
+    }
+
+    [Test]
+    public void RequireValue_WithSuccessfulResult_ReturnsValue()
+    {
+        var contract = EmptyContract();
+
+        var value = MappingResult<DataContract>.Success(contract).RequireValue();
+
+        Assert.That(value, Is.SameAs(contract));
+    }
+
+    [Test]
+    public void RequireValue_WithoutValue_ThrowsCanonicalMappingException()
+    {
+        var result = MappingResult<DataContract>.Failure(
+            new MappingDiagnostic("TEST004", MappingSeverity.Warning, "$", "No value"));
+
+        var exception = Assert.Throws<CanonicalMappingException>(() => result.RequireValue());
+
+        Assert.That(exception!.Diagnostics, Has.Count.EqualTo(1));
+    }
+
+    [Test]
     public void ExtensionMetadata_PreservesSourceNamespace()
     {
         var extensions = ExtensionMetadata.For(

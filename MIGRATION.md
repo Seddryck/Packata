@@ -33,17 +33,25 @@ ODCS YAML -------------> Packata.OpenDataContract.DataContract -> mapper ----+->
 Data Package example:
 
 ```csharp
+using Packata.DataPackage.Mapping;
+
 var native = new Packata.DataPackage.DataPackageFactory().LoadFromStream(stream);
-var mapped = new Packata.DataPackage.Mapping.DataPackageMapper().Map(native);
-var canonical = mapped.Value ?? throw new InvalidOperationException("Mapping failed");
+var canonical = native
+    .ToCanonicalContract()
+    .ReportDiagnostics(diagnostic => Console.WriteLine(diagnostic.Message))
+    .RequireValue();
 ```
 
 ODCS example:
 
 ```csharp
+using Packata.OpenDataContract.Mapping;
+
 var native = odcsSerializer.Deserialize(reader, container, storageProvider);
-var mapped = new Packata.OpenDataContract.Mapping.OpenDataContractMapper().Map(native);
-var canonical = mapped.Value ?? throw new InvalidOperationException("Mapping failed");
+var canonical = native
+    .ToCanonicalContract()
+    .ReportDiagnostics(diagnostic => Console.WriteLine(diagnostic.Message))
+    .RequireValue();
 ```
 
-Inspect `MappingResult.Diagnostics` before executing downstream work. Source-only information remains available under the `datapackage` or `odcs` extension namespace.
+`ToCanonicalContract()` is the consumer-facing API. `IDataContractMapper<T>.Map(...)` remains available as the lower-level adapter contract for dependency injection and third-party formats. Source-only information remains available under the `datapackage` or `odcs` extension namespace.

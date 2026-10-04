@@ -8,6 +8,16 @@ namespace Packata.DataPackage.Testing.Mapping;
 public class DataPackageMapperTests
 {
     [Test]
+    public void ToCanonicalContract_ReturnsCanonicalContract()
+    {
+        var package = new DataPackage { Name = "sales" };
+
+        var contract = package.ToCanonicalContract().RequireValue();
+
+        Assert.That(contract.Identity.Id, Is.EqualTo("sales"));
+    }
+
+    [Test]
     public void Map_preserves_schema_relationships_and_dialect()
     {
         var package = new DataPackage

@@ -8,6 +8,16 @@ namespace Packata.OpenDataContract.Testing.Mapping;
 public class OpenDataContractMapperTests
 {
     [Test]
+    public void ToCanonicalContract_ReturnsCanonicalContract()
+    {
+        var document = new DataContract { Id = "orders", Name = "Orders" };
+
+        var contract = document.ToCanonicalContract().RequireValue();
+
+        Assert.That(contract.Identity.Id, Is.EqualTo("orders"));
+    }
+
+    [Test]
     public void Map_LocalFileContract_ReturnsCanonicalAssetAndEndpoint()
     {
         var document = new DataContract
