@@ -4,10 +4,16 @@ using Parquet.Schema;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace Packata.ResourceReaders.Tabular;
 public class ParquetDataReader : System.Data.IDataReader
 {
+    private static readonly MethodInfo ReadValueColumnMethod = typeof(ParquetDataReader)
+        .GetMethod(nameof(ReadValueColumnAsync), BindingFlags.NonPublic | BindingFlags.Static)!;
+    private static readonly MethodInfo ReadNullableColumnMethod = typeof(ParquetDataReader)
+        .GetMethod(nameof(ReadNullableColumnAsync), BindingFlags.NonPublic | BindingFlags.Static)!;
+
     private readonly List<Parquet.ParquetReader> _readers = new();
     private readonly List<Stream> _streams = new(); // to dispose later
     private readonly List<DataField[]> _schemas = new();
@@ -63,24 +69,70 @@ public class ParquetDataReader : System.Data.IDataReader
         for (int i = 0; i < reader.RowGroupCount; i++)
         {
             using var groupReader = reader.OpenRowGroupReader(i);
-            var columns = new DataColumn[_dataFields.Length];
+            var columns = new object?[_dataFields.Length][];
+            var rowCount = checked((int)groupReader.RowCount);
 
             for (int j = 0; j < _dataFields.Length; j++)
             {
-                columns[j] = await groupReader.ReadColumnAsync(_dataFields[j]);
+                columns[j] = await ReadColumnAsync(groupReader, _dataFields[j], rowCount);
             }
 
-            int rowCount = columns[0].Data.Length;
             for (int row = 0; row < rowCount; row++)
             {
                 var values = new object[_dataFields.Length];
                 for (int col = 0; col < _dataFields.Length; col++)
                 {
-                    values[col] = columns[col].Data.GetValue(row)!;
+                    values[col] = columns[col][row]!;
                 }
                 _rows.Add(values);
             }
         }
+    }
+
+    private static Task<object?[]> ReadColumnAsync(ParquetRowGroupReader reader, DataField field, int rowCount)
+    {
+        if (field.ClrType == typeof(string) || field.ClrType == typeof(ReadOnlyMemory<char>))
+            return ReadStringColumnAsync(reader, field, rowCount);
+        if (field.ClrType == typeof(byte[]) || field.ClrType == typeof(ReadOnlyMemory<byte>))
+            return ReadByteArrayColumnAsync(reader, field, rowCount);
+        if (!field.ClrType.IsValueType)
+            throw new NotSupportedException($"Parquet column type '{field.ClrType}' is not supported.");
+
+        var method = field.IsNullable && field.ClrType.IsValueType
+            ? ReadNullableColumnMethod
+            : ReadValueColumnMethod;
+        return (Task<object?[]>)method.MakeGenericMethod(field.ClrType)
+            .Invoke(null, [reader, field, rowCount])!;
+    }
+
+    private static async Task<object?[]> ReadValueColumnAsync<T>(ParquetRowGroupReader reader, DataField field, int rowCount)
+        where T : struct
+    {
+        var values = new T[rowCount];
+        await reader.ReadAsync(field, values.AsMemory());
+        return values.Cast<object?>().ToArray();
+    }
+
+    private static async Task<object?[]> ReadNullableColumnAsync<T>(ParquetRowGroupReader reader, DataField field, int rowCount)
+        where T : struct
+    {
+        var values = new T?[rowCount];
+        await reader.ReadAsync(field, values.AsMemory());
+        return values.Cast<object?>().ToArray();
+    }
+
+    private static async Task<object?[]> ReadStringColumnAsync(ParquetRowGroupReader reader, DataField field, int rowCount)
+    {
+        var values = new string?[rowCount];
+        await reader.ReadAsync(field, values.AsMemory());
+        return values.Cast<object?>().ToArray();
+    }
+
+    private static async Task<object?[]> ReadByteArrayColumnAsync(ParquetRowGroupReader reader, DataField field, int rowCount)
+    {
+        var values = new byte[]?[rowCount];
+        await reader.ReadAsync(field, values.AsMemory());
+        return values.Cast<object?>().ToArray();
     }
 
     public bool Read()
@@ -95,7 +147,12 @@ public class ParquetDataReader : System.Data.IDataReader
 
     public string GetName(int i) => _dataFields[i].Name;
     public string GetDataTypeName(int i) => _dataFields[i].SchemaType.ToString();
-    public Type GetFieldType(int i) => _dataFields[i].ClrType;
+    public Type GetFieldType(int i) => _dataFields[i].ClrType switch
+    {
+        var type when type == typeof(ReadOnlyMemory<char>) => typeof(string),
+        var type when type == typeof(ReadOnlyMemory<byte>) => typeof(byte[]),
+        var type => type
+    };
     public int GetOrdinal(string name)
     {
         for (int i = 0; i < _dataFields.Length; i++)
@@ -136,7 +193,7 @@ public class ParquetDataReader : System.Data.IDataReader
         if (disposing)
         {
             foreach (var reader in _readers)
-                reader.Dispose();
+                reader.DisposeAsync().AsTask().GetAwaiter().GetResult();
             foreach (var stream in _streams)
                 stream.Dispose();
         }
