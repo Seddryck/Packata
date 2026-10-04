@@ -23,6 +23,7 @@ public class ContributorValidator : IValidator<Contributor>
                         && contributor.FamilyName is null
                         && contributor.Title is null
                         && contributor.Organization is null
+                        && contributor.Roles is not { Count: > 0 }
             ? new ArgumentOutOfRangeException($"All properties are not set. At least one of them must be set.")
             : null;
         return exception is null;
