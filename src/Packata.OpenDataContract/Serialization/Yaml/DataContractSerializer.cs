@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Xml.Serialization;
 using Packata.Core.Storage;
 using Packata.OpenDataContract.ServerTypes;
+using Packata.OpenDataContract.Validation;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.Serialization.NodeDeserializers;
@@ -33,6 +34,7 @@ internal class DataContractSerializer : IDataContractSerializer
 
         var dataContract = deserializer.Deserialize<DataContract>(reader)
                           ?? throw new YamlDotNet.Core.YamlException("The YAML data is not valid.");
+        DataContractValidator.Validate(dataContract);
         return dataContract;
     }
 
