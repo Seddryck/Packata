@@ -137,6 +137,7 @@ jobs:
         with:
           name: test-results-${{ needs.version.outputs.semver }}
           path: .test-results
+          include-hidden-files: true
           if-no-files-found: error
 
       - name: Upload coverage
@@ -197,6 +198,7 @@ jobs:
         with:
           name: nuget-${{ needs.version.outputs.semver }}
           path: .artifacts/nuget
+          include-hidden-files: true
           if-no-files-found: error
 
       - name: Upload release assets
@@ -205,6 +207,7 @@ jobs:
         with:
           name: release-${{ needs.version.outputs.semver }}
           path: .artifacts/release
+          include-hidden-files: true
           if-no-files-found: error
 
   publish:
