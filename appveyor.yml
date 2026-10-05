@@ -32,6 +32,7 @@ install:
     & $env:temp\dotnet-install.ps1 -Architecture x64 -Version '10.0.100' -InstallDir "$env:ProgramFiles\dotnet"
 
 before_build:
+- pwsh: .\install-gitversion.ps1
 - cmd: gitversion /output buildserver /verbosity Minimal
 - pwsh: Write-Host "Building Packata version $($env:GitVersion_SemVer)"
 - pwsh: |
