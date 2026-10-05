@@ -22,8 +22,7 @@ Packata provides a standards-neutral runtime for data assets, schemas, endpoints
 ![Still maintained](https://img.shields.io/maintenance/yes/2026.svg)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/y/Seddryck/Packata)
 
-**Continuous integration builds:** [![Build status](https://ci.appveyor.com/api/projects/status/bq45qo05end3bk88?svg=true)](https://ci.appveyor.com/project/Seddryck/Packata/)
-[![Tests](https://img.shields.io/appveyor/tests/seddryck/Packata.svg)](https://ci.appveyor.com/project/Seddryck/Packata/build/tests)
+**Continuous integration builds:** [![CI and release](https://github.com/Seddryck/Packata/actions/workflows/ci-release.yml/badge.svg)](https://github.com/Seddryck/Packata/actions/workflows/ci-release.yml)
 [![CodeFactor](https://www.codefactor.io/repository/github/seddryck/Packata/badge)](https://www.codefactor.io/repository/github/seddryck/Packata)
 [![codecov](https://codecov.io/github/Seddryck/Packata/branch/main/graph/badge.svg?token=PPSNKG5YD7)](https://codecov.io/github/Seddryck/Packata)
 <!-- [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FSeddryck%2FPackata.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FSeddryck%2FPackata?ref=badge_shield) -->

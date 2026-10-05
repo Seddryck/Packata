@@ -1,0 +1,331 @@
+name: CI and release
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  DOTNET_NO_WORKLOAD_UPDATE_NOTIFICATION: 1
+
+jobs:
+  version:
+    name: Calculate version
+    runs-on: ubuntu-latest
+    outputs:
+      semver: ${{ steps.gitversion.outputs.semVer }}
+      patch: ${{ steps.gitversion.outputs.patch }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@7417b1089e2c7de93510f1901d656ddf60bb024f # v4.7.0
+        with:
+          versionSpec: 6.6.0
+
+      - name: Calculate version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@7417b1089e2c7de93510f1901d656ddf60bb024f # v4.7.0
+
+      - name: Validate version
+        shell: pwsh
+        run: |
+          $version = '${{ steps.gitversion.outputs.semVer }}'
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+            throw "GitVersion produced invalid SemVer '$version'."
+          }
+
+  build-test-package:
+    name: Build, test, and package
+    needs: version
+    runs-on: windows-latest
+    outputs:
+      has-release-asset: ${{ steps.schema.outputs.has-release-asset }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET SDKs
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.416
+            9.0.308
+            10.0.401
+
+      - name: Restore
+        run: dotnet restore Packata.sln
+
+      - name: Build
+        run: >-
+          dotnet build Packata.sln
+          --configuration Release
+          --no-restore
+          --nologo
+          -p:Version=${{ needs.version.outputs.semver }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Test supported frameworks
+        shell: pwsh
+        run: |
+          $projects = @(
+            'Packata.Core',
+            'Packata.DataPackage',
+            'Packata.ResourceReaders',
+            'Packata.Provisioners',
+            'Packata.Storages',
+            'Packata.OpenDataContract'
+          )
+          $frameworks = @('net8.0', 'net9.0', 'net10.0')
+          $thresholdProjects = @('Packata.Core', 'Packata.ResourceReaders', 'Packata.Provisioners')
+
+          New-Item -ItemType Directory -Force .coverage, .test-results | Out-Null
+
+          foreach ($project in $projects) {
+            foreach ($framework in $frameworks) {
+              $testProject = "src/$project.Testing/$project.Testing.csproj"
+              $coverage = "$pwd/.coverage/coverage.$project.$framework.xml"
+              $results = "$pwd/.test-results/$project/$framework"
+              $arguments = @(
+                'test', $testProject,
+                '--configuration', 'Release',
+                '--framework', $framework,
+                '--no-build',
+                '--no-restore',
+                '--nologo',
+                '--logger', 'trx',
+                '--results-directory', $results,
+                '-p:CollectCoverage=true',
+                '-p:CoverletOutputFormat=opencover',
+                '-p:Exclude=[Packata.*.Testing]*',
+                "-p:CoverletOutput=$coverage"
+              )
+
+              if ($project -in $thresholdProjects) {
+                $arguments += '-p:Threshold=10', '-p:ThresholdType=line'
+              }
+
+              & dotnet @arguments
+              if ($LASTEXITCODE -ne 0) {
+                throw "Tests failed for $project on $framework."
+              }
+            }
+          }
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ needs.version.outputs.semver }}
+          path: .test-results
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          directory: .coverage
+          fail_ci_if_error: true
+          use_oidc: true
+
+      - name: Install schema generator
+        run: dotnet tool install --global Schemathief-cli --version 0.3.0
+
+      - name: Generate schema release asset
+        id: schema
+        shell: pwsh
+        run: |
+          ./package-delta-schemas.ps1 -Version '${{ needs.version.outputs.semver }}' -OutputDirectory './.artifacts/release'
+          $archive = Test-Path -LiteralPath './.artifacts/release/schemas-${{ needs.version.outputs.semver }}.zip' -PathType Leaf
+          "has-release-asset=$($archive.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+      - name: Pack NuGet packages
+        shell: pwsh
+        run: |
+          $projects = @(
+            'Packata.Core',
+            'Packata.DataPackage',
+            'Packata.ResourceReaders',
+            'Packata.Provisioners',
+            'Packata.Storages',
+            'Packata.OpenDataContract'
+          )
+
+          foreach ($project in $projects) {
+            dotnet pack "src/$project/$project.csproj" `
+              --configuration Release `
+              --no-build `
+              --no-restore `
+              --nologo `
+              --include-symbols `
+              --output .artifacts/nuget `
+              -p:Version='${{ needs.version.outputs.semver }}'
+
+            if ($LASTEXITCODE -ne 0) {
+              throw "Packing failed for $project."
+            }
+          }
+
+      - name: Validate release artifacts
+        shell: pwsh
+        run: >-
+          ./.github/scripts/Validate-ReleaseArtifacts.ps1
+          -Version '${{ needs.version.outputs.semver }}'
+          -NuGetDirectory './.artifacts/nuget'
+          -ReleaseDirectory './.artifacts/release'
+
+      - name: Upload NuGet packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-${{ needs.version.outputs.semver }}
+          path: .artifacts/nuget
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: Upload release assets
+        if: steps.schema.outputs.has-release-asset == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ needs.version.outputs.semver }}
+          path: .artifacts/release
+          include-hidden-files: true
+          if-no-files-found: error
+
+  publish:
+    name: Publish tested artifacts
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - version
+      - build-test-package
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.401
+
+      - name: Download NuGet packages
+        uses: actions/download-artifact@v7
+        with:
+          name: nuget-${{ needs.version.outputs.semver }}
+          path: .artifacts/nuget
+
+      - name: Download release assets
+        if: needs.build-test-package.outputs.has-release-asset == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: release-${{ needs.version.outputs.semver }}
+          path: .artifacts/release
+
+      - name: Revalidate downloaded artifacts and commit
+        shell: pwsh
+        run: |
+          $testedCommit = git rev-parse HEAD
+          if ($testedCommit -ne '${{ github.sha }}') {
+            throw "Checked-out commit '$testedCommit' does not match tested commit '${{ github.sha }}'."
+          }
+
+          ./.github/scripts/Validate-ReleaseArtifacts.ps1 `
+            -Version '${{ needs.version.outputs.semver }}' `
+            -NuGetDirectory './.artifacts/nuget' `
+            -ReleaseDirectory './.artifacts/release'
+
+      - name: Reserve release tag
+        if: needs.version.outputs.patch == '0'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v${{ needs.version.outputs.semver }}'
+          git fetch origin --force --tags
+          $remote = git ls-remote --tags origin "refs/tags/$tag"
+
+          if ($remote) {
+            $tagCommit = git rev-list -n 1 $tag
+            if ($tagCommit -ne '${{ github.sha }}') {
+              throw "Tag '$tag' already identifies '$tagCommit', not '${{ github.sha }}'."
+            }
+            Write-Host "Reusing '$tag' for the tested commit."
+          }
+          else {
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git tag --annotate $tag --message "Packata ${{ needs.version.outputs.semver }}" '${{ github.sha }}'
+            git push origin $tag
+          }
+
+      - name: Exchange GitHub identity for a NuGet API key
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: Seddryck
+
+      - name: Publish NuGet packages
+        shell: pwsh
+        run: |
+          Get-ChildItem .artifacts/nuget -Filter *.nupkg | ForEach-Object {
+            dotnet nuget push $_.FullName `
+              --api-key '${{ steps.nuget-login.outputs.NUGET_API_KEY }}' `
+              --source 'https://api.nuget.org/v3/index.json' `
+              --skip-duplicate
+
+            if ($LASTEXITCODE -ne 0) {
+              throw "Publishing '$($_.Name)' failed."
+            }
+          }
+
+      - name: Create or update GitHub release
+        if: needs.version.outputs.patch == '0'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v${{ needs.version.outputs.semver }}'
+          $assetPath = '.artifacts/release/schemas-${{ needs.version.outputs.semver }}.zip'
+
+          if (gh release view $tag 2>$null) {
+            if (Test-Path -LiteralPath $assetPath -PathType Leaf) {
+              gh release upload $tag (Resolve-Path -LiteralPath $assetPath) --clobber
+            }
+          }
+          else {
+            $arguments = @(
+              'release', 'create', $tag,
+              '--title', 'Packata ${{ needs.version.outputs.semver }}',
+              '--generate-notes',
+              '--discussion-category', 'Announcements',
+              '--verify-tag'
+            )
+            if (Test-Path -LiteralPath $assetPath -PathType Leaf) {
+              $arguments += (Resolve-Path -LiteralPath $assetPath).Path
+            }
+            gh @arguments
+          }
