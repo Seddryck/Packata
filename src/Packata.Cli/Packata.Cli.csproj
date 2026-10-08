@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks></TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers></RuntimeIdentifiers>
+    <AssemblyName>packata</AssemblyName>
+    <RootNamespace>Packata.Cli</RootNamespace>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>packata</ToolCommandName>
+    <PackageId>Packata-cli</PackageId>
+    <PackageIcon>icon/Packata-icon-128.png</PackageIcon>
+    <Description>Cross-platform command-line interface for Packata.</Description>
+    <PublishAot>false</PublishAot>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console.Cli" Version="0.57.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="../../assets/Packata-icon-128.png" PackagePath="icon/" />
+    <None Update="../../README.md" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Packata.Cli.Testing" />
+  </ItemGroup>
+
+</Project>

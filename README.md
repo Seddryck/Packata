@@ -44,8 +44,9 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.ResourceReaders` | Access to delimited, Excel, Parquet, and database resources through `IDataReader` |
 | `Packata.Storages` | Access to documents and resources on local, HTTP(S), S3, and Azure storage |
 | `Packata.Provisioners` | Provisioning of canonical data contracts to relational platforms |
+| `Packata-cli` | Cross-platform command-line interface distributed as a .NET tool and self-contained executables |
 
-Packata targets .NET 8, .NET 9, and .NET 10.
+Packata libraries target .NET 8, .NET 9, and .NET 10. The CLI targets .NET 10.
 
 ## Installing
 
@@ -60,6 +61,32 @@ dotnet add package Packata.OpenDataContract
 ```
 
 Add `Packata.ResourceReaders`, `Packata.Storages`, or `Packata.Provisioners` when your application needs those capabilities. Format packages reference `Packata.Core`, so it does not need to be installed separately.
+
+### Command-line tool
+
+Install the framework-dependent .NET 10 tool from NuGet:
+
+```console
+dotnet tool install --global Packata-cli
+packata --help
+```
+
+Update an existing installation with `dotnet tool update --global Packata-cli`.
+
+Self-contained executables that do not require an installed .NET runtime are available from the [GitHub releases](https://github.com/Seddryck/Packata/releases/latest) page. Select the archive for your platform:
+
+| Platform | Runtime archive | Executable |
+|---|---|---|
+| Windows x64 | `win-x64` | `packata.exe` |
+| Windows ARM64 | `win-arm64` | `packata.exe` |
+| Linux x64 (glibc) | `linux-x64` | `packata` |
+| Linux ARM64 (glibc) | `linux-arm64` | `packata` |
+| Alpine Linux x64 (musl) | `linux-musl-x64` | `packata` |
+| Alpine Linux ARM64 (musl) | `linux-musl-arm64` | `packata` |
+| macOS Intel | `osx-x64` | `packata` |
+| macOS Apple Silicon | `osx-arm64` | `packata` |
+
+Linux distributions using glibc must use a `linux-*` archive; Alpine and other musl-based distributions must use `linux-musl-*`. Extract the ZIP archive on Windows or the `tar.gz` archive on Linux/macOS, then invoke the executable directly. Packata does not publish a 32-bit Windows CLI.
 
 ## Quickstart
 
