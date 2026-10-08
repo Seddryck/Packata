@@ -50,6 +50,46 @@ public class CanonicalDelimitedReaderTests
     }
 
     [Test]
+    public async Task OpenAsync_uses_an_explicit_delimiter_for_an_extensionless_path()
+    {
+        var resolver = new DictionaryResolver(("data", Encoding.UTF8.GetBytes("id;name\r\n1;alpha\r\n")));
+        var endpoint = Endpoint(["data"], new DataFormat(null, Options: new Dictionary<string, object?>
+        {
+            ["delimiter"] = ';'
+        }));
+
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(endpoint);
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha"));
+    }
+
+    [TestCase("json", "data.csv")]
+    [TestCase(null, "data.unknown")]
+    [TestCase(null, "data")]
+    public void OpenAsync_rejects_unsupported_or_missing_formats(string? format, string path)
+    {
+        var resolver = new DictionaryResolver((path, Encoding.UTF8.GetBytes("id,name\r\n1,alpha\r\n")));
+        var endpoint = Endpoint([path], format is null ? null : new DataFormat(format));
+
+        Assert.That(async () => await new ResourceReaderFactory(resolver).OpenAsync(endpoint),
+            Throws.TypeOf<NotSupportedException>());
+    }
+
+    [Test]
+    public void OpenAsync_does_not_let_a_delimiter_override_an_unknown_explicit_format()
+    {
+        var resolver = new DictionaryResolver(("data", Encoding.UTF8.GetBytes("id;name\r\n1;alpha\r\n")));
+        var endpoint = Endpoint(["data"], new DataFormat("custom", Options: new Dictionary<string, object?>
+        {
+            ["delimiter"] = ';'
+        }));
+
+        Assert.That(async () => await new ResourceReaderFactory(resolver).OpenAsync(endpoint),
+            Throws.TypeOf<NotSupportedException>());
+    }
+
+    [Test]
     public async Task OpenAsync_accepts_string_delimiter_and_quote_options_from_canonical_mappers()
     {
         var resolver = new DictionaryResolver(("data.csv",
