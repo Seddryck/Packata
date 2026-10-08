@@ -4,7 +4,7 @@ using ExcelDataReader;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
 
-namespace Packata.ResourceReaders.Providers;
+namespace Packata.ResourceReaders.Excel.Providers;
 
 internal sealed class SpreadsheetReaderProvider : IDataEndpointReaderProvider
 {

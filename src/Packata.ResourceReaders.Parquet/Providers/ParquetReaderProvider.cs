@@ -2,7 +2,7 @@ using System.Data;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
 
-namespace Packata.ResourceReaders.Providers;
+namespace Packata.ResourceReaders.Parquet.Providers;
 
 internal sealed class ParquetReaderProvider : IDataEndpointReaderProvider
 {

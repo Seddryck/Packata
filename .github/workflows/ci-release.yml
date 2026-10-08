@@ -160,6 +160,12 @@ jobs:
             src/Packata.Provisioners/obj
             src/Packata.ResourceReaders/bin/Release
             src/Packata.ResourceReaders/obj
+            src/Packata.ResourceReaders.Database/bin/Release
+            src/Packata.ResourceReaders.Database/obj
+            src/Packata.ResourceReaders.Excel/bin/Release
+            src/Packata.ResourceReaders.Excel/obj
+            src/Packata.ResourceReaders.Parquet/bin/Release
+            src/Packata.ResourceReaders.Parquet/obj
             src/Packata.Storages/bin/Release
             src/Packata.Storages/obj
           if-no-files-found: error
@@ -211,6 +217,9 @@ jobs:
             'Packata.Core',
             'Packata.DataPackage',
             'Packata.ResourceReaders',
+            'Packata.ResourceReaders.Database',
+            'Packata.ResourceReaders.Excel',
+            'Packata.ResourceReaders.Parquet',
             'Packata.Provisioners',
             'Packata.Storages',
             'Packata.OpenDataContract'

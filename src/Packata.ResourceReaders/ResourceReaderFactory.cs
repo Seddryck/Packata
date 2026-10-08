@@ -16,19 +16,19 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     private readonly IEndpointStreamResolver _streams;
     private readonly IReadOnlyList<IDataEndpointReaderProvider> _providers;
 
-    public ResourceReaderFactory(IEndpointStreamResolver? streams = null, string? rootPath = null)
-        : this(streams, DefaultProviders(rootPath ?? string.Empty))
+    public ResourceReaderFactory(IEndpointStreamResolver? streams = null)
+        : this(streams, DefaultProviders())
     { }
 
     /// <summary>Creates a factory with explicitly registered providers evaluated before the built-in readers.</summary>
     public static ResourceReaderFactory Create(Action<ResourceReaderFactoryOptions> configure,
-        IEndpointStreamResolver? streams = null, string? rootPath = null)
+        IEndpointStreamResolver? streams = null)
     {
         ArgumentNullException.ThrowIfNull(configure);
         var options = new ResourceReaderFactoryOptions();
         configure(options);
         return new ResourceReaderFactory(streams,
-            options.CombineWith(DefaultProviders(rootPath ?? string.Empty)));
+            options.CombineWith(DefaultProviders()));
     }
 
     internal ResourceReaderFactory(IEndpointStreamResolver? streams,
@@ -37,17 +37,6 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         _streams = streams ?? new DefaultEndpointStreamResolver();
         _providers = providers.ToArray();
     }
-
-    internal ResourceReaderFactory(IEndpointStreamResolver? streams, IDatabaseSessionFactory databases)
-        : this(streams,
-        [
-            new DatabaseReaderProvider(databases),
-            new InlineReaderProvider(),
-            new SpreadsheetReaderProvider(),
-            new ParquetReaderProvider(),
-            new DelimitedReaderProvider()
-        ])
-    { }
 
     public async ValueTask<IDataReader> OpenAsync(DataEndpoint endpoint, DataSchema? schema = null,
         CancellationToken cancellationToken = default)
@@ -89,12 +78,9 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         }
     }
 
-    private static IDataEndpointReaderProvider[] DefaultProviders(string rootPath) =>
+    private static IDataEndpointReaderProvider[] DefaultProviders() =>
     [
-        new DatabaseReaderProvider(new DubUrlDatabaseSessionFactory(rootPath)),
         new InlineReaderProvider(),
-        new SpreadsheetReaderProvider(),
-        new ParquetReaderProvider(),
         new DelimitedReaderProvider()
     ];
 }

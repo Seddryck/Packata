@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Description>Database resource reader provider for Packata.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
+    <PackageReference Include="DubUrl" Version="0.29.34" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Packata.ResourceReaders.Testing" />
+  </ItemGroup>
+</Project>

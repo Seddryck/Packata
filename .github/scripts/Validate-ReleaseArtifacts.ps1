@@ -16,6 +16,9 @@ $packageIds = @(
     'Packata.Core',
     'Packata.DataPackage',
     'Packata.ResourceReaders',
+    'Packata.ResourceReaders.Database',
+    'Packata.ResourceReaders.Excel',
+    'Packata.ResourceReaders.Parquet',
     'Packata.Provisioners',
     'Packata.Storages',
     'Packata.OpenDataContract'
