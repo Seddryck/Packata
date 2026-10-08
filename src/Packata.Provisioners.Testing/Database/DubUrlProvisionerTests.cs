@@ -5,6 +5,7 @@ using DubUrl.Querying.Dialects;
 using DubUrl.Querying.Dialects.Functions;
 using DubUrl.Querying.TypeMapping;
 using DubUrl.Schema;
+using DubUrl.Schema.Constraints;
 using Moq;
 using NUnit.Framework;
 using Packata.Core.Contracts;
@@ -30,6 +31,28 @@ public class DubUrlProvisionerTests
         fixture.Renderer.Verify(x => x.Render(It.IsAny<Schema>()), Times.Once);
         fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object, "CREATE TABLE"), Times.Once);
         Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV003"));
+    }
+
+    [Test]
+    public void DeploySchema_generates_composite_primary_key_with_physical_names()
+    {
+        var fixture = CreateFixture();
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
+        var contract = Contract(new DataSchema(
+            [new DataField("tenant", "string", PhysicalName: "tenant_id"),
+             new DataField("order", "integer", PhysicalName: "order_id")],
+            ["tenant", "order"]));
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        var primaryKey = rendered!.Tables["Customer"].Constraints.Get<PrimaryKeyConstraint>();
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(primaryKey!.Columns.Keys, Is.EqualTo(new[] { "tenant_id", "order_id" }));
+        });
     }
 
     [Test]

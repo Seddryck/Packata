@@ -98,8 +98,6 @@ public class DubUrlProvisioner : IDataContractProvisioner
         ICollection<ProvisioningDiagnostic> diagnostics)
     {
         var schema = asset.Schema ?? throw new InvalidOperationException($"Asset '{asset.Id}' requires a schema.");
-        if (schema.PrimaryKey.Count > 1)
-            diagnostics.Add(new("PROV002", asset.Id, "Composite primary keys are not supported by this provisioner."));
         foreach (var relationship in schema.Relationships)
             diagnostics.Add(new("PROV003", asset.Id,
                 $"Relationship to '{relationship.TargetAsset}' is not supported by this provisioner."));
@@ -112,8 +110,6 @@ public class DubUrlProvisioner : IDataContractProvisioner
                 {
                     column.WithName(field.PhysicalName ?? field.Name)
                         .WithType(DbTypeMapper.Map(field.LogicalType, field.Format))
-                        .WithPrimaryKeyIf(schema.PrimaryKey.Count == 1 && schema.PrimaryKey.Contains(field.Name)
-                            && options.Constraints.HasFlag(ContractConstraintOptions.PrimaryKey))
                         .WithUniqueIf(ConstraintBoolean(field, "unique")
                             && options.Constraints.HasFlag(ContractConstraintOptions.Unique))
                         .WithNullableIf(!field.Required
@@ -133,6 +129,15 @@ public class DubUrlProvisioner : IDataContractProvisioner
                 });
             }
             return columns;
+        }).WithConstraints(constraints =>
+        {
+            if (schema.PrimaryKey.Count > 0 && options.Constraints.HasFlag(ContractConstraintOptions.PrimaryKey))
+            {
+                var names = schema.PrimaryKey.Select(name =>
+                    schema.Fields.FirstOrDefault(field => field.Name == name)?.PhysicalName ?? name).ToArray();
+                constraints.AddPrimaryKey(primaryKey => primaryKey.WithColumnNames(names));
+            }
+            return constraints;
         });
     }
 
