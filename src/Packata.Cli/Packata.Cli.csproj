@@ -21,6 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="../../assets/Packata-icon-128.png" PackagePath="icon/" />
+    <None Update="../../README.md" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Packata.Cli.Testing" />
   </ItemGroup>
 
