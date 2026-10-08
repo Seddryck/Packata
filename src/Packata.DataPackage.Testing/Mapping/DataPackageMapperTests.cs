@@ -1,5 +1,6 @@
 using Packata.DataPackage;
 using Packata.Core.Storage;
+using Packata.Core.Contracts;
 using Packata.DataPackage.Mapping;
 using NUnit.Framework;
 
@@ -73,6 +74,32 @@ public class DataPackageMapperTests
             Assert.That(result.Value.Endpoints, Is.Empty);
             Assert.That(result.Diagnostics.Select(x => x.Code),
                 Is.EquivalentTo(new[] { "DP001", "DP002", "DP003" }));
+        });
+    }
+
+    [Test]
+    public void Map_preserves_database_and_namespace_qualifiers()
+    {
+        var package = new DataPackage
+        {
+            Name = "sales", Resources =
+            [
+                new Resource
+                {
+                    Name = "orders", Connection = new LiteralConnectionUrl("mssql://server/catalog"),
+                    Dialect = new TableDatabaseDialect { Namespace = "sales", Table = "orders" },
+                    Schema = new Schema { Fields = [new IntegerField { Name = "id", Type = "integer" }] }
+                }
+            ]
+        };
+
+        var location = (ConnectionLocation)new DataPackageMapper().Map(package).RequireValue()
+            .Endpoints.Single().Location;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(location.Database, Is.EqualTo("catalog"));
+            Assert.That(location.Namespace, Is.EqualTo("sales"));
         });
     }
 

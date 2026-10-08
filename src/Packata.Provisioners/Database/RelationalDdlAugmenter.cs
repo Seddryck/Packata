@@ -9,13 +9,18 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
 
     public string Render(DataContract contract, ContractProvisioningOptions options,
         ICollection<ProvisioningDiagnostic> diagnostics)
-        => string.Join(Environment.NewLine, new[]
+    {
+        _nameResolver = new(connectionUrl, contract);
+        return string.Join(Environment.NewLine, new[]
         {
             RenderForeignKeys(contract, options, diagnostics),
             RenderPatternChecks(contract, options, diagnostics),
             RenderMembershipChecks(contract, options, diagnostics),
             RenderComments(contract, options, diagnostics)
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private RelationalObjectNameResolver? _nameResolver;
 
     public string RenderForeignKeys(DataContract contract, ContractProvisioningOptions options,
         ICollection<ProvisioningDiagnostic> diagnostics)
@@ -42,8 +47,8 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
                 }
 
                 var name = relationship.Name ?? $"FK_{asset.Id}_{target.Id}_{index + 1}";
-                statements.Add($"ALTER TABLE {Quote(asset.PhysicalName ?? asset.Name)} ADD CONSTRAINT {Quote(name)} " +
-                    $"FOREIGN KEY ({Join(sourceColumns)}) REFERENCES {Quote(target.PhysicalName ?? target.Name)} ({Join(targetColumns)});");
+                statements.Add($"ALTER TABLE {ObjectName(asset)} ADD CONSTRAINT {Quote(name)} " +
+                    $"FOREIGN KEY ({Join(sourceColumns)}) REFERENCES {ObjectName(target)} ({Join(targetColumns)});");
             }
         }
         return string.Join(Environment.NewLine, statements);
@@ -71,7 +76,7 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
                     $"Constraint 'pattern' on field '{field.Name}' is not supported by target '{_scheme}'."));
                 continue;
             }
-            var table = Quote(asset.PhysicalName ?? asset.Name);
+            var table = ObjectName(asset);
             var column = Quote(field.PhysicalName ?? field.Name);
             var name = Quote($"CK_{asset.Id}_{field.Name}_pattern");
             statements.Add($"ALTER TABLE {table} ADD CONSTRAINT {name} CHECK ({column} {op} {Literal(pattern)});" );
@@ -105,7 +110,7 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
                     $"Constraint 'enum' on field '{field.Name}' has no non-null values."));
                 continue;
             }
-            var table = Quote(asset.PhysicalName ?? asset.Name);
+            var table = ObjectName(asset);
             var column = Quote(field.PhysicalName ?? field.Name);
             var name = Quote($"CK_{asset.Id}_{field.Name}_enum");
             statements.Add($"ALTER TABLE {table} ADD CONSTRAINT {name} CHECK ({column} IN ({string.Join(", ", literals)}));");
@@ -141,7 +146,7 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
         var statements = new List<string>();
         foreach (var asset in contract.Assets)
         {
-            var table = Quote(asset.PhysicalName ?? asset.Name);
+            var table = ObjectName(asset);
             if (!string.IsNullOrWhiteSpace(asset.Description))
                 statements.Add($"COMMENT ON TABLE {table} IS {Literal(asset.Description)};");
             if (asset.Schema is null) continue;
@@ -159,6 +164,10 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
     }
 
     private string Join(IEnumerable<string> values) => string.Join(", ", values.Select(Quote));
+
+    private string ObjectName(DataAsset asset)
+        => string.Join(".", (_nameResolver?.Resolve(asset) ?? asset.PhysicalName ?? asset.Name)
+            .Split('.').Select(Quote));
 
     internal string Quote(string identifier)
     {
