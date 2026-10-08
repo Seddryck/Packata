@@ -690,7 +690,6 @@ jobs:
       - package-libraries
       - validate-release-artifacts
       - verify-release-identity
-      - publish-nuget
     runs-on: ubuntu-latest
     environment: release
     permissions:
