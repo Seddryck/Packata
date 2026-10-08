@@ -18,19 +18,24 @@ namespace Packata.Provisioners.Testing.Database;
 public class DubUrlProvisionerTests
 {
     [Test]
-    public void DeploySchema_maps_canonical_assets_and_reports_unsupported_relationships()
+    public void DeploySchema_maps_canonical_assets_and_generates_foreign_keys()
     {
         var fixture = CreateFixture();
-        var contract = Contract(new DataSchema(
-            [new DataField("CustomerId", "integer", Required: true), new DataField("Name", "string")],
-            ["CustomerId"],
-            [new DataRelationship(["CustomerId"], "Other", ["Id"])]));
+        var customers = new DataAsset("customers", "Customer", "Customer", null, AssetKind.Table,
+            new DataSchema(
+                [new DataField("CustomerId", "integer", Required: true), new DataField("Name", "string")],
+                ["CustomerId"], [new DataRelationship(["CustomerId"], "Other", ["Id"])]));
+        var other = new DataAsset("Other", "Other", "Other", null, AssetKind.Table,
+            new DataSchema([new DataField("Id", "integer")], ["Id"]));
+        var contract = new DataContract(new("contract"), new(), [customers, other], [], new());
 
         var diagnostics = fixture.Provisioner.DeploySchema(contract);
 
         fixture.Renderer.Verify(x => x.Render(It.IsAny<Schema>()), Times.Once);
-        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object, "CREATE TABLE"), Times.Once);
-        Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV003"));
+        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object,
+            It.Is<string>(script => script.Contains("FOREIGN KEY ([CustomerId])")
+                && script.Contains("REFERENCES [Other] ([Id])"))), Times.Once);
+        Assert.That(diagnostics, Is.Empty);
     }
 
     [Test]

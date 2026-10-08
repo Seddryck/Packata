@@ -56,7 +56,10 @@ public class DubUrlProvisioner : IDataContractProvisioner
             foreach (var asset in contract.Assets) tables.Add(Map(asset, options, diagnostics));
             return tables;
         }).Build();
-        ScriptDeployer.DeploySchema(ConnectionUrl, ScriptRenderer.Render(schema));
+        var script = ScriptRenderer.Render(schema);
+        var additions = new RelationalDdlAugmenter(ConnectionUrl.Url).RenderForeignKeys(contract, options, diagnostics);
+        if (!string.IsNullOrWhiteSpace(additions)) script = $"{script}{Environment.NewLine}{additions}";
+        ScriptDeployer.DeploySchema(ConnectionUrl, script);
         return diagnostics;
     }
 
@@ -98,10 +101,6 @@ public class DubUrlProvisioner : IDataContractProvisioner
         ICollection<ProvisioningDiagnostic> diagnostics)
     {
         var schema = asset.Schema ?? throw new InvalidOperationException($"Asset '{asset.Id}' requires a schema.");
-        foreach (var relationship in schema.Relationships)
-            diagnostics.Add(new("PROV003", asset.Id,
-                $"Relationship to '{relationship.TargetAsset}' is not supported by this provisioner."));
-
         return new TableBuilder().WithName(asset.PhysicalName ?? asset.Name).WithColumns(columns =>
         {
             foreach (var field in schema.Fields)
