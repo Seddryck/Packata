@@ -13,7 +13,8 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
         {
             RenderForeignKeys(contract, options, diagnostics),
             RenderPatternChecks(contract, options, diagnostics),
-            RenderMembershipChecks(contract, options, diagnostics)
+            RenderMembershipChecks(contract, options, diagnostics),
+            RenderComments(contract, options, diagnostics)
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     public string RenderForeignKeys(DataContract contract, ContractProvisioningOptions options,
@@ -122,6 +123,33 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
         TimeOnly time => Literal(time.ToString("O", System.Globalization.CultureInfo.InvariantCulture)),
         _ => Literal(value.ToString() ?? string.Empty)
     };
+
+    private string RenderComments(DataContract contract, ContractProvisioningOptions options,
+        ICollection<ProvisioningDiagnostic> diagnostics)
+    {
+        if (!options.Descriptions) return string.Empty;
+        var supportsComments = _scheme is "postgres" or "postgresql" or "pg" or "pgsql"
+            or "duck" or "duckdb" or "oracle" or "ora";
+        if (!supportsComments)
+        {
+            if (contract.Assets.Any(asset => !string.IsNullOrWhiteSpace(asset.Description)
+                || asset.Schema?.Fields.Any(field => !string.IsNullOrWhiteSpace(field.Description)) == true))
+                diagnostics.Add(new("PROV006", "*", $"Database comments are not supported by target '{_scheme}'."));
+            return string.Empty;
+        }
+
+        var statements = new List<string>();
+        foreach (var asset in contract.Assets)
+        {
+            var table = Quote(asset.PhysicalName ?? asset.Name);
+            if (!string.IsNullOrWhiteSpace(asset.Description))
+                statements.Add($"COMMENT ON TABLE {table} IS {Literal(asset.Description)};");
+            if (asset.Schema is null) continue;
+            foreach (var field in asset.Schema.Fields.Where(value => !string.IsNullOrWhiteSpace(value.Description)))
+                statements.Add($"COMMENT ON COLUMN {table}.{Quote(field.PhysicalName ?? field.Name)} IS {Literal(field.Description!)};");
+        }
+        return string.Join(Environment.NewLine, statements);
+    }
 
     private static bool TryColumns(DataSchema schema, IReadOnlyList<string> names, out string[] columns)
     {

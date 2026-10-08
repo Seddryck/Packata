@@ -111,6 +111,22 @@ public class DubUrlProvisionerTests
     }
 
     [Test]
+    public void DeploySchema_generates_table_and_column_comments()
+    {
+        var fixture = CreateFixture("postgres://localhost/mydb");
+        var asset = new DataAsset("customers", "Customers", "customers", "Customer master data",
+            AssetKind.Table, new DataSchema([new DataField("name", "string", Description: "Display name")]));
+        var contract = new DataContract(new("contract"), new(), [asset], [], new());
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object,
+            It.Is<string>(script => script.Contains("COMMENT ON TABLE \"customers\" IS 'Customer master data';")
+                && script.Contains("COMMENT ON COLUMN \"customers\".\"name\" IS 'Display name';"))), Times.Once);
+        Assert.That(diagnostics, Is.Empty);
+    }
+
+    [Test]
     public async Task LoadDataAsync_resolves_binding_through_canonical_reader_contract()
     {
         var fixture = CreateFixture();

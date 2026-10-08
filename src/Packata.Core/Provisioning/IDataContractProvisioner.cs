@@ -15,7 +15,8 @@ public enum ContractConstraintOptions
 }
 
 public sealed record ContractProvisioningOptions(
-    ContractConstraintOptions Constraints = ContractConstraintOptions.All);
+    ContractConstraintOptions Constraints = ContractConstraintOptions.All,
+    bool Descriptions = true);
 
 public sealed record ProvisioningDiagnostic(
     string Code,

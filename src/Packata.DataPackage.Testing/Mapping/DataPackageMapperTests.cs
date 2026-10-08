@@ -96,7 +96,7 @@ public class DataPackageMapperTests
                         [
                             new BooleanField
                             {
-                                Name = "flag", Type = "boolean", Example = "yes",
+                                Name = "flag", Type = "boolean", Example = "yes", Description = "A yes/no flag",
                                 TrueValues = ["yes"], FalseValues = ["no"],
                                 Categories = [new CategoryLabel("yes"), new CategoryLabel("no")]
                             }
@@ -118,6 +118,7 @@ public class DataPackageMapperTests
                 Does.Contain("https://example.com/data"));
             Assert.That(fieldExtensions["example"], Is.EqualTo("yes"));
             Assert.That(fieldExtensions["trueValues"], Is.EqualTo(new[] { "yes" }));
+            Assert.That(contract.Assets.Single().Schema!.Fields.Single().Description, Is.EqualTo("A yes/no flag"));
             Assert.That(contract.Assets.Single().Schema!.Fields.Single().Constraints.Single().Kind,
                 Is.EqualTo("enum"));
             Assert.That(resourceExtensions["licenses"], Is.EqualTo(package.Resources[0].Licenses));
