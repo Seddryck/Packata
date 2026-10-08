@@ -48,6 +48,7 @@ internal static class DataFormatResolver
         "text/csv" => "csv",
         "text/tsv" or "text/tab-separated-values" => "tsv",
         "text/psv" => "psv",
+        "application/x-ndjson" or "application/ndjson" => "ndjson",
         "application/vnd.ms-excel" => "xls",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
         "application/vnd.apache.parquet" => "parquet",

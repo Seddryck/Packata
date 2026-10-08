@@ -12,7 +12,9 @@ internal static class KnownFormatRegistry
         new("parquet", ["parquet", "pqt"], ["application/vnd.apache.parquet"],
             "Packata.ResourceReaders.Parquet", "AddParquet()"),
         new("database", ["database", "db"], [],
-            "Packata.ResourceReaders.Database", "AddDatabase()")
+            "Packata.ResourceReaders.Database", "AddDatabase()"),
+        new("ndjson", ["ndjson", "jsonl"], ["application/x-ndjson", "application/ndjson"],
+            "Packata.ResourceReaders.Ndjson", "AddNdjson()")
     ];
 
     public static KnownFormat? Find(DataEndpoint endpoint, ResolvedDataFormat resolved)

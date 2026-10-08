@@ -43,6 +43,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.OpenDataContract` | ODCS models, YAML serialization, validation, and canonical mapping |
 | `Packata.ResourceReaders` | Core reader factory and access to delimited resources through `IDataReader` |
 | `Packata.ResourceReaders.Excel` | Optional Excel reader provider |
+| `Packata.ResourceReaders.Ndjson` | Optional NDJSON and JSON Lines reader provider |
 | `Packata.ResourceReaders.Parquet` | Optional Parquet reader provider |
 | `Packata.ResourceReaders.Database` | Optional database reader provider |
 | `Packata.Storages` | Access to documents and resources on local, HTTP(S), S3, and Azure storage |
@@ -70,12 +71,17 @@ Install only the resource-reader providers your application uses, then register 
 ```csharp
 var readers = ResourceReaderFactory.Create(options => options
     .AddExcel()
+    .AddNdjson()
     .AddParquet()
     .AddDatabase());
 ```
 
 The default reader recognizes CSV, TSV, and PSV by format name, media type, or file extension. An explicit
 `delimiter` option also identifies extensionless data as delimited; it does not override an unknown explicit format.
+
+The NDJSON provider recognizes `ndjson`, `jsonl`, `application/x-ndjson`, and `application/ndjson`. With a
+canonical schema, its field order follows that schema, additional properties are ignored, and missing or JSON
+`null` properties return `DBNull.Value`. Without a schema, each record exposes its properties in source order.
 
 ### Command-line tool
 
