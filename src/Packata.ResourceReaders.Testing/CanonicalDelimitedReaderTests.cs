@@ -3,6 +3,8 @@ using System.Text;
 using NUnit.Framework;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
+using Packata.Core.Storage;
+using Packata.DataPackage.Mapping;
 
 namespace Packata.ResourceReaders.Testing;
 
@@ -45,6 +47,64 @@ public class CanonicalDelimitedReaderTests
 
         Assert.That(reader.Read(), Is.True);
         Assert.That(reader["name"], Is.EqualTo("alpha"));
+    }
+
+    [Test]
+    public async Task OpenAsync_accepts_string_delimiter_and_quote_options_from_canonical_mappers()
+    {
+        var resolver = new DictionaryResolver(("data.csv",
+            Encoding.UTF8.GetBytes("id;name\r\n1;'alpha;beta'\r\n")));
+        var endpoint = Endpoint(["data.csv"], new DataFormat("csv", Options: new Dictionary<string, object?>
+        {
+            ["delimiter"] = ";", ["quoteChar"] = "'"
+        }));
+
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(endpoint);
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha;beta"));
+    }
+
+    [Test]
+    public async Task OpenAsync_reads_dialect_options_from_a_mapped_data_package()
+    {
+        var package = new Packata.DataPackage.DataPackage
+        {
+            Name = "sample",
+            Resources =
+            [
+                new Packata.DataPackage.Resource
+                {
+                    Name = "data", Format = "csv", Paths = [new StubPath("data.csv")],
+                    Dialect = new Packata.DataPackage.TableDelimitedDialect
+                    {
+                        Delimiter = ";", QuoteChar = "'"
+                    }
+                }
+            ]
+        };
+        var endpoint = package.ToCanonicalContract().RequireValue().Endpoints.Single();
+        var resolver = new DictionaryResolver(("data.csv",
+            Encoding.UTF8.GetBytes("id;name\r\n1;'alpha;beta'\r\n")));
+
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(endpoint);
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha;beta"));
+    }
+
+    [TestCase("")]
+    [TestCase("||")]
+    public void OpenAsync_rejects_delimiters_that_are_not_single_characters(string delimiter)
+    {
+        var resolver = new DictionaryResolver(("data.csv", Encoding.UTF8.GetBytes("id,name\r\n1,alpha\r\n")));
+        var endpoint = Endpoint(["data.csv"], new DataFormat("csv", Options: new Dictionary<string, object?>
+        {
+            ["delimiter"] = delimiter
+        }));
+
+        Assert.That(async () => await new ResourceReaderFactory(resolver).OpenAsync(endpoint),
+            Throws.TypeOf<ArgumentException>());
     }
 
     [Test]
@@ -161,5 +221,13 @@ public class CanonicalDelimitedReaderTests
     {
         public bool Disposed { get; private set; }
         protected override void Dispose(bool disposing) { Disposed = true; base.Dispose(disposing); }
+    }
+
+    private sealed class StubPath(string value) : IPath
+    {
+        public string Value { get; } = value;
+        public bool IsFullyQualified => false;
+        public Task<Stream> OpenAsync() => throw new NotSupportedException();
+        public Task<bool> ExistsAsync() => Task.FromResult(true);
     }
 }

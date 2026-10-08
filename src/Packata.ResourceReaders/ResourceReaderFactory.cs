@@ -101,11 +101,34 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     {
         var dialect = new DialectDescriptorBuilder();
         dialect.WithDelimiter(defaultDelimiter);
-        if (TryOption(format, "delimiter", out char delimiter)) dialect.WithDelimiter(delimiter);
+        if (TryCharacterOption(format, "delimiter", out var delimiter)) dialect.WithDelimiter(delimiter);
         if (TryOption(format, "lineTerminator", out string? terminator) && terminator is not null) dialect.WithLineTerminator(terminator);
         if (TryOption(format, "header", out bool header)) dialect.WithHeader(header);
-        if (TryOption(format, "quoteChar", out char quote)) dialect.WithQuoteChar(quote);
+        if (TryCharacterOption(format, "quoteChar", out var quote)) dialect.WithQuoteChar(quote);
         return dialect;
+    }
+
+    private static bool TryCharacterOption(DataFormat? format, string name, out char value)
+    {
+        if (format?.Options.TryGetValue(name, out var raw) != true || raw is null)
+        {
+            value = default;
+            return false;
+        }
+
+        if (raw is char character)
+        {
+            value = character;
+            return true;
+        }
+
+        if (raw is string { Length: 1 } text)
+        {
+            value = text[0];
+            return true;
+        }
+
+        throw new ArgumentException($"Format option '{name}' must contain exactly one character.", nameof(format));
     }
 
     private static ISchemaDescriptorBuilder? CreateSchema(DataSchema? schema)
