@@ -10,11 +10,13 @@ public enum ContractConstraintOptions
     Required = 2,
     Unique = 4,
     Checks = 8,
-    All = PrimaryKey | Required | Unique | Checks
+    ForeignKeys = 16,
+    All = PrimaryKey | Required | Unique | Checks | ForeignKeys
 }
 
 public sealed record ContractProvisioningOptions(
-    ContractConstraintOptions Constraints = ContractConstraintOptions.All);
+    ContractConstraintOptions Constraints = ContractConstraintOptions.All,
+    bool Descriptions = true);
 
 public sealed record ProvisioningDiagnostic(
     string Code,

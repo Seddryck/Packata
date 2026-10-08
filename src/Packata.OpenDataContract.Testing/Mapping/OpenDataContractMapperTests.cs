@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Reflection;
 using Packata.Core.Contracts;
 using Packata.OpenDataContract.Mapping;
 using Packata.OpenDataContract.ServerTypes;
@@ -39,7 +40,9 @@ public class OpenDataContractMapperTests
                         new SchemaProperty
                         {
                             Name = "id",
+                            PhysicalName = "order_id",
                             PhysicalType = "bigint",
+                            Description = "Order identifier",
                             PrimaryKey = true,
                             Required = true
                         }
@@ -66,6 +69,8 @@ public class OpenDataContractMapperTests
             Assert.That(result.Value!.Assets, Has.Count.EqualTo(1));
             Assert.That(result.Value.Assets[0].Kind, Is.EqualTo(AssetKind.Table));
             Assert.That(result.Value.Assets[0].Schema!.PrimaryKey, Is.EqualTo(new[] { "id" }));
+            Assert.That(result.Value.Assets[0].Schema!.Fields[0].PhysicalName, Is.EqualTo("order_id"));
+            Assert.That(result.Value.Assets[0].Schema!.Fields[0].Description, Is.EqualTo("Order identifier"));
             Assert.That(result.Value.Assets[0].EndpointBindings[0].EndpointId, Is.EqualTo("production"));
             Assert.That(
                 ((PathLocation)result.Value.Endpoints[0].Location).Paths,
@@ -97,5 +102,98 @@ public class OpenDataContractMapperTests
             Assert.That(result.Value!.Assets[0].EndpointBindings, Is.Empty);
             Assert.That(result.Diagnostics, Has.One.Property("Code").EqualTo("ODCS001"));
         });
+    }
+
+    [Test]
+    public void Map_preserves_custom_server_catalog_database_and_schema()
+    {
+        var document = new DataContract
+        {
+            Id = "orders", Schema = [new SchemaObject { Name = "orders" }],
+            Servers = [new CustomServer { Server = "warehouse", Type = "mssql", Host = "server",
+                Catalog = "catalog", Database = "database", Schema = "sales" }]
+        };
+
+        var location = (ConnectionLocation)new OpenDataContractMapper().Map(document).RequireValue()
+            .Endpoints.Single().Location;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(location.Catalog, Is.EqualTo("catalog"));
+            Assert.That(location.Database, Is.EqualTo("database"));
+            Assert.That(location.Namespace, Is.EqualTo("sales"));
+        });
+    }
+
+    [Test]
+    public void Map_preserves_property_foreign_key_relationships()
+    {
+        var document = new DataContract
+        {
+            Id = "orders", Schema =
+            [
+                new SchemaObject
+                {
+                    Name = "orders", Properties =
+                    [
+                        new SchemaProperty
+                        {
+                            Name = "customer_id", Relationships =
+                            [new Relationship { Id = "customer", To = "schema/customers/properties/id" }]
+                        }
+                    ]
+                },
+                new SchemaObject { Name = "customers", Properties = [new SchemaProperty { Name = "id" }] }
+            ]
+        };
+
+        var relationship = new OpenDataContractMapper().Map(document).RequireValue()
+            .Assets[0].Schema!.Relationships.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(relationship.Fields, Is.EqualTo(new[] { "customer_id" }));
+            Assert.That(relationship.TargetAsset, Is.EqualTo("customers"));
+            Assert.That(relationship.TargetFields, Is.EqualTo(new[] { "id" }));
+            Assert.That(relationship.Name, Is.EqualTo("customer"));
+        });
+    }
+
+    [Test]
+    public void Map_preserves_logical_type_range_and_length_constraints()
+    {
+        var amount = LogicalProperty("amount", "number", new()
+        {
+            ["minimum"] = "0.1", ["maximum"] = "100", ["exclusiveMaximum"] = "true"
+        });
+        var code = LogicalProperty("code", "string", new()
+        {
+            ["minLength"] = "2", ["maxLength"] = "8", ["pattern"] = "^[A-Z]+$"
+        });
+        code.Enum = [new EnumerationValue { Value = "AA" }, new EnumerationValue { Value = "BB" }];
+        var document = new DataContract
+        {
+            Id = "orders", Schema = [new SchemaObject { Name = "orders", Properties = [amount, code] }]
+        };
+
+        var fields = new OpenDataContractMapper().Map(document).RequireValue().Assets[0].Schema!.Fields;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fields[0].Constraints.Select(value => value.Kind),
+                Is.EqualTo(new[] { "minimum", "exclusiveMaximum" }));
+            Assert.That(fields[1].Constraints.Select(value => value.Kind),
+                Is.EqualTo(new[] { "minLength", "maxLength", "pattern", "enum" }));
+        });
+    }
+
+    private static SchemaProperty LogicalProperty(string name, string type, Dictionary<string, object> options)
+    {
+        var property = new SchemaProperty { Name = name };
+        typeof(SchemaBaseProperty).GetProperty("LogicalTypeDiscriminator",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(property, type);
+        typeof(SchemaBaseProperty).GetProperty("LogicalTypeOptions",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(property, options);
+        return property;
     }
 }

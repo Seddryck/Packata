@@ -24,7 +24,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         }
 
         var assets = document.Schema
-            .Select(schema => MapAsset(schema, canBindEndpoints ? endpoints : []))
+            .Select(schema => MapAsset(schema, canBindEndpoints ? endpoints : [], diagnostics))
             .ToArray();
 
         var extensions = MapCustomProperties(document.Description?.CustomProperties);
@@ -50,7 +50,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         return new MappingResult<CoreContract>(contract, diagnostics);
     }
 
-    private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints)
+    private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints,
+        ICollection<MappingDiagnostic> diagnostics)
     {
         var fields = schema.Properties.Select(MapField).ToArray();
         var primaryKey = schema.Properties
@@ -59,14 +60,62 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             .Select(x => x.Name)
             .ToArray();
 
+        var relationships = schema.Relationships
+            .Select(value => MapRelationship(value, schema.Name, null, diagnostics))
+            .Concat(schema.Properties.SelectMany(property => property.Relationships
+                .Select(value => MapRelationship(value, schema.Name, property.Name, diagnostics))))
+            .Where(value => value is not null).Cast<DataRelationship>().ToArray();
+
         return new DataAsset(
             schema.Name,
             schema.Name,
             schema.PhysicalName,
             schema.Description,
             MapAssetKind(schema.PhysicalType),
-            new DataSchema(fields, primaryKey),
+            new DataSchema(fields, primaryKey, relationships),
             endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray());
+    }
+
+    private static DataRelationship? MapRelationship(Relationship relationship, string sourceAsset,
+        string? sourceField, ICollection<MappingDiagnostic> diagnostics)
+    {
+        if (!relationship.Type.Equals("foreignKey", StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(new("ODCS002", MappingSeverity.Warning, $"schema/{sourceAsset}/relationships",
+                $"Relationship type '{relationship.Type}' is retained only as source metadata."));
+            return null;
+        }
+
+        var from = ParseReference(relationship.From?.ToString(), sourceAsset, sourceField);
+        var to = ParseReference(relationship.To.ToString(), null, null);
+        if (from is null || to is null || string.IsNullOrWhiteSpace(from.Value.Field)
+            || string.IsNullOrWhiteSpace(to.Value.Asset) || string.IsNullOrWhiteSpace(to.Value.Field))
+        {
+            diagnostics.Add(new("ODCS003", MappingSeverity.Warning, $"schema/{sourceAsset}/relationships",
+                $"Relationship '{relationship.Id ?? "<unnamed>"}' has an unsupported reference path."));
+            return null;
+        }
+
+        return new([from.Value.Field!], to.Value.Asset!, [to.Value.Field!], relationship.Id,
+            relationship.Type, MapCustomProperties(relationship.CustomProperties));
+    }
+
+    private static (string? Asset, string? Field)? ParseReference(string? value,
+        string? defaultAsset, string? defaultField)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return defaultAsset is null ? null : (defaultAsset, defaultField);
+        var parts = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 4 && parts[0].Equals("schema", StringComparison.OrdinalIgnoreCase)
+            && parts[2].Equals("properties", StringComparison.OrdinalIgnoreCase))
+            return (parts[1], parts[3]);
+        parts = value.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            >= 2 => (parts[^2], parts[^1]),
+            1 when defaultAsset is not null => (defaultAsset, parts[0]),
+            _ => null
+        };
     }
 
     private static DataField MapField(SchemaProperty property)
@@ -76,6 +125,9 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             constraints.Add(new DataConstraint("primaryKey", true));
         if (property.Unique == true)
             constraints.Add(new DataConstraint("unique", true));
+        AddRangeAndLengthConstraints(property.LogicalType, constraints);
+        if (property.Enum is { Count: > 0 })
+            constraints.Add(new("enum", property.Enum.Select(value => value.Value).ToArray()));
 
         var extensions = new Dictionary<string, object?>();
         if (property.Classification is not null)
@@ -94,7 +146,34 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             constraints,
             Extensions: extensions.Count == 0
                 ? ExtensionMetadata.Empty
-                : ExtensionMetadata.For("odcs", extensions));
+                : ExtensionMetadata.For("odcs", extensions),
+            PhysicalName: property.PhysicalName,
+            Description: property.Description);
+    }
+
+    private static void AddRangeAndLengthConstraints(ILogicalType? logicalType,
+        ICollection<DataConstraint> constraints)
+    {
+        if (logicalType is StringLogicalType text)
+        {
+            if (text.MinLength is not null) constraints.Add(new("minLength", text.MinLength));
+            if (text.MaxLength is not null) constraints.Add(new("maxLength", text.MaxLength));
+            if (!string.IsNullOrWhiteSpace(text.Pattern)) constraints.Add(new("pattern", text.Pattern));
+        }
+        else if (logicalType is NumberLogicalType number)
+        {
+            if (number.Minimum is not null)
+                constraints.Add(new(number.ExclusiveMinimum ? "exclusiveMinimum" : "minimum", number.Minimum));
+            if (number.Maximum is not null)
+                constraints.Add(new(number.ExclusiveMaximum ? "exclusiveMaximum" : "maximum", number.Maximum));
+        }
+        else if (logicalType is IntegerLogicalType integer)
+        {
+            if (integer.Minimum is not null)
+                constraints.Add(new(integer.ExclusiveMinimum ? "exclusiveMinimum" : "minimum", integer.Minimum));
+            if (integer.Maximum is not null)
+                constraints.Add(new(integer.ExclusiveMaximum ? "exclusiveMaximum" : "maximum", integer.Maximum));
+        }
     }
 
     private static DataEndpoint MapEndpoint(BaseServer server)
@@ -102,17 +181,23 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         DataLocation location = server switch
         {
             LocalFilesServer local => new PathLocation([local.Path]),
+            CustomServer custom when custom.Host is not null || custom.Database is not null
+                || custom.Schema is not null || custom.Catalog is not null => new ConnectionLocation(
+                    server.Type, custom.Host, ConvertPort(custom.Port), custom.Database, custom.Schema,
+                    custom.EndpointUrl, custom.Catalog),
             ILocationAware located => new PathLocation([located.Location]),
             IHostAware hosted => new ConnectionLocation(
                 server.Type,
                 hosted.Host,
                 ConvertPort(hosted.Port),
                 (server as IDatabaseAware)?.Database,
-                (server as ISchemaAware)?.Schema),
+                (server as ISchemaAware)?.Schema,
+                Catalog: (server as ICatalogAware)?.Catalog),
             IDatabaseAware database => new ConnectionLocation(
                 server.Type,
                 Database: database.Database,
-                Namespace: (server as ISchemaAware)?.Schema),
+                Namespace: (server as ISchemaAware)?.Schema,
+                Catalog: (server as ICatalogAware)?.Catalog),
             _ => new ConnectionLocation(server.Type)
         };
 

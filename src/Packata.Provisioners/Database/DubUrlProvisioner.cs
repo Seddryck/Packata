@@ -53,10 +53,15 @@ public class DubUrlProvisioner : IDataContractProvisioner
         var diagnostics = new List<ProvisioningDiagnostic>();
         var schema = new SchemaBuilder().WithTables(tables =>
         {
-            foreach (var asset in contract.Assets) tables.Add(Map(asset, options, diagnostics));
+            var resolver = new RelationalObjectNameResolver(ConnectionUrl.Url, contract);
+            foreach (var asset in contract.Assets)
+                tables.Add(Map(asset, resolver.Resolve(asset), options, diagnostics));
             return tables;
         }).Build();
-        ScriptDeployer.DeploySchema(ConnectionUrl, ScriptRenderer.Render(schema));
+        var script = ScriptRenderer.Render(schema);
+        var additions = new RelationalDdlAugmenter(ConnectionUrl.Url).Render(contract, options, diagnostics);
+        if (!string.IsNullOrWhiteSpace(additions)) script = $"{script}{Environment.NewLine}{additions}";
+        ScriptDeployer.DeploySchema(ConnectionUrl, script);
         return diagnostics;
     }
 
@@ -81,7 +86,7 @@ public class DubUrlProvisioner : IDataContractProvisioner
             }
             var request = new DataEndpointReadRequest(endpoint, asset.Schema, binding!.AssetPath);
             using var reader = await readerFactory.OpenAsync(request, cancellationToken).ConfigureAwait(false);
-            bulkCopy.Write(asset.PhysicalName ?? asset.Name, reader);
+            bulkCopy.Write(new RelationalObjectNameResolver(ConnectionUrl.Url, contract).Resolve(asset), reader);
         }
         return diagnostics;
     }
@@ -94,26 +99,29 @@ public class DubUrlProvisioner : IDataContractProvisioner
         return diagnostics;
     }
 
-    protected internal ITableBuilder Map(DataAsset asset, ContractProvisioningOptions options,
+    protected internal ITableBuilder Map(DataAsset asset, string tableName, ContractProvisioningOptions options,
         ICollection<ProvisioningDiagnostic> diagnostics)
     {
         var schema = asset.Schema ?? throw new InvalidOperationException($"Asset '{asset.Id}' requires a schema.");
-        if (schema.PrimaryKey.Count > 1)
-            diagnostics.Add(new("PROV002", asset.Id, "Composite primary keys are not supported by this provisioner."));
-        foreach (var relationship in schema.Relationships)
-            diagnostics.Add(new("PROV003", asset.Id,
-                $"Relationship to '{relationship.TargetAsset}' is not supported by this provisioner."));
-
-        return new TableBuilder().WithName(asset.PhysicalName ?? asset.Name).WithColumns(columns =>
+        return new TableBuilder().WithName(tableName).WithColumns(columns =>
         {
             foreach (var field in schema.Fields)
             {
                 columns.Add(column =>
                 {
-                    column.WithName(field.Name)
-                        .WithType(DbTypeMapper.Map(field.LogicalType, field.Format))
-                        .WithPrimaryKeyIf(schema.PrimaryKey.Count == 1 && schema.PrimaryKey.Contains(field.Name)
-                            && options.Constraints.HasFlag(ContractConstraintOptions.PrimaryKey))
+                    var physicalType = PhysicalTypeDefinition.TryParse(field.PhysicalType);
+                    if (field.PhysicalType is not null && physicalType is null)
+                        diagnostics.Add(new("PROV005", asset.Id,
+                            $"Physical type '{field.PhysicalType}' on field '{field.Name}' is unsupported; logical type mapping was used."));
+                    var type = physicalType?.DbType ?? DbTypeMapper.Map(field.LogicalType, field.Format);
+                    var typeBuilder = column.WithName(field.PhysicalName ?? field.Name);
+                    IColumnConstraintBuilder constraintsBuilder = physicalType switch
+                    {
+                        { Length: int length } => typeBuilder.WithLength(length),
+                        { Precision: int precision, Scale: int scale } => typeBuilder.WithPrecision(precision).WithScale(scale),
+                        _ => typeBuilder.WithType(type)
+                    };
+                    constraintsBuilder
                         .WithUniqueIf(ConstraintBoolean(field, "unique")
                             && options.Constraints.HasFlag(ContractConstraintOptions.Unique))
                         .WithNullableIf(!field.Required
@@ -122,6 +130,8 @@ public class DubUrlProvisioner : IDataContractProvisioner
                     {
                         foreach (var constraint in field.Constraints.Where(x => x.Kind != "unique"))
                         {
+                            if (constraint.Kind.Equals("pattern", StringComparison.OrdinalIgnoreCase)
+                                || constraint.Kind.Equals("enum", StringComparison.OrdinalIgnoreCase)) continue;
                             var check = MapCheck(column, constraint);
                             if (check is null)
                                 diagnostics.Add(new("PROV004", asset.Id,
@@ -133,6 +143,15 @@ public class DubUrlProvisioner : IDataContractProvisioner
                 });
             }
             return columns;
+        }).WithConstraints(constraints =>
+        {
+            if (schema.PrimaryKey.Count > 0 && options.Constraints.HasFlag(ContractConstraintOptions.PrimaryKey))
+            {
+                var names = schema.PrimaryKey.Select(name =>
+                    schema.Fields.FirstOrDefault(field => field.Name == name)?.PhysicalName ?? name).ToArray();
+                constraints.AddPrimaryKey(primaryKey => primaryKey.WithColumnNames(names));
+            }
+            return constraints;
         });
     }
 

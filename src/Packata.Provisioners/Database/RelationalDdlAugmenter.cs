@@ -1,0 +1,183 @@
+using Packata.Core.Contracts;
+using Packata.Core.Provisioning;
+
+namespace Packata.Provisioners.Database;
+
+internal sealed class RelationalDdlAugmenter(string connectionUrl)
+{
+    private readonly string _scheme = connectionUrl.Split(':', 2)[0].Split('+').Last().ToLowerInvariant();
+
+    public string Render(DataContract contract, ContractProvisioningOptions options,
+        ICollection<ProvisioningDiagnostic> diagnostics)
+    {
+        _nameResolver = new(connectionUrl, contract);
+        return string.Join(Environment.NewLine, new[]
+        {
+            RenderForeignKeys(contract, options, diagnostics),
+            RenderPatternChecks(contract, options, diagnostics),
+            RenderMembershipChecks(contract, options, diagnostics),
+            RenderComments(contract, options, diagnostics)
+        }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private RelationalObjectNameResolver? _nameResolver;
+
+    public string RenderForeignKeys(DataContract contract, ContractProvisioningOptions options,
+        ICollection<ProvisioningDiagnostic> diagnostics)
+    {
+        if (!options.Constraints.HasFlag(ContractConstraintOptions.ForeignKeys)) return string.Empty;
+        var statements = new List<string>();
+        foreach (var asset in contract.Assets)
+        {
+            if (asset.Schema is null) continue;
+            for (var index = 0; index < asset.Schema.Relationships.Count; index++)
+            {
+                var relationship = asset.Schema.Relationships[index];
+                if (!relationship.Kind.Equals("foreignKey", StringComparison.OrdinalIgnoreCase)) continue;
+                var target = contract.Assets.FirstOrDefault(value => value.Id == relationship.TargetAsset
+                    || value.Name == relationship.TargetAsset);
+                if (target?.Schema is null || relationship.Fields.Count == 0
+                    || relationship.Fields.Count != relationship.TargetFields.Count
+                    || !TryColumns(asset.Schema, relationship.Fields, out var sourceColumns)
+                    || !TryColumns(target.Schema, relationship.TargetFields, out var targetColumns))
+                {
+                    diagnostics.Add(new("PROV003", asset.Id,
+                        $"Relationship to '{relationship.TargetAsset}' does not resolve to compatible fields."));
+                    continue;
+                }
+
+                var name = relationship.Name ?? $"FK_{asset.Id}_{target.Id}_{index + 1}";
+                statements.Add($"ALTER TABLE {ObjectName(asset)} ADD CONSTRAINT {Quote(name)} " +
+                    $"FOREIGN KEY ({Join(sourceColumns)}) REFERENCES {ObjectName(target)} ({Join(targetColumns)});");
+            }
+        }
+        return string.Join(Environment.NewLine, statements);
+    }
+
+    private string RenderPatternChecks(DataContract contract, ContractProvisioningOptions options,
+        ICollection<ProvisioningDiagnostic> diagnostics)
+    {
+        if (!options.Constraints.HasFlag(ContractConstraintOptions.Checks)) return string.Empty;
+        var statements = new List<string>();
+        foreach (var asset in contract.Assets.Where(value => value.Schema is not null))
+        foreach (var field in asset.Schema!.Fields)
+        foreach (var constraint in field.Constraints.Where(value =>
+                     value.Kind.Equals("pattern", StringComparison.OrdinalIgnoreCase)))
+        {
+            var op = _scheme switch
+            {
+                "postgres" or "postgresql" or "pg" or "pgsql" or "mysql" or "my" or "maria" or "mariadb"
+                    => _scheme.StartsWith("p") ? "~" : "REGEXP",
+                _ => null
+            };
+            if (op is null || constraint.Value is not string pattern)
+            {
+                diagnostics.Add(new("PROV004", asset.Id,
+                    $"Constraint 'pattern' on field '{field.Name}' is not supported by target '{_scheme}'."));
+                continue;
+            }
+            var table = ObjectName(asset);
+            var column = Quote(field.PhysicalName ?? field.Name);
+            var name = Quote($"CK_{asset.Id}_{field.Name}_pattern");
+            statements.Add($"ALTER TABLE {table} ADD CONSTRAINT {name} CHECK ({column} {op} {Literal(pattern)});" );
+        }
+        return string.Join(Environment.NewLine, statements);
+    }
+
+    private static string Literal(string value) => $"'{value.Replace("'", "''")}'";
+
+    private string RenderMembershipChecks(DataContract contract, ContractProvisioningOptions options,
+        ICollection<ProvisioningDiagnostic> diagnostics)
+    {
+        if (!options.Constraints.HasFlag(ContractConstraintOptions.Checks)) return string.Empty;
+        var statements = new List<string>();
+        foreach (var asset in contract.Assets.Where(value => value.Schema is not null))
+        foreach (var field in asset.Schema!.Fields)
+        foreach (var constraint in field.Constraints.Where(value =>
+                     value.Kind.Equals("enum", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (constraint.Value is not System.Collections.IEnumerable values || constraint.Value is string)
+            {
+                diagnostics.Add(new("PROV004", asset.Id,
+                    $"Constraint 'enum' on field '{field.Name}' does not contain a value collection."));
+                continue;
+            }
+            var literals = values.Cast<object?>().Where(value => value is not null)
+                .Select(value => SqlLiteral(value!)).ToArray();
+            if (literals.Length == 0)
+            {
+                diagnostics.Add(new("PROV004", asset.Id,
+                    $"Constraint 'enum' on field '{field.Name}' has no non-null values."));
+                continue;
+            }
+            var table = ObjectName(asset);
+            var column = Quote(field.PhysicalName ?? field.Name);
+            var name = Quote($"CK_{asset.Id}_{field.Name}_enum");
+            statements.Add($"ALTER TABLE {table} ADD CONSTRAINT {name} CHECK ({column} IN ({string.Join(", ", literals)}));");
+        }
+        return string.Join(Environment.NewLine, statements);
+    }
+
+    private static string SqlLiteral(object value) => value switch
+    {
+        bool boolean => boolean ? "TRUE" : "FALSE",
+        byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal
+            => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!,
+        DateTime dateTime => Literal(dateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)),
+        DateOnly date => Literal(date.ToString("O", System.Globalization.CultureInfo.InvariantCulture)),
+        TimeOnly time => Literal(time.ToString("O", System.Globalization.CultureInfo.InvariantCulture)),
+        _ => Literal(value.ToString() ?? string.Empty)
+    };
+
+    private string RenderComments(DataContract contract, ContractProvisioningOptions options,
+        ICollection<ProvisioningDiagnostic> diagnostics)
+    {
+        if (!options.Descriptions) return string.Empty;
+        var supportsComments = _scheme is "postgres" or "postgresql" or "pg" or "pgsql"
+            or "duck" or "duckdb" or "oracle" or "ora";
+        if (!supportsComments)
+        {
+            if (contract.Assets.Any(asset => !string.IsNullOrWhiteSpace(asset.Description)
+                || asset.Schema?.Fields.Any(field => !string.IsNullOrWhiteSpace(field.Description)) == true))
+                diagnostics.Add(new("PROV006", "*", $"Database comments are not supported by target '{_scheme}'."));
+            return string.Empty;
+        }
+
+        var statements = new List<string>();
+        foreach (var asset in contract.Assets)
+        {
+            var table = ObjectName(asset);
+            if (!string.IsNullOrWhiteSpace(asset.Description))
+                statements.Add($"COMMENT ON TABLE {table} IS {Literal(asset.Description)};");
+            if (asset.Schema is null) continue;
+            foreach (var field in asset.Schema.Fields.Where(value => !string.IsNullOrWhiteSpace(value.Description)))
+                statements.Add($"COMMENT ON COLUMN {table}.{Quote(field.PhysicalName ?? field.Name)} IS {Literal(field.Description!)};");
+        }
+        return string.Join(Environment.NewLine, statements);
+    }
+
+    private static bool TryColumns(DataSchema schema, IReadOnlyList<string> names, out string[] columns)
+    {
+        columns = names.Select(name => schema.Fields.FirstOrDefault(field => field.Name == name))
+            .Where(field => field is not null).Select(field => field!.PhysicalName ?? field.Name).ToArray();
+        return columns.Length == names.Count;
+    }
+
+    private string Join(IEnumerable<string> values) => string.Join(", ", values.Select(Quote));
+
+    private string ObjectName(DataAsset asset)
+        => string.Join(".", (_nameResolver?.Resolve(asset) ?? asset.PhysicalName ?? asset.Name)
+            .Split('.').Select(Quote));
+
+    internal string Quote(string identifier)
+    {
+        if (_scheme is "mysql" or "my" or "maria" or "mariadb")
+            return $"`{identifier.Replace("`", "``")}`";
+        if (_scheme is "mssql" or "ms" or "sqlserver" or "mssqlserver")
+        {
+            var escaped = identifier.Replace("]", "]]");
+            return $"[{escaped}]";
+        }
+        return $"\"{identifier.Replace("\"", "\"\"")}\"";
+    }
+}

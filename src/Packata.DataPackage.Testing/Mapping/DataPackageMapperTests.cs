@@ -1,5 +1,6 @@
 using Packata.DataPackage;
 using Packata.Core.Storage;
+using Packata.Core.Contracts;
 using Packata.DataPackage.Mapping;
 using NUnit.Framework;
 
@@ -35,7 +36,8 @@ public class DataPackageMapperTests
                         PrimaryKey = ["id"],
                         Fields =
                         [
-                            new IntegerField { Name = "id", Type = "integer",
+                            new IntegerField { Name = "id", Type = "integer", PhysicalType = "bigint",
+                                PhysicalName = "order_id",
                                 Constraints = Constraints(new RequiredConstraint(true), new MinimumConstraint(1)) },
                             new IntegerField { Name = "customer_id", Type = "integer" }
                         ],
@@ -53,6 +55,8 @@ public class DataPackageMapperTests
             Assert.That(result.IsSuccessful, Is.True);
             Assert.That(result.Value!.Assets, Has.Count.EqualTo(2));
             Assert.That(result.Value.Assets[1].Schema!.Fields[0].Required, Is.True);
+            Assert.That(result.Value.Assets[1].Schema!.Fields[0].PhysicalName, Is.EqualTo("order_id"));
+            Assert.That(result.Value.Assets[1].Schema!.Fields[0].PhysicalType, Is.EqualTo("bigint"));
             Assert.That(result.Value.Assets[1].Schema!.Fields[0].Constraints.Single().Kind, Is.EqualTo("minimum"));
             Assert.That(result.Value.Assets[1].Schema!.Relationships.Single().TargetAsset, Is.EqualTo("customers"));
             Assert.That(result.Value.Endpoints[1].Format!.Options["delimiter"], Is.EqualTo(";"));
@@ -70,6 +74,32 @@ public class DataPackageMapperTests
             Assert.That(result.Value.Endpoints, Is.Empty);
             Assert.That(result.Diagnostics.Select(x => x.Code),
                 Is.EquivalentTo(new[] { "DP001", "DP002", "DP003" }));
+        });
+    }
+
+    [Test]
+    public void Map_preserves_database_and_namespace_qualifiers()
+    {
+        var package = new DataPackage
+        {
+            Name = "sales", Resources =
+            [
+                new Resource
+                {
+                    Name = "orders", Connection = new LiteralConnectionUrl("mssql://server/catalog"),
+                    Dialect = new TableDatabaseDialect { Namespace = "sales", Table = "orders" },
+                    Schema = new Schema { Fields = [new IntegerField { Name = "id", Type = "integer" }] }
+                }
+            ]
+        };
+
+        var location = (ConnectionLocation)new DataPackageMapper().Map(package).RequireValue()
+            .Endpoints.Single().Location;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(location.Database, Is.EqualTo("catalog"));
+            Assert.That(location.Namespace, Is.EqualTo("sales"));
         });
     }
 
@@ -93,8 +123,9 @@ public class DataPackageMapperTests
                         [
                             new BooleanField
                             {
-                                Name = "flag", Type = "boolean", Example = "yes",
-                                TrueValues = ["yes"], FalseValues = ["no"]
+                                Name = "flag", Type = "boolean", Example = "yes", Description = "A yes/no flag",
+                                TrueValues = ["yes"], FalseValues = ["no"],
+                                Categories = [new CategoryLabel("yes"), new CategoryLabel("no")]
                             }
                         ]
                     }
@@ -114,6 +145,9 @@ public class DataPackageMapperTests
                 Does.Contain("https://example.com/data"));
             Assert.That(fieldExtensions["example"], Is.EqualTo("yes"));
             Assert.That(fieldExtensions["trueValues"], Is.EqualTo(new[] { "yes" }));
+            Assert.That(contract.Assets.Single().Schema!.Fields.Single().Description, Is.EqualTo("A yes/no flag"));
+            Assert.That(contract.Assets.Single().Schema!.Fields.Single().Constraints.Single().Kind,
+                Is.EqualTo("enum"));
             Assert.That(resourceExtensions["licenses"], Is.EqualTo(package.Resources[0].Licenses));
         }
     }
