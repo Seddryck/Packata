@@ -1,0 +1,19 @@
+{
+  "solution": {
+    "path": "Packata.sln",
+    "projects": [
+      "src\\Packata.Core.Testing\\Packata.Core.Testing.csproj",
+      "src\\Packata.Core\\Packata.Core.csproj",
+      "src\\Packata.DataPackage.Testing\\Packata.DataPackage.Testing.csproj",
+      "src\\Packata.DataPackage\\Packata.DataPackage.csproj",
+      "src\\Packata.OpenDataContract.Testing\\Packata.OpenDataContract.Testing.csproj",
+      "src\\Packata.OpenDataContract\\Packata.OpenDataContract.csproj",
+      "src\\Packata.Provisioners.Testing\\Packata.Provisioners.Testing.csproj",
+      "src\\Packata.Provisioners\\Packata.Provisioners.csproj",
+      "src\\Packata.ResourceReaders.Testing\\Packata.ResourceReaders.Testing.csproj",
+      "src\\Packata.ResourceReaders\\Packata.ResourceReaders.csproj",
+      "src\\Packata.Storages.Testing\\Packata.Storages.Testing.csproj",
+      "src\\Packata.Storages\\Packata.Storages.csproj"
+    ]
+  }
+}

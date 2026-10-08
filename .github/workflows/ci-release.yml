@@ -1,4 +1,4 @@
-name: CI and release
+name: Build, package, and publish
 
 on:
   pull_request:
@@ -22,8 +22,8 @@ env:
   DOTNET_NO_WORKLOAD_UPDATE_NOTIFICATION: 1
 
 jobs:
-  version:
-    name: Calculate version
+  calculate-version:
+    name: Version · calculate and validate
     runs-on: ubuntu-latest
     outputs:
       semver: ${{ steps.gitversion.outputs.semVer }}
@@ -51,12 +51,10 @@ jobs:
             throw "GitVersion produced invalid SemVer '$version'."
           }
 
-  build-test-package:
-    name: Build, test, and package
-    needs: version
+  build-test-libraries:
+    name: Libraries · build and test
+    needs: calculate-version
     runs-on: windows-latest
-    outputs:
-      has-release-asset: ${{ steps.schema.outputs.has-release-asset }}
     permissions:
       contents: read
       id-token: write
@@ -72,16 +70,16 @@ jobs:
             9.0.308
             10.0.401
 
-      - name: Restore
-        run: dotnet restore Packata.sln
+      - name: Restore libraries
+        run: dotnet restore Packata.Libraries.slnf
 
-      - name: Build
+      - name: Build libraries
         run: >-
-          dotnet build Packata.sln
+          dotnet build Packata.Libraries.slnf
           --configuration Release
           --no-restore
           --nologo
-          -p:Version=${{ needs.version.outputs.semver }}
+          -p:Version=${{ needs.calculate-version.outputs.semver }}
           -p:ContinuousIntegrationBuild=true
 
       - name: Test supported frameworks
@@ -135,7 +133,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: test-results-${{ needs.version.outputs.semver }}
+          name: test-results-${{ needs.calculate-version.outputs.semver }}
           path: .test-results
           include-hidden-files: true
           if-no-files-found: error
@@ -147,6 +145,54 @@ jobs:
           fail_ci_if_error: true
           use_oidc: true
 
+      - name: Upload compiled library outputs for packaging
+        uses: actions/upload-artifact@v7
+        with:
+          name: library-build-${{ needs.calculate-version.outputs.semver }}
+          path: |
+            src/Packata.Core/bin/Release
+            src/Packata.Core/obj
+            src/Packata.DataPackage/bin/Release
+            src/Packata.DataPackage/obj
+            src/Packata.OpenDataContract/bin/Release
+            src/Packata.OpenDataContract/obj
+            src/Packata.Provisioners/bin/Release
+            src/Packata.Provisioners/obj
+            src/Packata.ResourceReaders/bin/Release
+            src/Packata.ResourceReaders/obj
+            src/Packata.Storages/bin/Release
+            src/Packata.Storages/obj
+          if-no-files-found: error
+
+  package-libraries:
+    name: Libraries · package NuGet and schema artifacts
+    needs:
+      - calculate-version
+      - build-test-libraries
+    runs-on: windows-latest
+    outputs:
+      has-release-asset: ${{ steps.schema.outputs.has-release-asset }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET SDKs
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.416
+            9.0.308
+            10.0.401
+
+      - name: Restore library package dependencies
+        run: dotnet restore Packata.Libraries.slnf
+
+      - name: Download compiled library outputs
+        uses: actions/download-artifact@v7
+        with:
+          name: library-build-${{ needs.calculate-version.outputs.semver }}
+          path: src
+
       - name: Install schema generator
         run: dotnet tool install --global Schemathief-cli --version 0.3.0
 
@@ -154,11 +200,11 @@ jobs:
         id: schema
         shell: pwsh
         run: |
-          ./package-delta-schemas.ps1 -Version '${{ needs.version.outputs.semver }}' -OutputDirectory './.artifacts/release'
-          $archive = Test-Path -LiteralPath './.artifacts/release/schemas-${{ needs.version.outputs.semver }}.zip' -PathType Leaf
+          ./package-delta-schemas.ps1 -Version '${{ needs.calculate-version.outputs.semver }}' -OutputDirectory './.artifacts/release'
+          $archive = Test-Path -LiteralPath './.artifacts/release/schemas-${{ needs.calculate-version.outputs.semver }}.zip' -PathType Leaf
           "has-release-asset=$($archive.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
-      - name: Pack NuGet packages
+      - name: Package library NuGet artifacts
         shell: pwsh
         run: |
           $projects = @(
@@ -178,7 +224,7 @@ jobs:
               --nologo `
               --include-symbols `
               --output .artifacts/nuget `
-              -p:Version='${{ needs.version.outputs.semver }}'
+              -p:Version='${{ needs.calculate-version.outputs.semver }}'
 
             if ($LASTEXITCODE -ne 0) {
               throw "Packing failed for $project."
@@ -189,30 +235,30 @@ jobs:
         shell: pwsh
         run: >-
           ./.github/scripts/Validate-ReleaseArtifacts.ps1
-          -Version '${{ needs.version.outputs.semver }}'
+          -Version '${{ needs.calculate-version.outputs.semver }}'
           -NuGetDirectory './.artifacts/nuget'
           -ReleaseDirectory './.artifacts/release'
 
-      - name: Upload NuGet packages
+      - name: Upload packaged library artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: nuget-${{ needs.version.outputs.semver }}
+          name: nuget-${{ needs.calculate-version.outputs.semver }}
           path: .artifacts/nuget
           include-hidden-files: true
           if-no-files-found: error
 
-      - name: Upload release assets
+      - name: Upload packaged schema artifact
         if: steps.schema.outputs.has-release-asset == 'true'
         uses: actions/upload-artifact@v7
         with:
-          name: release-${{ needs.version.outputs.semver }}
+          name: release-${{ needs.calculate-version.outputs.semver }}
           path: .artifacts/release
           include-hidden-files: true
           if-no-files-found: error
 
-  test-cli:
-    name: Test Packata CLI
-    needs: version
+  build-test-cli:
+    name: CLI · build and test
+    needs: calculate-version
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -232,7 +278,7 @@ jobs:
           --configuration Release
           --no-restore
           --nologo
-          -p:Version=${{ needs.version.outputs.semver }}
+          -p:Version=${{ needs.calculate-version.outputs.semver }}
           -p:ContinuousIntegrationBuild=true
 
       - name: Run CLI tests
@@ -243,11 +289,20 @@ jobs:
           --no-restore
           --nologo
 
-  package-cli-tool:
-    name: Package Packata CLI tool
+      - name: Upload compiled CLI output for packaging
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-build-${{ needs.calculate-version.outputs.semver }}
+          path: |
+            src/Packata.Cli/bin/Release
+            src/Packata.Cli/obj
+          if-no-files-found: error
+
+  package-cli-nuget:
+    name: CLI · package NuGet tool
     needs:
-      - version
-      - test-cli
+      - calculate-version
+      - build-test-cli
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -258,39 +313,46 @@ jobs:
         with:
           dotnet-version: 10.0.401
 
-      - name: Restore CLI tool
+      - name: Restore CLI package dependencies
         run: dotnet restore src/Packata.Cli/Packata.Cli.csproj
 
-      - name: Pack CLI tool
+      - name: Download compiled CLI output
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-build-${{ needs.calculate-version.outputs.semver }}
+          path: src/Packata.Cli
+
+      - name: Package CLI NuGet tool without rebuilding
         run: >-
           dotnet pack src/Packata.Cli/Packata.Cli.csproj
           --configuration Release
+          --no-build
           --no-restore
           --nologo
           --output .artifacts/cli-nuget
-          -p:Version=${{ needs.version.outputs.semver }}
+          -p:Version=${{ needs.calculate-version.outputs.semver }}
           -p:ContinuousIntegrationBuild=true
 
       - name: Validate CLI tool package
         shell: pwsh
         run: >-
           ./.github/scripts/Validate-CliArtifacts.ps1
-          -Version '${{ needs.version.outputs.semver }}'
+          -Version '${{ needs.calculate-version.outputs.semver }}'
           -NuGetDirectory './.artifacts/cli-nuget'
           -SkipReleaseArchives
 
       - name: Upload CLI tool package
         uses: actions/upload-artifact@v7
         with:
-          name: cli-tool-${{ needs.version.outputs.semver }}
+          name: cli-tool-${{ needs.calculate-version.outputs.semver }}
           path: .artifacts/cli-nuget
           if-no-files-found: error
 
-  package-cli-runtimes:
-    name: Package CLI (${{ matrix.rid }})
+  package-cli-archives:
+    name: CLI · package archive (${{ matrix.rid }})
     needs:
-      - version
-      - test-cli
+      - calculate-version
+      - build-test-cli
     strategy:
       fail-fast: false
       matrix:
@@ -340,7 +402,7 @@ jobs:
       - name: Restore CLI runtime
         run: dotnet restore src/Packata.Cli/Packata.Cli.csproj --runtime ${{ matrix.rid }}
 
-      - name: Publish self-contained CLI
+      - name: Build self-contained CLI payload
         run: >-
           dotnet publish src/Packata.Cli/Packata.Cli.csproj
           --configuration Release
@@ -349,7 +411,7 @@ jobs:
           --no-restore
           --nologo
           --output .artifacts/cli-publish/${{ matrix.rid }}
-          -p:Version=${{ needs.version.outputs.semver }}
+          -p:Version=${{ needs.calculate-version.outputs.semver }}
           -p:ContinuousIntegrationBuild=true
           -p:PublishSingleFile=true
           -p:PublishTrimmed=false
@@ -361,7 +423,7 @@ jobs:
         shell: pwsh
         run: |
           $rid = '${{ matrix.rid }}'
-          $version = '${{ needs.version.outputs.semver }}'
+          $version = '${{ needs.calculate-version.outputs.semver }}'
           $publishDirectory = Resolve-Path ".artifacts/cli-publish/$rid"
           $stageDirectory = New-Item -ItemType Directory -Force ".artifacts/cli-stage/$rid"
           $releaseDirectory = New-Item -ItemType Directory -Force '.artifacts/cli-release'
@@ -387,7 +449,7 @@ jobs:
         shell: pwsh
         run: |
           $rid = '${{ matrix.rid }}'
-          $version = '${{ needs.version.outputs.semver }}'
+          $version = '${{ needs.calculate-version.outputs.semver }}'
           $verifyDirectory = New-Item -ItemType Directory -Force ".artifacts/cli-verify/$rid"
           $extension = '${{ matrix.archive }}'
           $archive = ".artifacts/cli-release/Packata-cli-$version-$rid.$extension"
@@ -428,7 +490,7 @@ jobs:
         shell: pwsh
         run: >-
           ./.github/scripts/Validate-CliArtifacts.ps1
-          -Version '${{ needs.version.outputs.semver }}'
+          -Version '${{ needs.calculate-version.outputs.semver }}'
           -ReleaseDirectory './.artifacts/cli-release'
           -ExpectedRids @('${{ matrix.rid }}')
           -SkipNuGetPackage
@@ -436,94 +498,89 @@ jobs:
       - name: Upload runtime archive
         uses: actions/upload-artifact@v7
         with:
-          name: cli-runtime-${{ matrix.rid }}-${{ needs.version.outputs.semver }}
+          name: cli-runtime-${{ matrix.rid }}-${{ needs.calculate-version.outputs.semver }}
           path: .artifacts/cli-release
           if-no-files-found: error
 
-  validate-cli-artifacts:
-    name: Validate complete CLI release
+  validate-release-artifacts:
+    name: Artifacts · validate complete release set
     needs:
-      - version
-      - package-cli-tool
-      - package-cli-runtimes
+      - calculate-version
+      - package-libraries
+      - package-cli-nuget
+      - package-cli-archives
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Download CLI tool package
+      - name: Download packaged library NuGet artifacts
         uses: actions/download-artifact@v7
         with:
-          name: cli-tool-${{ needs.version.outputs.semver }}
-          path: .artifacts/cli-nuget
+          name: nuget-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/nuget/libraries
 
-      - name: Download CLI runtime archives
+      - name: Download packaged CLI NuGet artifact
         uses: actions/download-artifact@v7
         with:
-          pattern: cli-runtime-*-${{ needs.version.outputs.semver }}
-          path: .artifacts/cli-release
+          name: cli-tool-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/nuget/cli
+
+      - name: Download packaged schema artifact
+        if: needs.package-libraries.outputs.has-release-asset == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: release-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/release
+
+      - name: Download packaged CLI runtime archives
+        uses: actions/download-artifact@v7
+        with:
+          pattern: cli-runtime-*-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/release
           merge-multiple: true
 
-      - name: Validate CLI release set
+      - name: Validate library, schema, and CLI artifacts
         shell: pwsh
-        run: >-
-          ./.github/scripts/Validate-CliArtifacts.ps1
-          -Version '${{ needs.version.outputs.semver }}'
-          -NuGetDirectory './.artifacts/cli-nuget'
-          -ReleaseDirectory './.artifacts/cli-release'
+        run: |
+          ./.github/scripts/Validate-ReleaseArtifacts.ps1 `
+            -Version '${{ needs.calculate-version.outputs.semver }}' `
+            -NuGetDirectory './.artifacts/nuget/libraries' `
+            -ReleaseDirectory './.artifacts/release'
 
-  publish:
-    name: Publish tested artifacts
+          ./.github/scripts/Validate-CliArtifacts.ps1 `
+            -Version '${{ needs.calculate-version.outputs.semver }}' `
+            -NuGetDirectory './.artifacts/nuget/cli' `
+            -ReleaseDirectory './.artifacts/release'
+
+  verify-release-identity:
+    name: Release identity · revalidate version and reserve tag
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-      - version
-      - build-test-package
-      - package-cli-tool
-      - package-cli-runtimes
-      - validate-cli-artifacts
+      - calculate-version
+      - validate-release-artifacts
     runs-on: ubuntu-latest
-    environment: release
     permissions:
       contents: write
-      id-token: write
     steps:
-      - name: Check out tested commit
+      - name: Check out tested commit with full history
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.401
+      - name: Refresh remote tags
+        run: git fetch origin --force --tags
 
-      - name: Download NuGet packages
-        uses: actions/download-artifact@v7
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@7417b1089e2c7de93510f1901d656ddf60bb024f # v4.7.0
         with:
-          name: nuget-${{ needs.version.outputs.semver }}
-          path: .artifacts/nuget/libraries
+          versionSpec: 6.6.0
 
-      - name: Download CLI tool package
-        uses: actions/download-artifact@v7
-        with:
-          name: cli-tool-${{ needs.version.outputs.semver }}
-          path: .artifacts/nuget/cli
+      - name: Recalculate version after artifact validation
+        id: release-version
+        uses: gittools/actions/gitversion/execute@7417b1089e2c7de93510f1901d656ddf60bb024f # v4.7.0
 
-      - name: Download release assets
-        if: needs.build-test-package.outputs.has-release-asset == 'true'
-        uses: actions/download-artifact@v7
-        with:
-          name: release-${{ needs.version.outputs.semver }}
-          path: .artifacts/release
-
-      - name: Download CLI runtime archives
-        uses: actions/download-artifact@v7
-        with:
-          pattern: cli-runtime-*-${{ needs.version.outputs.semver }}
-          path: .artifacts/release
-          merge-multiple: true
-
-      - name: Revalidate downloaded artifacts and commit
+      - name: Verify tested commit and release version
         shell: pwsh
         run: |
           $testedCommit = git rev-parse HEAD
@@ -531,24 +588,17 @@ jobs:
             throw "Checked-out commit '$testedCommit' does not match tested commit '${{ github.sha }}'."
           }
 
-          ./.github/scripts/Validate-ReleaseArtifacts.ps1 `
-            -Version '${{ needs.version.outputs.semver }}' `
-            -NuGetDirectory './.artifacts/nuget/libraries' `
-            -ReleaseDirectory './.artifacts/release'
+          $packagedVersion = '${{ needs.calculate-version.outputs.semver }}'
+          $releaseVersion = '${{ steps.release-version.outputs.semVer }}'
+          if ($releaseVersion -ne $packagedVersion) {
+            throw "Release version '$releaseVersion' does not match packaged version '$packagedVersion'."
+          }
 
-          ./.github/scripts/Validate-CliArtifacts.ps1 `
-            -Version '${{ needs.version.outputs.semver }}' `
-            -NuGetDirectory './.artifacts/nuget/cli' `
-            -ReleaseDirectory './.artifacts/release'
-
-      - name: Reserve release tag
-        if: needs.version.outputs.patch == '0'
+      - name: Reserve release tag for patch-zero releases
+        if: needs.calculate-version.outputs.patch == '0'
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v${{ needs.version.outputs.semver }}'
-          git fetch origin --force --tags
+          $tag = 'v${{ needs.calculate-version.outputs.semver }}'
           $remote = git ls-remote --tags origin "refs/tags/$tag"
 
           if ($remote) {
@@ -561,9 +611,56 @@ jobs:
           else {
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git tag --annotate $tag --message "Packata ${{ needs.version.outputs.semver }}" '${{ github.sha }}'
+            git tag --annotate $tag --message "Packata ${{ needs.calculate-version.outputs.semver }}" '${{ github.sha }}'
             git push origin $tag
           }
+
+  publish-nuget:
+    name: Publishing · push library and CLI packages to NuGet
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - calculate-version
+      - validate-release-artifacts
+      - verify-release-identity
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out artifact validators
+        uses: actions/checkout@v7
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.401
+
+      - name: Download validated library NuGet artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: nuget-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/nuget/libraries
+
+      - name: Download validated CLI NuGet artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-tool-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/nuget/cli
+
+      - name: Revalidate NuGet artifacts before publishing
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force './.artifacts/release' | Out-Null
+          ./.github/scripts/Validate-ReleaseArtifacts.ps1 `
+            -Version '${{ needs.calculate-version.outputs.semver }}' `
+            -NuGetDirectory './.artifacts/nuget/libraries' `
+            -ReleaseDirectory './.artifacts/release'
+
+          ./.github/scripts/Validate-CliArtifacts.ps1 `
+            -Version '${{ needs.calculate-version.outputs.semver }}' `
+            -NuGetDirectory './.artifacts/nuget/cli' `
+            -SkipReleaseArchives
 
       - name: Exchange GitHub identity for a NuGet API key
         id: nuget-login
@@ -571,7 +668,7 @@ jobs:
         with:
           user: Seddryck
 
-      - name: Publish NuGet packages
+      - name: Publish packages to NuGet
         shell: pwsh
         run: |
           Get-ChildItem .artifacts/nuget -Filter *.nupkg -File -Recurse | ForEach-Object {
@@ -585,13 +682,69 @@ jobs:
             }
           }
 
+  publish-github-release:
+    name: Publishing · create GitHub release and upload CLI assets
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.calculate-version.outputs.patch == '0'
+    needs:
+      - calculate-version
+      - package-libraries
+      - validate-release-artifacts
+      - verify-release-identity
+      - publish-nuget
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      discussions: write
+    steps:
+      - name: Check out artifact validators
+        uses: actions/checkout@v7
+
+      - name: Download validated library NuGet artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: nuget-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/nuget/libraries
+
+      - name: Download validated CLI NuGet artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-tool-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/nuget/cli
+
+      - name: Download validated schema artifact
+        if: needs.package-libraries.outputs.has-release-asset == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: release-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/release
+
+      - name: Download validated CLI runtime archives
+        uses: actions/download-artifact@v7
+        with:
+          pattern: cli-runtime-*-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/release
+          merge-multiple: true
+
+      - name: Revalidate release assets before publishing
+        shell: pwsh
+        run: |
+          ./.github/scripts/Validate-ReleaseArtifacts.ps1 `
+            -Version '${{ needs.calculate-version.outputs.semver }}' `
+            -NuGetDirectory './.artifacts/nuget/libraries' `
+            -ReleaseDirectory './.artifacts/release'
+
+          ./.github/scripts/Validate-CliArtifacts.ps1 `
+            -Version '${{ needs.calculate-version.outputs.semver }}' `
+            -NuGetDirectory './.artifacts/nuget/cli' `
+            -ReleaseDirectory './.artifacts/release'
+
       - name: Create or update GitHub release
-        if: needs.version.outputs.patch == '0'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v${{ needs.version.outputs.semver }}'
+          $tag = 'v${{ needs.calculate-version.outputs.semver }}'
           $assets = @(Get-ChildItem '.artifacts/release' -File | Select-Object -ExpandProperty FullName)
 
           if (gh release view $tag 2>$null) {
@@ -602,7 +755,7 @@ jobs:
           else {
             $arguments = @(
               'release', 'create', $tag,
-              '--title', 'Packata ${{ needs.version.outputs.semver }}',
+              '--title', 'Packata ${{ needs.calculate-version.outputs.semver }}',
               '--generate-notes',
               '--discussion-category', 'Announcements',
               '--verify-tag'
