@@ -147,6 +147,7 @@ public class OpenDataContractMapperTests
         {
             ["minLength"] = "2", ["maxLength"] = "8", ["pattern"] = "^[A-Z]+$"
         });
+        code.Enum = [new EnumerationValue { Value = "AA" }, new EnumerationValue { Value = "BB" }];
         var document = new DataContract
         {
             Id = "orders", Schema = [new SchemaObject { Name = "orders", Properties = [amount, code] }]
@@ -159,7 +160,7 @@ public class OpenDataContractMapperTests
             Assert.That(fields[0].Constraints.Select(value => value.Kind),
                 Is.EqualTo(new[] { "minimum", "exclusiveMaximum" }));
             Assert.That(fields[1].Constraints.Select(value => value.Kind),
-                Is.EqualTo(new[] { "minLength", "maxLength", "pattern" }));
+                Is.EqualTo(new[] { "minLength", "maxLength", "pattern", "enum" }));
         });
     }
 

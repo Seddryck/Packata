@@ -75,6 +75,20 @@ public class DubUrlProvisionerTests
     }
 
     [Test]
+    public void DeploySchema_generates_membership_checks()
+    {
+        var fixture = CreateFixture();
+        var contract = Contract(new DataSchema(
+            [new DataField("status", "string", Constraints: [new("enum", new[] { "new", "closed" })]) ]));
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object,
+            It.Is<string>(script => script.Contains("CHECK ([status] IN ('new', 'closed'))"))), Times.Once);
+        Assert.That(diagnostics, Is.Empty);
+    }
+
+    [Test]
     public async Task LoadDataAsync_resolves_binding_through_canonical_reader_contract()
     {
         var fixture = CreateFixture();

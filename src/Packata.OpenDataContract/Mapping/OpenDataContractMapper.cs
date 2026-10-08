@@ -126,6 +126,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         if (property.Unique == true)
             constraints.Add(new DataConstraint("unique", true));
         AddRangeAndLengthConstraints(property.LogicalType, constraints);
+        if (property.Enum is { Count: > 0 })
+            constraints.Add(new("enum", property.Enum.Select(value => value.Value).ToArray()));
 
         var extensions = new Dictionary<string, object?>();
         if (property.Classification is not null)

@@ -12,7 +12,8 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
         => string.Join(Environment.NewLine, new[]
         {
             RenderForeignKeys(contract, options, diagnostics),
-            RenderPatternChecks(contract, options, diagnostics)
+            RenderPatternChecks(contract, options, diagnostics),
+            RenderMembershipChecks(contract, options, diagnostics)
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     public string RenderForeignKeys(DataContract contract, ContractProvisioningOptions options,
@@ -78,6 +79,49 @@ internal sealed class RelationalDdlAugmenter(string connectionUrl)
     }
 
     private static string Literal(string value) => $"'{value.Replace("'", "''")}'";
+
+    private string RenderMembershipChecks(DataContract contract, ContractProvisioningOptions options,
+        ICollection<ProvisioningDiagnostic> diagnostics)
+    {
+        if (!options.Constraints.HasFlag(ContractConstraintOptions.Checks)) return string.Empty;
+        var statements = new List<string>();
+        foreach (var asset in contract.Assets.Where(value => value.Schema is not null))
+        foreach (var field in asset.Schema!.Fields)
+        foreach (var constraint in field.Constraints.Where(value =>
+                     value.Kind.Equals("enum", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (constraint.Value is not System.Collections.IEnumerable values || constraint.Value is string)
+            {
+                diagnostics.Add(new("PROV004", asset.Id,
+                    $"Constraint 'enum' on field '{field.Name}' does not contain a value collection."));
+                continue;
+            }
+            var literals = values.Cast<object?>().Where(value => value is not null)
+                .Select(value => SqlLiteral(value!)).ToArray();
+            if (literals.Length == 0)
+            {
+                diagnostics.Add(new("PROV004", asset.Id,
+                    $"Constraint 'enum' on field '{field.Name}' has no non-null values."));
+                continue;
+            }
+            var table = Quote(asset.PhysicalName ?? asset.Name);
+            var column = Quote(field.PhysicalName ?? field.Name);
+            var name = Quote($"CK_{asset.Id}_{field.Name}_enum");
+            statements.Add($"ALTER TABLE {table} ADD CONSTRAINT {name} CHECK ({column} IN ({string.Join(", ", literals)}));");
+        }
+        return string.Join(Environment.NewLine, statements);
+    }
+
+    private static string SqlLiteral(object value) => value switch
+    {
+        bool boolean => boolean ? "TRUE" : "FALSE",
+        byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal
+            => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!,
+        DateTime dateTime => Literal(dateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture)),
+        DateOnly date => Literal(date.ToString("O", System.Globalization.CultureInfo.InvariantCulture)),
+        TimeOnly time => Literal(time.ToString("O", System.Globalization.CultureInfo.InvariantCulture)),
+        _ => Literal(value.ToString() ?? string.Empty)
+    };
 
     private static bool TryColumns(DataSchema schema, IReadOnlyList<string> names, out string[] columns)
     {
