@@ -48,6 +48,7 @@
     <ProjectReference Include="..\Packata.ResourceReaders.KeyValue\Packata.ResourceReaders.KeyValue.csproj" />
     <ProjectReference Include="..\Packata.ResourceReaders.Ndjson\Packata.ResourceReaders.Ndjson.csproj" />
     <ProjectReference Include="..\Packata.ResourceReaders.Parquet\Packata.ResourceReaders.Parquet.csproj" />
+    <ProjectReference Include="..\Packata.ResourceReaders.WebLogs\Packata.ResourceReaders.WebLogs.csproj" />
     <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
   </ItemGroup>
 </Project>

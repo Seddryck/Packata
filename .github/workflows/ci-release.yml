@@ -172,6 +172,8 @@ jobs:
             src/Packata.ResourceReaders.Ndjson/obj
             src/Packata.ResourceReaders.Parquet/bin/Release
             src/Packata.ResourceReaders.Parquet/obj
+            src/Packata.ResourceReaders.WebLogs/bin/Release
+            src/Packata.ResourceReaders.WebLogs/obj
             src/Packata.Storages/bin/Release
             src/Packata.Storages/obj
           if-no-files-found: error
@@ -229,6 +231,7 @@ jobs:
             'Packata.ResourceReaders.KeyValue',
             'Packata.ResourceReaders.Ndjson',
             'Packata.ResourceReaders.Parquet',
+            'Packata.ResourceReaders.WebLogs',
             'Packata.Provisioners',
             'Packata.Storages',
             'Packata.OpenDataContract'

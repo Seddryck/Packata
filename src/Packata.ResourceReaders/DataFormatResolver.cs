@@ -52,6 +52,8 @@ internal static class DataFormatResolver
         "text/x-fixed-width" => "fixed-width",
         "text/x-ltsv" or "text/ltsv" => "ltsv",
         "application/logfmt" or "text/x-logfmt" => "logfmt",
+        "text/x-common-log" => "common-log",
+        "text/x-w3c-log" => "w3c-log",
         "application/vnd.ms-excel" => "xls",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
         "application/vnd.apache.parquet" => "parquet",

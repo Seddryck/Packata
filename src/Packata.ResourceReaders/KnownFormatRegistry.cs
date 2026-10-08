@@ -20,7 +20,11 @@ internal static class KnownFormatRegistry
         new("ltsv", ["ltsv"], ["text/x-ltsv", "text/ltsv"],
             "Packata.ResourceReaders.KeyValue", "AddKeyValueReaders()"),
         new("logfmt", ["logfmt", "log-fmt"], ["application/logfmt", "text/x-logfmt"],
-            "Packata.ResourceReaders.KeyValue", "AddKeyValueReaders()")
+            "Packata.ResourceReaders.KeyValue", "AddKeyValueReaders()"),
+        new("common-log", ["common-log", "commonlog", "clf"], ["text/x-common-log"],
+            "Packata.ResourceReaders.WebLogs", "AddWebLogs()"),
+        new("w3c-log", ["w3c-log", "w3c", "w3c-extended"], ["text/x-w3c-log"],
+            "Packata.ResourceReaders.WebLogs", "AddWebLogs()")
     ];
 
     public static KnownFormat? Find(DataEndpoint endpoint, ResolvedDataFormat resolved)
