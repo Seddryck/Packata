@@ -117,7 +117,8 @@ public class DubUrlProvisioner : IDataContractProvisioner
                     {
                         foreach (var constraint in field.Constraints.Where(x => x.Kind != "unique"))
                         {
-                            if (constraint.Kind.Equals("pattern", StringComparison.OrdinalIgnoreCase)) continue;
+                            if (constraint.Kind.Equals("pattern", StringComparison.OrdinalIgnoreCase)
+                                || constraint.Kind.Equals("enum", StringComparison.OrdinalIgnoreCase)) continue;
                             var check = MapCheck(column, constraint);
                             if (check is null)
                                 diagnostics.Add(new("PROV004", asset.Id,
