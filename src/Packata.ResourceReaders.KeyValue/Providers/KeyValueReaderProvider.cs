@@ -1,8 +1,6 @@
 using System.Data;
-using Packata.Core;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
-using PocketCsvReader.Configuration;
 using PocketCsvReader.KeyValue;
 using PocketCsvReader.KeyValue.Configuration;
 
@@ -10,7 +8,7 @@ namespace Packata.ResourceReaders.KeyValue.Providers;
 
 internal sealed class KeyValueReaderProvider : IDataEndpointReaderProvider
 {
-    public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format) =>
+    public bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format) =>
         request.Endpoint.Location is PathLocation && format.Name is "ltsv" or "logfmt" or "log-fmt";
 
     public ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,
@@ -30,8 +28,8 @@ internal sealed class KeyValueReaderProvider : IDataEndpointReaderProvider
 
     private static KeyValueReader BuildReader(ReaderOpenContext context)
     {
-        var resource = Resource(context);
-        var schema = Schema(context.Schema);
+        var resource = PocketCsvReaderProviderDefaults.CreateResource(context);
+        var schema = PocketCsvReaderProviderDefaults.CreateNamedSchema(context.Schema);
         if (context.Format.Name == "ltsv")
         {
             var builder = new LtsvReaderBuilder().WithResource(resource);
@@ -44,26 +42,5 @@ internal sealed class KeyValueReaderProvider : IDataEndpointReaderProvider
             if (schema is not null) builder.WithSchema(schema);
             return builder.Build();
         }
-    }
-
-    private static ResourceDescriptorBuilder Resource(ReaderOpenContext context)
-    {
-        var resource = new ResourceDescriptorBuilder();
-        if (!string.IsNullOrWhiteSpace(context.Endpoint.Format?.Encoding))
-            resource.WithEncoding(context.Endpoint.Format.Encoding);
-        if (!string.IsNullOrWhiteSpace(context.Format.Compression))
-            resource.WithCompression(context.Format.Compression);
-        return resource;
-    }
-
-    private static ISchemaDescriptorBuilder? Schema(DataSchema? schema)
-    {
-        if (schema is not { Fields.Count: > 0 }) return null;
-        var builder = new SchemaDescriptorBuilder().Named();
-        var mapper = new RuntimeTypeMapper();
-        foreach (var field in schema.Fields)
-            builder.WithField(mapper.Map(field.LogicalType, field.Format), field.Name,
-                value => field.LogicalType is null ? value : value.WithDataSourceTypeName(field.LogicalType));
-        return builder;
     }
 }

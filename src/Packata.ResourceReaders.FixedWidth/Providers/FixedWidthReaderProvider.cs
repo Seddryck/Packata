@@ -10,34 +10,50 @@ namespace Packata.ResourceReaders.FixedWidth.Providers;
 
 internal sealed class FixedWidthReaderProvider : IDataEndpointReaderProvider
 {
-    public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format) =>
-        request.Endpoint.Location is PathLocation && format.Name is "fixed-width" or "fixedwidth" or "fwf";
+    private readonly IReadOnlyList<IFixedWidthLayoutResolver> _layoutResolvers;
 
-    public ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,
+    public FixedWidthReaderProvider(IEnumerable<IFixedWidthLayoutResolver> layoutResolvers)
+    {
+        _layoutResolvers = [.. layoutResolvers, new FormatOptionsLayoutResolver()];
+    }
+
+    public bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format) =>
+        request.Endpoint.Location is PathLocation && format.Name == DataFormatNames.FixedWidth;
+
+    public async ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var schema = context.Schema is { Fields.Count: > 0 }
             ? context.Schema
             : throw new ArgumentException("A fixed-width reader requires a canonical schema.", nameof(context));
-        var widths = IntegerList(context.Endpoint.Format, "widths")
-            ?? throw new ArgumentException("Fixed-width format option 'widths' is required.", nameof(context));
-        var offsets = IntegerList(context.Endpoint.Format, "offsets") ?? CumulativeOffsets(widths);
-        ValidateLayout(schema, offsets, widths, IntegerOption(context.Endpoint.Format, "recordWidth"));
+        var layoutContext = new FixedWidthLayoutContext(context.Request, context.Format);
+        FixedWidthLayout? layout = null;
+        foreach (var resolver in _layoutResolvers)
+        {
+            layout = await resolver.ResolveAsync(layoutContext, cancellationToken).ConfigureAwait(false);
+            if (layout is not null) break;
+        }
+
+        if (layout is null)
+            throw new ArgumentException(
+                $"Fixed-width format was recognized, but no registered layout resolver could determine field offsets and widths for endpoint '{context.Endpoint.Id}'.",
+                nameof(context));
+        ValidateLayout(schema, layout.Offsets, layout.Widths, layout.RecordWidth);
 
         var builder = new FixedWidthReaderBuilder()
             .WithLineTerminator(StringOption(context.Endpoint.Format, "lineTerminator") ?? "\n")
             .AllowTrailingCharacters(BooleanOption(context.Endpoint.Format, "allowTrailingCharacters") ?? false)
             .WithHeader(BooleanOption(context.Endpoint.Format, "header") ?? false)
-            .WithResource(Resource(context))
+            .WithResource(PocketCsvReaderProviderDefaults.CreateResource(context))
             .WithSchema(Schema(schema));
         for (var i = 0; i < schema.Fields.Count; i++)
-            builder.WithField(schema.Fields[i].Name, offsets[i], widths[i], FixedWidthPadding.None, ' ');
+            builder.WithField(schema.Fields[i].Name, layout.Offsets[i], layout.Widths[i], FixedWidthPadding.None, ' ');
         var reader = builder.Build();
         IDataReader dataReader = context.Streams.Count == 1
             ? reader.ToDataReader(context.Streams[0])
             : new SequentialDataReader(context.Streams.Select(reader.ToDataReader));
-        return ValueTask.FromResult(dataReader);
+        return dataReader;
     }
 
     private static ISchemaDescriptorBuilder Schema(DataSchema schema)
@@ -48,16 +64,6 @@ internal sealed class FixedWidthReaderProvider : IDataEndpointReaderProvider
             builder.WithField(mapper.Map(field.LogicalType, field.Format), field.Name,
                 value => field.LogicalType is null ? value : value.WithDataSourceTypeName(field.LogicalType));
         return builder;
-    }
-
-    private static ResourceDescriptorBuilder Resource(ReaderOpenContext context)
-    {
-        var resource = new ResourceDescriptorBuilder();
-        if (!string.IsNullOrWhiteSpace(context.Endpoint.Format?.Encoding))
-            resource.WithEncoding(context.Endpoint.Format.Encoding);
-        if (!string.IsNullOrWhiteSpace(context.Format.Compression))
-            resource.WithCompression(context.Format.Compression);
-        return resource;
     }
 
     private static void ValidateLayout(DataSchema schema, IReadOnlyList<int> offsets,
@@ -86,18 +92,32 @@ internal sealed class FixedWidthReaderProvider : IDataEndpointReaderProvider
         return offsets;
     }
 
-    private static int[]? IntegerList(DataFormat? format, string name)
+    private sealed class FormatOptionsLayoutResolver : IFixedWidthLayoutResolver
     {
-        if (format?.Options.TryGetValue(name, out var raw) != true || raw is null) return null;
-        if (raw is IEnumerable<int> integers) return integers.ToArray();
-        if (raw is IEnumerable values)
-            return values.Cast<object?>().Select(value => Convert.ToInt32(value)).ToArray();
-        throw new ArgumentException($"Fixed-width format option '{name}' must be a list of integers.");
-    }
+        public ValueTask<FixedWidthLayout?> ResolveAsync(FixedWidthLayoutContext context,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var widths = IntegerList(context.Request.Endpoint.Format, "widths");
+            if (widths is null) return ValueTask.FromResult<FixedWidthLayout?>(null);
+            var offsets = IntegerList(context.Request.Endpoint.Format, "offsets") ?? CumulativeOffsets(widths);
+            return ValueTask.FromResult<FixedWidthLayout?>(new FixedWidthLayout(
+                offsets, widths, IntegerOption(context.Request.Endpoint.Format, "recordWidth")));
+        }
 
-    private static int? IntegerOption(DataFormat? format, string name) =>
-        format?.Options.TryGetValue(name, out var value) == true && value is not null
-            ? Convert.ToInt32(value) : null;
+        private static int[]? IntegerList(DataFormat? format, string name)
+        {
+            if (format?.Options.TryGetValue(name, out var raw) != true || raw is null) return null;
+            if (raw is IEnumerable<int> integers) return integers.ToArray();
+            if (raw is IEnumerable values)
+                return values.Cast<object?>().Select(value => Convert.ToInt32(value)).ToArray();
+            throw new ArgumentException($"Fixed-width format option '{name}' must be a list of integers.");
+        }
+
+        private static int? IntegerOption(DataFormat? format, string name) =>
+            format?.Options.TryGetValue(name, out var value) == true && value is not null
+                ? Convert.ToInt32(value) : null;
+    }
     private static bool? BooleanOption(DataFormat? format, string name) =>
         format?.Options.TryGetValue(name, out var value) == true && value is not null
             ? Convert.ToBoolean(value) : null;

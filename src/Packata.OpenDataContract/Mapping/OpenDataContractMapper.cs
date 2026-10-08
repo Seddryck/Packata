@@ -84,6 +84,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             extensions["partitioned"] = property.Partitioned;
         if (property.PartitionKeyPosition is not null)
             extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
+        if (property.CustomProperties.Count > 0)
+            extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
 
         return new DataField(
             property.Name,
@@ -116,13 +118,23 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             _ => new ConnectionLocation(server.Type)
         };
 
+        var formatName = server switch
+        {
+            IFormatAware formatted => formatted.Format,
+            CustomServer custom => custom.Format,
+            _ => null
+        };
+        var encoding = (server as IEncodingAware)?.Encoding;
+
         return new DataEndpoint(
             server.Server,
             server.Description,
             MapEndpointKind(server),
             server.Environment,
             location,
-            server is IFormatAware formatted ? new DataFormat(formatted.Format) : null,
+            formatName is not null || encoding is not null
+                ? new DataFormat(formatName, Encoding: encoding)
+                : null,
             MapCustomProperties(server.CustomProperties));
     }
 
@@ -133,15 +145,18 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                 "odcs",
                 new Dictionary<string, object?>
                 {
-                    ["customProperties"] = properties.Select(x => new Dictionary<string, object?>
-                    {
-                        ["id"] = x.Id,
-                        ["property"] = x.Property,
-                        ["value"] = x.Value,
-                        ["description"] = x.Description,
-                        ["vendor"] = x.Vendor
-                    }).ToArray()
+                    ["customProperties"] = MapCustomPropertyValues(properties)
                 });
+
+    private static Dictionary<string, object?>[] MapCustomPropertyValues(CustomProperties properties) =>
+        properties.Select(x => new Dictionary<string, object?>
+        {
+            ["id"] = x.Id,
+            ["property"] = x.Property,
+            ["value"] = x.Value,
+            ["description"] = x.Description,
+            ["vendor"] = x.Vendor
+        }).ToArray();
 
     private static int? ConvertPort(object? port)
         => port switch

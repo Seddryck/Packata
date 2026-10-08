@@ -8,10 +8,10 @@ namespace Packata.ResourceReaders.Providers;
 
 internal sealed class DelimitedReaderProvider : IDataEndpointReaderProvider
 {
-    public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format) =>
+    public bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format) =>
         request.Endpoint.Location is PathLocation &&
         (format.Name is "csv" or "tsv" or "psv" ||
-         string.IsNullOrEmpty(format.Name) && HasDelimiterOption(request.Endpoint.Format));
+         (string.IsNullOrEmpty(format.Name) && HasDelimiterOption(request.Endpoint.Format)));
 
     public ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,
         CancellationToken cancellationToken = default)

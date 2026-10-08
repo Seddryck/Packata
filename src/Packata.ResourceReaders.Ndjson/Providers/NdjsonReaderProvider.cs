@@ -1,15 +1,13 @@
 using System.Data;
-using Packata.Core;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
-using PocketCsvReader.Configuration;
 using PocketCsvReader.Ndjson.Configuration;
 
 namespace Packata.ResourceReaders.Ndjson.Providers;
 
 internal sealed class NdjsonReaderProvider : IDataEndpointReaderProvider
 {
-    public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format) =>
+    public bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format) =>
         request.Endpoint.Location is PathLocation && format.Name is "ndjson" or "jsonl";
 
     public ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,
@@ -18,8 +16,8 @@ internal sealed class NdjsonReaderProvider : IDataEndpointReaderProvider
         cancellationToken.ThrowIfCancellationRequested();
         var builder = new NdjsonReaderBuilder()
             .WithDialect(dialect => dialect.WithLineTerminator("\n"))
-            .WithResource(Resource(context));
-        var schema = Schema(context.Schema);
+            .WithResource(PocketCsvReaderProviderDefaults.CreateResource(context));
+        var schema = PocketCsvReaderProviderDefaults.CreateNamedSchema(context.Schema);
         if (schema is not null) builder.WithSchema(schema);
         var reader = builder.Build();
         IDataReader Open(Stream stream)
@@ -31,26 +29,5 @@ internal sealed class NdjsonReaderProvider : IDataEndpointReaderProvider
             ? Open(context.Streams[0])
             : new SequentialDataReader(context.Streams.Select(Open));
         return ValueTask.FromResult(dataReader);
-    }
-
-    private static ResourceDescriptorBuilder Resource(ReaderOpenContext context)
-    {
-        var resource = new ResourceDescriptorBuilder();
-        if (!string.IsNullOrWhiteSpace(context.Endpoint.Format?.Encoding))
-            resource.WithEncoding(context.Endpoint.Format.Encoding);
-        if (!string.IsNullOrWhiteSpace(context.Format.Compression))
-            resource.WithCompression(context.Format.Compression);
-        return resource;
-    }
-
-    private static ISchemaDescriptorBuilder? Schema(DataSchema? schema)
-    {
-        if (schema is not { Fields.Count: > 0 }) return null;
-        var builder = new SchemaDescriptorBuilder().Named();
-        var mapper = new RuntimeTypeMapper();
-        foreach (var field in schema.Fields)
-            builder.WithField(mapper.Map(field.LogicalType, field.Format), field.Name,
-                value => field.LogicalType is null ? value : value.WithDataSourceTypeName(field.LogicalType));
-        return builder;
     }
 }

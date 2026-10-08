@@ -12,8 +12,8 @@ namespace Packata.ResourceReaders;
 /// </remarks>
 public interface IDataEndpointReaderProvider
 {
-    /// <summary>Returns whether this provider can open the request. Matching must not acquire resources.</summary>
-    bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format);
+    /// <summary>Returns whether this provider handles the request. Matching must not acquire resources.</summary>
+    bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format);
 
     /// <summary>Opens a reader for a previously matched request.</summary>
     ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,

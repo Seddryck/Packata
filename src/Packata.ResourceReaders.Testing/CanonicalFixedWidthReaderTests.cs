@@ -38,6 +38,67 @@ public class CanonicalFixedWidthReaderTests
         Assert.That(reader["name"], Is.EqualTo("alpha"));
     }
 
+    [Test]
+    public async Task OpenAsync_supports_configured_extension_mapping()
+    {
+        var endpoint = new DataEndpoint("data", "data", EndpointKind.File, null,
+            new PathLocation(["data.dat"]));
+        var factory = ResourceReaderFactory.Create(options =>
+        {
+            options.Formats.AddExtension(".dat", DataFormatNames.FixedWidth);
+            options.AddFixedWidth(fixedWidth =>
+                fixedWidth.AddLayoutResolver(new ConstantLayoutResolver()));
+        }, new Resolver("01alpha\n"));
+
+        using var reader = await factory.OpenAsync(endpoint, Schema());
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha"));
+    }
+
+    [Test]
+    public async Task OpenAsync_supports_configured_format_alias()
+    {
+        var endpoint = Endpoint(new DataFormat("legacy-fixed", Options: Options([2, 5])));
+        var factory = ResourceReaderFactory.Create(options =>
+        {
+            options.Formats.AddAlias("legacy-fixed", DataFormatNames.FixedWidth);
+            options.AddFixedWidth();
+        }, new Resolver("01alpha\n"));
+
+        using var reader = await factory.OpenAsync(endpoint, Schema());
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha"));
+    }
+
+    [Test]
+    public async Task OpenAsync_prefers_explicit_format_over_extension_mapping()
+    {
+        var endpoint = new DataEndpoint("data", "data", EndpointKind.File, null,
+            new PathLocation(["data.dat"]), new DataFormat("fixed-width", Options: Options([2, 5])));
+        var factory = ResourceReaderFactory.Create(options =>
+        {
+            options.Formats.AddExtension(".dat", "csv");
+            options.AddFixedWidth();
+        }, new Resolver("01alpha\n"));
+
+        using var reader = await factory.OpenAsync(endpoint, Schema());
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha"));
+    }
+
+    [Test]
+    public async Task OpenAsync_reports_when_no_layout_resolver_can_resolve()
+    {
+        var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Factory("01alpha\n").OpenAsync(
+                Endpoint(new DataFormat("fixed-width")), Schema()));
+
+        Assert.That(exception!.Message, Does.Contain("no registered layout resolver"));
+    }
+
     [TestCaseSource(nameof(InvalidLayouts))]
     public void OpenAsync_rejects_invalid_layouts(Dictionary<string, object?> options)
     {
@@ -147,6 +208,13 @@ public class CanonicalFixedWidthReaderTests
     {
         public ValueTask<Stream> OpenAsync(string path, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(stream);
+    }
+
+    private sealed class ConstantLayoutResolver : IFixedWidthLayoutResolver
+    {
+        public ValueTask<FixedWidthLayout?> ResolveAsync(FixedWidthLayoutContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<FixedWidthLayout?>(new FixedWidthLayout([0, 2], [2, 5]));
     }
 
     private sealed class TrackingStream(byte[] bytes) : MemoryStream(bytes)
