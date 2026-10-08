@@ -89,6 +89,28 @@ public class DubUrlProvisionerTests
     }
 
     [Test]
+    public void DeploySchema_honors_supported_physical_types()
+    {
+        var fixture = CreateFixture();
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
+        var contract = Contract(new DataSchema(
+            [new DataField("code", "string", PhysicalType: "varchar(12)"),
+             new DataField("amount", "number", PhysicalType: "decimal(10, 2)")]));
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(((VarLengthColumn)rendered!.Tables["Customer"].Columns["code"]).Length, Is.EqualTo(12));
+            Assert.That(((NumericColumn)rendered.Tables["Customer"].Columns["amount"]).Precision, Is.EqualTo(10));
+            Assert.That(((NumericColumn)rendered.Tables["Customer"].Columns["amount"]).Scale, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
     public async Task LoadDataAsync_resolves_binding_through_canonical_reader_contract()
     {
         var fixture = CreateFixture();

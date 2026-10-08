@@ -107,8 +107,19 @@ public class DubUrlProvisioner : IDataContractProvisioner
             {
                 columns.Add(column =>
                 {
-                    column.WithName(field.PhysicalName ?? field.Name)
-                        .WithType(DbTypeMapper.Map(field.LogicalType, field.Format))
+                    var physicalType = PhysicalTypeDefinition.TryParse(field.PhysicalType);
+                    if (field.PhysicalType is not null && physicalType is null)
+                        diagnostics.Add(new("PROV005", asset.Id,
+                            $"Physical type '{field.PhysicalType}' on field '{field.Name}' is unsupported; logical type mapping was used."));
+                    var type = physicalType?.DbType ?? DbTypeMapper.Map(field.LogicalType, field.Format);
+                    var typeBuilder = column.WithName(field.PhysicalName ?? field.Name);
+                    IColumnConstraintBuilder constraintsBuilder = physicalType switch
+                    {
+                        { Length: int length } => typeBuilder.WithLength(length),
+                        { Precision: int precision, Scale: int scale } => typeBuilder.WithPrecision(precision).WithScale(scale),
+                        _ => typeBuilder.WithType(type)
+                    };
+                    constraintsBuilder
                         .WithUniqueIf(ConstraintBoolean(field, "unique")
                             && options.Constraints.HasFlag(ContractConstraintOptions.Unique))
                         .WithNullableIf(!field.Required
