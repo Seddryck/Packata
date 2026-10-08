@@ -90,7 +90,13 @@ public sealed record DataConstraint(string Kind, object? Value);
 public sealed record DataRelationship(
     IReadOnlyList<string> Fields,
     string TargetAsset,
-    IReadOnlyList<string> TargetFields);
+    IReadOnlyList<string> TargetFields,
+    string? Name = null,
+    string Kind = "foreignKey",
+    ExtensionMetadata? Extensions = null)
+{
+    public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
+}
 
 public sealed record DataQualityRule(
     string Kind,

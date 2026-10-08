@@ -100,4 +100,38 @@ public class OpenDataContractMapperTests
             Assert.That(result.Diagnostics, Has.One.Property("Code").EqualTo("ODCS001"));
         });
     }
+
+    [Test]
+    public void Map_preserves_property_foreign_key_relationships()
+    {
+        var document = new DataContract
+        {
+            Id = "orders", Schema =
+            [
+                new SchemaObject
+                {
+                    Name = "orders", Properties =
+                    [
+                        new SchemaProperty
+                        {
+                            Name = "customer_id", Relationships =
+                            [new Relationship { Id = "customer", To = "schema/customers/properties/id" }]
+                        }
+                    ]
+                },
+                new SchemaObject { Name = "customers", Properties = [new SchemaProperty { Name = "id" }] }
+            ]
+        };
+
+        var relationship = new OpenDataContractMapper().Map(document).RequireValue()
+            .Assets[0].Schema!.Relationships.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(relationship.Fields, Is.EqualTo(new[] { "customer_id" }));
+            Assert.That(relationship.TargetAsset, Is.EqualTo("customers"));
+            Assert.That(relationship.TargetFields, Is.EqualTo(new[] { "id" }));
+            Assert.That(relationship.Name, Is.EqualTo("customer"));
+        });
+    }
 }

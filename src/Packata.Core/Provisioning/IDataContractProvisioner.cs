@@ -10,7 +10,8 @@ public enum ContractConstraintOptions
     Required = 2,
     Unique = 4,
     Checks = 8,
-    All = PrimaryKey | Required | Unique | Checks
+    ForeignKeys = 16,
+    All = PrimaryKey | Required | Unique | Checks | ForeignKeys
 }
 
 public sealed record ContractProvisioningOptions(
