@@ -14,7 +14,9 @@ internal static class KnownFormatRegistry
         new("database", ["database", "db"], [],
             "Packata.ResourceReaders.Database", "AddDatabase()"),
         new("ndjson", ["ndjson", "jsonl"], ["application/x-ndjson", "application/ndjson"],
-            "Packata.ResourceReaders.Ndjson", "AddNdjson()")
+            "Packata.ResourceReaders.Ndjson", "AddNdjson()"),
+        new("fixed-width", ["fixed-width", "fixedwidth", "fwf"], ["text/x-fixed-width"],
+            "Packata.ResourceReaders.FixedWidth", "AddFixedWidth()")
     ];
 
     public static KnownFormat? Find(DataEndpoint endpoint, ResolvedDataFormat resolved)

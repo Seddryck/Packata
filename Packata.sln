@@ -80,6 +80,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.ResourceReaders.Dat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.ResourceReaders.Ndjson", "src\Packata.ResourceReaders.Ndjson\Packata.ResourceReaders.Ndjson.csproj", "{E0C2CA99-50FD-4D46-BE3E-EF6EA0B28171}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.ResourceReaders.FixedWidth", "src\Packata.ResourceReaders.FixedWidth\Packata.ResourceReaders.FixedWidth.csproj", "{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -306,6 +308,18 @@ Global
 		{E0C2CA99-50FD-4D46-BE3E-EF6EA0B28171}.Release|x64.Build.0 = Release|Any CPU
 		{E0C2CA99-50FD-4D46-BE3E-EF6EA0B28171}.Release|x86.ActiveCfg = Release|Any CPU
 		{E0C2CA99-50FD-4D46-BE3E-EF6EA0B28171}.Release|x86.Build.0 = Release|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Debug|x64.Build.0 = Debug|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Debug|x86.Build.0 = Debug|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Release|x64.ActiveCfg = Release|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Release|x64.Build.0 = Release|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Release|x86.ActiveCfg = Release|Any CPU
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -327,6 +341,7 @@ Global
 		{14896089-4035-47BF-AF04-246B8E09A65E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{54019B20-C45C-423A-BEF7-753AE485607C} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{E0C2CA99-50FD-4D46-BE3E-EF6EA0B28171} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{C3366B16-20AF-4A67-86B6-8FA169B7A7BA} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4AF64100-8E3B-4ACF-8266-89231A365F92}
