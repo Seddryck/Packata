@@ -35,7 +35,7 @@ public class DataPackageMapperTests
                         PrimaryKey = ["id"],
                         Fields =
                         [
-                            new IntegerField { Name = "id", Type = "integer",
+                            new IntegerField { Name = "id", Type = "integer", PhysicalType = "bigint",
                                 PhysicalName = "order_id",
                                 Constraints = Constraints(new RequiredConstraint(true), new MinimumConstraint(1)) },
                             new IntegerField { Name = "customer_id", Type = "integer" }
@@ -55,6 +55,7 @@ public class DataPackageMapperTests
             Assert.That(result.Value!.Assets, Has.Count.EqualTo(2));
             Assert.That(result.Value.Assets[1].Schema!.Fields[0].Required, Is.True);
             Assert.That(result.Value.Assets[1].Schema!.Fields[0].PhysicalName, Is.EqualTo("order_id"));
+            Assert.That(result.Value.Assets[1].Schema!.Fields[0].PhysicalType, Is.EqualTo("bigint"));
             Assert.That(result.Value.Assets[1].Schema!.Fields[0].Constraints.Single().Kind, Is.EqualTo("minimum"));
             Assert.That(result.Value.Assets[1].Schema!.Relationships.Single().TargetAsset, Is.EqualTo("customers"));
             Assert.That(result.Value.Endpoints[1].Format!.Options["delimiter"], Is.EqualTo(";"));
