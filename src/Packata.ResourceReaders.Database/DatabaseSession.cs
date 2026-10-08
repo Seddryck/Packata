@@ -4,7 +4,7 @@ using DubUrl.Mapping;
 using DubUrl.Registering;
 using Packata.Core.Contracts;
 
-namespace Packata.ResourceReaders;
+namespace Packata.ResourceReaders.Database;
 
 internal interface IDatabaseSessionFactory
 {

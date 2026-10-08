@@ -2,7 +2,7 @@ using System.Data;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
 
-namespace Packata.ResourceReaders.Providers;
+namespace Packata.ResourceReaders.Database.Providers;
 
 internal sealed class DatabaseReaderProvider(IDatabaseSessionFactory databases) : IDataEndpointReaderProvider
 {
@@ -29,7 +29,7 @@ internal sealed class DatabaseReaderProvider(IDatabaseSessionFactory databases) 
                 ? $"SELECT * FROM {session.RenderIdentifier(table)}"
                 : $"SELECT * FROM {session.RenderIdentifier(ns)}.{session.RenderIdentifier(table)}";
             var reader = command.ExecuteReader();
-            return ValueTask.FromResult<IDataReader>(new OwnedDataReader(reader, command, connection));
+            return ValueTask.FromResult<IDataReader>(new OwnedDatabaseReader(reader, command, connection));
         }
         catch
         {

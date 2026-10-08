@@ -41,7 +41,10 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.Core` | Standards-neutral contracts for assets, schemas, endpoints, diagnostics, readers, and provisioners |
 | `Packata.DataPackage` | Data Package v2 models, JSON/YAML serialization, validation, and canonical mapping |
 | `Packata.OpenDataContract` | ODCS models, YAML serialization, validation, and canonical mapping |
-| `Packata.ResourceReaders` | Access to delimited, Excel, Parquet, and database resources through `IDataReader` |
+| `Packata.ResourceReaders` | Core reader factory and access to delimited resources through `IDataReader` |
+| `Packata.ResourceReaders.Excel` | Optional Excel reader provider |
+| `Packata.ResourceReaders.Parquet` | Optional Parquet reader provider |
+| `Packata.ResourceReaders.Database` | Optional database reader provider |
 | `Packata.Storages` | Access to documents and resources on local, HTTP(S), S3, and Azure storage |
 | `Packata.Provisioners` | Provisioning of canonical data contracts to relational platforms |
 | `Packata-cli` | Cross-platform command-line interface distributed as a .NET tool and self-contained executables |
@@ -61,6 +64,15 @@ dotnet add package Packata.OpenDataContract
 ```
 
 Add `Packata.ResourceReaders`, `Packata.Storages`, or `Packata.Provisioners` when your application needs those capabilities. Format packages reference `Packata.Core`, so it does not need to be installed separately.
+
+Install only the resource-reader providers your application uses, then register them when creating the factory:
+
+```csharp
+var readers = ResourceReaderFactory.Create(options => options
+    .AddExcel()
+    .AddParquet()
+    .AddDatabase());
+```
 
 ### Command-line tool
 

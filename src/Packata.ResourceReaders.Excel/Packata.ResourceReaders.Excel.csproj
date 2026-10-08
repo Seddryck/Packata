@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Description>Excel resource reader provider for Packata.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
+    <PackageReference Include="ExcelDataReader" Version="3.9.0" />
+  </ItemGroup>
+</Project>

@@ -2,6 +2,8 @@ using System.Reflection;
 using NUnit.Framework;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
+using Packata.ResourceReaders.Excel;
+using Packata.ResourceReaders.Parquet;
 
 namespace Packata.ResourceReaders.Testing;
 
@@ -16,7 +18,7 @@ public class CanonicalSpreadsheetAndParquetTests
         var resolver = new ResourceResolver(("data.bin", resource));
         var endpoint = Endpoint(["data.bin"], new DataFormat(null, mediaType));
 
-        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(endpoint);
+        using var reader = await Factory(resolver).OpenAsync(endpoint);
 
         Assert.That(reader.Read(), Is.True, expectedFormat);
     }
@@ -27,7 +29,7 @@ public class CanonicalSpreadsheetAndParquetTests
         var resolver = new ResourceResolver(("iris.parquet", "iris.parquet"));
         var endpoint = Endpoint(["iris.parquet"], new DataFormat("parquet"));
 
-        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(endpoint);
+        using var reader = await Factory(resolver).OpenAsync(endpoint);
 
         Assert.That(reader.Read(), Is.True);
         Assert.Multiple(() =>
@@ -48,7 +50,7 @@ public class CanonicalSpreadsheetAndParquetTests
             ["sheetName"] = "Country", ["header"] = true
         });
 
-        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(Endpoint(["my-book.xlsx"], format));
+        using var reader = await Factory(resolver).OpenAsync(Endpoint(["my-book.xlsx"], format));
 
         Assert.That(reader.Read(), Is.True);
         Assert.Multiple(() =>
@@ -68,7 +70,7 @@ public class CanonicalSpreadsheetAndParquetTests
             ["sheetNumber"] = 2, ["header"] = false
         });
 
-        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(Endpoint(["my-book.xlsx"], format));
+        using var reader = await Factory(resolver).OpenAsync(Endpoint(["my-book.xlsx"], format));
 
         Assert.That(reader.Read(), Is.True);
         Assert.That(reader[0], Is.EqualTo("Code"));
@@ -84,7 +86,7 @@ public class CanonicalSpreadsheetAndParquetTests
         if (sheetNumber is not null) options["sheetNumber"] = sheetNumber.Value;
         var endpoint = Endpoint(["my-book.xlsx"], new DataFormat("xlsx", Options: options));
 
-        Assert.That(async () => await new ResourceReaderFactory(
+        Assert.That(async () => await Factory(
                 new ResourceResolver(("my-book.xlsx", "my-book.xlsx"))).OpenAsync(endpoint),
             Throws.TypeOf<InvalidOperationException>());
     }
@@ -97,7 +99,7 @@ public class CanonicalSpreadsheetAndParquetTests
             ["sheetName"] = "Country", ["sheetNumber"] = 2
         });
 
-        Assert.That(async () => await new ResourceReaderFactory(
+        Assert.That(async () => await Factory(
                 new ResourceResolver(("my-book.xlsx", "my-book.xlsx"))).OpenAsync(Endpoint(["my-book.xlsx"], format)),
             Throws.TypeOf<ArgumentException>());
     }
@@ -107,13 +109,16 @@ public class CanonicalSpreadsheetAndParquetTests
     {
         var resolver = new ResourceResolver(("one.xlsx", "my-book.xlsx"), ("two.xlsx", "my-book.xlsx"));
 
-        Assert.That(async () => await new ResourceReaderFactory(resolver)
+        Assert.That(async () => await Factory(resolver)
                 .OpenAsync(Endpoint(["one.xlsx", "two.xlsx"], new DataFormat("xlsx"))),
             Throws.TypeOf<InvalidOperationException>());
     }
 
     private static DataEndpoint Endpoint(IReadOnlyList<string> paths, DataFormat format) =>
         new("data", "data", EndpointKind.File, null, new PathLocation(paths), format);
+
+    private static ResourceReaderFactory Factory(IEndpointStreamResolver resolver) =>
+        ResourceReaderFactory.Create(options => options.AddExcel().AddParquet(), resolver);
 
     private sealed class ResourceResolver(params (string Path, string Resource)[] values) : IEndpointStreamResolver
     {

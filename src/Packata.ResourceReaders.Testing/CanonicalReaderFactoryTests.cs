@@ -3,6 +3,8 @@ using System.Text;
 using NUnit.Framework;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
+using Packata.ResourceReaders.Excel;
+using Packata.ResourceReaders.Parquet;
 
 namespace Packata.ResourceReaders.Testing;
 
@@ -68,7 +70,12 @@ public class CanonicalReaderFactoryTests
     public async Task OpenAsync_reads_binary_tabular_formats(string resourceName, string format)
     {
         var bytes = ReadEmbedded(resourceName);
-        var factory = new ResourceReaderFactory(new MemoryResolver(new Dictionary<string, byte[]> { [resourceName] = bytes }));
+        var resolver = new MemoryResolver(new Dictionary<string, byte[]> { [resourceName] = bytes });
+        var factory = ResourceReaderFactory.Create(options =>
+        {
+            if (format == "xlsx") options.AddExcel();
+            else options.AddParquet();
+        }, resolver);
         using var reader = await factory.OpenAsync(Endpoint(resourceName, format));
         Assert.That(reader.Read(), Is.True);
     }
