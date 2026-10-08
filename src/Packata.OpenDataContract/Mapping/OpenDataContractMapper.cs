@@ -125,6 +125,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             constraints.Add(new DataConstraint("primaryKey", true));
         if (property.Unique == true)
             constraints.Add(new DataConstraint("unique", true));
+        AddRangeAndLengthConstraints(property.LogicalType, constraints);
 
         var extensions = new Dictionary<string, object?>();
         if (property.Classification is not null)
@@ -146,6 +147,30 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                 : ExtensionMetadata.For("odcs", extensions),
             PhysicalName: property.PhysicalName,
             Description: property.Description);
+    }
+
+    private static void AddRangeAndLengthConstraints(ILogicalType? logicalType,
+        ICollection<DataConstraint> constraints)
+    {
+        if (logicalType is StringLogicalType text)
+        {
+            if (text.MinLength is not null) constraints.Add(new("minLength", text.MinLength));
+            if (text.MaxLength is not null) constraints.Add(new("maxLength", text.MaxLength));
+        }
+        else if (logicalType is NumberLogicalType number)
+        {
+            if (number.Minimum is not null)
+                constraints.Add(new(number.ExclusiveMinimum ? "exclusiveMinimum" : "minimum", number.Minimum));
+            if (number.Maximum is not null)
+                constraints.Add(new(number.ExclusiveMaximum ? "exclusiveMaximum" : "maximum", number.Maximum));
+        }
+        else if (logicalType is IntegerLogicalType integer)
+        {
+            if (integer.Minimum is not null)
+                constraints.Add(new(integer.ExclusiveMinimum ? "exclusiveMinimum" : "minimum", integer.Minimum));
+            if (integer.Maximum is not null)
+                constraints.Add(new(integer.ExclusiveMaximum ? "exclusiveMaximum" : "maximum", integer.Maximum));
+        }
     }
 
     private static DataEndpoint MapEndpoint(BaseServer server)

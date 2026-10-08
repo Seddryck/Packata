@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Reflection;
 using Packata.Core.Contracts;
 using Packata.OpenDataContract.Mapping;
 using Packata.OpenDataContract.ServerTypes;
@@ -133,5 +134,42 @@ public class OpenDataContractMapperTests
             Assert.That(relationship.TargetFields, Is.EqualTo(new[] { "id" }));
             Assert.That(relationship.Name, Is.EqualTo("customer"));
         });
+    }
+
+    [Test]
+    public void Map_preserves_logical_type_range_and_length_constraints()
+    {
+        var amount = LogicalProperty("amount", "number", new()
+        {
+            ["minimum"] = "0.1", ["maximum"] = "100", ["exclusiveMaximum"] = "true"
+        });
+        var code = LogicalProperty("code", "string", new()
+        {
+            ["minLength"] = "2", ["maxLength"] = "8"
+        });
+        var document = new DataContract
+        {
+            Id = "orders", Schema = [new SchemaObject { Name = "orders", Properties = [amount, code] }]
+        };
+
+        var fields = new OpenDataContractMapper().Map(document).RequireValue().Assets[0].Schema!.Fields;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fields[0].Constraints.Select(value => value.Kind),
+                Is.EqualTo(new[] { "minimum", "exclusiveMaximum" }));
+            Assert.That(fields[1].Constraints.Select(value => value.Kind),
+                Is.EqualTo(new[] { "minLength", "maxLength" }));
+        });
+    }
+
+    private static SchemaProperty LogicalProperty(string name, string type, Dictionary<string, object> options)
+    {
+        var property = new SchemaProperty { Name = name };
+        typeof(SchemaBaseProperty).GetProperty("LogicalTypeDiscriminator",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(property, type);
+        typeof(SchemaBaseProperty).GetProperty("LogicalTypeOptions",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(property, options);
+        return property;
     }
 }
