@@ -105,6 +105,27 @@ public class OpenDataContractMapperTests
     }
 
     [Test]
+    public void Map_preserves_custom_server_catalog_database_and_schema()
+    {
+        var document = new DataContract
+        {
+            Id = "orders", Schema = [new SchemaObject { Name = "orders" }],
+            Servers = [new CustomServer { Server = "warehouse", Type = "mssql", Host = "server",
+                Catalog = "catalog", Database = "database", Schema = "sales" }]
+        };
+
+        var location = (ConnectionLocation)new OpenDataContractMapper().Map(document).RequireValue()
+            .Endpoints.Single().Location;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(location.Catalog, Is.EqualTo("catalog"));
+            Assert.That(location.Database, Is.EqualTo("database"));
+            Assert.That(location.Namespace, Is.EqualTo("sales"));
+        });
+    }
+
+    [Test]
     public void Map_preserves_property_foreign_key_relationships()
     {
         var document = new DataContract

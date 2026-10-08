@@ -53,7 +53,9 @@ public class DubUrlProvisioner : IDataContractProvisioner
         var diagnostics = new List<ProvisioningDiagnostic>();
         var schema = new SchemaBuilder().WithTables(tables =>
         {
-            foreach (var asset in contract.Assets) tables.Add(Map(asset, options, diagnostics));
+            var resolver = new RelationalObjectNameResolver(ConnectionUrl.Url, contract);
+            foreach (var asset in contract.Assets)
+                tables.Add(Map(asset, resolver.Resolve(asset), options, diagnostics));
             return tables;
         }).Build();
         var script = ScriptRenderer.Render(schema);
@@ -84,7 +86,7 @@ public class DubUrlProvisioner : IDataContractProvisioner
             }
             var request = new DataEndpointReadRequest(endpoint, asset.Schema, binding!.AssetPath);
             using var reader = await readerFactory.OpenAsync(request, cancellationToken).ConfigureAwait(false);
-            bulkCopy.Write(asset.PhysicalName ?? asset.Name, reader);
+            bulkCopy.Write(new RelationalObjectNameResolver(ConnectionUrl.Url, contract).Resolve(asset), reader);
         }
         return diagnostics;
     }
@@ -97,11 +99,11 @@ public class DubUrlProvisioner : IDataContractProvisioner
         return diagnostics;
     }
 
-    protected internal ITableBuilder Map(DataAsset asset, ContractProvisioningOptions options,
+    protected internal ITableBuilder Map(DataAsset asset, string tableName, ContractProvisioningOptions options,
         ICollection<ProvisioningDiagnostic> diagnostics)
     {
         var schema = asset.Schema ?? throw new InvalidOperationException($"Asset '{asset.Id}' requires a schema.");
-        return new TableBuilder().WithName(asset.PhysicalName ?? asset.Name).WithColumns(columns =>
+        return new TableBuilder().WithName(tableName).WithColumns(columns =>
         {
             foreach (var field in schema.Fields)
             {

@@ -181,17 +181,23 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         DataLocation location = server switch
         {
             LocalFilesServer local => new PathLocation([local.Path]),
+            CustomServer custom when custom.Host is not null || custom.Database is not null
+                || custom.Schema is not null || custom.Catalog is not null => new ConnectionLocation(
+                    server.Type, custom.Host, ConvertPort(custom.Port), custom.Database, custom.Schema,
+                    custom.EndpointUrl, custom.Catalog),
             ILocationAware located => new PathLocation([located.Location]),
             IHostAware hosted => new ConnectionLocation(
                 server.Type,
                 hosted.Host,
                 ConvertPort(hosted.Port),
                 (server as IDatabaseAware)?.Database,
-                (server as ISchemaAware)?.Schema),
+                (server as ISchemaAware)?.Schema,
+                Catalog: (server as ICatalogAware)?.Catalog),
             IDatabaseAware database => new ConnectionLocation(
                 server.Type,
                 Database: database.Database,
-                Namespace: (server as ISchemaAware)?.Schema),
+                Namespace: (server as ISchemaAware)?.Schema,
+                Catalog: (server as ICatalogAware)?.Catalog),
             _ => new ConnectionLocation(server.Type)
         };
 

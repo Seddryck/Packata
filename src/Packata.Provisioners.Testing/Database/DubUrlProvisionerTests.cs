@@ -127,6 +127,28 @@ public class DubUrlProvisionerTests
     }
 
     [Test]
+    public void DeploySchema_qualifies_tables_from_bound_endpoint_metadata()
+    {
+        var fixture = CreateFixture();
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
+        var endpoint = new DataEndpoint("warehouse", null, EndpointKind.Database, null,
+            new ConnectionLocation("mssql", Database: "catalog", Namespace: "sales"));
+        var asset = new DataAsset("customers", "Customer", "Customer", null, AssetKind.Table,
+            new DataSchema([new DataField("id", "integer")]), [new EndpointBinding(endpoint.Id)]);
+        var contract = new DataContract(new("contract"), new(), [asset], [endpoint], new());
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(rendered!.Tables.Keys, Is.EqualTo(new[] { "catalog.sales.Customer" }));
+        });
+    }
+
+    [Test]
     public async Task LoadDataAsync_resolves_binding_through_canonical_reader_contract()
     {
         var fixture = CreateFixture();

@@ -138,7 +138,8 @@ public sealed record ConnectionLocation(
     int? Port = null,
     string? Database = null,
     string? Namespace = null,
-    string? ConnectionUrl = null) : DataLocation;
+    string? ConnectionUrl = null,
+    string? Catalog = null) : DataLocation;
 
 public sealed record InlineLocation(object? Value) : DataLocation;
 
