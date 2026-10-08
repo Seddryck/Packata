@@ -15,6 +15,8 @@ namespace Packata.ResourceReaders;
 /// <summary>
 /// Concurrent-safe reader entry point for canonical endpoints. A returned reader owns the streams,
 /// commands, and connections opened for it and releases them when disposed.
+/// Inline endpoints accept enumerable rows represented by string-keyed dictionaries, or positional
+/// enumerable rows when a schema supplies the column names.
 /// </summary>
 public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 {
@@ -44,8 +46,11 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         cancellationToken.ThrowIfCancellationRequested();
         if (endpoint.Location is ConnectionLocation connection)
             return OpenDatabase(endpoint, connection, request.AssetPath, cancellationToken);
+        if (endpoint.Location is InlineLocation inline)
+            return OpenInline(endpoint, inline, request.Schema);
         if (endpoint.Location is not PathLocation paths || paths.Paths.Count == 0)
-            throw new NotSupportedException($"Endpoint '{endpoint.Id}' does not expose readable paths or a connection.");
+            throw new NotSupportedException(
+                $"Endpoint '{endpoint.Id}' does not expose readable paths, inline data, or a connection.");
 
         var format = ResolveFormat(endpoint, paths);
         var opened = new List<Stream>();
@@ -248,6 +253,20 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
             return new OwnedDataReader(reader, command, connection);
         }
         catch { command?.Dispose(); connection.Dispose(); throw; }
+    }
+
+    private static IDataReader OpenInline(DataEndpoint endpoint, InlineLocation location, DataSchema? schema)
+    {
+        try
+        {
+            var table = InlineDataReader.CreateTable(location.Value, schema);
+            return new OwnedDataReader(table.CreateDataReader(), table);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new ArgumentException($"Inline endpoint '{endpoint.Id}' is invalid: {exception.Message}",
+                nameof(endpoint), exception);
+        }
     }
 
     private sealed record ResolvedFormat(string Name, string? Compression, char Delimiter);
