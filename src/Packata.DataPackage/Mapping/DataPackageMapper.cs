@@ -131,7 +131,9 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             return new DataField(name, field.Type, Format: field.Format,
                 Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
                 Constraints: constraints,
-                Extensions: ExtensionMetadata.For("datapackage", FieldExtensions(field)));
+                Extensions: ExtensionMetadata.For("datapackage", FieldExtensions(field)),
+                PhysicalName: field.PhysicalName ?? name,
+                Description: field.Description);
         }).ToArray();
 
         var relationships = (schema.ForeignKeys ?? []).Select(foreignKey =>

@@ -39,6 +39,7 @@ public class OpenDataContractMapperTests
                         new SchemaProperty
                         {
                             Name = "id",
+                            PhysicalName = "order_id",
                             PhysicalType = "bigint",
                             PrimaryKey = true,
                             Required = true
@@ -66,6 +67,7 @@ public class OpenDataContractMapperTests
             Assert.That(result.Value!.Assets, Has.Count.EqualTo(1));
             Assert.That(result.Value.Assets[0].Kind, Is.EqualTo(AssetKind.Table));
             Assert.That(result.Value.Assets[0].Schema!.PrimaryKey, Is.EqualTo(new[] { "id" }));
+            Assert.That(result.Value.Assets[0].Schema!.Fields[0].PhysicalName, Is.EqualTo("order_id"));
             Assert.That(result.Value.Assets[0].EndpointBindings[0].EndpointId, Is.EqualTo("production"));
             Assert.That(
                 ((PathLocation)result.Value.Endpoints[0].Location).Paths,

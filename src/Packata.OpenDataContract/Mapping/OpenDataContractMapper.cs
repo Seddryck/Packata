@@ -94,7 +94,9 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             constraints,
             Extensions: extensions.Count == 0
                 ? ExtensionMetadata.Empty
-                : ExtensionMetadata.For("odcs", extensions));
+                : ExtensionMetadata.For("odcs", extensions),
+            PhysicalName: property.PhysicalName,
+            Description: property.Description);
     }
 
     private static DataEndpoint MapEndpoint(BaseServer server)

@@ -75,7 +75,9 @@ public sealed record DataField(
     IReadOnlyList<DataConstraint>? Constraints = null,
     IReadOnlyList<DataQualityRule>? QualityRules = null,
     IReadOnlyList<DataField>? Children = null,
-    ExtensionMetadata? Extensions = null)
+    ExtensionMetadata? Extensions = null,
+    string? PhysicalName = null,
+    string? Description = null)
 {
     public IReadOnlyList<DataConstraint> Constraints { get; init; } = Constraints ?? [];
     public IReadOnlyList<DataQualityRule> QualityRules { get; init; } = QualityRules ?? [];
