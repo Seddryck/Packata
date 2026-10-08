@@ -20,6 +20,17 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         : this(streams, DefaultProviders(rootPath ?? string.Empty))
     { }
 
+    /// <summary>Creates a factory with explicitly registered providers evaluated before the built-in readers.</summary>
+    public static ResourceReaderFactory Create(Action<ResourceReaderFactoryOptions> configure,
+        IEndpointStreamResolver? streams = null, string? rootPath = null)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        var options = new ResourceReaderFactoryOptions();
+        configure(options);
+        return new ResourceReaderFactory(streams,
+            options.CombineWith(DefaultProviders(rootPath ?? string.Empty)));
+    }
+
     internal ResourceReaderFactory(IEndpointStreamResolver? streams,
         IEnumerable<IDataEndpointReaderProvider> providers)
     {
