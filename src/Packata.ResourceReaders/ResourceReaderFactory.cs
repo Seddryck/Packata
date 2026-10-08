@@ -33,11 +33,17 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
     public async ValueTask<IDataReader> OpenAsync(DataEndpoint endpoint, DataSchema? schema = null,
         CancellationToken cancellationToken = default)
+        => await OpenAsync(new DataEndpointReadRequest(endpoint, schema), cancellationToken).ConfigureAwait(false);
+
+    public async ValueTask<IDataReader> OpenAsync(DataEndpointReadRequest request,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        var endpoint = request.Endpoint;
         ArgumentNullException.ThrowIfNull(endpoint);
         cancellationToken.ThrowIfCancellationRequested();
         if (endpoint.Location is ConnectionLocation connection)
-            return OpenDatabase(endpoint, connection, cancellationToken);
+            return OpenDatabase(endpoint, connection, request.AssetPath, cancellationToken);
         if (endpoint.Location is not PathLocation paths || paths.Paths.Count == 0)
             throw new NotSupportedException($"Endpoint '{endpoint.Id}' does not expose readable paths or a connection.");
 
@@ -51,7 +57,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
             {
                 "xlsx" or "xls" => OpenSpreadsheet(opened, endpoint.Format),
                 "parquet" or "pqt" => await ParquetDataReader.CreateAsync(opened).ConfigureAwait(false),
-                _ => OpenDelimited(opened, endpoint.Format, schema, format)
+                _ => OpenDelimited(opened, endpoint.Format, request.Schema, format)
             };
             return new OwnedDataReader(reader, opened.Cast<IDisposable>().ToArray());
         }
@@ -221,7 +227,8 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         return [.. headers];
     }
 
-    private IDataReader OpenDatabase(DataEndpoint endpoint, ConnectionLocation location, CancellationToken cancellationToken)
+    private IDataReader OpenDatabase(DataEndpoint endpoint, ConnectionLocation location, string? assetPath,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var session = _databases.Open(location);
@@ -230,8 +237,9 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         try
         {
             command = connection.CreateCommand();
-            var table = OptionString(endpoint.Format, "table")
-                ?? throw new ArgumentException("Database endpoint format requires a table option.", nameof(endpoint));
+            var table = assetPath ?? OptionString(endpoint.Format, "table")
+                ?? throw new ArgumentException(
+                    "A database read requires an asset path or table format option.", nameof(endpoint));
             var ns = location.Namespace ?? OptionString(endpoint.Format, "namespace");
             command.CommandText = string.IsNullOrEmpty(ns)
                 ? $"SELECT * FROM {session.RenderIdentifier(table)}" :

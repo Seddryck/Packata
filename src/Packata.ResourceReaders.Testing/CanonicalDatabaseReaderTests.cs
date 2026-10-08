@@ -2,6 +2,10 @@ using System.Data;
 using Moq;
 using NUnit.Framework;
 using Packata.Core.Contracts;
+using Packata.Core.Reading;
+using Packata.OpenDataContract;
+using Packata.OpenDataContract.Mapping;
+using Packata.OpenDataContract.ServerTypes;
 
 namespace Packata.ResourceReaders.Testing;
 
@@ -75,6 +79,51 @@ public class CanonicalDatabaseReaderTests
         using var reader = await new ResourceReaderFactory(null, databases).OpenAsync(endpoint);
 
         Assert.That(databases.Location, Is.EqualTo(endpoint.Location));
+    }
+
+    [Test]
+    public async Task OpenAsync_reads_an_asset_from_a_mapped_odcs_database_endpoint()
+    {
+        var document = new Packata.OpenDataContract.DataContract
+        {
+            Id = "sales",
+            Schema =
+            [
+                new SchemaObject
+                {
+                    Name = "customers", PhysicalName = "Customer",
+                    Properties = [new SchemaProperty { Name = "Id" }]
+                }
+            ],
+            Servers =
+            [
+                new MsSqlServer
+                {
+                    Server = "production", Type = "sqlserver", Host = "server", Port = 1433,
+                    Database = "sales", Schema = "dbo"
+                }
+            ]
+        };
+        var contract = document.ToCanonicalContract().RequireValue();
+        var asset = contract.Assets.Single();
+        var binding = asset.EndpointBindings.Single();
+        var endpoint = contract.Endpoints.Single();
+        var inner = new Mock<IDataReader>();
+        var command = new Mock<IDbCommand>();
+        command.Setup(value => value.ExecuteReader()).Returns(inner.Object);
+        var connection = new Mock<IDbConnection>();
+        connection.Setup(value => value.CreateCommand()).Returns(command.Object);
+        var databases = new StubDatabaseSessionFactory(
+            new DatabaseSession(connection.Object, value => $"[{value}]"));
+
+        using var reader = await new ResourceReaderFactory(null, databases).OpenAsync(
+            new DataEndpointReadRequest(endpoint, asset.Schema, binding.AssetPath));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(databases.Location, Is.EqualTo(endpoint.Location));
+            command.VerifySet(value => value.CommandText = "SELECT * FROM [dbo].[Customer]", Times.Once);
+        });
     }
 
     [TestCase("mssql://server/database", "mssql", null, null, null, "mssql://server/database")]

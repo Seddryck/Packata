@@ -43,7 +43,8 @@ public class DubUrlProvisionerTests
         var contract = new DataContract(new("contract"), new(), [asset], [endpoint], new());
         var reader = new Mock<IDataReader>();
         var readerFactory = new Mock<IDataEndpointReaderFactory>();
-        readerFactory.Setup(x => x.OpenAsync(endpoint, asset.Schema, It.IsAny<CancellationToken>()))
+        readerFactory.Setup(x => x.OpenAsync(
+                new DataEndpointReadRequest(endpoint, asset.Schema, null), It.IsAny<CancellationToken>()))
             .ReturnsAsync(reader.Object);
         var provisioner = fixture.WithReader(readerFactory.Object);
 
@@ -62,6 +63,34 @@ public class DubUrlProvisionerTests
         var diagnostics = await fixture.WithReader(readerFactory.Object).LoadDataAsync(Contract(
             new DataSchema([new DataField("Id", "integer")])));
         Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV001"));
+    }
+
+    [Test]
+    public async Task LoadDataAsync_passes_distinct_asset_paths_for_a_shared_endpoint()
+    {
+        var fixture = CreateFixture();
+        var endpoint = new DataEndpoint("source", null, EndpointKind.Database, null,
+            new ConnectionLocation("mssql", "server", Database: "sales"));
+        var schema = new DataSchema([new DataField("Id", "integer")]);
+        var first = new DataAsset("customers", "Customers", "Customers", null, AssetKind.Table,
+            schema, [new EndpointBinding(endpoint.Id, "source_customers")]);
+        var second = new DataAsset("orders", "Orders", "Orders", null, AssetKind.Table,
+            schema, [new EndpointBinding(endpoint.Id, "source_orders")]);
+        var contract = new DataContract(new("contract"), new(), [first, second], [endpoint], new());
+        var firstReader = new Mock<IDataReader>();
+        var secondReader = new Mock<IDataReader>();
+        var readerFactory = new Mock<IDataEndpointReaderFactory>();
+        readerFactory.Setup(x => x.OpenAsync(
+                new DataEndpointReadRequest(endpoint, schema, "source_customers"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(firstReader.Object);
+        readerFactory.Setup(x => x.OpenAsync(
+                new DataEndpointReadRequest(endpoint, schema, "source_orders"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(secondReader.Object);
+
+        var diagnostics = await fixture.WithReader(readerFactory.Object).LoadDataAsync(contract);
+
+        Assert.That(diagnostics, Is.Empty);
+        readerFactory.VerifyAll();
     }
 
     private static DataContract Contract(DataSchema schema)
