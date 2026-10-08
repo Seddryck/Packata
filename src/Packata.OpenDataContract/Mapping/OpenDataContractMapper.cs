@@ -24,7 +24,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         }
 
         var assets = document.Schema
-            .Select(schema => MapAsset(schema, canBindEndpoints ? endpoints : []))
+            .Select(schema => MapAsset(schema, canBindEndpoints ? endpoints : [], diagnostics))
             .ToArray();
 
         var extensions = MapCustomProperties(document.Description?.CustomProperties);
@@ -50,7 +50,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         return new MappingResult<CoreContract>(contract, diagnostics);
     }
 
-    private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints)
+    private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints,
+        ICollection<MappingDiagnostic> diagnostics)
     {
         var fields = schema.Properties.Select(MapField).ToArray();
         var primaryKey = schema.Properties
@@ -59,14 +60,62 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             .Select(x => x.Name)
             .ToArray();
 
+        var relationships = schema.Relationships
+            .Select(value => MapRelationship(value, schema.Name, null, diagnostics))
+            .Concat(schema.Properties.SelectMany(property => property.Relationships
+                .Select(value => MapRelationship(value, schema.Name, property.Name, diagnostics))))
+            .Where(value => value is not null).Cast<DataRelationship>().ToArray();
+
         return new DataAsset(
             schema.Name,
             schema.Name,
             schema.PhysicalName,
             schema.Description,
             MapAssetKind(schema.PhysicalType),
-            new DataSchema(fields, primaryKey),
+            new DataSchema(fields, primaryKey, relationships),
             endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray());
+    }
+
+    private static DataRelationship? MapRelationship(Relationship relationship, string sourceAsset,
+        string? sourceField, ICollection<MappingDiagnostic> diagnostics)
+    {
+        if (!relationship.Type.Equals("foreignKey", StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(new("ODCS002", MappingSeverity.Warning, $"schema/{sourceAsset}/relationships",
+                $"Relationship type '{relationship.Type}' is retained only as source metadata."));
+            return null;
+        }
+
+        var from = ParseReference(relationship.From?.ToString(), sourceAsset, sourceField);
+        var to = ParseReference(relationship.To.ToString(), null, null);
+        if (from is null || to is null || string.IsNullOrWhiteSpace(from.Value.Field)
+            || string.IsNullOrWhiteSpace(to.Value.Asset) || string.IsNullOrWhiteSpace(to.Value.Field))
+        {
+            diagnostics.Add(new("ODCS003", MappingSeverity.Warning, $"schema/{sourceAsset}/relationships",
+                $"Relationship '{relationship.Id ?? "<unnamed>"}' has an unsupported reference path."));
+            return null;
+        }
+
+        return new([from.Value.Field!], to.Value.Asset!, [to.Value.Field!], relationship.Id,
+            relationship.Type, MapCustomProperties(relationship.CustomProperties));
+    }
+
+    private static (string? Asset, string? Field)? ParseReference(string? value,
+        string? defaultAsset, string? defaultField)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return defaultAsset is null ? null : (defaultAsset, defaultField);
+        var parts = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 4 && parts[0].Equals("schema", StringComparison.OrdinalIgnoreCase)
+            && parts[2].Equals("properties", StringComparison.OrdinalIgnoreCase))
+            return (parts[1], parts[3]);
+        parts = value.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length switch
+        {
+            >= 2 => (parts[^2], parts[^1]),
+            1 when defaultAsset is not null => (defaultAsset, parts[0]),
+            _ => null
+        };
     }
 
     private static DataField MapField(SchemaProperty property)
