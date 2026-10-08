@@ -84,10 +84,12 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     ];
 
     private static NotSupportedException UnsupportedEndpoint(DataEndpoint endpoint, ResolvedDataFormat format) =>
-        endpoint.Location is PathLocation
-            ? new NotSupportedException(string.IsNullOrEmpty(format.Name)
+        KnownFormatRegistry.Find(endpoint, format) is { } known
+            ? new ReaderProviderUnavailableException(known)
+            : endpoint.Location is PathLocation
+                ? new NotSupportedException(string.IsNullOrEmpty(format.Name)
                 ? $"The format of endpoint '{endpoint.Id}' could not be determined."
                 : $"Resource format '{format.Name}' is not supported for endpoint '{endpoint.Id}'.")
-            : new NotSupportedException(
-                $"Endpoint '{endpoint.Id}' does not expose readable paths, inline data, or a connection.");
+                : new NotSupportedException(
+                    $"Endpoint '{endpoint.Id}' does not expose readable paths, inline data, or a connection.");
 }
