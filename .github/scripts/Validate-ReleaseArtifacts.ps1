@@ -19,6 +19,7 @@ $packageIds = @(
     'Packata.ResourceReaders.Database',
     'Packata.ResourceReaders.Excel',
     'Packata.ResourceReaders.FixedWidth',
+    'Packata.ResourceReaders.KeyValue',
     'Packata.ResourceReaders.Ndjson',
     'Packata.ResourceReaders.Parquet',
     'Packata.Provisioners',

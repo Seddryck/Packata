@@ -50,6 +50,8 @@ internal static class DataFormatResolver
         "text/psv" => "psv",
         "application/x-ndjson" or "application/ndjson" => "ndjson",
         "text/x-fixed-width" => "fixed-width",
+        "text/x-ltsv" or "text/ltsv" => "ltsv",
+        "application/logfmt" or "text/x-logfmt" => "logfmt",
         "application/vnd.ms-excel" => "xls",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
         "application/vnd.apache.parquet" => "parquet",
