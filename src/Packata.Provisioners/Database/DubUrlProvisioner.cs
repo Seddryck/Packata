@@ -57,7 +57,7 @@ public class DubUrlProvisioner : IDataContractProvisioner
             return tables;
         }).Build();
         var script = ScriptRenderer.Render(schema);
-        var additions = new RelationalDdlAugmenter(ConnectionUrl.Url).RenderForeignKeys(contract, options, diagnostics);
+        var additions = new RelationalDdlAugmenter(ConnectionUrl.Url).Render(contract, options, diagnostics);
         if (!string.IsNullOrWhiteSpace(additions)) script = $"{script}{Environment.NewLine}{additions}";
         ScriptDeployer.DeploySchema(ConnectionUrl, script);
         return diagnostics;
@@ -117,6 +117,7 @@ public class DubUrlProvisioner : IDataContractProvisioner
                     {
                         foreach (var constraint in field.Constraints.Where(x => x.Kind != "unique"))
                         {
+                            if (constraint.Kind.Equals("pattern", StringComparison.OrdinalIgnoreCase)) continue;
                             var check = MapCheck(column, constraint);
                             if (check is null)
                                 diagnostics.Add(new("PROV004", asset.Id,

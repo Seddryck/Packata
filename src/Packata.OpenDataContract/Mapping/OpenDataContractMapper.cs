@@ -156,6 +156,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         {
             if (text.MinLength is not null) constraints.Add(new("minLength", text.MinLength));
             if (text.MaxLength is not null) constraints.Add(new("maxLength", text.MaxLength));
+            if (!string.IsNullOrWhiteSpace(text.Pattern)) constraints.Add(new("pattern", text.Pattern));
         }
         else if (logicalType is NumberLogicalType number)
         {

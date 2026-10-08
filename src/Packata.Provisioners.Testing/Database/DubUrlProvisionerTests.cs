@@ -61,6 +61,20 @@ public class DubUrlProvisionerTests
     }
 
     [Test]
+    public void DeploySchema_generates_pattern_checks_for_supported_dialect()
+    {
+        var fixture = CreateFixture("mysql://./mydb");
+        var contract = Contract(new DataSchema(
+            [new DataField("code", "string", Constraints: [new("pattern", "^[A-Z]+$")]) ]));
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object,
+            It.Is<string>(script => script.Contains("CHECK (`code` REGEXP '^[A-Z]+$')"))), Times.Once);
+        Assert.That(diagnostics, Is.Empty);
+    }
+
+    [Test]
     public async Task LoadDataAsync_resolves_binding_through_canonical_reader_contract()
     {
         var fixture = CreateFixture();
@@ -127,14 +141,14 @@ public class DubUrlProvisionerTests
         return new DataContract(new("contract"), new(), [asset], [], new());
     }
 
-    private static Fixture CreateFixture()
+    private static Fixture CreateFixture(string connectionUrl = "mssql://./mydb")
     {
         var typeMapper = new Mock<IDbTypeMapper>();
         var functionMapper = new Mock<ISqlFunctionMapper>();
         var dialect = new Mock<IDialect>();
         dialect.Setup(x => x.DbTypeMapper).Returns(typeMapper.Object);
         dialect.Setup(x => x.SqlFunctionMapper).Returns(functionMapper.Object);
-        var connection = new Mock<ConnectionUrl>("mssql://./mydb");
+        var connection = new Mock<ConnectionUrl>(connectionUrl);
         connection.Setup(x => x.Dialect).Returns(dialect.Object);
         var renderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None);
         renderer.Setup(x => x.Render(It.IsAny<Schema>())).Returns("CREATE TABLE");

@@ -145,7 +145,7 @@ public class OpenDataContractMapperTests
         });
         var code = LogicalProperty("code", "string", new()
         {
-            ["minLength"] = "2", ["maxLength"] = "8"
+            ["minLength"] = "2", ["maxLength"] = "8", ["pattern"] = "^[A-Z]+$"
         });
         var document = new DataContract
         {
@@ -159,7 +159,7 @@ public class OpenDataContractMapperTests
             Assert.That(fields[0].Constraints.Select(value => value.Kind),
                 Is.EqualTo(new[] { "minimum", "exclusiveMaximum" }));
             Assert.That(fields[1].Constraints.Select(value => value.Kind),
-                Is.EqualTo(new[] { "minLength", "maxLength" }));
+                Is.EqualTo(new[] { "minLength", "maxLength", "pattern" }));
         });
     }
 
