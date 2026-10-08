@@ -402,10 +402,11 @@ jobs:
 
           if ($rid.StartsWith('linux-musl-')) {
             $mount = "$((Resolve-Path $verifyDirectory).Path):/work"
-            $help = @(& docker run --rm --volume $mount --workdir /work alpine:3.22 ./packata --help 2>&1)
-            if ($LASTEXITCODE -ne 0) { throw "Packata CLI help smoke test failed for '$rid'." }
-            $reportedVersion = @(& docker run --rm --volume $mount --workdir /work alpine:3.22 ./packata --version 2>&1)
-            if ($LASTEXITCODE -ne 0) { throw "Packata CLI version smoke test failed for '$rid'." }
+            $image = 'mcr.microsoft.com/dotnet/runtime-deps:10.0-alpine'
+            $help = @(& docker run --rm --volume $mount --workdir /work $image ./packata --help 2>&1)
+            if ($LASTEXITCODE -ne 0) { throw "Packata CLI help smoke test failed for '$rid': $($help -join ' ')" }
+            $reportedVersion = @(& docker run --rm --volume $mount --workdir /work $image ./packata --version 2>&1)
+            if ($LASTEXITCODE -ne 0) { throw "Packata CLI version smoke test failed for '$rid': $($reportedVersion -join ' ')" }
           }
           else {
             $executable = Join-Path $verifyDirectory '${{ matrix.executable }}'
