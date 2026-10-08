@@ -128,6 +128,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             var constraints = field.Constraints is null ? [] : Enumerable.Range(0, field.Constraints.Count)
                 .Select(index => field.Constraints[index]).Select(MapConstraint)
                 .Where(x => x is not null).Cast<DataConstraint>().ToArray();
+            if (field.Categories is { Count: > 0 } && !constraints.Any(value => value.Kind == "enum"))
+                constraints = [.. constraints, new DataConstraint("enum", field.Categories.Select(CategoryValue).ToArray())];
             return new DataField(name, field.Type, Format: field.Format,
                 Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
                 Constraints: constraints,
@@ -154,6 +156,13 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 ["metrics"] = schema.Metrics
             }));
     }
+
+    private static object CategoryValue(Native.ICategory category) => category switch
+    {
+        Native.Category value => value.Value,
+        Native.CategoryLabel value => value.Label,
+        _ => category.Label
+    };
 
     private static DataConstraint? MapConstraint(Native.Constraint constraint) => constraint switch
     {
