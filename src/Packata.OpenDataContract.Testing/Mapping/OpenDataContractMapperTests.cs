@@ -144,4 +144,87 @@ public class OpenDataContractMapperTests
             Assert.That(customProperties[0]["property"], Is.EqualTo("fixedWidthOffset"));
         });
     }
+
+    [Test]
+    public void Map_CustomDelimitedServer_MapsItsDelimiterToCanonicalOptions()
+    {
+        var document = new DataContract
+        {
+            Id = "customers",
+            Servers =
+            [
+                new CustomServer
+                {
+                    Server = "customers-file",
+                    Type = "custom",
+                    Format = "csv",
+                    Delimiter = ";"
+                }
+            ]
+        };
+
+        var endpoint = new OpenDataContractMapper().Map(document).RequireValue().Endpoints.Single();
+
+        Assert.That(endpoint.Format!.Options["delimiter"], Is.EqualTo(";"));
+    }
+
+    [Test]
+    public void Map_DelimitedServer_MapsPackataVendorDialectProperties()
+    {
+        var server = new LocalFilesServer
+        {
+            Server = "customers-file",
+            Type = "local",
+            Path = "customers.dat",
+            Format = "csv"
+        };
+        server.CustomProperties.Add(new CustomProperty
+        {
+            Vendor = "packata", Property = "delimiter", Value = ";"
+        });
+        server.CustomProperties.Add(new CustomProperty
+        {
+            Vendor = "packata", Property = "quoteChar", Value = "'"
+        });
+        server.CustomProperties.Add(new CustomProperty
+        {
+            Vendor = "packata", Property = "header", Value = false
+        });
+        var document = new DataContract { Id = "customers", Servers = [server] };
+
+        var options = new OpenDataContractMapper().Map(document).RequireValue()
+            .Endpoints.Single().Format!.Options;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(options["delimiter"], Is.EqualTo(";"));
+            Assert.That(options["quoteChar"], Is.EqualTo("'"));
+            Assert.That(options["header"], Is.False);
+        });
+    }
+
+    [Test]
+    public void Map_AzureCsvServer_DoesNotTreatJsonDocumentDelimiterAsCsvDialect()
+    {
+        var document = new DataContract
+        {
+            Id = "customers",
+            Servers =
+            [
+                new AzureServer
+                {
+                    Server = "customers-file",
+                    Type = "azure",
+                    Location = "https://storage.example/customers.csv",
+                    Format = "csv",
+                    Delimiter = "new_line"
+                }
+            ]
+        };
+
+        var options = new OpenDataContractMapper().Map(document).RequireValue()
+            .Endpoints.Single().Format!.Options;
+
+        Assert.That(options, Is.Empty);
+    }
 }

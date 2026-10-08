@@ -133,6 +133,28 @@ public class CanonicalDelimitedReaderTests
         Assert.That(reader["name"], Is.EqualTo("alpha;beta"));
     }
 
+    [Test]
+    public async Task OpenAsync_uses_a_configured_dialect_resolver_before_format_options()
+    {
+        var resolver = new DictionaryResolver(("data.dat",
+            Encoding.UTF8.GetBytes("id;name\n1;'alpha;beta'\n")));
+        var endpoint = Endpoint(["data.dat"], new DataFormat(null, Options: new Dictionary<string, object?>
+        {
+            ["delimiter"] = ','
+        }));
+        var factory = ResourceReaderFactory.Create(options =>
+        {
+            options.Formats.AddExtension(".dat", "csv");
+            options.AddDelimited(delimited =>
+                delimited.AddDialectResolver(new ConstantDialectResolver()));
+        }, resolver);
+
+        using var reader = await factory.OpenAsync(endpoint);
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha;beta"));
+    }
+
     [TestCase("")]
     [TestCase("||")]
     public void OpenAsync_rejects_delimiters_that_are_not_single_characters(string delimiter)
@@ -245,6 +267,13 @@ public class CanonicalDelimitedReaderTests
         private readonly Dictionary<string, byte[]> _values = values.ToDictionary(x => x.Path, x => x.Content);
         public ValueTask<Stream> OpenAsync(string path, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<Stream>(new MemoryStream(_values[path], writable: false));
+    }
+
+    private sealed class ConstantDialectResolver : IDelimitedDialectResolver
+    {
+        public ValueTask<DelimitedDialect?> ResolveAsync(DelimitedDialectContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<DelimitedDialect?>(new(';', "\n", true, '\''));
     }
 
     private sealed class SequencedResolver(params object[] results) : IEndpointStreamResolver
