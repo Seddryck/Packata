@@ -210,12 +210,276 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+  test-cli:
+    name: Test Packata CLI
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.401
+
+      - name: Restore CLI tests
+        run: dotnet restore src/Packata.Cli.Testing/Packata.Cli.Testing.csproj
+
+      - name: Build CLI tests
+        run: >-
+          dotnet build src/Packata.Cli.Testing/Packata.Cli.Testing.csproj
+          --configuration Release
+          --no-restore
+          --nologo
+          -p:Version=${{ needs.version.outputs.semver }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Run CLI tests
+        run: >-
+          dotnet test src/Packata.Cli.Testing/Packata.Cli.Testing.csproj
+          --configuration Release
+          --no-build
+          --no-restore
+          --nologo
+
+  package-cli-tool:
+    name: Package Packata CLI tool
+    needs:
+      - version
+      - test-cli
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.401
+
+      - name: Restore CLI tool
+        run: dotnet restore src/Packata.Cli/Packata.Cli.csproj
+
+      - name: Pack CLI tool
+        run: >-
+          dotnet pack src/Packata.Cli/Packata.Cli.csproj
+          --configuration Release
+          --no-restore
+          --nologo
+          --output .artifacts/cli-nuget
+          -p:Version=${{ needs.version.outputs.semver }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Validate CLI tool package
+        shell: pwsh
+        run: >-
+          ./.github/scripts/Validate-CliArtifacts.ps1
+          -Version '${{ needs.version.outputs.semver }}'
+          -NuGetDirectory './.artifacts/cli-nuget'
+          -SkipReleaseArchives
+
+      - name: Upload CLI tool package
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-tool-${{ needs.version.outputs.semver }}
+          path: .artifacts/cli-nuget
+          if-no-files-found: error
+
+  package-cli-runtimes:
+    name: Package CLI (${{ matrix.rid }})
+    needs:
+      - version
+      - test-cli
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            runner: windows-latest
+            archive: zip
+            executable: packata.exe
+          - rid: win-arm64
+            runner: windows-11-arm
+            archive: zip
+            executable: packata.exe
+          - rid: linux-x64
+            runner: ubuntu-latest
+            archive: tar.gz
+            executable: packata
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+            archive: tar.gz
+            executable: packata
+          - rid: linux-musl-x64
+            runner: ubuntu-latest
+            archive: tar.gz
+            executable: packata
+          - rid: linux-musl-arm64
+            runner: ubuntu-24.04-arm
+            archive: tar.gz
+            executable: packata
+          - rid: osx-x64
+            runner: macos-15-intel
+            archive: tar.gz
+            executable: packata
+          - rid: osx-arm64
+            runner: macos-15
+            archive: tar.gz
+            executable: packata
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.401
+
+      - name: Restore CLI runtime
+        run: dotnet restore src/Packata.Cli/Packata.Cli.csproj --runtime ${{ matrix.rid }}
+
+      - name: Publish self-contained CLI
+        run: >-
+          dotnet publish src/Packata.Cli/Packata.Cli.csproj
+          --configuration Release
+          --runtime ${{ matrix.rid }}
+          --self-contained true
+          --no-restore
+          --nologo
+          --output .artifacts/cli-publish/${{ matrix.rid }}
+          -p:Version=${{ needs.version.outputs.semver }}
+          -p:ContinuousIntegrationBuild=true
+          -p:PublishSingleFile=true
+          -p:PublishTrimmed=false
+          -p:PublishAot=false
+          -p:DebugType=None
+          -p:DebugSymbols=false
+
+      - name: Create runtime archive
+        shell: pwsh
+        run: |
+          $rid = '${{ matrix.rid }}'
+          $version = '${{ needs.version.outputs.semver }}'
+          $publishDirectory = Resolve-Path ".artifacts/cli-publish/$rid"
+          $stageDirectory = New-Item -ItemType Directory -Force ".artifacts/cli-stage/$rid"
+          $releaseDirectory = New-Item -ItemType Directory -Force '.artifacts/cli-release'
+
+          Copy-Item (Join-Path $publishDirectory '${{ matrix.executable }}') $stageDirectory
+          Copy-Item './LICENSE' $stageDirectory
+          Copy-Item './README.md' $stageDirectory
+
+          if ('${{ matrix.archive }}' -eq 'zip') {
+            $archive = Join-Path $releaseDirectory "Packata-cli-$version-$rid.zip"
+            Compress-Archive -Path (Join-Path $stageDirectory '*') -DestinationPath $archive -CompressionLevel Optimal
+          }
+          else {
+            $executable = Join-Path $stageDirectory 'packata'
+            & chmod +x $executable
+            if ($LASTEXITCODE -ne 0) { throw "Could not mark '$executable' as executable." }
+            $archive = Join-Path $releaseDirectory "Packata-cli-$version-$rid.tar.gz"
+            & tar -czf $archive -C $stageDirectory 'packata' 'LICENSE' 'README.md'
+            if ($LASTEXITCODE -ne 0) { throw "Could not create '$archive'." }
+          }
+
+      - name: Smoke-test archived CLI
+        shell: pwsh
+        run: |
+          $rid = '${{ matrix.rid }}'
+          $version = '${{ needs.version.outputs.semver }}'
+          $verifyDirectory = New-Item -ItemType Directory -Force ".artifacts/cli-verify/$rid"
+          $extension = '${{ matrix.archive }}'
+          $archive = ".artifacts/cli-release/Packata-cli-$version-$rid.$extension"
+
+          if ($extension -eq 'zip') {
+            Expand-Archive -LiteralPath $archive -DestinationPath $verifyDirectory
+          }
+          else {
+            & tar -xzf $archive -C $verifyDirectory
+            if ($LASTEXITCODE -ne 0) { throw "Could not extract '$archive'." }
+          }
+
+          if ($rid.StartsWith('linux-musl-')) {
+            $mount = "$((Resolve-Path $verifyDirectory).Path):/work"
+            $help = @(& docker run --rm --volume $mount --workdir /work alpine:3.22 ./packata --help 2>&1)
+            if ($LASTEXITCODE -ne 0) { throw "Packata CLI help smoke test failed for '$rid'." }
+            $reportedVersion = @(& docker run --rm --volume $mount --workdir /work alpine:3.22 ./packata --version 2>&1)
+            if ($LASTEXITCODE -ne 0) { throw "Packata CLI version smoke test failed for '$rid'." }
+          }
+          else {
+            $executable = Join-Path $verifyDirectory '${{ matrix.executable }}'
+            $help = @(& $executable --help 2>&1)
+            if ($LASTEXITCODE -ne 0) { throw "Packata CLI help smoke test failed for '$rid'." }
+            $reportedVersion = @(& $executable --version 2>&1)
+            if ($LASTEXITCODE -ne 0) { throw "Packata CLI version smoke test failed for '$rid'." }
+          }
+
+          if (($help -join "`n") -notmatch 'USAGE') {
+            throw "Packata CLI help output for '$rid' did not contain a usage section."
+          }
+          if (($reportedVersion -join "`n") -notmatch [regex]::Escape($version)) {
+            $actualVersion = $reportedVersion -join ' '
+            throw "Packata CLI for '$rid' reported '$actualVersion' instead of '$version'."
+          }
+
+      - name: Validate runtime archive
+        shell: pwsh
+        run: >-
+          ./.github/scripts/Validate-CliArtifacts.ps1
+          -Version '${{ needs.version.outputs.semver }}'
+          -ReleaseDirectory './.artifacts/cli-release'
+          -ExpectedRids @('${{ matrix.rid }}')
+          -SkipNuGetPackage
+
+      - name: Upload runtime archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-runtime-${{ matrix.rid }}-${{ needs.version.outputs.semver }}
+          path: .artifacts/cli-release
+          if-no-files-found: error
+
+  validate-cli-artifacts:
+    name: Validate complete CLI release
+    needs:
+      - version
+      - package-cli-tool
+      - package-cli-runtimes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Download CLI tool package
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-tool-${{ needs.version.outputs.semver }}
+          path: .artifacts/cli-nuget
+
+      - name: Download CLI runtime archives
+        uses: actions/download-artifact@v7
+        with:
+          pattern: cli-runtime-*-${{ needs.version.outputs.semver }}
+          path: .artifacts/cli-release
+          merge-multiple: true
+
+      - name: Validate CLI release set
+        shell: pwsh
+        run: >-
+          ./.github/scripts/Validate-CliArtifacts.ps1
+          -Version '${{ needs.version.outputs.semver }}'
+          -NuGetDirectory './.artifacts/cli-nuget'
+          -ReleaseDirectory './.artifacts/cli-release'
+
   publish:
     name: Publish tested artifacts
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - version
       - build-test-package
+      - package-cli-tool
+      - package-cli-runtimes
+      - validate-cli-artifacts
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -236,7 +500,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: nuget-${{ needs.version.outputs.semver }}
-          path: .artifacts/nuget
+          path: .artifacts/nuget/libraries
+
+      - name: Download CLI tool package
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-tool-${{ needs.version.outputs.semver }}
+          path: .artifacts/nuget/cli
 
       - name: Download release assets
         if: needs.build-test-package.outputs.has-release-asset == 'true'
@@ -244,6 +514,13 @@ jobs:
         with:
           name: release-${{ needs.version.outputs.semver }}
           path: .artifacts/release
+
+      - name: Download CLI runtime archives
+        uses: actions/download-artifact@v7
+        with:
+          pattern: cli-runtime-*-${{ needs.version.outputs.semver }}
+          path: .artifacts/release
+          merge-multiple: true
 
       - name: Revalidate downloaded artifacts and commit
         shell: pwsh
@@ -255,7 +532,12 @@ jobs:
 
           ./.github/scripts/Validate-ReleaseArtifacts.ps1 `
             -Version '${{ needs.version.outputs.semver }}' `
-            -NuGetDirectory './.artifacts/nuget' `
+            -NuGetDirectory './.artifacts/nuget/libraries' `
+            -ReleaseDirectory './.artifacts/release'
+
+          ./.github/scripts/Validate-CliArtifacts.ps1 `
+            -Version '${{ needs.version.outputs.semver }}' `
+            -NuGetDirectory './.artifacts/nuget/cli' `
             -ReleaseDirectory './.artifacts/release'
 
       - name: Reserve release tag
@@ -291,7 +573,7 @@ jobs:
       - name: Publish NuGet packages
         shell: pwsh
         run: |
-          Get-ChildItem .artifacts/nuget -Filter *.nupkg | ForEach-Object {
+          Get-ChildItem .artifacts/nuget -Filter *.nupkg -File -Recurse | ForEach-Object {
             dotnet nuget push $_.FullName `
               --api-key '${{ steps.nuget-login.outputs.NUGET_API_KEY }}' `
               --source 'https://api.nuget.org/v3/index.json' `
@@ -309,11 +591,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = 'v${{ needs.version.outputs.semver }}'
-          $assetPath = '.artifacts/release/schemas-${{ needs.version.outputs.semver }}.zip'
+          $assets = @(Get-ChildItem '.artifacts/release' -File | Select-Object -ExpandProperty FullName)
 
           if (gh release view $tag 2>$null) {
-            if (Test-Path -LiteralPath $assetPath -PathType Leaf) {
-              gh release upload $tag (Resolve-Path -LiteralPath $assetPath) --clobber
+            if ($assets.Count -gt 0) {
+              gh release upload $tag @assets --clobber
             }
           }
           else {
@@ -324,8 +606,8 @@ jobs:
               '--discussion-category', 'Announcements',
               '--verify-tag'
             )
-            if (Test-Path -LiteralPath $assetPath -PathType Leaf) {
-              $arguments += (Resolve-Path -LiteralPath $assetPath).Path
+            if ($assets.Count -gt 0) {
+              $arguments += $assets
             }
             gh @arguments
           }
