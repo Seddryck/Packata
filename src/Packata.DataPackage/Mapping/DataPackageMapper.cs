@@ -130,7 +130,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 .Where(x => x is not null).Cast<DataConstraint>().ToArray();
             if (field.Categories is { Count: > 0 } && !constraints.Any(value => value.Kind == "enum"))
                 constraints = [.. constraints, new DataConstraint("enum", field.Categories.Select(CategoryValue).ToArray())];
-            return new DataField(name, field.Type, Format: field.Format,
+            return new DataField(name, field.Type, PhysicalType: field.PhysicalType, Format: field.Format,
                 Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
                 Constraints: constraints,
                 Extensions: ExtensionMetadata.For("datapackage", FieldExtensions(field)),
