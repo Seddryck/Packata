@@ -2,9 +2,19 @@ using Packata.Core.Contracts;
 
 namespace Packata.ResourceReaders;
 
-internal static class DataFormatResolver
+internal sealed class DataFormatResolver
 {
-    public static ResolvedDataFormat Resolve(DataEndpoint endpoint)
+    private readonly IReadOnlyDictionary<string, string> _aliases;
+    private readonly IReadOnlyDictionary<string, string> _extensions;
+
+    public DataFormatResolver(DataFormatResolutionOptions? options = null)
+    {
+        options ??= new DataFormatResolutionOptions();
+        _aliases = options.Aliases;
+        _extensions = options.Extensions;
+    }
+
+    public ResolvedDataFormat Resolve(DataEndpoint endpoint)
     {
         var explicitFormat = Normalize(endpoint.Format?.Name);
         var compression = Normalize(endpoint.Format?.Compression);
@@ -14,6 +24,8 @@ internal static class DataFormatResolver
             compression ??= "gzip";
         }
 
+        explicitFormat = Canonicalize(explicitFormat);
+
         var pathFormats = endpoint.Location is PathLocation paths
             ? paths.Paths.Select(PathFormat).Where(value => value is not null).Distinct().ToArray()
             : [];
@@ -21,7 +33,8 @@ internal static class DataFormatResolver
             throw new InvalidOperationException("All paths in an endpoint must use the same format.");
 
         var mediaType = endpoint.Format?.MediaType?.Split(';', '+')[0].Trim().ToLowerInvariant();
-        var name = explicitFormat ?? MediaTypeFormat(mediaType) ?? pathFormats.SingleOrDefault()?.Name ?? string.Empty;
+        var name = explicitFormat ?? Canonicalize(MediaTypeFormat(mediaType))
+            ?? pathFormats.SingleOrDefault()?.Name ?? string.Empty;
         compression ??= MediaTypeCompression(mediaType) ?? pathFormats.SingleOrDefault()?.Compression;
         return new ResolvedDataFormat(name, mediaType, compression);
     }
@@ -29,7 +42,7 @@ internal static class DataFormatResolver
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim().TrimStart('.').ToLowerInvariant();
 
-    private static PathDataFormat? PathFormat(string path)
+    private PathDataFormat? PathFormat(string path)
     {
         if (Uri.TryCreate(path, UriKind.Absolute, out var uri)) path = uri.AbsolutePath;
         var extension = Normalize(Path.GetExtension(path));
@@ -40,8 +53,13 @@ internal static class DataFormatResolver
             compression = "gzip";
             extension = Normalize(Path.GetExtension(Path.GetFileNameWithoutExtension(path)));
         }
-        return extension is null ? null : new PathDataFormat(extension, compression);
+        return extension is null ? null : new PathDataFormat(
+            _extensions.GetValueOrDefault(extension) ?? extension,
+            compression);
     }
+
+    private string? Canonicalize(string? value) =>
+        value is not null && _aliases.TryGetValue(value, out var canonical) ? canonical : value;
 
     private static string? MediaTypeFormat(string? mediaType) => mediaType switch
     {

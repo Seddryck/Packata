@@ -6,7 +6,7 @@ namespace Packata.ResourceReaders.Providers;
 
 internal sealed class InlineReaderProvider : IDataEndpointReaderProvider
 {
-    public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format) =>
+    public bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format) =>
         request.Endpoint.Location is InlineLocation;
 
     public ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,

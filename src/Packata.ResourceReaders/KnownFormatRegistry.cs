@@ -34,7 +34,7 @@ internal static class KnownFormatRegistry
 
         return Formats.FirstOrDefault(format =>
             format.Aliases.Contains(resolved.Name, StringComparer.OrdinalIgnoreCase) ||
-            resolved.MediaType is not null &&
-            format.MediaTypes.Contains(resolved.MediaType, StringComparer.OrdinalIgnoreCase));
+            (resolved.MediaType is not null &&
+             format.MediaTypes.Contains(resolved.MediaType, StringComparer.OrdinalIgnoreCase)));
     }
 }

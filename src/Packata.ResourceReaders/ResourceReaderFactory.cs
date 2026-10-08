@@ -15,9 +15,10 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 {
     private readonly IEndpointStreamResolver _streams;
     private readonly IReadOnlyList<IDataEndpointReaderProvider> _providers;
+    private readonly DataFormatResolver _formats;
 
     public ResourceReaderFactory(IEndpointStreamResolver? streams = null)
-        : this(streams, DefaultProviders())
+        : this(streams, DefaultProviders(), new DataFormatResolutionOptions())
     { }
 
     /// <summary>Creates a factory with explicitly registered providers evaluated before the built-in readers.</summary>
@@ -28,14 +29,21 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         var options = new ResourceReaderFactoryOptions();
         configure(options);
         return new ResourceReaderFactory(streams,
-            options.CombineWith(DefaultProviders()));
+            options.CombineWith(DefaultProviders()), options.Formats);
     }
 
     internal ResourceReaderFactory(IEndpointStreamResolver? streams,
         IEnumerable<IDataEndpointReaderProvider> providers)
+        : this(streams, providers, new DataFormatResolutionOptions())
+    { }
+
+    private ResourceReaderFactory(IEndpointStreamResolver? streams,
+        IEnumerable<IDataEndpointReaderProvider> providers,
+        DataFormatResolutionOptions formatOptions)
     {
         _streams = streams ?? new DefaultEndpointStreamResolver();
         _providers = providers.ToArray();
+        _formats = new DataFormatResolver(formatOptions);
     }
 
     public async ValueTask<IDataReader> OpenAsync(DataEndpoint endpoint, DataSchema? schema = null,
@@ -50,8 +58,8 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         ArgumentNullException.ThrowIfNull(endpoint);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var format = DataFormatResolver.Resolve(endpoint);
-        var provider = _providers.FirstOrDefault(candidate => candidate.CanOpen(request, format))
+        var format = _formats.Resolve(endpoint);
+        var provider = _providers.FirstOrDefault(candidate => candidate.CanHandle(request, format))
             ?? throw UnsupportedEndpoint(endpoint, format);
 
         var opened = new List<Stream>();

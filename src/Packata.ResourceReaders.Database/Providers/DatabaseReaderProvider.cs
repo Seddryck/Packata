@@ -6,7 +6,7 @@ namespace Packata.ResourceReaders.Database.Providers;
 
 internal sealed class DatabaseReaderProvider(IDatabaseSessionFactory databases) : IDataEndpointReaderProvider
 {
-    public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format) =>
+    public bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format) =>
         request.Endpoint.Location is ConnectionLocation;
 
     public ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,

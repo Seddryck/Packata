@@ -5,6 +5,9 @@ public sealed class ResourceReaderFactoryOptions
 {
     private readonly List<IDataEndpointReaderProvider> _providers = [];
 
+    /// <summary>Configures format-name and path-extension mappings used before provider dispatch.</summary>
+    public DataFormatResolutionOptions Formats { get; } = new();
+
     /// <summary>
     /// Adds a provider. Providers are evaluated in registration order and before built-in providers.
     /// Registering the same provider type more than once is rejected.

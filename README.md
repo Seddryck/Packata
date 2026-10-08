@@ -89,10 +89,45 @@ The NDJSON provider recognizes `ndjson`, `jsonl`, `application/x-ndjson`, and `a
 canonical schema, its field order follows that schema, additional properties are ignored, and missing or JSON
 `null` properties return `DBNull.Value`. Without a schema, each record exposes its properties in source order.
 
-The fixed-width provider recognizes `fixed-width`, `fixedwidth`, `fwf`, and `text/x-fixed-width`. It requires a
-canonical schema plus a `widths` format option aligned with the schema fields. Optional `offsets` and `recordWidth`
+The fixed-width provider canonicalizes `fixedwidth`, `fwf`, and `text/x-fixed-width` to `fixed-width`. Applications
+can map an additional declared name or ambiguous file extension explicitly:
+
+```csharp
+var readers = ResourceReaderFactory.Create(options =>
+{
+    options.Formats
+        .AddAlias("legacy-fixed", DataFormatNames.FixedWidth)
+        .AddExtension(".dat", DataFormatNames.FixedWidth);
+    options.AddFixedWidth();
+});
+```
+
+Explicit endpoint format metadata takes precedence over extension inference. By default, fixed-width layout comes
+from a canonical schema plus a `widths` format option aligned with its fields. Optional `offsets` and `recordWidth`
 options describe non-contiguous layouts and their bounds; invalid, overlapping, or out-of-range fields fail before
-reading. Short records fail, while long records require `allowTrailingCharacters: true`.
+reading. Short records fail, while long records require `allowTrailingCharacters: true`. Applications can register
+an `IFixedWidthLayoutResolver` through `AddFixedWidth` to derive layouts from ODCS field extensions, copybooks,
+sidecar files, configuration, or another metadata source before falling back to the format options.
+
+ODCS contracts should declare `format: fixed-width` on the file server. A custom resolver can interpret preserved
+field metadata using the Packata convention below, where offsets are zero-based and lengths count characters:
+
+```yaml
+servers:
+  - server: customers-file
+    type: local
+    path: ./customers.dat
+    format: fixed-width
+schema:
+  - name: customers
+    physicalType: file
+    properties:
+      - name: customerId
+        logicalType: integer
+        customProperties:
+          - { vendor: packata, property: fixedWidthOffset, value: 0 }
+          - { vendor: packata, property: fixedWidthLength, value: 8 }
+```
 
 The key-value provider recognizes LTSV (`ltsv`, `text/x-ltsv`, `text/ltsv`) and logfmt (`logfmt`, `log-fmt`,
 `application/logfmt`, `text/x-logfmt`). A canonical schema fixes field order and types; otherwise, the first record

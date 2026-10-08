@@ -88,7 +88,7 @@ public class ProviderDispatchTests
         public int MatchCount { get; private set; }
         public int OpenCount { get; private set; }
 
-        public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format)
+        public bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format)
         {
             MatchCount++;
             Assert.That(resolver.OpenCount, Is.Zero);
@@ -121,7 +121,7 @@ public class ProviderDispatchTests
         private int _openCount;
         public int OpenCount => _openCount;
 
-        public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format) => format.Name == "custom";
+        public bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format) => format.Name == "custom";
 
         public ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,
             CancellationToken cancellationToken = default)

@@ -8,7 +8,7 @@ namespace Packata.ResourceReaders.Excel.Providers;
 
 internal sealed class SpreadsheetReaderProvider : IDataEndpointReaderProvider
 {
-    public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format) =>
+    public bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format) =>
         request.Endpoint.Location is PathLocation && format.Name is "xlsx" or "xls";
 
     public ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,
