@@ -79,7 +79,8 @@ public class DubUrlProvisioner : IDataContractProvisioner
                     "No resolvable endpoint binding is available; data loading was skipped."));
                 continue;
             }
-            using var reader = await readerFactory.OpenAsync(endpoint, asset.Schema, cancellationToken).ConfigureAwait(false);
+            var request = new DataEndpointReadRequest(endpoint, asset.Schema, binding!.AssetPath);
+            using var reader = await readerFactory.OpenAsync(request, cancellationToken).ConfigureAwait(false);
             bulkCopy.Write(asset.PhysicalName ?? asset.Name, reader);
         }
         return diagnostics;
