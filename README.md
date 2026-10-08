@@ -44,6 +44,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.ResourceReaders` | Core reader factory and access to delimited resources through `IDataReader` |
 | `Packata.ResourceReaders.Excel` | Optional Excel reader provider |
 | `Packata.ResourceReaders.FixedWidth` | Optional fixed-width text reader provider |
+| `Packata.ResourceReaders.KeyValue` | Optional LTSV and logfmt reader provider |
 | `Packata.ResourceReaders.Ndjson` | Optional NDJSON and JSON Lines reader provider |
 | `Packata.ResourceReaders.Parquet` | Optional Parquet reader provider |
 | `Packata.ResourceReaders.Database` | Optional database reader provider |
@@ -73,6 +74,7 @@ Install only the resource-reader providers your application uses, then register 
 var readers = ResourceReaderFactory.Create(options => options
     .AddExcel()
     .AddFixedWidth()
+    .AddKeyValueReaders()
     .AddNdjson()
     .AddParquet()
     .AddDatabase());
@@ -89,6 +91,15 @@ The fixed-width provider recognizes `fixed-width`, `fixedwidth`, `fwf`, and `tex
 canonical schema plus a `widths` format option aligned with the schema fields. Optional `offsets` and `recordWidth`
 options describe non-contiguous layouts and their bounds; invalid, overlapping, or out-of-range fields fail before
 reading. Short records fail, while long records require `allowTrailingCharacters: true`.
+
+The key-value provider recognizes LTSV (`ltsv`, `text/x-ltsv`, `text/ltsv`) and logfmt (`logfmt`, `log-fmt`,
+`application/logfmt`, `text/x-logfmt`). A canonical schema fixes field order and types; otherwise, the first record
+fixes the columns for the stream, later missing keys return `DBNull.Value`, and later new keys are ignored. Duplicate
+keys from the first record remain separate columns and name lookup resolves the first occurrence. Quoting and escaping
+follow the selected PocketCsvReader format.
+
+Optional text providers honor the endpoint encoding and compression settings, read multiple paths in their declared
+order, propagate cancellation while opening resources, and transfer stream cleanup to the returned reader.
 
 ### Command-line tool
 

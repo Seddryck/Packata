@@ -17,6 +17,7 @@
     <InternalsVisibleTo Include="Packata.ResourceReaders.Testing" />
     <InternalsVisibleTo Include="Packata.ResourceReaders.Ndjson" />
     <InternalsVisibleTo Include="Packata.ResourceReaders.FixedWidth" />
+    <InternalsVisibleTo Include="Packata.ResourceReaders.KeyValue" />
   </ItemGroup>
 
   <ItemGroup>

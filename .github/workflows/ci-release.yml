@@ -166,6 +166,8 @@ jobs:
             src/Packata.ResourceReaders.Excel/obj
             src/Packata.ResourceReaders.FixedWidth/bin/Release
             src/Packata.ResourceReaders.FixedWidth/obj
+            src/Packata.ResourceReaders.KeyValue/bin/Release
+            src/Packata.ResourceReaders.KeyValue/obj
             src/Packata.ResourceReaders.Ndjson/bin/Release
             src/Packata.ResourceReaders.Ndjson/obj
             src/Packata.ResourceReaders.Parquet/bin/Release
@@ -224,6 +226,7 @@ jobs:
             'Packata.ResourceReaders.Database',
             'Packata.ResourceReaders.Excel',
             'Packata.ResourceReaders.FixedWidth',
+            'Packata.ResourceReaders.KeyValue',
             'Packata.ResourceReaders.Ndjson',
             'Packata.ResourceReaders.Parquet',
             'Packata.Provisioners',
