@@ -74,6 +74,9 @@ var readers = ResourceReaderFactory.Create(options => options
     .AddDatabase());
 ```
 
+The default reader recognizes CSV, TSV, and PSV by format name, media type, or file extension. An explicit
+`delimiter` option also identifies extensionless data as delimited; it does not override an unknown explicit format.
+
 ### Command-line tool
 
 Install the framework-dependent .NET 10 tool from NuGet:

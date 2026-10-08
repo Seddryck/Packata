@@ -9,7 +9,9 @@ namespace Packata.ResourceReaders.Providers;
 internal sealed class DelimitedReaderProvider : IDataEndpointReaderProvider
 {
     public bool CanOpen(DataEndpointReadRequest request, ResolvedDataFormat format) =>
-        request.Endpoint.Location is PathLocation;
+        request.Endpoint.Location is PathLocation &&
+        (format.Name is "csv" or "tsv" or "psv" ||
+         string.IsNullOrEmpty(format.Name) && HasDelimiterOption(request.Endpoint.Format));
 
     public ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,
         CancellationToken cancellationToken = default)
@@ -89,4 +91,7 @@ internal sealed class DelimitedReaderProvider : IDataEndpointReaderProvider
         value = default!;
         return false;
     }
+
+    private static bool HasDelimiterOption(DataFormat? format) =>
+        format?.Options.ContainsKey("delimiter") == true;
 }

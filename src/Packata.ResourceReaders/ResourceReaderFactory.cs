@@ -52,8 +52,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
         var format = DataFormatResolver.Resolve(endpoint);
         var provider = _providers.FirstOrDefault(candidate => candidate.CanOpen(request, format))
-            ?? throw new NotSupportedException(
-                $"Endpoint '{endpoint.Id}' does not expose readable paths, inline data, or a connection.");
+            ?? throw UnsupportedEndpoint(endpoint, format);
 
         var opened = new List<Stream>();
         try
@@ -83,4 +82,12 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         new InlineReaderProvider(),
         new DelimitedReaderProvider()
     ];
+
+    private static NotSupportedException UnsupportedEndpoint(DataEndpoint endpoint, ResolvedDataFormat format) =>
+        endpoint.Location is PathLocation
+            ? new NotSupportedException(string.IsNullOrEmpty(format.Name)
+                ? $"The format of endpoint '{endpoint.Id}' could not be determined."
+                : $"Resource format '{format.Name}' is not supported for endpoint '{endpoint.Id}'.")
+            : new NotSupportedException(
+                $"Endpoint '{endpoint.Id}' does not expose readable paths, inline data, or a connection.");
 }
