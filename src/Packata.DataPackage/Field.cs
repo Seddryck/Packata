@@ -12,6 +12,12 @@ public class Field
     /// </summary>
     public string? Name { get; set; }
 
+    /// <summary>Optional Packata extension identifying the physical database column.</summary>
+    public string? PhysicalName { get; set; }
+
+    /// <summary>Optional Packata extension identifying the physical database type.</summary>
+    public string? PhysicalType { get; set; }
+
     /// <summary>
     /// The type keyword, which identifies the class inheriting from `Field` to deserialize
     /// </summary>
