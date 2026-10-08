@@ -22,6 +22,7 @@ $packageIds = @(
     'Packata.ResourceReaders.KeyValue',
     'Packata.ResourceReaders.Ndjson',
     'Packata.ResourceReaders.Parquet',
+    'Packata.ResourceReaders.WebLogs',
     'Packata.Provisioners',
     'Packata.Storages',
     'Packata.OpenDataContract'

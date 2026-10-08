@@ -17,6 +17,7 @@
       "src\\Packata.ResourceReaders.KeyValue\\Packata.ResourceReaders.KeyValue.csproj",
       "src\\Packata.ResourceReaders.Ndjson\\Packata.ResourceReaders.Ndjson.csproj",
       "src\\Packata.ResourceReaders.Parquet\\Packata.ResourceReaders.Parquet.csproj",
+      "src\\Packata.ResourceReaders.WebLogs\\Packata.ResourceReaders.WebLogs.csproj",
       "src\\Packata.ResourceReaders\\Packata.ResourceReaders.csproj",
       "src\\Packata.Storages.Testing\\Packata.Storages.Testing.csproj",
       "src\\Packata.Storages\\Packata.Storages.csproj"

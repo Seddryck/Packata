@@ -47,6 +47,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.ResourceReaders.KeyValue` | Optional LTSV and logfmt reader provider |
 | `Packata.ResourceReaders.Ndjson` | Optional NDJSON and JSON Lines reader provider |
 | `Packata.ResourceReaders.Parquet` | Optional Parquet reader provider |
+| `Packata.ResourceReaders.WebLogs` | Optional Common and W3C web-log reader provider |
 | `Packata.ResourceReaders.Database` | Optional database reader provider |
 | `Packata.Storages` | Access to documents and resources on local, HTTP(S), S3, and Azure storage |
 | `Packata.Provisioners` | Provisioning of canonical data contracts to relational platforms |
@@ -77,6 +78,7 @@ var readers = ResourceReaderFactory.Create(options => options
     .AddKeyValueReaders()
     .AddNdjson()
     .AddParquet()
+    .AddWebLogs()
     .AddDatabase());
 ```
 
@@ -100,6 +102,13 @@ follow the selected PocketCsvReader format.
 
 Optional text providers honor the endpoint encoding and compression settings, read multiple paths in their declared
 order, propagate cancellation while opening resources, and transfer stream cleanup to the returned reader.
+
+The web-log provider treats Common Log Format (`common-log`, `commonlog`, `clf`, `text/x-common-log`) and W3C
+Extended Log Format (`w3c-log`, `w3c`, `w3c-extended`, `text/x-w3c-log`) as distinct formats. Common logs expose
+`RemoteHost`, `Identity`, `AuthenticatedUser`, `Timestamp`, `Request`, `StatusCode`, and `ResponseBytes`; status and
+byte counts are numeric and `-` is `DBNull.Value`. For W3C logs, the `#Fields` directive fixes column names and order,
+and standard numeric fields are typed by PocketCsvReader. Data before `#Fields`, changing schemas, and malformed
+records fail with line-aware diagnostics.
 
 ### Command-line tool
 
