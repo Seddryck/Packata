@@ -110,7 +110,7 @@ public class DubUrlProvisioner : IDataContractProvisioner
             {
                 columns.Add(column =>
                 {
-                    column.WithName(field.Name)
+                    column.WithName(field.PhysicalName ?? field.Name)
                         .WithType(DbTypeMapper.Map(field.LogicalType, field.Format))
                         .WithPrimaryKeyIf(schema.PrimaryKey.Count == 1 && schema.PrimaryKey.Contains(field.Name)
                             && options.Constraints.HasFlag(ContractConstraintOptions.PrimaryKey))
