@@ -43,6 +43,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.OpenDataContract` | ODCS models, YAML serialization, validation, and canonical mapping |
 | `Packata.ResourceReaders` | Core reader factory and access to delimited resources through `IDataReader` |
 | `Packata.ResourceReaders.Excel` | Optional Excel reader provider |
+| `Packata.ResourceReaders.FixedWidth` | Optional fixed-width text reader provider |
 | `Packata.ResourceReaders.Ndjson` | Optional NDJSON and JSON Lines reader provider |
 | `Packata.ResourceReaders.Parquet` | Optional Parquet reader provider |
 | `Packata.ResourceReaders.Database` | Optional database reader provider |
@@ -71,6 +72,7 @@ Install only the resource-reader providers your application uses, then register 
 ```csharp
 var readers = ResourceReaderFactory.Create(options => options
     .AddExcel()
+    .AddFixedWidth()
     .AddNdjson()
     .AddParquet()
     .AddDatabase());
@@ -82,6 +84,11 @@ The default reader recognizes CSV, TSV, and PSV by format name, media type, or f
 The NDJSON provider recognizes `ndjson`, `jsonl`, `application/x-ndjson`, and `application/ndjson`. With a
 canonical schema, its field order follows that schema, additional properties are ignored, and missing or JSON
 `null` properties return `DBNull.Value`. Without a schema, each record exposes its properties in source order.
+
+The fixed-width provider recognizes `fixed-width`, `fixedwidth`, `fwf`, and `text/x-fixed-width`. It requires a
+canonical schema plus a `widths` format option aligned with the schema fields. Optional `offsets` and `recordWidth`
+options describe non-contiguous layouts and their bounds; invalid, overlapping, or out-of-range fields fail before
+reading. Short records fail, while long records require `allowTrailingCharacters: true`.
 
 ### Command-line tool
 
