@@ -84,6 +84,24 @@ var readers = ResourceReaderFactory.Create(options => options
 
 The default reader recognizes CSV, TSV, and PSV by format name, media type, or file extension. An explicit
 `delimiter` option also identifies extensionless data as delimited; it does not override an unknown explicit format.
+Data Package Table Dialect metadata maps directly to the canonical `delimiter`, `quoteChar`, `lineTerminator`, and
+`header` options. Applications can register an `IDelimitedDialectResolver` when the dialect comes from a catalog,
+sidecar file, configuration, or another source:
+
+```csharp
+var readers = ResourceReaderFactory.Create(options =>
+{
+    options.Formats.AddExtension(".dat", "csv");
+    options.AddDelimited(delimited =>
+        delimited.AddDialectResolver(new CatalogDialectResolver()));
+});
+```
+
+Custom resolvers run before canonical format options. When no resolver supplies a dialect, CSV uses commas, TSV
+uses tabs, and PSV uses pipes. ODCS local-file servers do not define a standard CSV dialect. Packata therefore maps
+`delimiter`, `quoteChar`, `lineTerminator`, and `header` only from ODCS custom properties whose `vendor` is
+`packata`. A custom ODCS server's own `delimiter` is also mapped when its format is CSV, TSV, or PSV. The delimiter
+on Azure, S3, and SFTP servers remains JSON-document metadata and is not reinterpreted as a CSV field delimiter.
 
 The NDJSON provider recognizes `ndjson`, `jsonl`, `application/x-ndjson`, and `application/ndjson`. With a
 canonical schema, its field order follows that schema, additional properties are ignored, and missing or JSON

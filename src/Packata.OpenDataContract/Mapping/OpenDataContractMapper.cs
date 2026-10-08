@@ -125,6 +125,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             _ => null
         };
         var encoding = (server as IEncodingAware)?.Encoding;
+        var formatOptions = MapFormatOptions(server, formatName);
 
         return new DataEndpoint(
             server.Server,
@@ -133,10 +134,38 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             server.Environment,
             location,
             formatName is not null || encoding is not null
-                ? new DataFormat(formatName, Encoding: encoding)
+                ? new DataFormat(formatName, Encoding: encoding, Options: formatOptions)
                 : null,
             MapCustomProperties(server.CustomProperties));
     }
+
+    private static IReadOnlyDictionary<string, object?> MapFormatOptions(BaseServer server, string? formatName)
+    {
+        var options = new Dictionary<string, object?>(StringComparer.Ordinal);
+        if (!IsDelimitedFormat(formatName)) return options;
+
+        if (server is CustomServer { Delimiter: not null } custom)
+            options["delimiter"] = custom.Delimiter;
+
+        foreach (var property in server.CustomProperties.Where(property =>
+                     string.Equals(property.Vendor, "packata", StringComparison.OrdinalIgnoreCase)))
+        {
+            var optionName = property.Property?.ToLowerInvariant() switch
+            {
+                "delimiter" => "delimiter",
+                "quotechar" => "quoteChar",
+                "lineterminator" => "lineTerminator",
+                "header" => "header",
+                _ => null
+            };
+            if (optionName is not null) options[optionName] = property.Value;
+        }
+
+        return options;
+    }
+
+    private static bool IsDelimitedFormat(string? formatName) =>
+        formatName?.Trim().TrimStart('.').ToLowerInvariant() is "csv" or "tsv" or "psv";
 
     private static ExtensionMetadata MapCustomProperties(CustomProperties? properties)
         => properties is null || properties.Count == 0
