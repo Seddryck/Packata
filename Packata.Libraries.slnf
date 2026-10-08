@@ -13,6 +13,7 @@
       "src\\Packata.ResourceReaders.Testing\\Packata.ResourceReaders.Testing.csproj",
       "src\\Packata.ResourceReaders.Database\\Packata.ResourceReaders.Database.csproj",
       "src\\Packata.ResourceReaders.Excel\\Packata.ResourceReaders.Excel.csproj",
+      "src\\Packata.ResourceReaders.Ndjson\\Packata.ResourceReaders.Ndjson.csproj",
       "src\\Packata.ResourceReaders.Parquet\\Packata.ResourceReaders.Parquet.csproj",
       "src\\Packata.ResourceReaders\\Packata.ResourceReaders.csproj",
       "src\\Packata.Storages.Testing\\Packata.Storages.Testing.csproj",
