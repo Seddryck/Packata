@@ -1,3 +1,5 @@
+using System.Collections;
+using Newtonsoft.Json.Linq;
 using Packata.Core.Contracts;
 using Native = Packata.DataPackage;
 
@@ -90,7 +92,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         }
         else if (resource.Data is not null)
         {
-            location = new InlineLocation(resource.Data);
+            location = new InlineLocation(NormalizeInlineValue(resource.Data));
             kind = EndpointKind.Inline;
         }
         else
@@ -218,6 +220,20 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         }
         return values;
     }
+
+    private static object? NormalizeInlineValue(object? value) => value switch
+    {
+        null => null,
+        JValue scalar => scalar.Value,
+        JObject map => map.Properties().ToDictionary(
+            property => property.Name, property => NormalizeInlineValue(property.Value)),
+        JArray sequence => sequence.Select(NormalizeInlineValue).ToArray(),
+        IDictionary map => map.Cast<DictionaryEntry>().ToDictionary(
+            entry => entry.Key?.ToString() ?? string.Empty, entry => NormalizeInlineValue(entry.Value)),
+        IEnumerable sequence when value is not string => sequence.Cast<object?>()
+            .Select(NormalizeInlineValue).ToArray(),
+        _ => value
+    };
 
     private static IReadOnlyDictionary<string, object?> DialectOptions(Native.TableDialect? dialect)
     {

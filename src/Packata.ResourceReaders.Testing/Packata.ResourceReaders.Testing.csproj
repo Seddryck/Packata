@@ -40,6 +40,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Packata.Core\Packata.Core.csproj" />
+    <ProjectReference Include="..\Packata.DataPackage\Packata.DataPackage.csproj" />
+    <ProjectReference Include="..\Packata.OpenDataContract\Packata.OpenDataContract.csproj" />
     <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
   </ItemGroup>
 </Project>

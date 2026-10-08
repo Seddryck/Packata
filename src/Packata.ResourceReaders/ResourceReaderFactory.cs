@@ -15,6 +15,8 @@ namespace Packata.ResourceReaders;
 /// <summary>
 /// Concurrent-safe reader entry point for canonical endpoints. A returned reader owns the streams,
 /// commands, and connections opened for it and releases them when disposed.
+/// Inline endpoints accept enumerable rows represented by string-keyed dictionaries, or positional
+/// enumerable rows when a schema supplies the column names.
 /// </summary>
 public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 {
@@ -33,13 +35,22 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
     public async ValueTask<IDataReader> OpenAsync(DataEndpoint endpoint, DataSchema? schema = null,
         CancellationToken cancellationToken = default)
+        => await OpenAsync(new DataEndpointReadRequest(endpoint, schema), cancellationToken).ConfigureAwait(false);
+
+    public async ValueTask<IDataReader> OpenAsync(DataEndpointReadRequest request,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+        var endpoint = request.Endpoint;
         ArgumentNullException.ThrowIfNull(endpoint);
         cancellationToken.ThrowIfCancellationRequested();
         if (endpoint.Location is ConnectionLocation connection)
-            return OpenDatabase(endpoint, connection, cancellationToken);
+            return OpenDatabase(endpoint, connection, request.AssetPath, cancellationToken);
+        if (endpoint.Location is InlineLocation inline)
+            return OpenInline(endpoint, inline, request.Schema);
         if (endpoint.Location is not PathLocation paths || paths.Paths.Count == 0)
-            throw new NotSupportedException($"Endpoint '{endpoint.Id}' does not expose readable paths or a connection.");
+            throw new NotSupportedException(
+                $"Endpoint '{endpoint.Id}' does not expose readable paths, inline data, or a connection.");
 
         var format = ResolveFormat(endpoint, paths);
         var opened = new List<Stream>();
@@ -51,7 +62,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
             {
                 "xlsx" or "xls" => OpenSpreadsheet(opened, endpoint.Format),
                 "parquet" or "pqt" => await ParquetDataReader.CreateAsync(opened).ConfigureAwait(false),
-                _ => OpenDelimited(opened, endpoint.Format, schema, format)
+                _ => OpenDelimited(opened, endpoint.Format, request.Schema, format)
             };
             return new OwnedDataReader(reader, opened.Cast<IDisposable>().ToArray());
         }
@@ -101,11 +112,34 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     {
         var dialect = new DialectDescriptorBuilder();
         dialect.WithDelimiter(defaultDelimiter);
-        if (TryOption(format, "delimiter", out char delimiter)) dialect.WithDelimiter(delimiter);
+        if (TryCharacterOption(format, "delimiter", out var delimiter)) dialect.WithDelimiter(delimiter);
         if (TryOption(format, "lineTerminator", out string? terminator) && terminator is not null) dialect.WithLineTerminator(terminator);
         if (TryOption(format, "header", out bool header)) dialect.WithHeader(header);
-        if (TryOption(format, "quoteChar", out char quote)) dialect.WithQuoteChar(quote);
+        if (TryCharacterOption(format, "quoteChar", out var quote)) dialect.WithQuoteChar(quote);
         return dialect;
+    }
+
+    private static bool TryCharacterOption(DataFormat? format, string name, out char value)
+    {
+        if (format?.Options.TryGetValue(name, out var raw) != true || raw is null)
+        {
+            value = default;
+            return false;
+        }
+
+        if (raw is char character)
+        {
+            value = character;
+            return true;
+        }
+
+        if (raw is string { Length: 1 } text)
+        {
+            value = text[0];
+            return true;
+        }
+
+        throw new ArgumentException($"Format option '{name}' must contain exactly one character.", nameof(format));
     }
 
     private static ISchemaDescriptorBuilder? CreateSchema(DataSchema? schema)
@@ -198,18 +232,19 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         return [.. headers];
     }
 
-    private IDataReader OpenDatabase(DataEndpoint endpoint, ConnectionLocation location, CancellationToken cancellationToken)
+    private IDataReader OpenDatabase(DataEndpoint endpoint, ConnectionLocation location, string? assetPath,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var url = location.ConnectionUrl ?? throw new ArgumentException("ConnectionUrl is required.", nameof(endpoint));
-        var session = _databases.Open(url);
+        var session = _databases.Open(location);
         var connection = session.Connection;
         IDbCommand? command = null;
         try
         {
             command = connection.CreateCommand();
-            var table = OptionString(endpoint.Format, "table")
-                ?? throw new ArgumentException("Database endpoint format requires a table option.", nameof(endpoint));
+            var table = assetPath ?? OptionString(endpoint.Format, "table")
+                ?? throw new ArgumentException(
+                    "A database read requires an asset path or table format option.", nameof(endpoint));
             var ns = location.Namespace ?? OptionString(endpoint.Format, "namespace");
             command.CommandText = string.IsNullOrEmpty(ns)
                 ? $"SELECT * FROM {session.RenderIdentifier(table)}" :
@@ -218,6 +253,20 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
             return new OwnedDataReader(reader, command, connection);
         }
         catch { command?.Dispose(); connection.Dispose(); throw; }
+    }
+
+    private static IDataReader OpenInline(DataEndpoint endpoint, InlineLocation location, DataSchema? schema)
+    {
+        try
+        {
+            var table = InlineDataReader.CreateTable(location.Value, schema);
+            return new OwnedDataReader(table.CreateDataReader(), table);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new ArgumentException($"Inline endpoint '{endpoint.Id}' is invalid: {exception.Message}",
+                nameof(endpoint), exception);
+        }
     }
 
     private sealed record ResolvedFormat(string Name, string? Compression, char Delimiter);
@@ -235,21 +284,42 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
 internal interface IDatabaseSessionFactory
 {
-    DatabaseSession Open(string connectionUrl);
+    DatabaseSession Open(ConnectionLocation location);
 }
 
 internal sealed record DatabaseSession(IDbConnection Connection, Func<string, string> RenderIdentifier);
 
 internal sealed class DubUrlDatabaseSessionFactory(string rootPath) : IDatabaseSessionFactory
 {
-    public DatabaseSession Open(string url)
+    public DatabaseSession Open(ConnectionLocation location)
     {
         new ProviderFactoriesRegistrator().Register();
         var factory = new ConnectionUrlFactory(new SchemeRegistryBuilder().WithRootPath(rootPath)
             .WithAssemblies(typeof(SchemeRegistryBuilder).Assembly).WithAutoDiscoveredMappings().Build());
-        var connectionUrl = factory.Instantiate(url);
+        var connectionUrl = factory.Instantiate(BuildConnectionUrl(location));
         return new DatabaseSession(connectionUrl.Open(),
             value => connectionUrl.Dialect.Renderer.Render(value, "identity"));
+    }
+
+    internal static string BuildConnectionUrl(ConnectionLocation location)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        if (!string.IsNullOrWhiteSpace(location.ConnectionUrl)) return location.ConnectionUrl;
+        if (string.IsNullOrWhiteSpace(location.Scheme) || !Uri.CheckSchemeName(location.Scheme))
+            throw new ArgumentException("A valid database connection scheme is required.", nameof(location));
+        if (string.IsNullOrWhiteSpace(location.Host) && string.IsNullOrWhiteSpace(location.Database))
+            throw new ArgumentException(
+                "A database connection requires a host or database when ConnectionUrl is not provided.",
+                nameof(location));
+        if (location.Port is <= 0 or > 65535)
+            throw new ArgumentOutOfRangeException(nameof(location), "The database connection port is invalid.");
+
+        var host = string.IsNullOrWhiteSpace(location.Host) ? "." : location.Host.Trim();
+        var port = location.Port is null ? string.Empty : $":{location.Port}";
+        var database = string.IsNullOrWhiteSpace(location.Database)
+            ? string.Empty
+            : $"/{location.Database.Trim().TrimStart('/')}";
+        return $"{location.Scheme.Trim()}://{host}{port}{database}";
     }
 }
 
