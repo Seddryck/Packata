@@ -51,9 +51,9 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.ResourceReaders.Database` | Optional database reader provider |
 | `Packata.Storages` | Access to documents and resources on local, HTTP(S), S3, and Azure storage |
 | `Packata.Provisioners` | Provisioning of canonical data contracts to relational platforms |
-| `Packata-cli` | Cross-platform command-line interface distributed as a .NET tool and self-contained executables |
+| `Packata-cli` | Cross-platform command-line interface distributed as a RID-aware .NET tool and release archives |
 
-Packata libraries target .NET 8, .NET 9, and .NET 10. The CLI targets .NET 10.
+Packata libraries and the CLI target .NET 8, .NET 9, and .NET 10.
 
 ## Installing
 
@@ -165,7 +165,7 @@ records fail with line-aware diagnostics.
 
 ### Command-line tool
 
-Install the framework-dependent .NET 10 tool from NuGet:
+Install the CLI from NuGet:
 
 ```console
 dotnet tool install --global Packata-cli
@@ -174,7 +174,14 @@ packata --help
 
 Update an existing installation with `dotnet tool update --global Packata-cli`.
 
-Self-contained executables that do not require an installed .NET runtime are available from the [GitHub releases](https://github.com/Seddryck/Packata/releases/latest) page. Select the archive for your platform:
+The package is a RID-aware .NET tool: the .NET CLI automatically selects the package matching the host operating system and architecture, then uses a compatible .NET 8, .NET 9, or .NET 10 target.
+
+The [GitHub releases](https://github.com/Seddryck/Packata/releases/latest) page provides two archive types for every supported platform:
+
+- Framework-dependent archives named `Packata-cli-<version>-<framework>-<rid>` target `net8.0`, `net9.0`, or `net10.0` and require the corresponding .NET runtime.
+- Self-contained .NET 10 archives named `Packata-cli-<version>-<rid>` include the runtime and preserve the original release filenames.
+
+Select the RID matching the target platform:
 
 | Platform | Runtime archive | Executable |
 |---|---|---|
