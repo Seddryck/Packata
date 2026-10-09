@@ -22,7 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="PocketCsvReader" Version="2.36.22" />
+    <PackageReference Include="DubUrl" Version="0.29.34" />
+    <PackageReference Include="ExcelDataReader" Version="3.9.0" />
+    <PackageReference Include="Parquet.Net" Version="6.1.0" />
+    <PackageReference Include="PocketCsvReader" Version="2.45.0" />
   </ItemGroup>
 
 </Project>
