@@ -160,6 +160,20 @@ jobs:
             src/Packata.Provisioners/obj
             src/Packata.ResourceReaders/bin/Release
             src/Packata.ResourceReaders/obj
+            src/Packata.ResourceReaders.Database/bin/Release
+            src/Packata.ResourceReaders.Database/obj
+            src/Packata.ResourceReaders.Excel/bin/Release
+            src/Packata.ResourceReaders.Excel/obj
+            src/Packata.ResourceReaders.FixedWidth/bin/Release
+            src/Packata.ResourceReaders.FixedWidth/obj
+            src/Packata.ResourceReaders.KeyValue/bin/Release
+            src/Packata.ResourceReaders.KeyValue/obj
+            src/Packata.ResourceReaders.Ndjson/bin/Release
+            src/Packata.ResourceReaders.Ndjson/obj
+            src/Packata.ResourceReaders.Parquet/bin/Release
+            src/Packata.ResourceReaders.Parquet/obj
+            src/Packata.ResourceReaders.WebLogs/bin/Release
+            src/Packata.ResourceReaders.WebLogs/obj
             src/Packata.Storages/bin/Release
             src/Packata.Storages/obj
           if-no-files-found: error
@@ -211,6 +225,13 @@ jobs:
             'Packata.Core',
             'Packata.DataPackage',
             'Packata.ResourceReaders',
+            'Packata.ResourceReaders.Database',
+            'Packata.ResourceReaders.Excel',
+            'Packata.ResourceReaders.FixedWidth',
+            'Packata.ResourceReaders.KeyValue',
+            'Packata.ResourceReaders.Ndjson',
+            'Packata.ResourceReaders.Parquet',
+            'Packata.ResourceReaders.WebLogs',
             'Packata.Provisioners',
             'Packata.Storages',
             'Packata.OpenDataContract'

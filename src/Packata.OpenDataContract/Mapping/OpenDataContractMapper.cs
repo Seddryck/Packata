@@ -84,6 +84,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             extensions["partitioned"] = property.Partitioned;
         if (property.PartitionKeyPosition is not null)
             extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
+        if (property.CustomProperties.Count > 0)
+            extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
 
         return new DataField(
             property.Name,
@@ -116,15 +118,54 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             _ => new ConnectionLocation(server.Type)
         };
 
+        var formatName = server switch
+        {
+            IFormatAware formatted => formatted.Format,
+            CustomServer custom => custom.Format,
+            _ => null
+        };
+        var encoding = (server as IEncodingAware)?.Encoding;
+        var formatOptions = MapFormatOptions(server, formatName);
+
         return new DataEndpoint(
             server.Server,
             server.Description,
             MapEndpointKind(server),
             server.Environment,
             location,
-            server is IFormatAware formatted ? new DataFormat(formatted.Format) : null,
+            formatName is not null || encoding is not null
+                ? new DataFormat(formatName, Encoding: encoding, Options: formatOptions)
+                : null,
             MapCustomProperties(server.CustomProperties));
     }
+
+    private static IReadOnlyDictionary<string, object?> MapFormatOptions(BaseServer server, string? formatName)
+    {
+        var options = new Dictionary<string, object?>(StringComparer.Ordinal);
+        if (!IsDelimitedFormat(formatName)) return options;
+
+        if (server is CustomServer { Delimiter: not null } custom)
+            options["delimiter"] = custom.Delimiter;
+
+        foreach (var property in server.CustomProperties.Where(property =>
+                     string.Equals(property.Vendor, "packata", StringComparison.OrdinalIgnoreCase)))
+        {
+            var optionName = property.Property?.ToLowerInvariant() switch
+            {
+                "delimiter" => "delimiter",
+                "quotechar" => "quoteChar",
+                "lineterminator" => "lineTerminator",
+                "header" => "header",
+                _ => null
+            };
+            if (optionName is not null) options[optionName] = property.Value;
+        }
+
+        return options;
+    }
+
+    private static bool IsDelimitedFormat(string? formatName) =>
+        formatName?.Trim().TrimStart('.').ToLowerInvariant() is "csv" or "tsv" or "psv";
 
     private static ExtensionMetadata MapCustomProperties(CustomProperties? properties)
         => properties is null || properties.Count == 0
@@ -133,15 +174,18 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                 "odcs",
                 new Dictionary<string, object?>
                 {
-                    ["customProperties"] = properties.Select(x => new Dictionary<string, object?>
-                    {
-                        ["id"] = x.Id,
-                        ["property"] = x.Property,
-                        ["value"] = x.Value,
-                        ["description"] = x.Description,
-                        ["vendor"] = x.Vendor
-                    }).ToArray()
+                    ["customProperties"] = MapCustomPropertyValues(properties)
                 });
+
+    private static Dictionary<string, object?>[] MapCustomPropertyValues(CustomProperties properties) =>
+        properties.Select(x => new Dictionary<string, object?>
+        {
+            ["id"] = x.Id,
+            ["property"] = x.Property,
+            ["value"] = x.Value,
+            ["description"] = x.Description,
+            ["vendor"] = x.Vendor
+        }).ToArray();
 
     private static int? ConvertPort(object? port)
         => port switch

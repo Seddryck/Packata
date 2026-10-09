@@ -6,6 +6,8 @@ using Packata.Core.Reading;
 using Packata.OpenDataContract;
 using Packata.OpenDataContract.Mapping;
 using Packata.OpenDataContract.ServerTypes;
+using Packata.ResourceReaders.Database;
+using Packata.ResourceReaders.Database.Providers;
 
 namespace Packata.ResourceReaders.Testing;
 
@@ -25,7 +27,7 @@ public class CanonicalDatabaseReaderTests
             new DatabaseSession(connection.Object, value => $"[{value}]"));
         var endpoint = Endpoint(schema);
 
-        using var reader = await new ResourceReaderFactory(null, databases).OpenAsync(endpoint);
+        using var reader = await Factory(databases).OpenAsync(endpoint);
 
         Assert.That(databases.Location, Is.EqualTo(endpoint.Location));
         command.VerifySet(value => value.CommandText = expected, Times.Once);
@@ -41,7 +43,7 @@ public class CanonicalDatabaseReaderTests
         var connection = new Mock<IDbConnection>();
         connection.Setup(value => value.CreateCommand()).Returns(command.Object);
         var databases = new StubDatabaseSessionFactory(new DatabaseSession(connection.Object, value => value));
-        var reader = await new ResourceReaderFactory(null, databases).OpenAsync(Endpoint(null));
+        var reader = await Factory(databases).OpenAsync(Endpoint(null));
 
         reader.Dispose();
 
@@ -59,7 +61,7 @@ public class CanonicalDatabaseReaderTests
         connection.Setup(value => value.CreateCommand()).Returns(command.Object);
         var databases = new StubDatabaseSessionFactory(new DatabaseSession(connection.Object, value => value));
 
-        Assert.That(async () => await new ResourceReaderFactory(null, databases).OpenAsync(Endpoint(null)),
+        Assert.That(async () => await Factory(databases).OpenAsync(Endpoint(null)),
             Throws.TypeOf<InvalidOperationException>());
         command.Verify(value => value.Dispose(), Times.Once);
         connection.Verify(value => value.Dispose(), Times.Once);
@@ -76,7 +78,7 @@ public class CanonicalDatabaseReaderTests
         var databases = new StubDatabaseSessionFactory(new DatabaseSession(connection.Object, value => value));
         var endpoint = Endpoint(null) with { Location = new ConnectionLocation("mssql", "server", 1433, "database") };
 
-        using var reader = await new ResourceReaderFactory(null, databases).OpenAsync(endpoint);
+        using var reader = await Factory(databases).OpenAsync(endpoint);
 
         Assert.That(databases.Location, Is.EqualTo(endpoint.Location));
     }
@@ -116,7 +118,7 @@ public class CanonicalDatabaseReaderTests
         var databases = new StubDatabaseSessionFactory(
             new DatabaseSession(connection.Object, value => $"[{value}]"));
 
-        using var reader = await new ResourceReaderFactory(null, databases).OpenAsync(
+        using var reader = await Factory(databases).OpenAsync(
             new DataEndpointReadRequest(endpoint, asset.Schema, binding.AssetPath));
 
         Assert.Multiple(() =>
@@ -151,7 +153,7 @@ public class CanonicalDatabaseReaderTests
         var connection = new Mock<IDbConnection>();
         var databases = new StubDatabaseSessionFactory(new DatabaseSession(connection.Object, value => value));
 
-        Assert.That(async () => await new ResourceReaderFactory(null, databases).OpenAsync(endpoint),
+        Assert.That(async () => await Factory(databases).OpenAsync(endpoint),
             Throws.TypeOf<ArgumentException>());
         connection.Verify(value => value.Dispose(), Times.Once);
     }
@@ -160,6 +162,9 @@ public class CanonicalDatabaseReaderTests
         "customers", "customers", EndpointKind.Database, null,
         new ConnectionLocation("mssql", Namespace: schema, ConnectionUrl: "mssql://server/database"),
         new DataFormat("database", Options: new Dictionary<string, object?> { ["table"] = "Customer" }));
+
+    private static ResourceReaderFactory Factory(IDatabaseSessionFactory databases) =>
+        ResourceReaderFactory.Create(options => options.AddProvider(new DatabaseReaderProvider(databases)));
 
     private sealed class StubDatabaseSessionFactory(DatabaseSession session) : IDatabaseSessionFactory
     {

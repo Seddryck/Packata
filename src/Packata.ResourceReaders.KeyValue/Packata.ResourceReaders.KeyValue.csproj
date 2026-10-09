@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Description>LTSV and logfmt resource reader providers for Packata.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
+    <PackageReference Include="PocketCsvReader.KeyValue" Version="2.42.1" />
+  </ItemGroup>
+</Project>

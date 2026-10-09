@@ -41,7 +41,14 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.Core` | Standards-neutral contracts for assets, schemas, endpoints, diagnostics, readers, and provisioners |
 | `Packata.DataPackage` | Data Package v2 models, JSON/YAML serialization, validation, and canonical mapping |
 | `Packata.OpenDataContract` | ODCS models, YAML serialization, validation, and canonical mapping |
-| `Packata.ResourceReaders` | Access to delimited, Excel, Parquet, and database resources through `IDataReader` |
+| `Packata.ResourceReaders` | Core reader factory and access to delimited resources through `IDataReader` |
+| `Packata.ResourceReaders.Excel` | Optional Excel reader provider |
+| `Packata.ResourceReaders.FixedWidth` | Optional fixed-width text reader provider |
+| `Packata.ResourceReaders.KeyValue` | Optional LTSV and logfmt reader provider |
+| `Packata.ResourceReaders.Ndjson` | Optional NDJSON and JSON Lines reader provider |
+| `Packata.ResourceReaders.Parquet` | Optional Parquet reader provider |
+| `Packata.ResourceReaders.WebLogs` | Optional Common and W3C web-log reader provider |
+| `Packata.ResourceReaders.Database` | Optional database reader provider |
 | `Packata.Storages` | Access to documents and resources on local, HTTP(S), S3, and Azure storage |
 | `Packata.Provisioners` | Provisioning of canonical data contracts to relational platforms |
 | `Packata-cli` | Cross-platform command-line interface distributed as a .NET tool and self-contained executables |
@@ -61,6 +68,100 @@ dotnet add package Packata.OpenDataContract
 ```
 
 Add `Packata.ResourceReaders`, `Packata.Storages`, or `Packata.Provisioners` when your application needs those capabilities. Format packages reference `Packata.Core`, so it does not need to be installed separately.
+
+Install only the resource-reader providers your application uses, then register them when creating the factory:
+
+```csharp
+var readers = ResourceReaderFactory.Create(options => options
+    .AddExcel()
+    .AddFixedWidth()
+    .AddKeyValueReaders()
+    .AddNdjson()
+    .AddParquet()
+    .AddWebLogs()
+    .AddDatabase());
+```
+
+The default reader recognizes CSV, TSV, and PSV by format name, media type, or file extension. An explicit
+`delimiter` option also identifies extensionless data as delimited; it does not override an unknown explicit format.
+Data Package Table Dialect metadata maps directly to the canonical `delimiter`, `quoteChar`, `lineTerminator`, and
+`header` options. Applications can register an `IDelimitedDialectResolver` when the dialect comes from a catalog,
+sidecar file, configuration, or another source:
+
+```csharp
+var readers = ResourceReaderFactory.Create(options =>
+{
+    options.Formats.AddExtension(".dat", "csv");
+    options.AddDelimited(delimited =>
+        delimited.AddDialectResolver(new CatalogDialectResolver()));
+});
+```
+
+Custom resolvers run before canonical format options. When no resolver supplies a dialect, CSV uses commas, TSV
+uses tabs, and PSV uses pipes. ODCS local-file servers do not define a standard CSV dialect. Packata therefore maps
+`delimiter`, `quoteChar`, `lineTerminator`, and `header` only from ODCS custom properties whose `vendor` is
+`packata`. A custom ODCS server's own `delimiter` is also mapped when its format is CSV, TSV, or PSV. The delimiter
+on Azure, S3, and SFTP servers remains JSON-document metadata and is not reinterpreted as a CSV field delimiter.
+
+The NDJSON provider recognizes `ndjson`, `jsonl`, `application/x-ndjson`, and `application/ndjson`. With a
+canonical schema, its field order follows that schema, additional properties are ignored, and missing or JSON
+`null` properties return `DBNull.Value`. Without a schema, each record exposes its properties in source order.
+
+The fixed-width provider canonicalizes `fixedwidth`, `fwf`, and `text/x-fixed-width` to `fixed-width`. Applications
+can map an additional declared name or ambiguous file extension explicitly:
+
+```csharp
+var readers = ResourceReaderFactory.Create(options =>
+{
+    options.Formats
+        .AddAlias("legacy-fixed", DataFormatNames.FixedWidth)
+        .AddExtension(".dat", DataFormatNames.FixedWidth);
+    options.AddFixedWidth();
+});
+```
+
+Explicit endpoint format metadata takes precedence over extension inference. By default, fixed-width layout comes
+from a canonical schema plus a `widths` format option aligned with its fields. Optional `offsets` and `recordWidth`
+options describe non-contiguous layouts and their bounds; invalid, overlapping, or out-of-range fields fail before
+reading. Short records fail, while long records require `allowTrailingCharacters: true`. Applications can register
+an `IFixedWidthLayoutResolver` through `AddFixedWidth` to derive layouts from ODCS field extensions, copybooks,
+sidecar files, configuration, or another metadata source before falling back to the format options.
+
+ODCS contracts should declare `format: fixed-width` on the file server. A custom resolver can interpret preserved
+field metadata using the Packata convention below, where offsets are zero-based and lengths count characters:
+
+```yaml
+servers:
+  - server: customers-file
+    type: local
+    path: ./customers.dat
+    format: fixed-width
+schema:
+  - name: customers
+    physicalType: file
+    properties:
+      - name: customerId
+        logicalType: integer
+        customProperties:
+          - { vendor: packata, property: fixedWidthOffset, value: 0 }
+          - { vendor: packata, property: fixedWidthLength, value: 8 }
+```
+
+The key-value provider recognizes LTSV (`ltsv`, `text/x-ltsv`, `text/ltsv`) and logfmt (`logfmt`, `log-fmt`,
+`application/logfmt`, `text/x-logfmt`). A canonical schema fixes field order and types; otherwise, the first record
+fixes the columns for the stream, later missing keys return `DBNull.Value`, and later new keys are ignored. Duplicate
+keys from the first record remain separate columns and name lookup resolves the first occurrence. Quoting and escaping
+follow the selected PocketCsvReader format.
+
+Optional text providers honor the endpoint encoding and compression settings, read multiple paths in their declared
+order, propagate cancellation while opening resources, and transfer stream cleanup to the returned reader.
+
+The web-log provider treats Common Log Format (`common-log`, `commonlog`, `clf`, `text/x-common-log`) and W3C
+Extended Log Format (`w3c-log`, `w3c`, `w3c-extended`, `text/x-w3c-log`) as distinct formats. Common logs expose
+`RemoteHost`, `Identity`, `AuthenticatedUser`, `Timestamp`, `Request`, `StatusCode`, and `ResponseBytes`; status and
+byte counts are numeric and `-` is `DBNull.Value`. For W3C logs, the `#Fields` directive fixes column names and order,
+and standard numeric fields are typed by PocketCsvReader. Data before `#Fields`, changing schemas, and malformed
+records fail with line-aware diagnostics.
 
 ### Command-line tool
 
