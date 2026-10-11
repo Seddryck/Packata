@@ -189,6 +189,24 @@ dotnet tool install --global Packata-cli
 packata --help
 ```
 
+Infer a bound CSV asset from an ODCS or Data Package v2 document. The default command only displays the inferred
+schema, dialect, diagnostics, and confidence; it does not modify the contract:
+
+```console
+packata infer datapackage.json --asset customers
+```
+
+Write an enriched copy with `--output`, or explicitly update the source document atomically with `--write`:
+
+```console
+packata infer datapackage.json --asset customers --output enriched-datapackage.json
+packata infer contract.yaml --asset customers --write
+```
+
+Use `--maximum-records`, `--maximum-bytes`, `--culture`, `--header`, and `--no-dialect-inference` to control the
+bounded PocketCsvReader inference. The CSV location, format, encoding, compression, and existing dialect hints are
+resolved from the selected asset's endpoint binding.
+
 Update an existing installation with `dotnet tool update --global Packata-cli`.
 
 The package is a RID-aware .NET tool: the .NET CLI automatically selects the package matching the host operating system and architecture, then uses a compatible .NET 8, .NET 9, or .NET 10 target.
