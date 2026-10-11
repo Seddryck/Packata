@@ -100,33 +100,52 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         var name = endpoint.Format?.Name?.Trim().TrimStart('.').ToLowerInvariant();
         var pathExtension = Path.GetExtension(((PathLocation)endpoint.Location).Paths[0])
             .TrimStart('.').ToLowerInvariant();
-        if (name is not null && name is not ("csv" or "tsv" or "psv"))
-            throw new NotSupportedException($"Asset '{asset.Id}' is not bound to a supported CSV resource.");
-        if (name is null && pathExtension is not ("csv" or "tsv" or "psv"))
+        var effectiveFormat = name ?? pathExtension;
+        if (!SupportedFormats.Contains(effectiveFormat, StringComparer.Ordinal))
             throw new NotSupportedException($"Asset '{asset.Id}' is not bound to a supported CSV resource.");
     }
 
     private static CsvInferenceOptions CreateOptions(InferSettings settings, DataEndpoint endpoint)
     {
         var format = endpoint.Format;
+        return new CsvInferenceOptions
+        {
+            MaximumRecords = settings.MaximumRecords,
+            MaximumBytes = settings.MaximumBytes,
+            Header = ResolveHeader(settings.Header, format),
+            InferDialect = !settings.NoDialectInference,
+            Culture = string.IsNullOrWhiteSpace(settings.Culture)
+                ? CultureInfo.InvariantCulture
+                : CultureInfo.GetCultureInfo(settings.Culture),
+            Dialect = CreateDialect(format),
+            Resource = new ResourceDescriptor(format?.Encoding, format?.Compression)
+        };
+    }
+
+    private static DialectDescriptor CreateDialect(DataFormat? format)
+    {
         var defaultDelimiter = format?.Name?.Trim().TrimStart('.').ToLowerInvariant() switch
         {
             "tsv" => '\t',
             "psv" => '|',
             _ => ','
         };
-        var dialect = new DialectDescriptor(Header: false, HeaderRows: [], Delimiter: defaultDelimiter);
-        if (TryCharacter(format, "delimiter", out var delimiter) && delimiter.HasValue)
-            dialect = dialect with { Delimiter = delimiter.Value };
-        if (TryString(format, "lineTerminator", out var terminator) && terminator is not null)
-            dialect = dialect with { LineTerminator = terminator };
-        if (TryCharacter(format, "quoteChar", out var quote)) dialect = dialect with { QuoteChar = quote };
-        if (TryCharacter(format, "escapeChar", out var escape)) dialect = dialect with { EscapeChar = escape };
-        if (TryString(format, "nullSequence", out var nullSequence)) dialect = dialect with { NullSequence = nullSequence };
-        if (TryBoolean(format, "doubleQuote", out var doubleQuote)) dialect = dialect with { DoubleQuote = doubleQuote };
-        if (TryBoolean(format, "skipInitialSpace", out var skip)) dialect = dialect with { SkipInitialSpace = skip };
+        var defaults = new DialectDescriptor(Header: false, HeaderRows: [], Delimiter: defaultDelimiter);
+        return defaults with
+        {
+            Delimiter = CharacterOrDefault(format, "delimiter", defaults.Delimiter) ?? defaults.Delimiter,
+            LineTerminator = StringOrDefault(format, "lineTerminator", defaults.LineTerminator)
+                ?? defaults.LineTerminator,
+            QuoteChar = CharacterOrDefault(format, "quoteChar", defaults.QuoteChar),
+            EscapeChar = CharacterOrDefault(format, "escapeChar", defaults.EscapeChar),
+            NullSequence = StringOrDefault(format, "nullSequence", defaults.NullSequence),
+            DoubleQuote = BooleanOrDefault(format, "doubleQuote", defaults.DoubleQuote),
+            SkipInitialSpace = BooleanOrDefault(format, "skipInitialSpace", defaults.SkipInitialSpace)
+        };
+    }
 
-        var header = settings.Header.ToLowerInvariant() switch
+    private static CsvHeaderMode ResolveHeader(string header, DataFormat? format) =>
+        header.ToLowerInvariant() switch
         {
             "present" => CsvHeaderMode.Present,
             "absent" => CsvHeaderMode.Absent,
@@ -135,19 +154,14 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
             _ => CsvHeaderMode.Auto
         };
 
-        return new CsvInferenceOptions
-        {
-            MaximumRecords = settings.MaximumRecords,
-            MaximumBytes = settings.MaximumBytes,
-            Header = header,
-            InferDialect = !settings.NoDialectInference,
-            Culture = string.IsNullOrWhiteSpace(settings.Culture)
-                ? CultureInfo.InvariantCulture
-                : CultureInfo.GetCultureInfo(settings.Culture),
-            Dialect = dialect,
-            Resource = new ResourceDescriptor(format?.Encoding, format?.Compression)
-        };
-    }
+    private static char? CharacterOrDefault(DataFormat? format, string name, char? defaultValue) =>
+        TryCharacter(format, name, out var value) ? value : defaultValue;
+
+    private static string? StringOrDefault(DataFormat? format, string name, string? defaultValue) =>
+        TryString(format, name, out var value) ? value : defaultValue;
+
+    private static bool BooleanOrDefault(DataFormat? format, string name, bool defaultValue) =>
+        TryBoolean(format, name, out var value) ? value : defaultValue;
 
     private static bool TryCharacter(DataFormat? format, string name, out char? value)
     {
@@ -174,4 +188,6 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         if (raw is bool boolean) { value = boolean; return true; }
         return raw is string text && bool.TryParse(text, out value);
     }
+
+    private static readonly string[] SupportedFormats = ["csv", "tsv", "psv"];
 }
