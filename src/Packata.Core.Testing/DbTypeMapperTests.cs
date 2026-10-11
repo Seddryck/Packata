@@ -12,6 +12,7 @@ public class DbTypeMapperTests
     [TestCase("string", DbType.String)]
     [TestCase("boolean", DbType.Boolean)]
     [TestCase("date", DbType.Date)]
+    [TestCase("timestamp", DbType.DateTimeOffset)]
     [TestCase("integer", DbType.Int32)]
     [TestCase("number", DbType.Decimal)]
     public void Map_NoFormat_Correct(string value, DbType expected)
