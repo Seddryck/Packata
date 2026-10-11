@@ -27,6 +27,7 @@ public class DbTypeMapper : BaseTypeMapper<DbType>
         Register("date", null, DbType.Date);
         Register("time", null, DbType.Time);
         Register("datetime", null, DbType.DateTime);
+        Register("timestamp", null, DbType.DateTimeOffset);
         Register("year", null, DbType.Int32);
         Register("yearmonth", null, DbType.String);
     }

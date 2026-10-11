@@ -27,6 +27,7 @@ public class RuntimeTypeMapper : BaseTypeMapper<Type>
         Register("date", null, typeof(DateOnly));
         Register("time", null, typeof(TimeOnly));
         Register("datetime", null, typeof(DateTime));
+        Register("timestamp", null, typeof(DateTimeOffset));
         Register("year", null, typeof(int));
         Register("yearmonth", null, typeof(string));
     }

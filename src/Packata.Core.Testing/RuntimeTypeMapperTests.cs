@@ -11,6 +11,7 @@ public class RuntimeTypeMapperTests
     [TestCase("string", typeof(string))]
     [TestCase("boolean", typeof(bool))]
     [TestCase("date", typeof(DateOnly))]
+    [TestCase("timestamp", typeof(DateTimeOffset))]
     [TestCase("integer", typeof(int))]
     [TestCase("number", typeof(decimal))]
     public void Map_NoFormat_Correct(string value, Type expected)

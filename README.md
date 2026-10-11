@@ -103,6 +103,23 @@ uses tabs, and PSV uses pipes. ODCS local-file servers do not define a standard 
 `packata`. A custom ODCS server's own `delimiter` is also mapped when its format is CSV, TSV, or PSV. The delimiter
 on Azure, S3, and SFTP servers remains JSON-document metadata and is not reinterpreted as a CSV field delimiter.
 
+An unknown CSV can also bootstrap a canonical contract. Sampling, header and dialect detection, type inference,
+and nullability inference are delegated to PocketCsvReader; inspect the returned diagnostics before accepting
+heuristic decisions:
+
+```csharp
+using Packata.ResourceReaders;
+
+var result = new CsvDataContractInference().Infer("customers.csv");
+foreach (var diagnostic in result.Diagnostics)
+    Console.WriteLine($"{diagnostic.Severity}: {diagnostic.Message}");
+
+var contract = result.Contract;
+```
+
+Pass `CsvDataContractInferenceOptions` to configure PocketCsvReader sampling, culture, header and dialect inference,
+or to override generated contract, asset, and endpoint metadata.
+
 The NDJSON provider recognizes `ndjson`, `jsonl`, `application/x-ndjson`, and `application/ndjson`. With a
 canonical schema, its field order follows that schema, additional properties are ignored, and missing or JSON
 `null` properties return `DBNull.Value`. Without a schema, each record exposes its properties in source order.
