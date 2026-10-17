@@ -17,6 +17,14 @@
 
   <ItemGroup>
     <PackageReference Include="Spectre.Console.Cli" Version="0.57.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.DataPackage\Packata.DataPackage.csproj" />
+    <ProjectReference Include="..\Packata.OpenDataContract\Packata.OpenDataContract.csproj" />
+    <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
   </ItemGroup>
 
   <ItemGroup>
