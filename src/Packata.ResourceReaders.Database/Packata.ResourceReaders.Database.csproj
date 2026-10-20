@@ -6,7 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
-    <PackageReference Include="DubUrl" Version="0.30.1" />
+    <PackageReference Include="DubUrl" Version="0.40.1" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Packata.ResourceReaders.Testing" />
