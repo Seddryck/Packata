@@ -89,6 +89,8 @@ public class DataPackageSerializerTests : BaseDataPackageSerializerTests
                         ""fields"": [
                             {
                                 ""name"": ""field_integer"",
+                                ""x-packata-physicalName"": ""customer_id"",
+                                ""x-packata-physicalType"": ""bigint"",
                                 ""type"": ""integer"",
                                 ""bareNumber"": false,
                                 ""groupChar"": "",""
