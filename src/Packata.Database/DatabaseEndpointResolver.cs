@@ -21,7 +21,7 @@ public static class DatabaseEndpointResolver
                 throw new ArgumentException("A database connection requires a host or database.", nameof(location));
             if (location.Port is <= 0 or > 65535)
                 throw new ArgumentOutOfRangeException(nameof(location), "The database connection port is invalid.");
-            var host = location.Host ?? ".";
+            var host = string.IsNullOrWhiteSpace(location.Host) ? "." : location.Host.Trim();
             if (IPAddress.TryParse(host.Trim('[', ']'), out var address) && address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
                 host = $"[{address}]";
             else if (host != "." && Uri.CheckHostName(host) == UriHostNameType.Unknown)

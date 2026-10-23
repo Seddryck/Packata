@@ -1,11 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Description>Shared database connections, provider composition and curated connector acquisition for Packata.</Description>
-    <PackataDubUrlVersion Condition="'$(PackataDubUrlVersion)' == ''">0.30.1</PackataDubUrlVersion>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
-    <PackageReference Include="DubUrl" Version="$(PackataDubUrlVersion)" />
+    <PackageReference Include="DubUrl.Application" Version="0.43.0" />
   </ItemGroup>
 </Project>
-

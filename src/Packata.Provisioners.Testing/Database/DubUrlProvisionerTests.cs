@@ -8,7 +8,8 @@ using DubUrl.Querying.Dialects.Functions;
 using DubUrl.Querying.TypeMapping;
 using DubUrl.Schema;
 using Moq;
-using Microsoft.Data.SqlClient;
+using DubUrl.Provider.SqlServer.Sql;
+using DubUrl.Provider.DuckDb.Sql;
 using NUnit.Framework;
 using Packata.Core.Contracts;
 using Packata.Core.Provisioning;
@@ -157,31 +158,28 @@ public class DubUrlProvisionerTests
     }
 
     [Test]
-    public void Default_capabilities_recognize_native_SQL_Server_without_opening_it_and_reject_ODBC_bulk()
+    public void Default_capabilities_use_the_registered_bulk_adapter_without_opening_connections()
     {
         var dialects = new DialectRegistryBuilder();
         dialects.AddDialect<TSqlDialect>(["mssql"]);
-        var connection = new Mock<ConnectionUrl>("mssql://./test");
+        var connection = new Mock<ConnectionUrl>("mssql://./test", new ProviderCatalogBuilder().Build());
         connection.Setup(x => x.Dialect).Returns(dialects.Build().Get<TSqlDialect>());
-        connection.Setup(x => x.Connectivity).Returns(Mock.Of<IDirectConnectivity>());
-        connection.Setup(x => x.Connect()).Returns(() => new SqlConnection());
+        connection.Setup(x => x.BulkCopyProvider).Returns(Mock.Of<IBulkCopyProvider>());
         var policy = new DubUrlOperationCapabilities();
         Assert.That(policy.GetSupport(connection.Object), Is.EqualTo(new DatabaseOperationSupport(true, true, true)));
         connection.Verify(x => x.Open(), Times.Never);
-        connection.Setup(x => x.Connectivity).Returns(Mock.Of<IWrapperConnectivity>());
+        connection.Setup(x => x.BulkCopyProvider).Returns((IBulkCopyProvider?)null);
         Assert.That(policy.GetSupport(connection.Object), Is.EqualTo(new DatabaseOperationSupport(true, true, false)));
-        connection.Verify(x => x.Connect(), Times.Once);
+        connection.Verify(x => x.Connect(), Times.Never);
     }
 
     [Test]
-    public void Default_capabilities_reject_ambiguous_DuckDB_appender_API()
+    public void A_DuckDB_dialect_without_a_bulk_adapter_does_not_imply_loading_support()
     {
         var dialects = new DialectRegistryBuilder();
         dialects.AddDialect<DuckDbDialect>(["duckdb"]);
-        var connection = new Mock<ConnectionUrl>("duckdb://memory");
+        var connection = new Mock<ConnectionUrl>("duckdb://memory", new ProviderCatalogBuilder().Build());
         connection.Setup(x => x.Dialect).Returns(dialects.Build().Get<DuckDbDialect>());
-        connection.Setup(x => x.Connectivity).Returns(Mock.Of<IDirectConnectivity>());
-        connection.Setup(x => x.Connect()).Returns(Mock.Of<AmbiguousAppenderConnection>());
         Assert.That(new DubUrlOperationCapabilities().GetSupport(connection.Object),
             Is.EqualTo(new DatabaseOperationSupport(true, true, false)));
     }
@@ -210,9 +208,9 @@ public class DubUrlProvisionerTests
         var dialect = new Mock<IDialect>();
         dialect.Setup(x => x.DbTypeMapper).Returns(typeMapper.Object);
         dialect.Setup(x => x.SqlFunctionMapper).Returns(functionMapper.Object);
-        var connection = new Mock<ConnectionUrl>("mssql://./mydb");
+        var connection = new Mock<ConnectionUrl>("mssql://./mydb", new ProviderCatalogBuilder().Build());
         connection.Setup(x => x.Dialect).Returns(dialect.Object);
-        var renderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None);
+        var renderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None, null);
         renderer.Setup(x => x.Render(It.IsAny<Schema>())).Returns("CREATE TABLE");
         var deployer = new Mock<SchemaScriptDeployer>();
         var bulkCopy = new Mock<IBulkCopyEngine>();
@@ -238,9 +236,4 @@ public class DubUrlProvisionerTests
         public DatabaseOperationSupport GetSupport(ConnectionUrl connection) => support;
     }
 
-    public abstract class AmbiguousAppenderConnection : DbConnection
-    {
-        public object CreateAppender(string name) => throw new NotSupportedException();
-        public object CreateAppender<T>(string name) => throw new NotSupportedException();
-    }
 }

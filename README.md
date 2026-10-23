@@ -39,6 +39,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | Package | Purpose |
 |---|---|
 | `Packata.Core` | Standards-neutral contracts for assets, schemas, endpoints, diagnostics, readers, and provisioners |
+| `Packata.Database` | Shared DubUrl connection configuration and runtime endpoint resolution |
 | `Packata.DataPackage` | Data Package v2 models, JSON/YAML serialization, validation, and canonical mapping |
 | `Packata.OpenDataContract` | ODCS models, YAML serialization, validation, and canonical mapping |
 | `Packata.ResourceReaders` | Core reader factory and access to delimited resources through `IDataReader` |
@@ -296,6 +297,12 @@ foreach (var asset in contract.Assets)
 ```
 
 ODCS documents map to the same canonical model through the `Packata.OpenDataContract.Mapping` namespace. See [MIGRATION.md](MIGRATION.md) for side-by-side mapping examples and guidance for upgrading from earlier Packata versions.
+
+For shared database connections, host-supplied credentials, and operation preflight, see
+[database integration](docs/database-integration.md) and the runnable
+[ODCS and Data Package example](examples/DatabaseConnections). The
+[connector acquisition example](examples/ConnectorAcquisition) demonstrates acquisition on the first read
+from a host-supplied catalog and reuse on later reads.
 
 ## License
 

@@ -11,6 +11,6 @@ public static class ResourceReaderFactoryOptionsExtensions
 
     /// <summary>The host owns the shared service; returned readers own their operation's connection.</summary>
     public static ResourceReaderFactoryOptions AddDatabase(this ResourceReaderFactoryOptions options,
-        IDatabaseConnectionService connections) =>
-        options.AddProvider(new DatabaseReaderProvider(connections));
+        IDatabaseConnectionService connections, IConnectorAvailabilityService? availability = null) =>
+        options.AddProvider(new DatabaseReaderProvider(connections, availability));
 }

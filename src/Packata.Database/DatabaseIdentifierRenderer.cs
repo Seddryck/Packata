@@ -11,7 +11,8 @@ internal static class DatabaseIdentifierRenderer
         // Legacy DubUrl formatters do not escape closing delimiters. Obtain the provider's
         // delimiter using a name requiring quoting, then escape before calling its renderer.
         // Its SQLite renderer leaves identifiers unquoted, so use SQLite's ANSI identifier syntax.
-        if (dialect is SqliteDialect) return $"\"{value.Replace("\"", "\"\"")}\"";
+        if (dialect.GetType().FullName == "DubUrl.Provider.Sqlite.Sql.SqliteDialect")
+            return $"\"{value.Replace("\"", "\"\"")}\"";
         var probe = dialect.Renderer.Render("Packata identifier", "identity");
         if (probe.StartsWith('[') && probe.EndsWith(']'))
             return dialect.Renderer.Render(value.Replace("]", "]]"), "identity");

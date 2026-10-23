@@ -1,7 +1,8 @@
 using System.Data;
 using System.Data.Common;
 using DubUrl.Mapping;
-using DubUrl.Mapping.Implementation;
+using DubUrl.Provider.Sqlite.Mapping;
+using DubUrl.Provider.Sqlite.Sql;
 using DubUrl.Parsing;
 using DubUrl.Querying.Dialects;
 using DubUrl.Querying.Parametrizing;
@@ -41,15 +42,11 @@ public class SharedDatabaseConnectionTests
     [Test]
     public void Structured_components_are_encoded_and_decoded_once_at_the_mapper_boundary()
     {
-        UrlInfo? observed = null;
+        ConnectionUri? observed = null;
         var registry = new Mock<ISchemeRegistry>();
-        var service = new DubUrlConnectionService(registry.Object, mapperFactory: _ =>
-        {
-            var mapper = Mapper();
-            mapper.Setup(x => x.Rewrite(It.IsAny<UrlInfo>())).Callback<UrlInfo>(value => observed = value)
-                .Returns(new Dictionary<string, object>());
-            return mapper.Object;
-        });
+        registry.Setup(x => x.Resolve(It.IsAny<ConnectionUri>())).Callback<ConnectionUri>(value => observed = value)
+            .Returns(new ResolvedConnection("", Dialect, Mock.Of<IConnectivity>(), new NamedParametrizer(), SqliteFactory.Instance));
+        var service = new DubUrlConnectionService(registry.Object);
         var url = service.Resolve(new("test", "server", 1234, "data / # %25"),
             new("a:b@c", "p/#%:&+", new Dictionary<string, string> { ["option"] = "a & b+%" }));
         _ = url.Parse();
@@ -223,32 +220,24 @@ public class SharedDatabaseConnectionTests
     public async Task File_readers_do_not_invoke_the_shared_database_service()
     {
         var service = new Mock<IDatabaseConnectionService>(MockBehavior.Strict);
-        var factory = ResourceReaderFactory.Create(options => options.AddDatabase(service.Object));
+        var availability = new Mock<IConnectorAvailabilityService>(MockBehavior.Strict);
+        var factory = ResourceReaderFactory.Create(options => options.AddDatabase(service.Object, availability.Object));
         using var reader = await factory.OpenAsync(new DataEndpoint("inline", null, EndpointKind.Inline, null,
             new InlineLocation(new[] { new Dictionary<string, object?> { ["Id"] = 1 } })));
         Assert.That(reader.Read(), Is.True);
         service.VerifyNoOtherCalls();
+        availability.VerifyNoOtherCalls();
     }
 
     private static DataEndpoint Endpoint(ConnectionLocation location) => new("database", null, EndpointKind.Database, null, location);
 
     private static DubUrlConnectionService SqliteService(string root, Func<DataEndpoint, DatabaseRuntimeOptions?>? runtime = null)
     {
-        var prototype = new SqliteMapper(new SqliteConnectionStringBuilder(), Dialect, new NamedParametrizer(), root);
-        var registry = new Mock<ISchemeRegistry>();
-        registry.Setup(x => x.GetMapper("sqlite")).Returns(prototype);
-        registry.Setup(x => x.GetProviderFactory(It.IsAny<string[]>())).Returns(SqliteFactory.Instance);
-        return new(registry.Object, root, runtimeConfiguration: runtime);
-    }
-
-    private static Mock<IMapper> Mapper()
-    {
-        var mapper = new Mock<IMapper>();
-        mapper.Setup(x => x.GetConnectionString()).Returns("Data Source=test");
-        mapper.Setup(x => x.GetDialect()).Returns(Dialect);
-        mapper.Setup(x => x.GetParametrizer()).Returns(new NamedParametrizer());
-        mapper.Setup(x => x.GetConnectivity()).Returns(Mock.Of<IConnectivity>());
-        return mapper;
+        var builder = new ProviderCatalogBuilder().WithRootPath(root);
+        builder.AddProvider(new ProviderRegistration("SQLite", ["sqlite", "sq"], "Microsoft.Data.Sqlite",
+            () => SqliteFactory.Instance, Dialect, () => new NamedParametrizer(),
+            context => new SqliteMapper(context.ConnectionStringBuilder, context.Dialect, context.Parametrizer, context.RootPath)));
+        return new(builder.Build(), runtimeConfiguration: runtime);
     }
 
     private static DubUrlConnectionService FailingService(DbConnection connection)
@@ -256,7 +245,9 @@ public class SharedDatabaseConnectionTests
         var registry = new Mock<ISchemeRegistry>();
         var provider = new Mock<DbProviderFactory>();
         provider.Setup(x => x.CreateConnection()).Returns(connection);
-        registry.Setup(x => x.GetProviderFactory(It.IsAny<string[]>())).Returns(provider.Object);
-        return new(registry.Object, mapperFactory: _ => Mapper().Object);
+        registry.Setup(x => x.Resolve(It.IsAny<ConnectionUri>())).Returns(new ResolvedConnection("Data Source=test",
+            Dialect, Mock.Of<IConnectivity>(), new NamedParametrizer(), provider.Object));
+        registry.Setup(x => x.CanHandle("test")).Returns(true);
+        return new(registry.Object);
     }
 }

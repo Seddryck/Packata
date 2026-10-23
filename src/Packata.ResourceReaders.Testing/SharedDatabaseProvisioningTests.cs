@@ -1,5 +1,7 @@
 using DubUrl.Mapping;
-using DubUrl.Mapping.Implementation;
+using DubUrl.Provider.DuckDb.Mapping;
+using DubUrl.Provider.DuckDb.Sql;
+using DubUrl.BulkCopy;
 using DubUrl.Querying.Dialects;
 using DubUrl.Querying.Parametrizing;
 using DuckDB.NET.Data;
@@ -30,11 +32,12 @@ public class SharedDatabaseProvisioningTests
             var dialects = new DialectRegistryBuilder();
             dialects.AddDialect<DuckDbDialect>(["duckdb"]);
             var dialect = dialects.Build().Get<DuckDbDialect>();
-            var prototype = new DuckdbMapper(new DuckDBConnectionStringBuilder(), dialect, new NamedParametrizer(), directory);
-            var registry = new Mock<ISchemeRegistry>();
-            registry.Setup(x => x.GetMapper("duckdb")).Returns(prototype);
-            registry.Setup(x => x.GetProviderFactory(It.IsAny<string[]>())).Returns(DuckDBClientFactory.Instance);
-            var connections = new DubUrlConnectionService(registry.Object, directory);
+            var registry = new ProviderCatalogBuilder().WithRootPath(directory);
+            registry.AddProvider(new ProviderRegistration("DuckDB", ["duckdb"], "DuckDB.NET.Data",
+                () => DuckDBClientFactory.Instance, dialect, () => new NamedParametrizer(),
+                context => new DuckdbMapper(context.ConnectionStringBuilder, context.Dialect, context.Parametrizer, context.RootPath))
+                { BulkCopyProvider = new TestDuckDbBulkProvider() });
+            using var connections = new DubUrlConnectionService(registry.Build());
             var readers = ResourceReaderFactory.Create(options => options.AddDatabase(connections));
             var provisioner = (DubUrlProvisioner)new DubUrlProvisionerBuilder(connections, readers)
                 .Using("duckdb").Local().WithDatabase("example.duckdb").Build();
@@ -72,5 +75,21 @@ public class SharedDatabaseProvisioningTests
             }
         }
         finally { Directory.Delete(directory, true); }
+    }
+
+    private sealed class TestDuckDbBulkProvider : IBulkCopyProvider
+    {
+        public IBulkCopyEngine Create(DubUrl.ConnectionUrl url, IBulkCopyDependencyResolver dependencies) => new Engine(url);
+        private sealed class Engine(DubUrl.ConnectionUrl url) : IBulkCopyEngine
+        {
+            public void Write(string tableName, System.Data.IDataReader reader)
+            {
+                using var connection = (DuckDBConnection)url.Open();
+                using var appender = connection.CreateAppender(tableName);
+                while (reader.Read()) { var row = appender.CreateRow(); row.AppendValue(Convert.ToInt32(reader[0])); row.EndRow(); }
+                appender.Close();
+            }
+            public void Dispose() { }
+        }
     }
 }
