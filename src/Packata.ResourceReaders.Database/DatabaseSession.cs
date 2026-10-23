@@ -31,6 +31,14 @@ internal sealed class DubUrlDatabaseSessionFactory(string rootPath) : IDatabaseS
     {
         ArgumentNullException.ThrowIfNull(location);
         if (!string.IsNullOrWhiteSpace(location.ConnectionUrl)) return location.ConnectionUrl;
+        Validate(location);
+        return ShouldResolveFilePath(location, rootPath)
+            ? BuildFileUrl(location, rootPath)
+            : BuildServerUrl(location);
+    }
+
+    private static void Validate(ConnectionLocation location)
+    {
         if (string.IsNullOrWhiteSpace(location.Scheme) || !Uri.CheckSchemeName(location.Scheme))
             throw new ArgumentException("A valid database connection scheme is required.", nameof(location));
         if (string.IsNullOrWhiteSpace(location.Host) && string.IsNullOrWhiteSpace(location.Database))
@@ -39,20 +47,26 @@ internal sealed class DubUrlDatabaseSessionFactory(string rootPath) : IDatabaseS
                 nameof(location));
         if (location.Port is <= 0 or > 65535)
             throw new ArgumentOutOfRangeException(nameof(location), "The database connection port is invalid.");
+    }
 
-        if (!string.IsNullOrWhiteSpace(rootPath)
+    private static bool ShouldResolveFilePath(ConnectionLocation location, string rootPath) =>
+        !string.IsNullOrWhiteSpace(rootPath)
             && string.IsNullOrWhiteSpace(location.Host)
             && !string.IsNullOrWhiteSpace(location.Database)
             && !Path.IsPathRooted(location.Database)
-            && IsFileDatabaseScheme(location.Scheme))
-        {
-            var absolute = Path.GetFullPath(Path.Combine(rootPath, location.Database))
-                .Replace(Path.DirectorySeparatorChar, '/');
-            var path = string.Join('/', absolute.Split('/', StringSplitOptions.RemoveEmptyEntries)
-                .Select(Uri.EscapeDataString));
-            return $"{location.Scheme.Trim()}:///{path}";
-        }
+            && IsFileDatabaseScheme(location.Scheme);
 
+    private static string BuildFileUrl(ConnectionLocation location, string rootPath)
+    {
+        var absolute = Path.GetFullPath(Path.Combine(rootPath, location.Database!))
+            .Replace(Path.DirectorySeparatorChar, '/');
+        var path = string.Join('/', absolute.Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Uri.EscapeDataString));
+        return $"{location.Scheme.Trim()}:///{path}";
+    }
+
+    private static string BuildServerUrl(ConnectionLocation location)
+    {
         var host = string.IsNullOrWhiteSpace(location.Host) ? "." : location.Host.Trim();
         var port = location.Port is null ? string.Empty : $":{location.Port}";
         var database = string.IsNullOrWhiteSpace(location.Database)
