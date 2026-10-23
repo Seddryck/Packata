@@ -79,13 +79,6 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     private static DataRelationship? MapRelationship(Relationship relationship, string sourceAsset,
         string? sourceField, ICollection<MappingDiagnostic> diagnostics)
     {
-        if (!relationship.Type.Equals("foreignKey", StringComparison.OrdinalIgnoreCase))
-        {
-            diagnostics.Add(new("ODCS002", MappingSeverity.Warning, $"schema/{sourceAsset}/relationships",
-                $"Relationship type '{relationship.Type}' is retained only as source metadata."));
-            return null;
-        }
-
         var from = ParseReference(relationship.From?.ToString(), sourceAsset, sourceField);
         var to = ParseReference(relationship.To.ToString(), null, null);
         if (from is null || to is null || string.IsNullOrWhiteSpace(from.Value.Field)
@@ -95,6 +88,10 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                 $"Relationship '{relationship.Id ?? "<unnamed>"}' has an unsupported reference path."));
             return null;
         }
+
+        if (!relationship.Type.Equals("foreignKey", StringComparison.OrdinalIgnoreCase))
+            diagnostics.Add(new("ODCS002", MappingSeverity.Warning, $"schema/{sourceAsset}/relationships",
+                $"Relationship type '{relationship.Type}' was retained but will not be provisioned as a foreign key."));
 
         return new([from.Value.Field!], to.Value.Asset!, [to.Value.Field!], relationship.Id,
             relationship.Type, MapCustomProperties(relationship.CustomProperties));
