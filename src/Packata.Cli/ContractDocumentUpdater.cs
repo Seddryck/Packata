@@ -18,6 +18,13 @@ internal static class ContractDocumentUpdater
         DataEndpoint inferredEndpoint)
     {
         var warnings = new List<string>();
+        if (inferredEndpoint.Kind == EndpointKind.Database
+            && (inferredAsset.Schema?.Relationships.Count > 0
+                || inferredAsset.Schema?.Fields.Any(field => field.Constraints.Count > 0) == true))
+        {
+            warnings.Add(
+                "Database relationships and non-primary-key constraints are display-only and were not written.");
+        }
         var content = document.Kind switch
         {
             ContractDocumentKind.DataPackageJson => UpdateDataPackageJson(
@@ -51,15 +58,26 @@ internal static class ContractDocumentUpdater
             resource["schema"] = schema;
         }
         schema["fields"] = MergeJsonFields(schema["fields"] as JArray, inferredAsset.Schema!.Fields, warnings);
-        var dialect = resource["dialect"] as JObject;
-        if (dialect is null)
+        if (inferredEndpoint.Kind == EndpointKind.Database)
+            ApplyJsonPrimaryKey(schema, inferredAsset.Schema.PrimaryKey);
+        if (inferredEndpoint.Kind == EndpointKind.File)
         {
-            dialect = new JObject();
-            resource["dialect"] = dialect;
+            var dialect = resource["dialect"] as JObject;
+            if (dialect is null)
+            {
+                dialect = new JObject();
+                resource["dialect"] = dialect;
+            }
+            dialect["type"] = "delimited";
+            ApplyJsonDialect(dialect, inferredEndpoint.Format!.Options);
         }
-        dialect["type"] = "delimited";
-        ApplyJsonDialect(dialect, inferredEndpoint.Format!.Options);
         return root.ToString(Formatting.Indented) + Environment.NewLine;
+    }
+
+    private static void ApplyJsonPrimaryKey(JObject schema, IReadOnlyList<string> primaryKey)
+    {
+        if (primaryKey.Count == 0) schema.Remove("primaryKey");
+        else schema["primaryKey"] = new JArray(primaryKey);
     }
 
     private static JArray MergeJsonFields(
@@ -111,9 +129,18 @@ internal static class ContractDocumentUpdater
         var schema = Mapping(resource, "schema", create: true)!;
         Set(schema, "fields", MergeDataPackageYamlFields(Sequence(schema, "fields", create: true),
             inferredAsset.Schema!.Fields, warnings));
-        var dialect = Mapping(resource, "dialect", create: true)!;
-        SetScalar(dialect, "type", "delimited");
-        ApplyYamlDialect(dialect, inferredEndpoint.Format!.Options, DataPackageDialectOptions);
+        if (inferredEndpoint.Kind == EndpointKind.Database)
+        {
+            if (inferredAsset.Schema.PrimaryKey.Count == 0) Remove(schema, "primaryKey");
+            else Set(schema, "primaryKey", new YamlSequenceNode(
+                inferredAsset.Schema.PrimaryKey.Select(key => new YamlScalarNode(key))));
+        }
+        if (inferredEndpoint.Kind == EndpointKind.File)
+        {
+            var dialect = Mapping(resource, "dialect", create: true)!;
+            SetScalar(dialect, "type", "delimited");
+            ApplyYamlDialect(dialect, inferredEndpoint.Format!.Options, DataPackageDialectOptions);
+        }
         return SaveYaml(yaml);
     }
 
@@ -131,12 +158,16 @@ internal static class ContractDocumentUpdater
         var schema = FindByScalar(schemas, "name", assetId)
             ?? throw new InvalidDataException($"Schema asset '{assetId}' was not found in the source document.");
         Set(schema, "properties", MergeOdcsYamlFields(Sequence(schema, "properties", create: true),
-            inferredAsset.Schema!.Fields, warnings));
+            inferredAsset.Schema!.Fields, inferredAsset.Schema.PrimaryKey,
+            inferredEndpoint.Kind == EndpointKind.Database, warnings));
 
-        var servers = Sequence(root, "servers");
-        var server = FindByScalar(servers, "server", endpointId)
-            ?? throw new InvalidDataException($"Server '{endpointId}' was not found in the source document.");
-        ApplyOdcsDialect(server, inferredEndpoint.Format!.Options, warnings);
+        if (inferredEndpoint.Kind == EndpointKind.File)
+        {
+            var servers = Sequence(root, "servers");
+            var server = FindByScalar(servers, "server", endpointId)
+                ?? throw new InvalidDataException($"Server '{endpointId}' was not found in the source document.");
+            ApplyOdcsDialect(server, inferredEndpoint.Format!.Options, warnings);
+        }
         return SaveYaml(yaml);
     }
 
@@ -164,6 +195,8 @@ internal static class ContractDocumentUpdater
     private static YamlSequenceNode MergeOdcsYamlFields(
         YamlSequenceNode existing,
         IReadOnlyList<DataField> inferred,
+        IReadOnlyList<string> primaryKey,
+        bool applyDatabaseFacets,
         ICollection<string> warnings)
     {
         var byName = ExistingYamlFieldsByName(existing);
@@ -174,6 +207,15 @@ internal static class ContractDocumentUpdater
             SetScalar(node, "name", field.Name);
             SetScalar(node, "logicalType", ToOdcsType(field.LogicalType, warnings));
             SetScalar(node, "required", field.Required ? "true" : "false");
+            if (applyDatabaseFacets)
+            {
+                if (field.PhysicalType is null) Remove(node, "physicalType");
+                else SetScalar(node, "physicalType", field.PhysicalType);
+                var primaryKeyPosition = IndexOf(primaryKey, field.Name);
+                SetScalar(node, "primaryKey", primaryKeyPosition >= 0 ? "true" : "false");
+                if (primaryKeyPosition < 0) Remove(node, "primaryKeyPosition");
+                else SetScalar(node, "primaryKeyPosition", (primaryKeyPosition + 1).ToString());
+            }
             if (field.Format is not null)
             {
                 var options = Mapping(node, "logicalTypeOptions", create: true)!;
@@ -187,6 +229,13 @@ internal static class ContractDocumentUpdater
             result.Add(node);
         }
         return result;
+    }
+
+    private static int IndexOf(IReadOnlyList<string> values, string value)
+    {
+        for (var index = 0; index < values.Count; index++)
+            if (string.Equals(values[index], value, StringComparison.Ordinal)) return index;
+        return -1;
     }
 
     private static Dictionary<string, YamlMappingNode> ExistingYamlFieldsByName(YamlSequenceNode existing) =>

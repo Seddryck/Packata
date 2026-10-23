@@ -39,7 +39,8 @@ public class DatabaseDataContractInferenceTests
             """);
         var options = new DatabaseDataContractInferenceOptions { DiscoveryOptions = Basic };
         var location = new ConnectionLocation("sqlite", Database: ":memory:",
-            ConnectionUrl: "sqlite://reader:top-secret@/:memory:?access_token=also-secret");
+            ConnectionUrl: "sqlite://reader:top-secret@/:memory:?mode=memory&sslPassword=hidden" +
+                "&access_token=also-secret#local-note");
 
         var result = await new DatabaseDataContractInference(options)
             .InferAsync(connection, new SqliteMetadataReader(), location);
@@ -62,8 +63,10 @@ public class DatabaseDataContractInferenceTests
                 Is.EqualTo(AssetKind.View));
             Assert.That(endpoint.Location, Is.TypeOf<ConnectionLocation>());
             Assert.That(((ConnectionLocation)endpoint.Location).ConnectionUrl,
-                Is.EqualTo("sqlite:///:memory:"));
-            Assert.That(endpoint.ToString(), Does.Not.Contain("top-secret").And.Not.Contain("also-secret"));
+                Is.EqualTo("sqlite:///:memory:?mode=memory&sslPassword=%5BREDACTED%5D" +
+                    "&access_token=%5BREDACTED%5D"));
+            Assert.That(endpoint.ToString(), Does.Not.Contain("top-secret").And.Not.Contain("also-secret")
+                .And.Not.Contain("hidden").And.Not.Contain("local-note"));
         });
     }
 

@@ -1,6 +1,8 @@
 using System.Globalization;
+using DubUrl.Discovery;
 using Packata.Core.Contracts;
 using Packata.ResourceReaders;
+using Packata.ResourceReaders.Database;
 using PocketCsvReader;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -20,31 +22,22 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
             var document = ContractDocument.Load(settings.Source);
             var asset = SelectAsset(document.Contract, settings.Asset);
             var endpoint = SelectEndpoint(document.Contract, asset);
-            ValidateEndpoint(asset, endpoint);
-
-            await using var stream = await document.OpenAssetStreamAsync(asset, endpoint).ConfigureAwait(false);
-            var inferenceOptions = CreateOptions(settings, endpoint);
-            var options = new CsvDataContractInferenceOptions
+            var inference = endpoint.Kind switch
             {
-                InferenceOptions = inferenceOptions,
-                ContractIdentity = document.Contract.Identity,
-                ContractMetadata = document.Contract.Metadata,
-                AssetId = asset.Id,
-                AssetName = asset.Name,
-                AssetPhysicalName = asset.PhysicalName,
-                AssetDescription = asset.Description,
-                EndpointId = endpoint.Id,
-                EndpointName = endpoint.Name
+                EndpointKind.File => await InferCsvAsync(document, asset, endpoint, settings).ConfigureAwait(false),
+                EndpointKind.Database => await InferDatabaseAsync(
+                    document, asset, endpoint, cancellationToken).ConfigureAwait(false),
+                _ => throw new NotSupportedException(
+                    $"Asset '{asset.Id}' is not bound to a supported file or database endpoint.")
             };
-            var sourcePath = ((PathLocation)endpoint.Location).Paths.Single();
-            var result = new CsvDataContractInference(options).Infer(stream, sourcePath);
 
-            InferencePresenter.Write(document.MappingDiagnostics, result);
+            InferencePresenter.Write(document.MappingDiagnostics, inference.Result,
+                inference.Asset, inference.Endpoint);
 
             if (settings.Write || settings.Output is not null)
             {
-                var update = ContractDocumentUpdater.Update(document, asset, endpoint, result.Contract.Assets.Single(),
-                    result.Contract.Endpoints.Single());
+                var update = ContractDocumentUpdater.Update(
+                    document, asset, endpoint, inference.Asset, inference.Endpoint);
                 foreach (var warning in update.Warnings)
                     AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
                 var target = settings.Write ? document.SourcePath : Path.GetFullPath(settings.Output!);
@@ -64,6 +57,91 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
             AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(exception.Message)}");
             return 1;
         }
+    }
+
+    private static async Task<InferenceSelection> InferCsvAsync(
+        ContractDocument document, DataAsset asset, DataEndpoint endpoint, InferSettings settings)
+    {
+        ValidateCsvEndpoint(asset, endpoint);
+        await using var stream = await document.OpenAssetStreamAsync(asset, endpoint).ConfigureAwait(false);
+        var options = new CsvDataContractInferenceOptions
+        {
+            InferenceOptions = CreateOptions(settings, endpoint),
+            ContractIdentity = document.Contract.Identity,
+            ContractMetadata = document.Contract.Metadata,
+            AssetId = asset.Id,
+            AssetName = asset.Name,
+            AssetPhysicalName = asset.PhysicalName,
+            AssetDescription = asset.Description,
+            EndpointId = endpoint.Id,
+            EndpointName = endpoint.Name
+        };
+        var sourcePath = ((PathLocation)endpoint.Location).Paths.Single();
+        var result = new CsvDataContractInference(options).Infer(stream, sourcePath);
+        return new(result, result.Contract.Assets.Single(), result.Contract.Endpoints.Single());
+    }
+
+    private static async Task<InferenceSelection> InferDatabaseAsync(
+        ContractDocument document, DataAsset asset, DataEndpoint endpoint, CancellationToken cancellationToken)
+    {
+        if (endpoint.Location is not ConnectionLocation location)
+            throw new NotSupportedException(
+                $"Asset '{asset.Id}' must bind a database connection for database inference.");
+
+        var physicalName = PhysicalName(asset, endpoint, location);
+        var options = new DatabaseDataContractInferenceOptions
+        {
+            DiscoveryOptions = new DiscoveryOptions { AllowPartial = true, IncludeReferencedTables = true },
+            ContractIdentity = document.Contract.Identity,
+            ContractMetadata = document.Contract.Metadata,
+            Assets = new Dictionary<string, DatabaseAssetInferenceOptions>(StringComparer.Ordinal)
+            {
+                [physicalName] = new(asset.Id, asset.Name, asset.Description)
+            },
+            EndpointId = endpoint.Id,
+            EndpointName = endpoint.Name,
+            Environment = endpoint.Environment
+        };
+        var rootPath = Path.GetDirectoryName(document.SourcePath);
+        var result = await new DatabaseDataContractInference(options)
+            .InferAsync(location, rootPath, cancellationToken).ConfigureAwait(false);
+        var contract = result.RequireContract();
+        var inferredAsset = SelectInferredDatabaseAsset(contract, asset, physicalName);
+        var inferredEndpoint = contract.Endpoints.Single(item =>
+            item.Id == inferredAsset.EndpointBindings.Single().EndpointId);
+        return new(result, inferredAsset, inferredEndpoint);
+    }
+
+    private static string PhysicalName(DataAsset asset, DataEndpoint endpoint, ConnectionLocation location)
+    {
+        var binding = asset.EndpointBindings.Single();
+        var name = binding.AssetPath ?? asset.PhysicalName ?? asset.Name;
+        if (name.Contains('.')) return name;
+        var qualifiers = new[]
+        {
+            OptionString(endpoint.Format, "catalog"),
+            OptionString(endpoint.Format, "databaseQualifier"),
+            location.Namespace,
+            name
+        }.Where(value => !string.IsNullOrWhiteSpace(value));
+        return string.Join('.', qualifiers);
+    }
+
+    private static DataAsset SelectInferredDatabaseAsset(
+        DataContract contract, DataAsset original, string physicalName)
+    {
+        var exact = contract.Assets.Where(candidate =>
+            string.Equals(candidate.PhysicalName, physicalName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(candidate.Id, original.Id, StringComparison.Ordinal)).ToArray();
+        if (exact.Length == 1) return exact[0];
+
+        var unqualified = physicalName.Split('.').Last();
+        var byName = contract.Assets.Where(candidate =>
+            string.Equals(candidate.Name, unqualified, StringComparison.OrdinalIgnoreCase)).ToArray();
+        return byName.Length == 1
+            ? byName[0]
+            : throw new InvalidOperationException(
+                $"Database object '{physicalName}' for asset '{original.Id}' could not be resolved uniquely.");
     }
 
     private static DataAsset SelectAsset(DataContract contract, string assetId)
@@ -91,7 +169,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
                 $"Endpoint binding '{endpointId}' for asset '{asset.Id}' could not be resolved uniquely.");
     }
 
-    private static void ValidateEndpoint(DataAsset asset, DataEndpoint endpoint)
+    private static void ValidateCsvEndpoint(DataAsset asset, DataEndpoint endpoint)
     {
         if (endpoint.Kind != EndpointKind.File || endpoint.Location is not PathLocation { Paths.Count: 1 })
             throw new NotSupportedException(
@@ -189,5 +267,13 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         return raw is string text && bool.TryParse(text, out value);
     }
 
+    private static string? OptionString(DataFormat? format, string name) =>
+        format?.Options.TryGetValue(name, out var value) == true ? value?.ToString() : null;
+
     private static readonly string[] SupportedFormats = ["csv", "tsv", "psv"];
+
+    private sealed record InferenceSelection(
+        DataContractInferenceResult Result,
+        DataAsset Asset,
+        DataEndpoint Endpoint);
 }

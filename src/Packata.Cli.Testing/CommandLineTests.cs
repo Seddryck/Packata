@@ -44,7 +44,51 @@ public sealed class CommandLineTests
             Assert.That(result.ExitCode, Is.Zero);
             Assert.That(result.StandardOutput, Does.Contain("datapackage.json").And.Contain("--asset"));
             Assert.That(result.StandardOutput, Does.Contain("--output").And.Contain("--write"));
+            Assert.That(result.StandardOutput, Does.Contain("CSV or database"));
             Assert.That(result.StandardError, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void DatabaseInferenceUpdate_PreservesEndpointAndWritesDatabaseSchemaFacets()
+    {
+        using var directory = new TemporaryDirectory();
+        var source = directory.Write("database-contract.yaml", DatabaseOdcsYaml());
+        var document = ContractDocument.Load(source);
+        var originalAsset = document.Contract.Assets.Single();
+        var originalEndpoint = document.Contract.Endpoints.Single();
+        var inferredAsset = originalAsset with
+        {
+            Schema = new Packata.Core.Contracts.DataSchema(
+            [
+                new Packata.Core.Contracts.DataField(
+                    "id", "integer", "INTEGER", Required: true),
+                new Packata.Core.Contracts.DataField(
+                    "name", "string", "VARCHAR", Required: false)
+            ],
+            ["id"])
+        };
+        var inferredEndpoint = originalEndpoint with
+        {
+            Location = new Packata.Core.Contracts.ConnectionLocation(
+                "duckdb", Database: "./warehouse.duckdb")
+        };
+
+        var update = ContractDocumentUpdater.Update(
+            document, originalAsset, originalEndpoint, inferredAsset, inferredEndpoint);
+        var output = directory.Write("enriched-contract.yaml", update.Content);
+        var reloaded = new Packata.OpenDataContract.DataContractFactory().LoadFromFile(output);
+        var properties = reloaded.Schema.Single().Properties;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(properties, Has.Count.EqualTo(2));
+            Assert.That(properties[0].PrimaryKey, Is.True);
+            Assert.That(properties[0].PrimaryKeyPosition, Is.EqualTo(1));
+            Assert.That(properties[0].PhysicalType, Is.EqualTo("INTEGER"));
+            Assert.That(properties[1].Required, Is.False);
+            Assert.That(update.Content, Does.Contain("database: ./warehouse.duckdb"));
+            Assert.That(update.Content, Does.Not.Contain("CSV dialect"));
         });
     }
 
@@ -301,6 +345,24 @@ public sealed class CommandLineTests
             }
           ]
         }
+        """;
+
+    private static string DatabaseOdcsYaml() =>
+        """
+        apiVersion: v3.2.0
+        kind: DataContract
+        id: warehouse-contract
+        version: 1.0.0
+        status: draft
+        schema:
+          - name: customers
+            physicalName: main.customers
+            physicalType: table
+        servers:
+          - server: warehouse
+            type: duckdb
+            database: ./warehouse.duckdb
+            schema: main
         """;
 
     private static string DataPackageYaml() =>

@@ -27,7 +27,7 @@ internal sealed class DubUrlDatabaseSessionFactory(string rootPath) : IDatabaseS
     internal static string BuildConnectionUrl(ConnectionLocation location)
         => BuildConnectionUrl(location, string.Empty);
 
-    private static string BuildConnectionUrl(ConnectionLocation location, string rootPath)
+    internal static string BuildConnectionUrl(ConnectionLocation location, string rootPath)
     {
         ArgumentNullException.ThrowIfNull(location);
         if (!string.IsNullOrWhiteSpace(location.ConnectionUrl)) return location.ConnectionUrl;

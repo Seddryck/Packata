@@ -7,12 +7,12 @@ internal static class InferencePresenter
 {
     public static void Write(
         IReadOnlyList<MappingDiagnostic> mappingDiagnostics,
-        DataContractInferenceResult result)
+        DataContractInferenceResult result,
+        DataAsset asset,
+        DataEndpoint endpoint)
     {
-        var asset = result.Contract.Assets.Single();
-        var endpoint = result.Contract.Endpoints.Single();
         AnsiConsole.MarkupLine($"[bold]Inferred asset:[/] {Markup.Escape(asset.Id)}");
-        AnsiConsole.MarkupLine($"[bold]Source:[/] {Markup.Escape(((PathLocation)endpoint.Location).Paths.Single())}");
+        AnsiConsole.MarkupLine($"[bold]Source:[/] {Markup.Escape(Display(endpoint.Location))}");
 
         var fields = new Table().Border(TableBorder.Rounded)
             .AddColumn("Field")
@@ -27,17 +27,43 @@ internal static class InferencePresenter
                 field.Required ? "no" : "yes");
         AnsiConsole.Write(fields);
 
-        var format = endpoint.Format!;
-        AnsiConsole.MarkupLine(
-            $"[bold]CSV dialect:[/] delimiter={Display(format.Options, "delimiter")}, " +
-            $"header={Display(format.Options, "header")}, quote={Display(format.Options, "quoteChar")}, " +
-            $"line terminator={Display(format.Options, "lineTerminator")}");
+        if (endpoint.Kind == EndpointKind.File && endpoint.Format is { } format)
+        {
+            AnsiConsole.MarkupLine(
+                $"[bold]CSV dialect:[/] delimiter={Display(format.Options, "delimiter")}, " +
+                $"header={Display(format.Options, "header")}, quote={Display(format.Options, "quoteChar")}, " +
+                $"line terminator={Display(format.Options, "lineTerminator")}");
+        }
+        else if (endpoint.Kind == EndpointKind.Database)
+        {
+            AnsiConsole.MarkupLine(
+                $"[bold]Database object:[/] {Markup.Escape(asset.PhysicalName ?? asset.Name)}");
+            if (asset.Schema?.PrimaryKey.Count > 0)
+                AnsiConsole.MarkupLine(
+                    $"[bold]Primary key:[/] {Markup.Escape(string.Join(", ", asset.Schema.PrimaryKey))}");
+            foreach (var relationship in asset.Schema?.Relationships ?? [])
+            {
+                AnsiConsole.MarkupLine(
+                    $"[bold]Relationship:[/] {Markup.Escape(string.Join(", ", relationship.Fields))} " +
+                    $"→ {Markup.Escape(relationship.TargetAsset)}" +
+                    $"({Markup.Escape(string.Join(", ", relationship.TargetFields))})");
+            }
+        }
 
         foreach (var diagnostic in mappingDiagnostics)
             WriteDiagnostic(diagnostic.Severity.ToString(), diagnostic.Code, diagnostic.Message, null);
         foreach (var diagnostic in result.Diagnostics)
             WriteDiagnostic(diagnostic.Severity.ToString(), diagnostic.Code, diagnostic.Message, diagnostic.Confidence);
     }
+
+    private static string Display(DataLocation location) => location switch
+    {
+        PathLocation path => path.Paths.Single(),
+        ConnectionLocation connection when connection.ConnectionUrl is not null => connection.ConnectionUrl,
+        ConnectionLocation connection =>
+            $"{connection.Scheme}://{connection.Host ?? "."}/{connection.Database ?? string.Empty}",
+        _ => location.ToString() ?? "unknown"
+    };
 
     private static string Display(IReadOnlyDictionary<string, object?> options, string name)
     {

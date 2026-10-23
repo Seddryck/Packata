@@ -228,6 +228,18 @@ Use `--maximum-records`, `--maximum-bytes`, `--culture`, `--header`, and `--no-d
 bounded PocketCsvReader inference. The CSV location, format, encoding, compression, and existing dialect hints are
 resolved from the selected asset's endpoint binding.
 
+The same command infers a bound database table or view when the selected asset resolves to a database endpoint:
+
+```console
+packata infer contract.yaml --asset customers
+packata infer contract.yaml --asset customers --output enriched-contract.yaml
+```
+
+Database connection details and the physical object name are resolved from the endpoint binding. Discovery is
+delegated to DubUrl; the corresponding database connector must be available to the CLI. CSV-only sampling and
+dialect options are ignored for database assets. Non-sensitive connection query options are retained in inferred
+metadata, sensitive query values are redacted, authority credentials are omitted, and URL fragments are removed.
+
 Update an existing installation with `dotnet tool update --global Packata-cli`.
 
 The package is a RID-aware .NET tool: the .NET CLI automatically selects the package matching the host operating system and architecture, then uses a compatible .NET 8, .NET 9, or .NET 10 target.

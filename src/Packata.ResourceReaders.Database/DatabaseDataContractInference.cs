@@ -17,6 +17,7 @@ public sealed class DatabaseDataContractInference
 {
     private const string DatabaseLiteral = "database";
     private const string ExtensionNamespace = "duburl";
+    private const string RedactedQueryValue = "%5BREDACTED%5D";
     private const string StringLogicalType = "string";
     private readonly DatabaseDataContractInferenceOptions _options;
     private readonly SchemaInspector _inspector;
@@ -50,6 +51,18 @@ public sealed class DatabaseDataContractInference
         var inspection = await _inspector.InspectAsync(
             connection, _options.DiscoveryOptions, cancellationToken).ConfigureAwait(false);
         return Map(inspection, location, SafeSource(location));
+    }
+
+    /// <summary>
+    /// Inspects a canonical database location. Relative SQLite and DuckDB paths are resolved from
+    /// <paramref name="rootPath"/> when supplied.
+    /// </summary>
+    public Task<DataContractInferenceResult> InferAsync(ConnectionLocation location, string? rootPath = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        var url = DubUrlDatabaseSessionFactory.BuildConnectionUrl(location, rootPath ?? string.Empty);
+        return InferAsync(url, cancellationToken);
     }
 
     /// <summary>
@@ -443,7 +456,7 @@ public sealed class DatabaseDataContractInference
     private static string SanitizeUrl(string url)
     {
         var marker = url.IndexOf("://", StringComparison.Ordinal);
-        if (marker < 0) return url.Split(['?', '#'], 2)[0];
+        if (marker < 0) return SanitizeTail(url);
         var authorityStart = marker + 3;
         var remainder = url[authorityStart..];
         var authorityEnd = remainder.IndexOfAny(['/', '?', '#']);
@@ -451,9 +464,42 @@ public sealed class DatabaseDataContractInference
         var tail = authorityEnd < 0 ? string.Empty : remainder[authorityEnd..];
         var userInfo = authority.LastIndexOf('@');
         if (userInfo >= 0) authority = authority[(userInfo + 1)..];
-        var secretMarker = tail.IndexOfAny(['?', '#']);
-        if (secretMarker >= 0) tail = tail[..secretMarker];
-        return $"{url[..authorityStart]}{authority}{tail}";
+        return $"{url[..authorityStart]}{authority}{SanitizeTail(tail)}";
+    }
+
+    private static string SanitizeTail(string tail)
+    {
+        var fragment = tail.IndexOf('#');
+        if (fragment >= 0) tail = tail[..fragment];
+        var query = tail.IndexOf('?');
+        if (query < 0) return tail;
+        var parameters = tail[(query + 1)..].Split('&', StringSplitOptions.None)
+            .Select(RedactQueryParameter);
+        return $"{tail[..(query + 1)]}{string.Join('&', parameters)}";
+    }
+
+    private static string RedactQueryParameter(string parameter)
+    {
+        var separator = parameter.IndexOf('=');
+        if (separator < 0 || !IsSensitiveQueryKey(parameter[..separator])) return parameter;
+        return $"{parameter[..(separator + 1)]}{RedactedQueryValue}";
+    }
+
+    private static bool IsSensitiveQueryKey(string encodedKey)
+    {
+        string key;
+        try
+        {
+            key = Uri.UnescapeDataString(encodedKey.Replace('+', ' '));
+        }
+        catch (UriFormatException)
+        {
+            key = encodedKey;
+        }
+        var normalized = new string(key.Where(char.IsLetterOrDigit)
+            .Select(char.ToLowerInvariant).ToArray());
+        return SensitiveQueryKeys.Contains(normalized)
+            || SensitiveQueryKeySuffixes.Any(suffix => normalized.EndsWith(suffix, StringComparison.Ordinal));
     }
 
     private static string SafeSource(ConnectionLocation location) =>
@@ -495,4 +541,14 @@ public sealed class DatabaseDataContractInference
         public string Key => string.Join('.', new[] { Catalog, Database, Schema }.Where(x => x is not null));
         public string DisplayName => string.IsNullOrWhiteSpace(Key) ? DatabaseLiteral : Key;
     }
+
+    private static readonly HashSet<string> SensitiveQueryKeys = new(StringComparer.Ordinal)
+    {
+        "password", "pwd", "pass", "token", "accesstoken", "refreshtoken", "idtoken", "authtoken",
+        "sastoken", "apikey", "secret", "clientsecret", "credential", "credentials", "privatekey",
+        "accesskey", "secretkey"
+    };
+
+    private static readonly string[] SensitiveQueryKeySuffixes =
+        ["password", "secret", "token", "credential", "credentials", "privatekey", "apikey"];
 }
