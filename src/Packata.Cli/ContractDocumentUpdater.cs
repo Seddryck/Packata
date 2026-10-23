@@ -207,15 +207,7 @@ internal static class ContractDocumentUpdater
             SetScalar(node, "name", field.Name);
             SetScalar(node, "logicalType", ToOdcsType(field.LogicalType, warnings));
             SetScalar(node, "required", field.Required ? "true" : "false");
-            if (applyDatabaseFacets)
-            {
-                if (field.PhysicalType is null) Remove(node, "physicalType");
-                else SetScalar(node, "physicalType", field.PhysicalType);
-                var primaryKeyPosition = IndexOf(primaryKey, field.Name);
-                SetScalar(node, "primaryKey", primaryKeyPosition >= 0 ? "true" : "false");
-                if (primaryKeyPosition < 0) Remove(node, "primaryKeyPosition");
-                else SetScalar(node, "primaryKeyPosition", (primaryKeyPosition + 1).ToString());
-            }
+            if (applyDatabaseFacets) ApplyOdcsDatabaseFacets(node, field, primaryKey);
             if (field.Format is not null)
             {
                 var options = Mapping(node, "logicalTypeOptions", create: true)!;
@@ -229,6 +221,19 @@ internal static class ContractDocumentUpdater
             result.Add(node);
         }
         return result;
+    }
+
+    private static void ApplyOdcsDatabaseFacets(
+        YamlMappingNode node,
+        DataField field,
+        IReadOnlyList<string> primaryKey)
+    {
+        if (field.PhysicalType is null) Remove(node, "physicalType");
+        else SetScalar(node, "physicalType", field.PhysicalType);
+        var primaryKeyPosition = IndexOf(primaryKey, field.Name);
+        SetScalar(node, "primaryKey", primaryKeyPosition >= 0 ? "true" : "false");
+        if (primaryKeyPosition < 0) Remove(node, "primaryKeyPosition");
+        else SetScalar(node, "primaryKeyPosition", (primaryKeyPosition + 1).ToString());
     }
 
     private static int IndexOf(IReadOnlyList<string> values, string value)
