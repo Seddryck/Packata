@@ -13,14 +13,34 @@ internal sealed record PhysicalTypeDefinition(NativeDatabaseType NativeType, int
     public static bool TryParse(string? value, out PhysicalTypeDefinition? definition)
     {
         definition = null;
-        if (string.IsNullOrWhiteSpace(value)) return false;
-        var match = TypePattern.Match(value.Trim());
-        if (!match.Success) return false;
+        if (!TryMatch(value, out var match)
+            || !TryDimensions(match, out var first, out var second)) return false;
         var name = match.Groups["name"].Value.Trim().ToLowerInvariant();
-        if (!TryNumber(match.Groups["first"], out var first)
-            || !TryNumber(match.Groups["second"], out var second)) return false;
-        if (first is <= 0 || second is < 0 || second > first) return false;
+        return TryCreate(name, first, second, out definition);
+    }
 
+    private static bool TryMatch(string? value, out Match match)
+    {
+        match = Match.Empty;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        match = TypePattern.Match(value.Trim());
+        return match.Success;
+    }
+
+    private static bool TryDimensions(Match match, out int? first, out int? second)
+    {
+        first = null;
+        second = null;
+        if (!TryNumber(match.Groups["first"], out first)
+            || !TryNumber(match.Groups["second"], out second)) return false;
+        if (first is <= 0 || second is < 0) return false;
+        return second is null || (first is not null && second <= first);
+    }
+
+    private static bool TryCreate(string name, int? first, int? second,
+        out PhysicalTypeDefinition? definition)
+    {
+        definition = null;
         try
         {
             var nativeType = new NativeDatabaseType(name);

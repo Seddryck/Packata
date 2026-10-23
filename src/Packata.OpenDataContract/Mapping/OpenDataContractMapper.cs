@@ -117,95 +117,86 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
 
     private static DataField MapField(SchemaProperty property)
     {
-        var constraints = new List<DataConstraint>();
-        if (property.PrimaryKey)
-            constraints.Add(new DataConstraint("primaryKey", true));
-        if (property.Unique == true)
-            constraints.Add(new DataConstraint("unique", true));
-        AddRangeAndLengthConstraints(property.LogicalType, constraints);
-        if (property.Enum is { Count: > 0 })
-            constraints.Add(new("enum", property.Enum.Select(value => value.Value).ToArray()));
-
-        var extensions = new Dictionary<string, object?>();
-        if (property.Classification is not null)
-            extensions["classification"] = property.Classification;
-        if (property.Partitioned is not null)
-            extensions["partitioned"] = property.Partitioned;
-        if (property.PartitionKeyPosition is not null)
-            extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
-        if (property.CustomProperties.Count > 0)
-            extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
-
         return new DataField(
             property.Name,
             GetLogicalTypeName(property.LogicalType),
             property.PhysicalType,
             GetFormat(property.LogicalType),
             property.Required ?? false,
-            constraints,
-            Extensions: extensions.Count == 0
-                ? ExtensionMetadata.Empty
-                : ExtensionMetadata.For("odcs", extensions),
+            MapConstraints(property),
+            Extensions: MapFieldExtensionMetadata(property),
             PhysicalName: property.PhysicalName,
             Description: property.Description);
+    }
+
+    private static IReadOnlyList<DataConstraint> MapConstraints(SchemaProperty property)
+    {
+        var constraints = new List<DataConstraint>();
+        if (property.PrimaryKey) constraints.Add(new("primaryKey", true));
+        if (property.Unique == true) constraints.Add(new("unique", true));
+        AddRangeAndLengthConstraints(property.LogicalType, constraints);
+        if (property.Enum is { Count: > 0 })
+            constraints.Add(new("enum", property.Enum.Select(value => value.Value).ToArray()));
+        return constraints;
+    }
+
+    private static Dictionary<string, object?> MapFieldExtensions(SchemaProperty property)
+    {
+        var extensions = new Dictionary<string, object?>();
+        if (property.Classification is not null) extensions["classification"] = property.Classification;
+        if (property.Partitioned is not null) extensions["partitioned"] = property.Partitioned;
+        if (property.PartitionKeyPosition is not null)
+            extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
+        if (property.CustomProperties.Count > 0)
+            extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
+        return extensions;
+    }
+
+    private static ExtensionMetadata MapFieldExtensionMetadata(SchemaProperty property)
+    {
+        var extensions = MapFieldExtensions(property);
+        return extensions.Count == 0 ? ExtensionMetadata.Empty : ExtensionMetadata.For("odcs", extensions);
     }
 
     private static void AddRangeAndLengthConstraints(ILogicalType? logicalType,
         ICollection<DataConstraint> constraints)
     {
-        if (logicalType is StringLogicalType text)
+        switch (logicalType)
         {
-            if (text.MinLength is not null) constraints.Add(new("minLength", text.MinLength));
-            if (text.MaxLength is not null) constraints.Add(new("maxLength", text.MaxLength));
-            if (!string.IsNullOrWhiteSpace(text.Pattern)) constraints.Add(new("pattern", text.Pattern));
+            case StringLogicalType text:
+                AddStringConstraints(text, constraints);
+                break;
+            case NumberLogicalType number:
+                AddNumberConstraints(number.Minimum, number.Maximum, number.ExclusiveMinimum,
+                    number.ExclusiveMaximum, constraints);
+                break;
+            case IntegerLogicalType integer:
+                AddNumberConstraints(integer.Minimum, integer.Maximum, integer.ExclusiveMinimum,
+                    integer.ExclusiveMaximum, constraints);
+                break;
         }
-        else if (logicalType is NumberLogicalType number)
-        {
-            if (number.Minimum is not null)
-                constraints.Add(new(number.ExclusiveMinimum ? "exclusiveMinimum" : "minimum", number.Minimum));
-            if (number.Maximum is not null)
-                constraints.Add(new(number.ExclusiveMaximum ? "exclusiveMaximum" : "maximum", number.Maximum));
-        }
-        else if (logicalType is IntegerLogicalType integer)
-        {
-            if (integer.Minimum is not null)
-                constraints.Add(new(integer.ExclusiveMinimum ? "exclusiveMinimum" : "minimum", integer.Minimum));
-            if (integer.Maximum is not null)
-                constraints.Add(new(integer.ExclusiveMaximum ? "exclusiveMaximum" : "maximum", integer.Maximum));
-        }
+    }
+
+    private static void AddStringConstraints(StringLogicalType text, ICollection<DataConstraint> constraints)
+    {
+        if (text.MinLength is not null) constraints.Add(new("minLength", text.MinLength));
+        if (text.MaxLength is not null) constraints.Add(new("maxLength", text.MaxLength));
+        if (!string.IsNullOrWhiteSpace(text.Pattern)) constraints.Add(new("pattern", text.Pattern));
+    }
+
+    private static void AddNumberConstraints(object? minimum, object? maximum, bool exclusiveMinimum,
+        bool exclusiveMaximum, ICollection<DataConstraint> constraints)
+    {
+        if (minimum is not null)
+            constraints.Add(new(exclusiveMinimum ? "exclusiveMinimum" : "minimum", minimum));
+        if (maximum is not null)
+            constraints.Add(new(exclusiveMaximum ? "exclusiveMaximum" : "maximum", maximum));
     }
 
     private static DataEndpoint MapEndpoint(BaseServer server)
     {
-        DataLocation location = server switch
-        {
-            LocalFilesServer local => new PathLocation([local.Path]),
-            CustomServer custom when custom.Host is not null || custom.Database is not null
-                || custom.Schema is not null || custom.Catalog is not null => new ConnectionLocation(
-                    server.Type, custom.Host, ConvertPort(custom.Port), custom.Database, custom.Schema,
-                    custom.EndpointUrl, custom.Catalog),
-            ILocationAware located => new PathLocation([located.Location]),
-            IHostAware hosted => new ConnectionLocation(
-                server.Type,
-                hosted.Host,
-                ConvertPort(hosted.Port),
-                (server as IDatabaseAware)?.Database,
-                (server as ISchemaAware)?.Schema,
-                Catalog: (server as ICatalogAware)?.Catalog),
-            IDatabaseAware database => new ConnectionLocation(
-                server.Type,
-                Database: database.Database,
-                Namespace: (server as ISchemaAware)?.Schema,
-                Catalog: (server as ICatalogAware)?.Catalog),
-            _ => new ConnectionLocation(server.Type)
-        };
-
-        var formatName = server switch
-        {
-            IFormatAware formatted => formatted.Format,
-            CustomServer custom => custom.Format,
-            _ => null
-        };
+        var location = MapLocation(server);
+        var formatName = GetFormatName(server);
         var encoding = (server as IEncodingAware)?.Encoding;
         var formatOptions = MapFormatOptions(server, formatName);
 
@@ -220,6 +211,38 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                 : null,
             MapCustomProperties(server.CustomProperties));
     }
+
+    private static DataLocation MapLocation(BaseServer server) => server switch
+    {
+        LocalFilesServer local => new PathLocation([local.Path]),
+        CustomServer custom when HasConnectionMetadata(custom) => MapCustomLocation(custom),
+        ILocationAware located => new PathLocation([located.Location]),
+        IHostAware hosted => MapHostedLocation(server, hosted),
+        IDatabaseAware database => MapDatabaseLocation(server, database),
+        _ => new ConnectionLocation(server.Type)
+    };
+
+    private static bool HasConnectionMetadata(CustomServer server) => server.Host is not null
+        || server.Database is not null || server.Schema is not null || server.Catalog is not null;
+
+    private static ConnectionLocation MapCustomLocation(CustomServer server) => new(
+        server.Type, server.Host, ConvertPort(server.Port), server.Database, server.Schema,
+        server.EndpointUrl, server.Catalog);
+
+    private static ConnectionLocation MapHostedLocation(BaseServer server, IHostAware hosted) => new(
+        server.Type, hosted.Host, ConvertPort(hosted.Port), (server as IDatabaseAware)?.Database,
+        (server as ISchemaAware)?.Schema, Catalog: (server as ICatalogAware)?.Catalog);
+
+    private static ConnectionLocation MapDatabaseLocation(BaseServer server, IDatabaseAware database) => new(
+        server.Type, Database: database.Database, Namespace: (server as ISchemaAware)?.Schema,
+        Catalog: (server as ICatalogAware)?.Catalog);
+
+    private static string? GetFormatName(BaseServer server) => server switch
+    {
+        IFormatAware formatted => formatted.Format,
+        CustomServer custom => custom.Format,
+        _ => null
+    };
 
     private static IReadOnlyDictionary<string, object?> MapFormatOptions(BaseServer server, string? formatName)
     {
