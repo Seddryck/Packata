@@ -3,6 +3,7 @@ using DubUrl.BulkCopy;
 using DubUrl.Querying.Dialects;
 using DubUrl.Schema;
 using DubUrl.Schema.Builders;
+using DubUrl.Schema.Constraints;
 using Packata.Core;
 using Packata.Core.Contracts;
 using Packata.Core.Provisioning;
@@ -17,6 +18,7 @@ public class DubUrlProvisioner : IDataContractProvisioner
     protected DbTypeMapper DbTypeMapper { get; }
     protected BulkCopyEngineFactory BulkCopyEngineFactory { get; }
     protected IDataEndpointReaderFactory? ReaderFactory { get; }
+    protected IDialect Dialect { get; }
     public ConnectionUrl ConnectionUrl { get; }
 
     protected internal DubUrlProvisioner(ConnectionUrl connectionUrl,
@@ -25,7 +27,8 @@ public class DubUrlProvisioner : IDataContractProvisioner
         IDataEndpointReaderFactory? readerFactory = null)
     {
         ConnectionUrl = connectionUrl;
-        ScriptRenderer = scriptRenderer ?? new(connectionUrl.Dialect, SchemaCreationOptions.None);
+        Dialect = GetDialect(connectionUrl);
+        ScriptRenderer = scriptRenderer ?? new(Dialect, SchemaCreationOptions.None);
         ScriptDeployer = deployer ?? new();
         DbTypeMapper = dbTypeMapper ?? new();
         BulkCopyEngineFactory = bulkCopyEngineFactory ?? new();
@@ -51,17 +54,26 @@ public class DubUrlProvisioner : IDataContractProvisioner
         ArgumentNullException.ThrowIfNull(contract);
         options ??= new();
         var diagnostics = new List<ProvisioningDiagnostic>();
+        if (options.Descriptions && !ScriptRenderer.SupportsComments
+            && contract.Assets.Any(asset => !string.IsNullOrWhiteSpace(asset.Description)
+                || asset.Schema?.Fields.Any(field => !string.IsNullOrWhiteSpace(field.Description)) == true))
+            diagnostics.Add(new("PROV006", "*",
+                $"Database comments are not supported by target dialect '{Dialect.GetType().Name}'."));
+
+        var resolver = new RelationalObjectNameResolver(Dialect, contract);
+        var identities = new Dictionary<DataAsset, DatabaseObjectName>();
+        foreach (var asset in contract.Assets)
+        {
+            if (!ValidatePhysicalColumns(asset, diagnostics)) continue;
+            identities.Add(asset, resolver.Resolve(asset, diagnostics));
+        }
         var schema = new SchemaBuilder().WithTables(tables =>
         {
-            var resolver = new RelationalObjectNameResolver(ConnectionUrl.Url, contract);
-            foreach (var asset in contract.Assets)
-                tables.Add(Map(asset, resolver.Resolve(asset), options, diagnostics));
+            foreach (var pair in identities)
+                tables.Add(Map(pair.Key, pair.Value, contract, identities, options, diagnostics));
             return tables;
         }).Build();
-        var script = ScriptRenderer.Render(schema);
-        var additions = new RelationalDdlAugmenter(ConnectionUrl.Url).Render(contract, options, diagnostics);
-        if (!string.IsNullOrWhiteSpace(additions)) script = $"{script}{Environment.NewLine}{additions}";
-        ScriptDeployer.DeploySchema(ConnectionUrl, script);
+        ScriptDeployer.DeploySchema(ConnectionUrl, ScriptRenderer.Render(schema));
         return diagnostics;
     }
 
@@ -72,6 +84,7 @@ public class DubUrlProvisioner : IDataContractProvisioner
         var readerFactory = ReaderFactory ?? throw new InvalidOperationException(
             "A canonical endpoint reader factory is required to load data.");
         var diagnostics = new List<ProvisioningDiagnostic>();
+        var resolver = new RelationalObjectNameResolver(Dialect, contract);
         using var bulkCopy = BulkCopyEngineFactory.Create(ConnectionUrl);
         foreach (var asset in contract.Assets)
         {
@@ -86,7 +99,9 @@ public class DubUrlProvisioner : IDataContractProvisioner
             }
             var request = new DataEndpointReadRequest(endpoint, asset.Schema, binding!.AssetPath);
             using var reader = await readerFactory.OpenAsync(request, cancellationToken).ConfigureAwait(false);
-            bulkCopy.Write(new RelationalObjectNameResolver(ConnectionUrl.Url, contract).Resolve(asset), reader);
+            var identity = resolver.Resolve(asset, diagnostics);
+            bulkCopy.Write(Dialect.SchemaSqlRenderer.RenderObjectName(
+                Dialect, identity.Catalog, identity.Database, identity.Schema, identity.Name), reader);
         }
         return diagnostics;
     }
@@ -99,43 +114,75 @@ public class DubUrlProvisioner : IDataContractProvisioner
         return diagnostics;
     }
 
-    protected internal ITableBuilder Map(DataAsset asset, string tableName, ContractProvisioningOptions options,
+    protected internal ITableBuilder Map(DataAsset asset, DatabaseObjectName tableName, DataContract contract,
+        IReadOnlyDictionary<DataAsset, DatabaseObjectName> identities, ContractProvisioningOptions options,
         ICollection<ProvisioningDiagnostic> diagnostics)
     {
         var schema = asset.Schema ?? throw new InvalidOperationException($"Asset '{asset.Id}' requires a schema.");
-        return new TableBuilder().WithName(tableName).WithColumns(columns =>
+        var hasPrimaryKey = options.Constraints.HasFlag(ContractConstraintOptions.PrimaryKey)
+            && schema.PrimaryKey.Count > 0;
+        string[] primaryKeyColumns = [];
+        string? primaryKeyError = null;
+        var primaryKeyIsValid = !hasPrimaryKey
+            || TryColumns(schema, schema.PrimaryKey, out primaryKeyColumns, out primaryKeyError);
+        if (!primaryKeyIsValid)
+            diagnostics.Add(new("PROV002", asset.Id, primaryKeyError!));
+
+        var table = new TableBuilder().WithIdentity(tableName).WithColumns(columns =>
         {
             foreach (var field in schema.Fields)
             {
                 columns.Add(column =>
                 {
-                    var physicalType = PhysicalTypeDefinition.TryParse(field.PhysicalType);
-                    if (field.PhysicalType is not null && physicalType is null)
+                    var logicalType = DbTypeMapper.Map(field.LogicalType, field.Format);
+                    var typeBuilder = column.WithName(field.PhysicalName ?? field.Name).WithType(logicalType);
+                    IColumnConstraintBuilder constraintsBuilder = typeBuilder;
+                    PhysicalTypeDefinition? physicalType = null;
+                    if (field.PhysicalType is not null
+                        && !PhysicalTypeDefinition.TryParse(field.PhysicalType, out physicalType))
+                    {
                         diagnostics.Add(new("PROV005", asset.Id,
                             $"Physical type '{field.PhysicalType}' on field '{field.Name}' is unsupported; logical type mapping was used."));
-                    var type = physicalType?.DbType ?? DbTypeMapper.Map(field.LogicalType, field.Format);
-                    var typeBuilder = column.WithName(field.PhysicalName ?? field.Name);
-                    IColumnConstraintBuilder constraintsBuilder = physicalType switch
+                    }
+                    else if (physicalType is not null)
                     {
-                        { Length: int length } => typeBuilder.WithLength(length),
-                        { Precision: int precision, Scale: int scale } => typeBuilder.WithPrecision(precision).WithScale(scale),
-                        _ => typeBuilder.WithType(type)
-                    };
-                    constraintsBuilder
-                        .WithUniqueIf(ConstraintBoolean(field, "unique")
-                            && options.Constraints.HasFlag(ContractConstraintOptions.Unique))
-                        .WithNullableIf(!field.Required
-                            && options.Constraints.HasFlag(ContractConstraintOptions.Required));
+                        constraintsBuilder = physicalType switch
+                        {
+                            { Precision: int precision, Scale: int scale }
+                                => typeBuilder.WithPrecision(precision).WithScale(scale),
+                            { Length: int length } => typeBuilder.WithLength(length),
+                            _ => typeBuilder
+                        };
+                        if (!NativeTypeRegistry.Default.TryResolve(Dialect, physicalType.NativeType, out _))
+                            diagnostics.Add(new("PROV005", asset.Id,
+                                $"Physical type '{field.PhysicalType}' on field '{field.Name}' is not supported by target dialect '{Dialect.GetType().Name}'; logical type mapping was used."));
+                        constraintsBuilder.WithNativeType(physicalType.NativeType, NativeTypeFallback.LogicalType);
+                    }
+
+                    if (ConstraintBoolean(field, "unique")
+                        && options.Constraints.HasFlag(ContractConstraintOptions.Unique))
+                        constraintsBuilder.WithUnique();
+                    var isPrimaryKey = primaryKeyIsValid && hasPrimaryKey
+                        && primaryKeyColumns.Contains(field.PhysicalName ?? field.Name, StringComparer.Ordinal);
+                    if (isPrimaryKey || field.Required
+                        && options.Constraints.HasFlag(ContractConstraintOptions.Required))
+                        constraintsBuilder.WithNotNullable();
+                    else
+                        constraintsBuilder.WithNullable();
+                    if (options.Descriptions && ScriptRenderer.SupportsComments)
+                        constraintsBuilder.WithDescription(field.Description);
                     if (options.Constraints.HasFlag(ContractConstraintOptions.Checks))
                     {
                         foreach (var constraint in field.Constraints.Where(x => x.Kind != "unique"))
                         {
-                            if (constraint.Kind.Equals("pattern", StringComparison.OrdinalIgnoreCase)
-                                || constraint.Kind.Equals("enum", StringComparison.OrdinalIgnoreCase)) continue;
-                            var check = MapCheck(column, constraint);
+                            var check = MapCheck(column, constraint, asset, field, diagnostics);
                             if (check is null)
-                                diagnostics.Add(new("PROV004", asset.Id,
-                                    $"Constraint '{constraint.Kind}' on field '{field.Name}' is not supported."));
+                            {
+                                if (!constraint.Kind.Equals("pattern", StringComparison.OrdinalIgnoreCase)
+                                    && !constraint.Kind.Equals("enum", StringComparison.OrdinalIgnoreCase))
+                                    diagnostics.Add(new("PROV004", asset.Id,
+                                        $"Constraint '{constraint.Kind}' on field '{field.Name}' is not supported."));
+                            }
                             else ((IColumnConstraintBuilder)column).WithCheck(_ => check);
                         }
                     }
@@ -145,21 +192,76 @@ public class DubUrlProvisioner : IDataContractProvisioner
             return columns;
         }).WithConstraints(constraints =>
         {
-            if (schema.PrimaryKey.Count > 0 && options.Constraints.HasFlag(ContractConstraintOptions.PrimaryKey))
+            if (hasPrimaryKey && primaryKeyIsValid)
+                constraints.AddPrimaryKey(primaryKey => primaryKey.WithColumnNames(primaryKeyColumns));
+
+            if (options.Constraints.HasFlag(ContractConstraintOptions.ForeignKeys))
             {
-                var names = schema.PrimaryKey.Select(name =>
-                    schema.Fields.FirstOrDefault(field => field.Name == name)?.PhysicalName ?? name).ToArray();
-                constraints.AddPrimaryKey(primaryKey => primaryKey.WithColumnNames(names));
+                for (var index = 0; index < schema.Relationships.Count; index++)
+                {
+                    var relationship = schema.Relationships[index];
+                    if (!relationship.Kind.Equals("foreignKey", StringComparison.OrdinalIgnoreCase)) continue;
+                    var target = contract.Assets.FirstOrDefault(value => value.Id == relationship.TargetAsset
+                        || value.Name == relationship.TargetAsset);
+                    string? sourceError = null;
+                    string? targetError = null;
+                    string[] sourceColumns = [];
+                    string[] targetColumns = [];
+                    if (target?.Schema is null || !identities.TryGetValue(target, out var targetIdentity)
+                        || !TryColumns(schema, relationship.Fields, out sourceColumns, out sourceError)
+                        || !TryColumns(target.Schema, relationship.TargetFields, out targetColumns, out targetError))
+                    {
+                        diagnostics.Add(new("PROV003", asset.Id,
+                            sourceError ?? targetError
+                            ?? $"Relationship to '{relationship.TargetAsset}' does not resolve to a provisioned table."));
+                        continue;
+                    }
+                    var name = relationship.Name ?? $"FK_{asset.Id}_{target.Id}_{index + 1}";
+                    constraints.AddForeignKey(foreignKey => foreignKey.WithName(name)
+                        .FromColumns(sourceColumns).References(targetIdentity, targetColumns));
+                }
             }
             return constraints;
         });
+        return options.Descriptions && ScriptRenderer.SupportsComments
+            ? table.WithDescription(asset.Description)
+            : table;
     }
 
     private static bool ConstraintBoolean(DataField field, string kind) =>
         field.Constraints.FirstOrDefault(x => x.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase))?.Value is true;
 
-    private static ICheckBuildable? MapCheck(IColumnName column, DataConstraint constraint)
+    private ICheckBuildable? MapCheck(IColumnName column, DataConstraint constraint, DataAsset asset,
+        DataField field, ICollection<ProvisioningDiagnostic> diagnostics)
     {
+        if (constraint.Kind.Equals("pattern", StringComparison.OrdinalIgnoreCase))
+        {
+            if (constraint.Value is not string pattern
+                || !(Dialect.Capabilities ?? DialectCapabilities.Default).SupportsRegularExpressionChecks)
+            {
+                diagnostics.Add(new("PROV004", asset.Id,
+                    $"Constraint 'pattern' on field '{field.Name}' is not supported by target dialect '{Dialect.GetType().Name}'."));
+                return null;
+            }
+            return ((ICheckBuilder)new CheckBuilder(column)).WithRegex(
+                expression => expression.WithCurrentColumn(), pattern,
+                field.Required ? RegexNullBehavior.RejectNull : RegexNullBehavior.AllowNull);
+        }
+        if (constraint.Kind.Equals("enum", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryMembershipValues(constraint.Value, out var values, out var error))
+            {
+                diagnostics.Add(new("PROV004", asset.Id,
+                    $"Constraint 'enum' on field '{field.Name}' {error}."));
+                return null;
+            }
+            var nullBehavior = values.Any(value => value is null)
+                ? NullMembershipBehavior.MatchNull
+                : NullMembershipBehavior.SqlThreeValuedLogic;
+            return ((ICheckBuilder)new CheckBuilder(column)).WithMembership(
+                expression => expression.WithCurrentColumn(), values, nullBehavior);
+        }
+
         var (op, length) = constraint.Kind.ToLowerInvariant() switch
         {
             "minimum" => (">=", false), "maximum" => ("<=", false),
@@ -172,14 +274,73 @@ public class DubUrlProvisioner : IDataContractProvisioner
             left => length ? left.WithFunctionCurrentColumn("Length") : left.WithCurrentColumn(),
             op, right => right.WithValue(constraint.Value));
     }
-}
 
-internal static class ColumnConstraintBuilderExtensions
-{
-    public static IColumnConstraintBuilder WithPrimaryKeyIf(this IColumnConstraintBuilder builder, bool value)
-    { if (value) builder.WithPrimaryKey(); return builder; }
-    public static IColumnConstraintBuilder WithUniqueIf(this IColumnConstraintBuilder builder, bool value)
-    { if (value) builder.WithUnique(); return builder; }
-    public static IColumnConstraintBuilder WithNullableIf(this IColumnConstraintBuilder builder, bool value)
-    { if (value) builder.WithNullable(); else builder.WithNotNullable(); return builder; }
+    private static bool TryMembershipValues(object? value, out object?[] values, out string error)
+    {
+        values = [];
+        if (value is not System.Collections.IEnumerable sequence || value is string)
+        {
+            error = "does not contain a value collection";
+            return false;
+        }
+        values = sequence.Cast<object?>().ToArray();
+        if (values.Length == 0)
+        {
+            error = "has no values";
+            return false;
+        }
+        var types = values.Where(item => item is not null).Select(item => item!.GetType()).Distinct().ToArray();
+        if (types.Length > 1)
+        {
+            error = "contains incompatible value types";
+            return false;
+        }
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryColumns(DataSchema schema, IReadOnlyList<string> names,
+        out string[] columns, out string? error)
+    {
+        var resolved = new List<string>();
+        foreach (var name in names)
+        {
+            var matches = schema.Fields.Where(field => field.Name == name).ToArray();
+            if (matches.Length == 0)
+                matches = schema.Fields.Where(field => field.PhysicalName == name).ToArray();
+            if (matches.Length != 1)
+            {
+                columns = [];
+                error = matches.Length == 0
+                    ? $"Field reference '{name}' does not resolve to a column."
+                    : $"Field reference '{name}' is ambiguous.";
+                return false;
+            }
+            resolved.Add(matches[0].PhysicalName ?? matches[0].Name);
+        }
+        if (resolved.Count == 0 || resolved.Distinct(StringComparer.Ordinal).Count() != resolved.Count)
+        {
+            columns = [];
+            error = resolved.Count == 0
+                ? "At least one field reference is required."
+                : "Field references resolve to duplicate physical columns.";
+            return false;
+        }
+        columns = resolved.ToArray();
+        error = null;
+        return true;
+    }
+
+    private static bool ValidatePhysicalColumns(DataAsset asset,
+        ICollection<ProvisioningDiagnostic> diagnostics)
+    {
+        if (asset.Schema is null)
+            throw new InvalidOperationException($"Asset '{asset.Id}' requires a schema.");
+        var duplicates = asset.Schema.Fields.GroupBy(field => field.PhysicalName ?? field.Name, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1).Select(group => group.Key).ToArray();
+        if (duplicates.Length == 0) return true;
+        diagnostics.Add(new("PROV008", asset.Id,
+            $"Duplicate physical column name(s) {string.Join(", ", duplicates)}; the table was not provisioned."));
+        return false;
+    }
 }

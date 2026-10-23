@@ -20,10 +20,7 @@ public class DubUrlProvisionerBuilder : IDubUrlTypeStep, IDubUrlLocationStep, ID
     protected SchemeRegistry SchemeRegistry { get; }
 
     public DubUrlProvisionerBuilder()
-        : this(new SchemeRegistryBuilder()
-                        .WithAssemblies(typeof(SchemeRegistryBuilder).Assembly)
-                        .WithAutoDiscoveredMappings()
-                        .Build()) { }
+        : this(DefaultRegistry.Get()) { }
 
     protected internal DubUrlProvisionerBuilder(SchemeRegistry schemeRegistry)
         => SchemeRegistry = schemeRegistry;

@@ -21,6 +21,9 @@ public class DubUrlProvisionerTests
     public void DeploySchema_maps_canonical_assets_and_generates_foreign_keys()
     {
         var fixture = CreateFixture();
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
         var customers = new DataAsset("customers", "Customer", "Customer", null, AssetKind.Table,
             new DataSchema(
                 [new DataField("CustomerId", "integer", Required: true), new DataField("Name", "string")],
@@ -31,11 +34,15 @@ public class DubUrlProvisionerTests
 
         var diagnostics = fixture.Provisioner.DeploySchema(contract);
 
-        fixture.Renderer.Verify(x => x.Render(It.IsAny<Schema>()), Times.Once);
-        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object,
-            It.Is<string>(script => script.Contains("FOREIGN KEY ([CustomerId])")
-                && script.Contains("REFERENCES [Other] ([Id])"))), Times.Once);
-        Assert.That(diagnostics, Is.Empty);
+        var foreignKey = rendered!.Tables["Customer"].Constraints.OfType<DubUrl.Schema.Constraints.ForeignKeyConstraint>().Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(foreignKey.SourceColumns, Is.EqualTo(new[] { "CustomerId" }));
+            Assert.That(foreignKey.TargetTable.Name, Is.EqualTo("Other"));
+            Assert.That(foreignKey.TargetColumns, Is.EqualTo(new[] { "Id" }));
+        });
+        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object, "CREATE TABLE"), Times.Once);
     }
 
     [Test]
@@ -57,6 +64,58 @@ public class DubUrlProvisionerTests
         {
             Assert.That(diagnostics, Is.Empty);
             Assert.That(primaryKey!.Columns.Keys, Is.EqualTo(new[] { "tenant_id", "order_id" }));
+            Assert.That(rendered.Tables["Customer"].Columns.Values
+                .All(column => column.Constraints.Get<NotNullableConstraint>() is not null), Is.True);
+        });
+    }
+
+    [Test]
+    public void DeploySchema_reports_unresolved_primary_key_without_rendering_it()
+    {
+        var fixture = CreateFixture();
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
+        var contract = Contract(new DataSchema([new DataField("id", "integer")], ["missing"]));
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV002"));
+            Assert.That(rendered!.Tables["Customer"].Constraints.OfType<PrimaryKeyConstraint>(), Is.Empty);
+        });
+    }
+
+    [Test]
+    public void DeploySchema_reports_oversized_physical_type_without_throwing()
+    {
+        var fixture = CreateFixture();
+        var contract = Contract(new DataSchema(
+            [new DataField("code", "string", PhysicalType: "varchar(999999999999999999999)")]));
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV005"));
+    }
+
+    [Test]
+    public void DeploySchema_skips_tables_with_duplicate_physical_columns()
+    {
+        var fixture = CreateFixture();
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
+        var contract = Contract(new DataSchema(
+            [new DataField("first", "string", PhysicalName: "value"),
+             new DataField("second", "string", PhysicalName: "value")]));
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV008"));
+            Assert.That(rendered!.Tables, Is.Empty);
         });
     }
 
@@ -64,28 +123,42 @@ public class DubUrlProvisionerTests
     public void DeploySchema_generates_pattern_checks_for_supported_dialect()
     {
         var fixture = CreateFixture("mysql://./mydb");
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
         var contract = Contract(new DataSchema(
             [new DataField("code", "string", Constraints: [new("pattern", "^[A-Z]+$")]) ]));
 
         var diagnostics = fixture.Provisioner.DeploySchema(contract);
 
-        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object,
-            It.Is<string>(script => script.Contains("CHECK (`code` REGEXP '^[A-Z]+$')"))), Times.Once);
-        Assert.That(diagnostics, Is.Empty);
+        var regex = rendered!.Tables["Customer"].Columns["code"].Constraints
+            .OfType<RegexCheckConstraint>().Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(regex.Pattern, Is.EqualTo("^[A-Z]+$"));
+        });
     }
 
     [Test]
     public void DeploySchema_generates_membership_checks()
     {
         var fixture = CreateFixture();
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
         var contract = Contract(new DataSchema(
             [new DataField("status", "string", Constraints: [new("enum", new[] { "new", "closed" })]) ]));
 
         var diagnostics = fixture.Provisioner.DeploySchema(contract);
 
-        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object,
-            It.Is<string>(script => script.Contains("CHECK ([status] IN ('new', 'closed'))"))), Times.Once);
-        Assert.That(diagnostics, Is.Empty);
+        var membership = rendered!.Tables["Customer"].Columns["status"].Constraints
+            .OfType<MembershipCheckConstraint>().Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(membership.Values, Is.EqualTo(new[] { "new", "closed" }));
+        });
     }
 
     [Test]
@@ -105,6 +178,7 @@ public class DubUrlProvisionerTests
         {
             Assert.That(diagnostics, Is.Empty);
             Assert.That(((VarLengthColumn)rendered!.Tables["Customer"].Columns["code"]).Length, Is.EqualTo(12));
+            Assert.That(rendered.Tables["Customer"].Columns["code"].NativeType!.Name, Is.EqualTo("varchar"));
             Assert.That(((NumericColumn)rendered.Tables["Customer"].Columns["amount"]).Precision, Is.EqualTo(10));
             Assert.That(((NumericColumn)rendered.Tables["Customer"].Columns["amount"]).Scale, Is.EqualTo(2));
         });
@@ -114,16 +188,21 @@ public class DubUrlProvisionerTests
     public void DeploySchema_generates_table_and_column_comments()
     {
         var fixture = CreateFixture("postgres://localhost/mydb");
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
         var asset = new DataAsset("customers", "Customers", "customers", "Customer master data",
             AssetKind.Table, new DataSchema([new DataField("name", "string", Description: "Display name")]));
         var contract = new DataContract(new("contract"), new(), [asset], [], new());
 
         var diagnostics = fixture.Provisioner.DeploySchema(contract);
 
-        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object,
-            It.Is<string>(script => script.Contains("COMMENT ON TABLE \"customers\" IS 'Customer master data';")
-                && script.Contains("COMMENT ON COLUMN \"customers\".\"name\" IS 'Display name';"))), Times.Once);
-        Assert.That(diagnostics, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(rendered!.Tables["customers"].Description, Is.EqualTo("Customer master data"));
+            Assert.That(rendered.Tables["customers"].Columns["name"].Description, Is.EqualTo("Display name"));
+        });
     }
 
     [Test]
@@ -144,7 +223,35 @@ public class DubUrlProvisionerTests
         Assert.Multiple(() =>
         {
             Assert.That(diagnostics, Is.Empty);
-            Assert.That(rendered!.Tables.Keys, Is.EqualTo(new[] { "catalog.sales.Customer" }));
+            var identity = rendered!.Tables.Values.Single().Identity;
+            Assert.That(identity.Database, Is.EqualTo("catalog"));
+            Assert.That(identity.Schema, Is.EqualTo("sales"));
+            Assert.That(identity.Name, Is.EqualTo("Customer"));
+        });
+    }
+
+    [Test]
+    public void DeploySchema_reports_ambiguous_endpoint_bindings_and_leaves_table_unqualified()
+    {
+        var fixture = CreateFixture();
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
+        var first = new DataEndpoint("first", null, EndpointKind.Database, null,
+            new ConnectionLocation("mssql", Database: "one"));
+        var second = new DataEndpoint("second", null, EndpointKind.Database, null,
+            new ConnectionLocation("mssql", Database: "two"));
+        var asset = new DataAsset("customers", "Customer", "Customer", null, AssetKind.Table,
+            new DataSchema([new DataField("id", "integer")]),
+            [new EndpointBinding(first.Id), new EndpointBinding(second.Id)]);
+        var contract = new DataContract(new("contract"), new(), [asset], [first, second], new());
+
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV007"));
+            Assert.That(rendered!.Tables.Values.Single().Identity, Is.EqualTo(new DatabaseObjectName("Customer")));
         });
     }
 
@@ -222,9 +329,23 @@ public class DubUrlProvisionerTests
         var dialect = new Mock<IDialect>();
         dialect.Setup(x => x.DbTypeMapper).Returns(typeMapper.Object);
         dialect.Setup(x => x.SqlFunctionMapper).Returns(functionMapper.Object);
+        var scheme = connectionUrl.Split(':', 2)[0];
+        dialect.Setup(x => x.Capabilities).Returns(new DialectCapabilities
+        {
+            ObjectNames = ObjectNameParts.Name | ObjectNameParts.Schema | ObjectNameParts.Database | ObjectNameParts.Catalog,
+            SupportsRegularExpressionChecks = scheme is "mysql" or "postgres",
+            SupportsComments = scheme is "postgres",
+            NativeTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "varchar", "decimal" }
+        });
+        var schemaRenderer = new Mock<ISchemaSqlRenderer>();
+        schemaRenderer.Setup(x => x.RenderObjectName(dialect.Object,
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>()))
+            .Returns((IDialect _, string? catalog, string? database, string? schema, string name) =>
+                string.Join('.', new[] { catalog, database, schema, name }.Where(value => value is not null)));
+        dialect.Setup(x => x.SchemaSqlRenderer).Returns(schemaRenderer.Object);
         var connection = new Mock<ConnectionUrl>(connectionUrl);
         connection.Setup(x => x.Dialect).Returns(dialect.Object);
-        var renderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None);
+        var renderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None, null);
         renderer.Setup(x => x.Render(It.IsAny<Schema>())).Returns("CREATE TABLE");
         var deployer = new Mock<SchemaScriptDeployer>();
         var bulkCopy = new Mock<IBulkCopyEngine>();
