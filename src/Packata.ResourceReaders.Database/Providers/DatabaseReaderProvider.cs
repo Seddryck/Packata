@@ -33,7 +33,9 @@ internal sealed class DatabaseReaderProvider(IDatabaseSessionFactory databases) 
                 table
             }.Where(value => !string.IsNullOrWhiteSpace(value))
                 .Select(value => session.RenderIdentifier(value!));
+#pragma warning disable S2077 // Object identifiers cannot be parameters; every segment is provider-quoted above.
             command.CommandText = $"SELECT * FROM {string.Join('.', identifiers)}";
+#pragma warning restore S2077
             var reader = command.ExecuteReader();
             return ValueTask.FromResult<IDataReader>(new OwnedDatabaseReader(reader, command, connection));
         }

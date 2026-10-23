@@ -15,7 +15,9 @@ namespace Packata.ResourceReaders.Database;
 /// <summary>Infers a standards-neutral canonical contract from an existing database schema.</summary>
 public sealed class DatabaseDataContractInference
 {
+    private const string DatabaseLiteral = "database";
     private const string ExtensionNamespace = "duburl";
+    private const string StringLogicalType = "string";
     private readonly DatabaseDataContractInferenceOptions _options;
     private readonly SchemaInspector _inspector;
 
@@ -95,7 +97,7 @@ public sealed class DatabaseDataContractInference
         foreach (var view in views)
             assets.Add(MapView(view, assetIds, endpoints, diagnostics, sourcePath));
 
-        var sourceName = location.Database ?? location.Host ?? "database";
+        var sourceName = location.Database ?? location.Host ?? DatabaseLiteral;
         var contractId = $"{ToIdentifier(sourceName)}-contract";
         var identity = _options.ContractIdentity ?? new ContractIdentity(contractId, sourceName);
         var metadata = _options.ContractMetadata ?? new ContractMetadata($"{sourceName} data contract");
@@ -207,7 +209,8 @@ public sealed class DatabaseDataContractInference
     {
         var scopes = identities.Select(Scope).Distinct().OrderBy(x => x.Key, StringComparer.Ordinal).ToArray();
         var endpoints = new Dictionary<DatabaseScope, DataEndpoint>();
-        var baseId = _options.EndpointId ?? $"{ToIdentifier(location.Database ?? location.Host ?? "database")}-source";
+        var baseId = _options.EndpointId
+            ?? $"{ToIdentifier(location.Database ?? location.Host ?? DatabaseLiteral)}-source";
         var usedIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var scope in scopes)
         {
@@ -227,7 +230,7 @@ public sealed class DatabaseDataContractInference
                 EndpointKind.Database,
                 _options.Environment,
                 endpointLocation,
-                new DataFormat("database", Options: options)));
+                new DataFormat(DatabaseLiteral, Options: options)));
         }
         return endpoints;
     }
@@ -252,15 +255,19 @@ public sealed class DatabaseDataContractInference
         SchemaInspectionResult inspection, string sourcePath) =>
         inspection.Diagnostics.Select(diagnostic => new ContractInferenceDiagnostic(
             diagnostic.Code,
-            !inspection.IsSuccess
-                ? InferenceSeverity.Error
-                : diagnostic.Coverage is MetadataCoverage.Available or MetadataCoverage.Absent
-                    ? InferenceSeverity.Information
-                    : InferenceSeverity.Warning,
+            MapSeverity(inspection.IsSuccess, diagnostic.Coverage),
             sourcePath,
             diagnostic.Object is null
                 ? diagnostic.Message
                 : $"{diagnostic.Message} Object: {diagnostic.Object}.")).ToList();
+
+    private static InferenceSeverity MapSeverity(bool isSuccess, MetadataCoverage coverage)
+    {
+        if (!isSuccess) return InferenceSeverity.Error;
+        return coverage is MetadataCoverage.Available or MetadataCoverage.Absent
+            ? InferenceSeverity.Information
+            : InferenceSeverity.Warning;
+    }
 
     private static ExtensionMetadata MapAssetExtensions(DatabaseObjectName identity,
         IReadOnlyList<DatabaseIndex> indexes, IReadOnlyList<CheckConstraint> checks)
@@ -268,7 +275,7 @@ public sealed class DatabaseDataContractInference
         var values = new Dictionary<string, object?>
         {
             ["catalog"] = identity.Catalog,
-            ["database"] = identity.Database,
+            [DatabaseLiteral] = identity.Database,
             ["schema"] = identity.Schema
         };
         if (indexes.Count > 0)
@@ -404,11 +411,11 @@ public sealed class DatabaseDataContractInference
         DbType.Time => ("time", null),
         DbType.DateTime or DbType.DateTime2 => ("datetime", null),
         DbType.DateTimeOffset => ("timestamp", null),
-        DbType.Guid => ("string", "uuid"),
-        DbType.Binary => ("string", "binary"),
+        DbType.Guid => (StringLogicalType, "uuid"),
+        DbType.Binary => (StringLogicalType, "binary"),
         DbType.Object => ("object", null),
-        DbType.Xml => ("string", "xml"),
-        _ => ("string", null)
+        DbType.Xml => (StringLogicalType, "xml"),
+        _ => (StringLogicalType, null)
     };
 
     private static DatabaseObjectName Name(MetadataName name) =>
@@ -454,9 +461,10 @@ public sealed class DatabaseDataContractInference
 
     private static string Unique(string candidate, ISet<string> used)
     {
-        candidate = string.IsNullOrWhiteSpace(candidate) ? "database" : candidate;
+        candidate = string.IsNullOrWhiteSpace(candidate) ? DatabaseLiteral : candidate;
         var value = candidate;
-        for (var suffix = 2; !used.Add(value); suffix++) value = $"{candidate}-{suffix}";
+        var suffix = 2;
+        while (!used.Add(value)) value = $"{candidate}-{suffix++}";
         return value;
     }
 
@@ -477,12 +485,14 @@ public sealed class DatabaseDataContractInference
                 separator = true;
             }
         }
-        return builder.ToString().TrimEnd('-') is { Length: > 0 } identifier ? identifier : "database";
+        return builder.ToString().TrimEnd('-') is { Length: > 0 } identifier
+            ? identifier
+            : DatabaseLiteral;
     }
 
     private sealed record DatabaseScope(string? Catalog, string? Database, string? Schema)
     {
         public string Key => string.Join('.', new[] { Catalog, Database, Schema }.Where(x => x is not null));
-        public string DisplayName => string.IsNullOrWhiteSpace(Key) ? "database" : Key;
+        public string DisplayName => string.IsNullOrWhiteSpace(Key) ? DatabaseLiteral : Key;
     }
 }
