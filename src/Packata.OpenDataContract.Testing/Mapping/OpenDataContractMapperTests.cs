@@ -289,6 +289,33 @@ public class OpenDataContractMapperTests
     }
 
     [Test]
+    public void Map_retains_non_foreign_key_relationships_with_a_diagnostic()
+    {
+        var document = new DataContract
+        {
+            Id = "orders", Schema =
+            [
+                new SchemaObject
+                {
+                    Name = "orders", Relationships =
+                    [new Relationship { Id = "derived", Type = "isDerivedFrom",
+                        From = "orders.customer_id", To = "customers.id" }]
+                },
+                new SchemaObject { Name = "customers" }
+            ]
+        };
+
+        var result = new OpenDataContractMapper().Map(document);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Value!.Assets[0].Schema!.Relationships.Single().Kind,
+                Is.EqualTo("isDerivedFrom"));
+            Assert.That(result.Diagnostics.Single().Code, Is.EqualTo("ODCS002"));
+        });
+    }
+
+    [Test]
     public void Map_preserves_logical_type_range_and_length_constraints()
     {
         var amount = LogicalProperty("amount", "number", new()
