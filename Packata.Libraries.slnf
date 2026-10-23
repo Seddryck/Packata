@@ -4,6 +4,7 @@
     "projects": [
       "src\\Packata.Core.Testing\\Packata.Core.Testing.csproj",
       "src\\Packata.Core\\Packata.Core.csproj",
+      "src\\Packata.Database\\Packata.Database.csproj",
       "src\\Packata.DataPackage.Testing\\Packata.DataPackage.Testing.csproj",
       "src\\Packata.DataPackage\\Packata.DataPackage.csproj",
       "src\\Packata.OpenDataContract.Testing\\Packata.OpenDataContract.Testing.csproj",

@@ -11,7 +11,7 @@ internal sealed class OwnedDatabaseReader(IDataReader inner, params IDisposable[
     public bool IsClosed => inner.IsClosed;
     public int RecordsAffected => inner.RecordsAffected;
     public int FieldCount => inner.FieldCount;
-    public void Close() => inner.Close();
+    public void Close() => Dispose();
     public DataTable? GetSchemaTable() => inner.GetSchemaTable();
     public bool NextResult() => inner.NextResult();
     public bool Read() => inner.Read();
@@ -40,8 +40,15 @@ internal sealed class OwnedDatabaseReader(IDataReader inner, params IDisposable[
     public void Dispose()
     {
         if (_disposed) return;
-        inner.Dispose();
-        foreach (var disposable in owned) disposable.Dispose();
         _disposed = true;
+        try { inner.Dispose(); }
+        finally { DisposeOwned(0); }
+    }
+
+    private void DisposeOwned(int index)
+    {
+        if (index >= owned.Length) return;
+        try { owned[index].Dispose(); }
+        finally { DisposeOwned(index + 1); }
     }
 }

@@ -152,6 +152,8 @@ jobs:
           path: |
             src/Packata.Core/bin/Release
             src/Packata.Core/obj
+            src/Packata.Database/bin/Release
+            src/Packata.Database/obj
             src/Packata.DataPackage/bin/Release
             src/Packata.DataPackage/obj
             src/Packata.OpenDataContract/bin/Release
@@ -223,6 +225,7 @@ jobs:
         run: |
           $projects = @(
             'Packata.Core',
+            'Packata.Database',
             'Packata.DataPackage',
             'Packata.ResourceReaders',
             'Packata.ResourceReaders.Database',

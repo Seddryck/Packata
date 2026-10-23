@@ -14,6 +14,7 @@ $ErrorActionPreference = 'Stop'
 
 $packageIds = @(
     'Packata.Core',
+    'Packata.Database',
     'Packata.DataPackage',
     'Packata.ResourceReaders',
     'Packata.ResourceReaders.Database',

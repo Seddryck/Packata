@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+    <ProjectReference Include="..\Packata.Database\Packata.Database.csproj" />
   </ItemGroup>
 
 </Project>
