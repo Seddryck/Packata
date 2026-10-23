@@ -25,9 +25,15 @@ internal sealed class DatabaseReaderProvider(IDatabaseSessionFactory databases) 
                 ?? throw new ArgumentException(
                     "A database read requires an asset path or table format option.", nameof(endpoint));
             var ns = location.Namespace ?? OptionString(endpoint.Format, "namespace");
-            command.CommandText = string.IsNullOrEmpty(ns)
-                ? $"SELECT * FROM {session.RenderIdentifier(table)}"
-                : $"SELECT * FROM {session.RenderIdentifier(ns)}.{session.RenderIdentifier(table)}";
+            var identifiers = new[]
+            {
+                OptionString(endpoint.Format, "catalog"),
+                OptionString(endpoint.Format, "databaseQualifier"),
+                ns,
+                table
+            }.Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => session.RenderIdentifier(value!));
+            command.CommandText = $"SELECT * FROM {string.Join('.', identifiers)}";
             var reader = command.ExecuteReader();
             return ValueTask.FromResult<IDataReader>(new OwnedDatabaseReader(reader, command, connection));
         }

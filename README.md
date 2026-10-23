@@ -120,6 +120,27 @@ var contract = result.Contract;
 Pass `CsvDataContractInferenceOptions` to configure PocketCsvReader sampling, culture, header and dialect inference,
 or to override generated contract, asset, and endpoint metadata.
 
+An existing relational database can bootstrap the same canonical model. Database metadata discovery is delegated
+to DubUrl, while Packata maps tables, supported views, fields, keys, relationships, constraints, and diagnostics.
+Install `Packata.ResourceReaders.Database` plus the DubUrl provider package for the database being inspected:
+
+```csharp
+using DubUrl;
+using Packata.ResourceReaders.Database;
+
+var connection = new ConnectionUrl(Environment.GetEnvironmentVariable("DATABASE_URL")!);
+var result = await new DatabaseDataContractInference().InferAsync(connection);
+
+foreach (var diagnostic in result.Diagnostics)
+    Console.WriteLine($"{diagnostic.Severity}: {diagnostic.Message}");
+
+var contract = result.RequireContract();
+```
+
+`DatabaseDataContractInferenceOptions` forwards DubUrl discovery filters and completeness settings and can override
+generated contract, asset, and endpoint metadata. Returned endpoints omit URL credentials and query options; bind
+runtime credentials through application configuration rather than persisting them in a contract.
+
 The NDJSON provider recognizes `ndjson`, `jsonl`, `application/x-ndjson`, and `application/ndjson`. With a
 canonical schema, its field order follows that schema, additional properties are ignored, and missing or JSON
 `null` properties return `DBNull.Value`. Without a schema, each record exposes its properties in source order.
