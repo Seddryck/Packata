@@ -117,36 +117,9 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
     {
         if (schema is null) return null;
         var fields = schema.Fields.Select((field, index) =>
-        {
-            var name = field.Name;
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                name = $"field-{index + 1}";
-                diagnostics.Add(new("DP004", MappingSeverity.Warning,
-                    $"{sourcePath}.schema.fields[{index}].name", $"The field has no name; '{name}' was generated."));
-            }
-            var constraints = field.Constraints is null ? [] : Enumerable.Range(0, field.Constraints.Count)
-                .Select(index => field.Constraints[index]).Select(MapConstraint)
-                .Where(x => x is not null).Cast<DataConstraint>().ToArray();
-            if (field.Categories is { Count: > 0 } && !constraints.Any(value => value.Kind == "enum"))
-                constraints = [.. constraints, new DataConstraint("enum", field.Categories.Select(CategoryValue).ToArray())];
-            return new DataField(name, field.Type, PhysicalType: field.PhysicalType, Format: field.Format,
-                Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
-                Constraints: constraints,
-                Extensions: ExtensionMetadata.For("datapackage", FieldExtensions(field)),
-                PhysicalName: field.PhysicalName ?? name,
-                Description: field.Description);
-        }).ToArray();
-
+            MapField(field, index, sourcePath, diagnostics)).ToArray();
         var relationships = (schema.ForeignKeys ?? []).Select(foreignKey =>
-        {
-            var target = foreignKey.Reference?.Resource;
-            if (string.IsNullOrWhiteSpace(target)) target = assetId;
-            else if (!package.Resources.Any(resource => resource.Name == target))
-                diagnostics.Add(new("DP005", MappingSeverity.Warning, $"{sourcePath}.schema.foreignKeys",
-                    $"Foreign key target resource '{target}' is not present in the package."));
-            return new DataRelationship(foreignKey.Fields, target, foreignKey.Reference?.Fields ?? []);
-        }).ToArray();
+            MapRelationship(foreignKey, assetId, package, sourcePath, diagnostics)).ToArray();
 
         return new DataSchema(fields, schema.PrimaryKey, relationships,
             ExtensionMetadata.For("datapackage", new Dictionary<string, object?>
@@ -155,6 +128,46 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 ["uniqueKeys"] = schema.UniqueKeys, ["missingValues"] = schema.MissingValues,
                 ["metrics"] = schema.Metrics
             }));
+    }
+
+    private static DataField MapField(Native.Field field, int index, string sourcePath,
+        ICollection<MappingDiagnostic> diagnostics)
+    {
+        var name = field.Name;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = $"field-{index + 1}";
+            diagnostics.Add(new("DP004", MappingSeverity.Warning,
+                $"{sourcePath}.schema.fields[{index}].name", $"The field has no name; '{name}' was generated."));
+        }
+        var constraints = MapConstraints(field);
+        return new DataField(name, field.Type, PhysicalType: field.PhysicalType, Format: field.Format,
+            Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
+            Constraints: constraints,
+            Extensions: ExtensionMetadata.For("datapackage", FieldExtensions(field)),
+            PhysicalName: field.PhysicalName ?? name,
+            Description: field.Description);
+    }
+
+    private static DataConstraint[] MapConstraints(Native.Field field)
+    {
+        var constraints = field.Constraints is null ? [] : Enumerable.Range(0, field.Constraints.Count)
+            .Select(index => field.Constraints[index]).Select(MapConstraint)
+            .Where(value => value is not null).Cast<DataConstraint>().ToArray();
+        return field.Categories is { Count: > 0 } && !constraints.Any(value => value.Kind == "enum")
+            ? [.. constraints, new DataConstraint("enum", field.Categories.Select(CategoryValue).ToArray())]
+            : constraints;
+    }
+
+    private static DataRelationship MapRelationship(Native.ForeignKey foreignKey, string assetId,
+        Native.DataPackage package, string sourcePath, ICollection<MappingDiagnostic> diagnostics)
+    {
+        var target = foreignKey.Reference?.Resource;
+        if (string.IsNullOrWhiteSpace(target)) target = assetId;
+        else if (!package.Resources.Any(resource => resource.Name == target))
+            diagnostics.Add(new("DP005", MappingSeverity.Warning, $"{sourcePath}.schema.foreignKeys",
+                $"Foreign key target resource '{target}' is not present in the package."));
+        return new(foreignKey.Fields, target, foreignKey.Reference?.Fields ?? []);
     }
 
     private static object CategoryValue(Native.ICategory category) => category switch
