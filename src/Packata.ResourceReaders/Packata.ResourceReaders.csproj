@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="PocketCsvReader" Version="2.46.0" />
+    <PackageReference Include="PocketCsvReader" Version="2.53.0" />
   </ItemGroup>
 
 </Project>
