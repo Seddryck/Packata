@@ -22,6 +22,38 @@ namespace Packata.Provisioners.Testing.Database;
 public class DubUrlProvisionerTests
 {
     [Test]
+    public void PlanSchema_renders_schema_and_preserves_diagnostics_without_deploying()
+    {
+        var fixture = CreateFixture();
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>())).Returns("PLANNED SCRIPT");
+        var contract = Contract(new DataSchema([new DataField("id", "integer")], ["missing"]));
+
+        var plan = fixture.Provisioner.PlanSchema(contract);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.Script, Is.EqualTo("PLANNED SCRIPT"));
+            Assert.That(plan.Diagnostics.Single().Code, Is.EqualTo("PROV002"));
+        });
+        fixture.Deployer.Verify(
+            x => x.DeploySchema(It.IsAny<ConnectionUrl>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public void DeploySchema_with_plan_executes_exact_script_without_rerendering()
+    {
+        var fixture = CreateFixture();
+        var plan = new SchemaProvisioningPlan("REVIEWED SCRIPT",
+            [new("PROV002", "customers", "Diagnostic")]);
+
+        fixture.Provisioner.DeploySchema(plan);
+
+        fixture.Deployer.Verify(
+            x => x.DeploySchema(fixture.Connection.Object, "REVIEWED SCRIPT"), Times.Once);
+        fixture.Renderer.Verify(x => x.Render(It.IsAny<Schema>()), Times.Never);
+    }
+
+    [Test]
     public void DeploySchema_maps_canonical_assets_and_generates_foreign_keys()
     {
         var fixture = CreateFixture();
