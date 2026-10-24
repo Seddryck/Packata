@@ -14,9 +14,16 @@ internal sealed class CliWorkspace : IDisposable
         return path;
     }
 
-    public static async Task<CliResult> Run(params string[] arguments)
+    public static Task<CliResult> Run(params string[] arguments) => RunWithEnvironment(new Dictionary<string, string?>(), arguments);
+
+    public static async Task<CliResult> RunWithEnvironment(IReadOnlyDictionary<string, string?> environment, params string[] arguments)
     {
         var start = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        foreach (var (name, value) in environment)
+        {
+            if (value is null) start.Environment.Remove(name);
+            else start.Environment[name] = value;
+        }
         start.ArgumentList.Add(typeof(Program).Assembly.Location);
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = Process.Start(start)!;

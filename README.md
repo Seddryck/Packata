@@ -210,6 +210,17 @@ dotnet tool install --global Packata-cli
 packata --help
 ```
 
+Validate and inspect ODCS or Data Package v2 contracts, then preview an asset's bound data:
+
+```console
+packata contract validate contract.yaml
+packata contract inspect contract.yaml --asset customers --output json
+packata data preview contract.yaml --asset customers --limit 20
+```
+
+See the [CLI reference](docs/cli.md) for source formats, output representations, exit codes,
+row limits, column selection, and examples for redirected output.
+
 Infer a bound CSV asset from an ODCS or Data Package v2 document. The default command only displays the inferred
 schema, dialect, diagnostics, and confidence; it does not modify the contract:
 

@@ -11,8 +11,6 @@ namespace Packata.Cli;
 /// <summary>Loads descriptors without opening any referenced data or acquiring connectors.</summary>
 internal sealed record ContractSource(string Source, Uri BaseUri, object NativeDocument)
 {
-    private static readonly HttpClient Http = new();
-
     public MappingResult<DataContract> Map() => NativeDocument switch
     {
         Packata.DataPackage.DataPackage package => package.ToCanonicalContract(),
@@ -22,13 +20,18 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
 
     public static async Task<ContractSource> LoadAsync(string source, string format, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var uri = Uri.TryCreate(source, UriKind.Absolute, out var absolute) ? absolute : new Uri(Path.GetFullPath(source));
         if (uri.Scheme is not ("file" or "http" or "https"))
             throw new NotSupportedException("Unsupported source scheme.");
 
+        // The operation owns its HTTP client so cancellation also aborts opening through the storage abstraction.
+        using var http = uri.IsFile ? null : new HttpClient();
+        using var cancellation = cancellationToken.Register(() => http?.CancelPendingRequests());
+        using var httpContainer = uri.IsFile ? null : new HttpDataPackageContainer(new Uri(uri, "."), http);
         await using var stream = uri.IsFile
             ? File.OpenRead(uri.LocalPath)
-            : await Http.GetStreamAsync(uri, cancellationToken).ConfigureAwait(false);
+            : await httpContainer!.OpenAsync(uri.Segments[^1] + uri.Query).ConfigureAwait(false);
         var descriptor = uri.AbsolutePath;
         var baseUri = new Uri(uri, ".");
         string text;

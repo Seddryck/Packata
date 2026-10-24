@@ -53,3 +53,46 @@ JSON is a single object with `schemaVersion: 1`, `source`, `contract`, and
 values. Schema fields/constraints and endpoint bindings are nested under each
 asset. Diagnostics use the same four fields as validation. Credentials and
 connection URLs are redacted, including nested extension metadata.
+
+## Preview bound data
+
+```console
+packata data preview contract.yaml --asset customers --limit 20
+packata data preview datapackage.json --asset customers --limit 5 --columns id,name
+packata data preview contract.yaml --asset customers --output json > customers.json
+```
+
+The source is an unpacked ODCS YAML or Data Package v2 JSON/YAML descriptor;
+`--asset` is required. Paths, physical table names, schemas, and format/dialect
+metadata come from its canonical binding. Relative file paths and database files
+resolve against the descriptor directory, independently of the current directory.
+Missing or ambiguous assets and endpoint bindings fail instead of selecting one.
+The command registers delimited/inline, Excel, Parquet, and database providers.
+Database connector availability follows the shared reader stack; the CLI does
+not download connectors itself.
+
+`--limit` defaults to **20**, must be a positive 32-bit integer, and excludes
+headers. Reads stop at that limit or end of data. `--columns` is a comma-separated
+list of unique, exact field names in output order; omitted means all columns.
+An invalid name, duplicate name, or ambiguous reader column fails.
+
+`--output table|json|csv` defaults to `table`. Here `--output` selects a
+representation; it is not the file-path option used by `infer`. Use shell
+redirection to save results. Diagnostics go to stderr. JSON/CSV stdout contains
+only the requested representation and redirected output has no ANSI styling.
+
+JSON has the stable shape `{"schemaVersion":1,"columns":["id","name"],"rows":[[1,"Alice"]]}`.
+Each row is an array corresponding to `columns`, preserving JSON nulls and
+avoiding object-key collisions. Empty results retain column names when supplied
+by the reader or declared schema. CSV includes a header row and quotes delimiters, quotes, and line
+breaks; nulls are empty fields. Values use invariant culture, dates use round-trip
+format, and binary values are base64. Table cells display null as `(null)`, flatten
+line breaks, and truncate values beyond 80 characters; terminal layout can wrap
+cells further. JSON/CSV values are not truncated.
+
+Preview never writes a contract or mutates source data. It buffers at most the
+requested number of rows, not the entire dataset; individual providers may
+internally buffer data (for example, Parquet row groups). Cancellation is passed
+to opening/async reads and checked between synchronous reads. Synchronous driver
+calls cannot always be interrupted mid-call. Readers and their owned resources
+are disposed on completion, failure, cancellation, and early limit termination.
