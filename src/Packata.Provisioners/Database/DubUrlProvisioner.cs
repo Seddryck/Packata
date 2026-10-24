@@ -59,6 +59,20 @@ public class DubUrlProvisioner : IDataContractProvisioner
     public IReadOnlyList<ProvisioningDiagnostic> DeploySchema(DataContract contract,
         ContractProvisioningOptions? options = null)
     {
+        var plan = PlanSchema(contract, options);
+        DeploySchema(plan);
+        return plan.Diagnostics;
+    }
+
+    public void DeploySchema(SchemaProvisioningPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ScriptDeployer.DeploySchema(ConnectionUrl, plan.Script);
+    }
+
+    public SchemaProvisioningPlan PlanSchema(DataContract contract,
+        ContractProvisioningOptions? options = null)
+    {
         ArgumentNullException.ThrowIfNull(contract);
         options ??= new();
         var diagnostics = new List<ProvisioningDiagnostic>();
@@ -81,8 +95,7 @@ public class DubUrlProvisioner : IDataContractProvisioner
                 tables.Add(Map(pair.Key, pair.Value, contract, identities, options, diagnostics));
             return tables;
         }).Build();
-        ScriptDeployer.DeploySchema(ConnectionUrl, ScriptRenderer.Render(schema));
-        return diagnostics;
+        return new(ScriptRenderer.Render(schema), diagnostics.ToArray());
     }
 
     public async Task<IReadOnlyList<ProvisioningDiagnostic>> LoadDataAsync(DataContract contract,
