@@ -12,6 +12,16 @@ public class Field
     /// </summary>
     public string? Name { get; set; }
 
+    /// <summary>Optional Packata extension identifying the physical database column.</summary>
+    [Newtonsoft.Json.JsonProperty("x-packata-physicalName")]
+    [YamlDotNet.Serialization.YamlMember(Alias = "x-packata-physicalName", ApplyNamingConventions = false)]
+    public string? PhysicalName { get; set; }
+
+    /// <summary>Optional Packata extension identifying the physical database type.</summary>
+    [Newtonsoft.Json.JsonProperty("x-packata-physicalType")]
+    [YamlDotNet.Serialization.YamlMember(Alias = "x-packata-physicalType", ApplyNamingConventions = false)]
+    public string? PhysicalType { get; set; }
+
     /// <summary>
     /// The type keyword, which identifies the class inheriting from `Field` to deserialize
     /// </summary>

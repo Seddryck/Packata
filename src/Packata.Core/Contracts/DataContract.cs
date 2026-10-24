@@ -75,7 +75,9 @@ public sealed record DataField(
     IReadOnlyList<DataConstraint>? Constraints = null,
     IReadOnlyList<DataQualityRule>? QualityRules = null,
     IReadOnlyList<DataField>? Children = null,
-    ExtensionMetadata? Extensions = null)
+    ExtensionMetadata? Extensions = null,
+    string? PhysicalName = null,
+    string? Description = null)
 {
     public IReadOnlyList<DataConstraint> Constraints { get; init; } = Constraints ?? [];
     public IReadOnlyList<DataQualityRule> QualityRules { get; init; } = QualityRules ?? [];
@@ -88,7 +90,13 @@ public sealed record DataConstraint(string Kind, object? Value);
 public sealed record DataRelationship(
     IReadOnlyList<string> Fields,
     string TargetAsset,
-    IReadOnlyList<string> TargetFields);
+    IReadOnlyList<string> TargetFields,
+    string? Name = null,
+    string Kind = "foreignKey",
+    ExtensionMetadata? Extensions = null)
+{
+    public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
+}
 
 public sealed record DataQualityRule(
     string Kind,
@@ -130,7 +138,8 @@ public sealed record ConnectionLocation(
     int? Port = null,
     string? Database = null,
     string? Namespace = null,
-    string? ConnectionUrl = null) : DataLocation;
+    string? ConnectionUrl = null,
+    string? Catalog = null) : DataLocation;
 
 public sealed record InlineLocation(object? Value) : DataLocation;
 

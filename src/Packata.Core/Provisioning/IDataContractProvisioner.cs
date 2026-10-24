@@ -10,19 +10,31 @@ public enum ContractConstraintOptions
     Required = 2,
     Unique = 4,
     Checks = 8,
-    All = PrimaryKey | Required | Unique | Checks
+    ForeignKeys = 16,
+    All = PrimaryKey | Required | Unique | Checks | ForeignKeys
 }
 
 public sealed record ContractProvisioningOptions(
-    ContractConstraintOptions Constraints = ContractConstraintOptions.All);
+    ContractConstraintOptions Constraints = ContractConstraintOptions.All,
+    bool Descriptions = true);
 
 public sealed record ProvisioningDiagnostic(
     string Code,
     string AssetId,
     string Message);
 
+public sealed record SchemaProvisioningPlan(
+    string Script,
+    IReadOnlyList<ProvisioningDiagnostic> Diagnostics);
+
 public interface IDataContractProvisioner
 {
+    SchemaProvisioningPlan PlanSchema(
+        DataContract contract,
+        ContractProvisioningOptions? options = null);
+
+    void DeploySchema(SchemaProvisioningPlan plan);
+
     IReadOnlyList<ProvisioningDiagnostic> DeploySchema(
         DataContract contract,
         ContractProvisioningOptions? options = null);

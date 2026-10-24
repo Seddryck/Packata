@@ -103,6 +103,8 @@ public abstract class BaseDataPackageSerializerTests
             Assert.That(schema.Profile, Is.EqualTo("https://datapackage.org/profiles/2.0/tableschema.json"));
             Assert.That(schema.FieldsMatch, Is.EqualTo(FieldsMatching.Equal));
             Assert.That(schema.Fields[0], Is.TypeOf<IntegerField>());
+            Assert.That(schema.Fields[0].PhysicalName, Is.EqualTo("customer_id"));
+            Assert.That(schema.Fields[0].PhysicalType, Is.EqualTo("bigint"));
             Assert.That(((IntegerField)schema.Fields[0]).BareNumber, Is.False);
             Assert.That(((IntegerField)schema.Fields[0]).GroupChar, Is.EqualTo(','));
             Assert.That(schema.Fields[1], Is.TypeOf<NumberField>());
