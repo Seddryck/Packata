@@ -32,6 +32,9 @@ public static class Program
                 contract.AddCommand<ValidateCommand>("validate")
                     .WithDescription("Validate an ODCS or Data Package v2 contract.")
                     .WithExample(["contract.yaml", "--output", "json"]);
+                contract.AddCommand<InspectCommand>("inspect")
+                    .WithDescription("Inspect canonical contract metadata, assets, and endpoints.")
+                    .WithExample(["contract.yaml", "--asset", "customers"]);
             });
             configuration.AddCommand<InferCommand>("infer")
                 .WithDescription("Infer the schema of a bound CSV or database contract asset.")
