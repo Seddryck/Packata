@@ -14,6 +14,14 @@ namespace Packata.Provisioners.Database;
 
 public class DubUrlProvisioner : IDataContractProvisioner
 {
+    private sealed record ColumnMappingContext(DataAsset Asset, ContractProvisioningOptions Options,
+        bool HasPrimaryKey, bool PrimaryKeyIsValid, IReadOnlyCollection<string> PrimaryKeyColumns,
+        ICollection<ProvisioningDiagnostic> Diagnostics);
+
+    private sealed record TableConstraintMappingContext(DataAsset Asset, DataContract Contract,
+        IReadOnlyDictionary<DataAsset, DatabaseObjectName> Identities, ContractProvisioningOptions Options,
+        bool HasPrimaryKey, bool PrimaryKeyIsValid, string[] PrimaryKeyColumns);
+
     protected SchemaScriptRenderer ScriptRenderer { get; }
     protected SchemaScriptDeployer ScriptDeployer { get; }
     protected DbTypeMapper DbTypeMapper { get; }
@@ -161,38 +169,36 @@ public class DubUrlProvisioner : IDataContractProvisioner
         if (!primaryKeyIsValid)
             diagnostics.Add(new("PROV002", asset.Id, primaryKeyError!));
 
+        var columnContext = new ColumnMappingContext(asset, options, hasPrimaryKey,
+            primaryKeyIsValid, primaryKeyColumns, diagnostics);
+        var constraintContext = new TableConstraintMappingContext(asset, contract, identities, options,
+            hasPrimaryKey, primaryKeyIsValid, primaryKeyColumns);
         var table = new TableBuilder().WithIdentity(tableName)
-            .WithColumns(columns => AddColumns(columns, asset, options, hasPrimaryKey,
-                primaryKeyIsValid, primaryKeyColumns, diagnostics))
-            .WithConstraints(constraints => AddTableConstraints(constraints, asset, contract, identities,
-                options, hasPrimaryKey, primaryKeyIsValid, primaryKeyColumns, diagnostics));
+            .WithColumns(columns => AddColumns(columns, columnContext))
+            .WithConstraints(constraints => AddTableConstraints(constraints, constraintContext, diagnostics));
         return options.Descriptions && ScriptRenderer.SupportsComments
             ? table.WithDescription(asset.Description)
             : table;
     }
 
-    private ColumnCollectionBuilder AddColumns(ColumnCollectionBuilder columns, DataAsset asset,
-        ContractProvisioningOptions options, bool hasPrimaryKey, bool primaryKeyIsValid,
-        IReadOnlyCollection<string> primaryKeyColumns, ICollection<ProvisioningDiagnostic> diagnostics)
+    private ColumnCollectionBuilder AddColumns(ColumnCollectionBuilder columns, ColumnMappingContext context)
     {
-        foreach (var field in asset.Schema!.Fields)
-            columns.Add(column => MapColumn(column, asset, field, options, hasPrimaryKey,
-                primaryKeyIsValid, primaryKeyColumns, diagnostics));
+        foreach (var field in context.Asset.Schema!.Fields)
+            columns.Add(column => MapColumn(column, field, context));
         return columns;
     }
 
-    private IColumnBuilder MapColumn(ColumnBuilder column, DataAsset asset, DataField field,
-        ContractProvisioningOptions options, bool hasPrimaryKey, bool primaryKeyIsValid,
-        IReadOnlyCollection<string> primaryKeyColumns, ICollection<ProvisioningDiagnostic> diagnostics)
+    private IColumnBuilder MapColumn(ColumnBuilder column, DataField field, ColumnMappingContext context)
     {
         var logicalType = DbTypeMapper.Map(field.LogicalType, field.Format);
         var typeBuilder = column.WithName(field.PhysicalName ?? field.Name).WithType(logicalType);
-        var constraints = ApplyPhysicalType(typeBuilder, asset, field, diagnostics);
-        ApplyColumnConstraints(constraints, field, options, hasPrimaryKey, primaryKeyIsValid, primaryKeyColumns);
-        if (options.Descriptions && ScriptRenderer.SupportsComments)
+        var constraints = ApplyPhysicalType(typeBuilder, context.Asset, field, context.Diagnostics);
+        ApplyColumnConstraints(constraints, field, context.Options, context.HasPrimaryKey,
+            context.PrimaryKeyIsValid, context.PrimaryKeyColumns);
+        if (context.Options.Descriptions && ScriptRenderer.SupportsComments)
             constraints.WithDescription(field.Description);
-        if (options.Constraints.HasFlag(ContractConstraintOptions.Checks))
-            AddChecks(column, constraints, asset, field, diagnostics);
+        if (context.Options.Constraints.HasFlag(ContractConstraintOptions.Checks))
+            AddChecks(column, constraints, context.Asset, field, context.Diagnostics);
         return column;
     }
 
@@ -254,54 +260,51 @@ public class DubUrlProvisioner : IDataContractProvisioner
         constraint.Kind.Equals("pattern", StringComparison.OrdinalIgnoreCase)
         || constraint.Kind.Equals("enum", StringComparison.OrdinalIgnoreCase);
 
-    private TableConstraintCollectionBuilder AddTableConstraints(TableConstraintCollectionBuilder constraints,
-        DataAsset asset, DataContract contract, IReadOnlyDictionary<DataAsset, DatabaseObjectName> identities,
-        ContractProvisioningOptions options, bool hasPrimaryKey, bool primaryKeyIsValid,
-        string[] primaryKeyColumns, ICollection<ProvisioningDiagnostic> diagnostics)
+    private static TableConstraintCollectionBuilder AddTableConstraints(TableConstraintCollectionBuilder constraints,
+        TableConstraintMappingContext context, ICollection<ProvisioningDiagnostic> diagnostics)
     {
-        if (hasPrimaryKey && primaryKeyIsValid)
-            constraints.AddPrimaryKey(primaryKey => primaryKey.WithColumnNames(primaryKeyColumns));
-        if (options.Constraints.HasFlag(ContractConstraintOptions.ForeignKeys))
-            AddForeignKeys(constraints, asset, contract, identities, diagnostics);
+        if (context.HasPrimaryKey && context.PrimaryKeyIsValid)
+            constraints.AddPrimaryKey(primaryKey => primaryKey.WithColumnNames(context.PrimaryKeyColumns));
+        if (context.Options.Constraints.HasFlag(ContractConstraintOptions.ForeignKeys))
+            AddForeignKeys(constraints, context, diagnostics);
         return constraints;
     }
 
-    private static void AddForeignKeys(TableConstraintCollectionBuilder constraints, DataAsset asset,
-        DataContract contract, IReadOnlyDictionary<DataAsset, DatabaseObjectName> identities,
+    private static void AddForeignKeys(TableConstraintCollectionBuilder constraints,
+        TableConstraintMappingContext context,
         ICollection<ProvisioningDiagnostic> diagnostics)
     {
-        for (var index = 0; index < asset.Schema!.Relationships.Count; index++)
+        for (var index = 0; index < context.Asset.Schema!.Relationships.Count; index++)
         {
-            var relationship = asset.Schema.Relationships[index];
+            var relationship = context.Asset.Schema.Relationships[index];
             if (!relationship.Kind.Equals("foreignKey", StringComparison.OrdinalIgnoreCase)) continue;
-            if (!TryResolveForeignKey(asset, relationship, contract, identities, out var target,
+            if (!TryResolveForeignKey(context, relationship, out var target,
                 out var targetIdentity, out var sourceColumns, out var targetColumns, out var error))
             {
-                diagnostics.Add(new("PROV003", asset.Id, error));
+                diagnostics.Add(new("PROV003", context.Asset.Id, error));
                 continue;
             }
-            var name = relationship.Name ?? $"FK_{asset.Id}_{target!.Id}_{index + 1}";
+            var name = relationship.Name ?? $"FK_{context.Asset.Id}_{target!.Id}_{index + 1}";
             constraints.AddForeignKey(foreignKey => foreignKey.WithName(name)
                 .FromColumns(sourceColumns).References(targetIdentity!, targetColumns));
         }
     }
 
-    private static bool TryResolveForeignKey(DataAsset asset, DataRelationship relationship,
-        DataContract contract, IReadOnlyDictionary<DataAsset, DatabaseObjectName> identities,
+    private static bool TryResolveForeignKey(TableConstraintMappingContext context, DataRelationship relationship,
         out DataAsset? target, out DatabaseObjectName? targetIdentity, out string[] sourceColumns,
         out string[] targetColumns, out string error)
     {
-        target = contract.Assets.FirstOrDefault(value => value.Id == relationship.TargetAsset
+        target = context.Contract.Assets.FirstOrDefault(value => value.Id == relationship.TargetAsset
             || value.Name == relationship.TargetAsset);
         targetIdentity = null;
         sourceColumns = [];
         targetColumns = [];
-        if (target?.Schema is null || !identities.TryGetValue(target, out targetIdentity))
+        if (target?.Schema is null || !context.Identities.TryGetValue(target, out targetIdentity))
         {
             error = $"Relationship to '{relationship.TargetAsset}' does not resolve to a provisioned table.";
             return false;
         }
-        if (!TryColumns(asset.Schema!, relationship.Fields, out sourceColumns, out var sourceError))
+        if (!TryColumns(context.Asset.Schema!, relationship.Fields, out sourceColumns, out var sourceError))
         {
             error = sourceError!;
             return false;
