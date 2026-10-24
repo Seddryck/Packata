@@ -99,5 +99,7 @@ bindings. Duplicate or unknown endpoint overrides, missing variables, and malfor
 before acquisition. Runtime URLs are not written into the enriched contract or user configuration.
 
 The invocation-owned database context also supplies reader factories using the same service and
-runtime overrides. Future preview/provisioning commands can reuse this context. Their command
-surfaces remain tracked separately in #475 and #476; this change does not introduce those commands.
+runtime overrides. `packata data preview` uses this context for database endpoints, including the
+same `--connector` and `--connection-env` options and configured offline policy. File previews keep
+their existing readers and do not initialize database configuration. Provisioning remains tracked
+separately in #476.

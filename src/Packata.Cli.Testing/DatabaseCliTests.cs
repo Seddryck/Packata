@@ -162,6 +162,10 @@ public sealed class DatabaseCliTests
         Assert.That(result.Output, Does.Contain("integer"));
         Assert.That(result.Error, Is.Empty);
         Assert.That(Run("schema", "infer", source, "--asset", "customers").ExitCode, Is.Zero);
+        var preview = Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        Assert.That(preview.ExitCode, Is.Zero, preview.Output + preview.Error);
+        using var previewJson = JsonDocument.Parse(preview.Output);
+        Assert.That(previewJson.RootElement.GetProperty("rows")[0][0].GetInt64(), Is.EqualTo(42));
     }
 
     [Test]
@@ -202,6 +206,9 @@ public sealed class DatabaseCliTests
         var result = Run("schema", "infer", WriteContract(), "--asset", "customers");
         Assert.That(result.ExitCode, Is.Not.Zero);
         Assert.That(result.Error, Does.Contain("connector-offline"));
+        var preview = Run("data", "preview", WriteContract(), "--asset", "customers");
+        Assert.That(preview.ExitCode, Is.Not.Zero);
+        Assert.That(preview.Error, Does.Contain("connector-offline"));
     }
 
     [Test]
@@ -252,6 +259,10 @@ public sealed class DatabaseCliTests
         Assert.That(File.ReadAllText(output), Does.Contain("warehouse.db").And.Not.Contain("runtime.db"));
         Assert.That(result.Output + result.Error, Does.Not.Contain("runtime.db"));
         Assert.That(File.ReadAllText(Path.Combine(_root, "config.json")), Does.Not.Contain("runtime.db"));
+        var preview = RunWithEnvironment(new() { ["PACKATA_TEST_DATABASE_URL"] = "sqlite://./runtime.db?Pooling=false" },
+            "data", "preview", source, "--asset", "customers", "--connection-env", endpoint + "=PACKATA_TEST_DATABASE_URL", "--output", "json");
+        Assert.That(preview.ExitCode, Is.Zero, preview.Output + preview.Error);
+        Assert.That(preview.Output + preview.Error, Does.Not.Contain("runtime.db"));
     }
 
     [Test]
@@ -259,12 +270,14 @@ public sealed class DatabaseCliTests
     {
         File.WriteAllText(Path.Combine(_root, "config.json"), "invalid configuration");
         var source = Path.Combine(_root, "csv.json");
-        File.WriteAllText(source, """{"name":"sample","resources":[{"name":"customers","path":"customers.csv","format":"csv"}]}""");
-        File.WriteAllText(Path.Combine(_root, "customers.csv"), "id,name\n1,Alice\n");
+        File.WriteAllText(source, """{"name":"sample","resources":[{"name":"customers","path":"customers.csv","format":"csv","dialect":{"header":true}}]}""");
+        File.WriteAllText(Path.Combine(_root, "customers.csv"), "id,name\r\n1,Alice\r\n");
         var canonical = Run("schema", "infer", source, "--asset", "customers");
         var legacy = Run("infer", source, "--asset", "customers");
         Assert.That(canonical.ExitCode, Is.Zero, canonical.Output + canonical.Error);
         Assert.That(legacy, Is.EqualTo(canonical));
+        var preview = Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        Assert.That(preview.ExitCode, Is.Zero, preview.Output + preview.Error);
     }
 
     [Test]

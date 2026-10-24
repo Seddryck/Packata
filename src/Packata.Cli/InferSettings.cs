@@ -4,7 +4,7 @@ using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal sealed class InferSettings : CommandSettings
+internal sealed class InferSettings : DatabaseCommandSettings
 {
     [CommandArgument(0, "<SOURCE>")]
     [Description("ODCS or Data Package v2 contract containing the bound asset.")]
@@ -21,14 +21,6 @@ internal sealed class InferSettings : CommandSettings
     [CommandOption("--write")]
     [Description("Atomically update the source document in place.")]
     public bool Write { get; init; }
-
-    [CommandOption("--connector <SCHEME=ID>")]
-    [Description("Override a connector preference for this invocation; repeatable.")]
-    public string[] Connectors { get; init; } = [];
-
-    [CommandOption("--connection-env <ENDPOINT=VARIABLE>")]
-    [Description("Read a runtime endpoint connection URL from an environment variable; repeatable.")]
-    public string[] ConnectionEnvironment { get; init; } = [];
 
     [CommandOption("--maximum-records <COUNT>")]
     [Description("Maximum number of CSV records to sample; ignored for databases.")]
