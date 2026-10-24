@@ -235,5 +235,4 @@ public class DubUrlProvisionerTests
     {
         public DatabaseOperationSupport GetSupport(ConnectionUrl connection) => support;
     }
-
 }

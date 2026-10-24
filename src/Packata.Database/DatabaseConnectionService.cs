@@ -105,29 +105,35 @@ public sealed class DubUrlConnectionService : IDatabaseConnectionService, IConne
     public DubUrlConnectionService(DatabaseConnectionServiceOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (options.ProviderStore is not null && options.UseDefaultProviderStore)
-            throw new ArgumentException("Choose an explicit provider store or opt into the default store, not both.", nameof(options));
         _rootPath = options.RootPath;
         _modules = options.Modules.ToArray();
         _discover = options.DiscoverApplicationProviders;
         _downloads = options.DownloadsEnabled;
-        _store = options.ProviderStore ?? (options.UseDefaultProviderStore ? new ProviderPackStore() : null);
+        _store = ResolveStore(options);
         _catalog = options.Catalog ?? new([]);
         _preferences = new Dictionary<string, string>(options.ConnectorPreferences, StringComparer.OrdinalIgnoreCase);
         _runtime = options.RuntimeConfiguration;
-        if (options.ConnectorService is not null && _store is null)
-            throw new ArgumentException("Connector acquisition requires the store that will load the installed modules.", nameof(options));
-        if (_store is not null)
-        {
-            if (options.ConnectorService is not null) _connectors = options.ConnectorService;
-            else
-            {
-                var http = options.HttpClient ?? (_ownedHttp = new HttpClient());
-                _connectors = new ConnectorService(_store, _catalog, http);
-            }
-        }
+        (_connectors, _ownedHttp) = CreateConnectorService(options, _store, _catalog);
         try { _snapshot = BuildSnapshot(); }
         catch { _ownedHttp?.Dispose(); throw; }
+    }
+
+    private static ProviderPackStore? ResolveStore(DatabaseConnectionServiceOptions options)
+    {
+        if (options.ProviderStore is not null && options.UseDefaultProviderStore)
+            throw new ArgumentException("Choose an explicit provider store or opt into the default store, not both.", nameof(options));
+        return options.ProviderStore ?? (options.UseDefaultProviderStore ? new ProviderPackStore() : null);
+    }
+
+    private static (IConnectorService? Service, HttpClient? OwnedHttp) CreateConnectorService(
+        DatabaseConnectionServiceOptions options, ProviderPackStore? store, ProviderPackCatalog catalog)
+    {
+        if (options.ConnectorService is not null && store is null)
+            throw new ArgumentException("Connector acquisition requires the store that will load the installed modules.", nameof(options));
+        if (store is null) return (null, null);
+        if (options.ConnectorService is not null) return (options.ConnectorService, null);
+        var ownedHttp = options.HttpClient is null ? new HttpClient() : null;
+        return (new ConnectorService(store, catalog, options.HttpClient ?? ownedHttp!), ownedHttp);
     }
 
     public ConnectionUrl Resolve(ConnectionLocation location, DatabaseRuntimeOptions? options = null)
@@ -168,44 +174,7 @@ public sealed class DubUrlConnectionService : IDatabaseConnectionService, IConne
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_snapshot.Registry.CanHandle(scheme)) return scheme;
-            // Reinspect an explicitly configured store before considering any download.
-            if (_store is not null && Signature(_store.Inspect()) != _snapshot.StoreSignature) PublishSnapshot();
-            if (_snapshot.Registry.CanHandle(scheme)) return scheme;
-            if (Candidates(scheme).Length == 0)
-            {
-                var local = ReadConnectorFacts(_snapshot).FirstOrDefault(info => info.Schemes.Contains(scheme, StringComparer.OrdinalIgnoreCase)
-                    || Same(info.Id, scheme) || info.Aliases.Contains(scheme, StringComparer.OrdinalIgnoreCase));
-                if (local is not null)
-                {
-                    var code = local.Unhealthy ? "connector-unhealthy" : local.Active ? "connector-not-loaded" : "connector-inactive";
-                    throw Failure(code, local.Id, Message(code));
-                }
-            }
-            var entry = SelectConnector(scheme);
-            var runtimeScheme = RuntimeScheme(scheme, entry);
-            if (_snapshot.Registry.CanHandle(runtimeScheme)) return runtimeScheme;
-            if (!_downloads)
-                throw Failure("connector-offline", entry.Provider, "Downloads are disabled. Activate a compatible installed connector or provide it at build time.");
-            if (_store is null || _connectors is null)
-                throw Failure("connector-store-required", entry.Provider, "Configure a provider store and the curated acquisition service.");
-            var facts = ReadConnectorFacts(_snapshot).Where(info => Same(info.Id, entry.Provider)).ToArray();
-            // A module which is active but cannot load needs repair, not an automatic reinstallation loop.
-            if (facts.Any(info => info.Active))
-                throw Failure("connector-load-failed", entry.Provider, "The active connector could not load. Check managed/native dependencies and external ODBC/OLE DB drivers.");
-            try { await _connectors.InstallAsync(entry.Provider, cancellationToken).ConfigureAwait(false); }
-            catch (OperationCanceledException) { throw; }
-            catch (ConnectorOperationException error)
-            { throw Failure(error.Code, entry.Provider, "Connector acquisition failed. Check the curated archive, compatibility, network and store access."); }
-            catch (ProviderPackException error)
-            { throw Failure(error.Code, entry.Provider, "Connector verification or installation failed."); }
-            catch
-            { throw Failure("connector-install-failed", entry.Provider, "Connector acquisition failed. Check network and store access."); }
-            cancellationToken.ThrowIfCancellationRequested();
-            PublishSnapshot();
-            if (!_snapshot.Registry.CanHandle(runtimeScheme))
-                throw Failure("connector-load-failed", entry.Provider, "The installed connector could not load the requested scheme. Check its compatibility, dependencies and external driver prerequisites.");
-            return runtimeScheme;
+            return await EnsureFromStoreAsync(scheme, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { throw; }
         catch (DatabaseConnectionException) { throw; }
@@ -215,6 +184,53 @@ public sealed class DubUrlConnectionService : IDatabaseConnectionService, IConne
         catch
         { throw new DatabaseConnectionException("connector-store-failed", "The configured connector store could not be loaded. Check store access and runtime dependencies."); }
         finally { _publication.Release(); }
+    }
+
+    // Called only while holding the publication gate; readers retain earlier immutable snapshots.
+    private async ValueTask<string> EnsureFromStoreAsync(string scheme, CancellationToken cancellationToken)
+    {
+        if (_snapshot.Registry.CanHandle(scheme)) return scheme;
+        if (_store is not null && Signature(_store.Inspect()) != _snapshot.StoreSignature) PublishSnapshot();
+        if (_snapshot.Registry.CanHandle(scheme)) return scheme;
+        CheckUnlistedConnector(scheme);
+        var entry = SelectConnector(scheme);
+        var runtimeScheme = RuntimeScheme(scheme, entry);
+        if (_snapshot.Registry.CanHandle(runtimeScheme)) return runtimeScheme;
+        await InstallConnectorAsync(entry, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        PublishSnapshot();
+        if (!_snapshot.Registry.CanHandle(runtimeScheme))
+            throw Failure("connector-load-failed", entry.Provider, "The installed connector could not load the requested scheme. Check its compatibility, dependencies and external driver prerequisites.");
+        return runtimeScheme;
+    }
+
+    private void CheckUnlistedConnector(string scheme)
+    {
+        if (Candidates(scheme).Length != 0) return;
+        var local = ReadConnectorFacts(_snapshot).FirstOrDefault(info => info.Schemes.Contains(scheme, StringComparer.OrdinalIgnoreCase)
+            || Same(info.Id, scheme) || info.Aliases.Contains(scheme, StringComparer.OrdinalIgnoreCase));
+        if (local is null) return;
+        var code = local.Unhealthy ? "connector-unhealthy" : local.Active ? "connector-not-loaded" : "connector-inactive";
+        throw Failure(code, local.Id, Message(code));
+    }
+
+    private async Task InstallConnectorAsync(ConnectorDefinition entry, CancellationToken cancellationToken)
+    {
+        if (!_downloads)
+            throw Failure("connector-offline", entry.Provider, "Downloads are disabled. Activate a compatible installed connector or provide it at build time.");
+        if (_store is null || _connectors is null)
+            throw Failure("connector-store-required", entry.Provider, "Configure a provider store and the curated acquisition service.");
+        // An active module which cannot load needs repair, not an automatic reinstallation loop.
+        if (ReadConnectorFacts(_snapshot).Any(info => Same(info.Id, entry.Provider) && info.Active))
+            throw Failure("connector-load-failed", entry.Provider, "The active connector could not load. Check managed/native dependencies and external ODBC/OLE DB drivers.");
+        try { await _connectors.InstallAsync(entry.Provider, cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) { throw; }
+        catch (ConnectorOperationException error)
+        { throw Failure(error.Code, entry.Provider, "Connector acquisition failed. Check the curated archive, compatibility, network and store access."); }
+        catch (ProviderPackException error)
+        { throw Failure(error.Code, entry.Provider, "Connector verification or installation failed."); }
+        catch
+        { throw Failure("connector-install-failed", entry.Provider, "Connector acquisition failed. Check network and store access."); }
     }
 
     public async ValueTask<DatabaseConnectionSession> OpenAsync(DataEndpoint endpoint, CancellationToken cancellationToken = default)
