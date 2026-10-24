@@ -26,4 +26,3 @@ public class NumberLogicalType : BaseLogicalType<decimal>
     protected override decimal? ConvertValue(object? value)
         => value is string str && !string.IsNullOrEmpty(str) ? decimal.TryParse(str, out var result) ? result : null : null;
 }
-

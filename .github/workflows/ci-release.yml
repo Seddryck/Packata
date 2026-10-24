@@ -87,6 +87,7 @@ jobs:
         run: |
           $projects = @(
             'Packata.Core',
+            'Packata.ConsumerContracts',
             'Packata.DataPackage',
             'Packata.ResourceReaders',
             'Packata.Provisioners',
@@ -150,6 +151,8 @@ jobs:
         with:
           name: library-build-${{ needs.calculate-version.outputs.semver }}
           path: |
+            src/Packata.ConsumerContracts/bin/Release
+            src/Packata.ConsumerContracts/obj
             src/Packata.Core/bin/Release
             src/Packata.Core/obj
             src/Packata.DataPackage/bin/Release
@@ -223,6 +226,7 @@ jobs:
         run: |
           $projects = @(
             'Packata.Core',
+            'Packata.ConsumerContracts',
             'Packata.DataPackage',
             'Packata.ResourceReaders',
             'Packata.ResourceReaders.Database',

@@ -182,4 +182,3 @@ public sealed record AuthoritativeReference(
     string Url,
     string? Type = null,
     string? Description = null);
-

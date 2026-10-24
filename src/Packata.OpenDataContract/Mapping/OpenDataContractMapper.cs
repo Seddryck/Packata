@@ -71,21 +71,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
 
     private static DataField MapField(SchemaProperty property)
     {
-        var constraints = new List<DataConstraint>();
-        if (property.PrimaryKey)
-            constraints.Add(new DataConstraint("primaryKey", true));
-        if (property.Unique == true)
-            constraints.Add(new DataConstraint("unique", true));
-
-        var extensions = new Dictionary<string, object?>();
-        if (property.Classification is not null)
-            extensions["classification"] = property.Classification;
-        if (property.Partitioned is not null)
-            extensions["partitioned"] = property.Partitioned;
-        if (property.PartitionKeyPosition is not null)
-            extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
-        if (property.CustomProperties.Count > 0)
-            extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
+        var constraints = MapFieldConstraints(property);
+        var extensions = MapFieldExtensions(property);
 
         return new DataField(
             property.Name,
@@ -101,6 +88,32 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             Extensions: extensions.Count == 0
                 ? ExtensionMetadata.Empty
                 : ExtensionMetadata.For("odcs", extensions));
+    }
+
+    private static IReadOnlyList<DataConstraint> MapFieldConstraints(SchemaProperty property)
+    {
+        var constraints = new List<DataConstraint>();
+        if (property.PrimaryKey)
+            constraints.Add(new DataConstraint("primaryKey", true));
+        if (property.Unique == true)
+            constraints.Add(new DataConstraint("unique", true));
+
+        return constraints;
+    }
+
+    private static Dictionary<string, object?> MapFieldExtensions(SchemaProperty property)
+    {
+        var extensions = new Dictionary<string, object?>();
+        if (property.Classification is not null)
+            extensions["classification"] = property.Classification;
+        if (property.Partitioned is not null)
+            extensions["partitioned"] = property.Partitioned;
+        if (property.PartitionKeyPosition is not null)
+            extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
+        if (property.CustomProperties.Count > 0)
+            extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
+
+        return extensions;
     }
 
     private static DataEndpoint MapEndpoint(BaseServer server)
@@ -251,4 +264,3 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             _ => null
         };
 }
-

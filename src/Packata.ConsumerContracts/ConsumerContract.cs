@@ -58,32 +58,53 @@ public sealed record ConsumerContract(string Id, string? Version, ContractTarget
         var datasets = new HashSet<string>(StringComparer.Ordinal);
         foreach (var dataset in Datasets)
         {
-            RequireName(dataset.Name);
+            ValidateDataset(dataset);
             if (!datasets.Add(dataset.Name)) throw new ArgumentException($"Duplicate dataset '{dataset.Name}'.");
-            var fields = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var field in dataset.Fields)
-            {
-                RequireName(field.Name);
-                if (!fields.Add(field.Name)) throw new ArgumentException($"Duplicate field '{field.Name}'.");
-                if (field.Type is not null) RequireName(field.Type.Name);
-                if (field.Length is not null && field.Type?.Name != "string")
-                    throw new ArgumentException("Length requires logical type string.");
-                if ((field.Precision is not null || field.Scale is not null) && field.Type?.Name != "decimal")
-                    throw new ArgumentException("Precision and scale require logical type decimal.");
-                if (field.Length < 0 || field.Precision <= 0 || field.Scale < 0 || field.Scale > field.Precision)
-                    throw new ArgumentException("Invalid length, precision, or scale.");
-            }
         }
     }
 
+    private static void ValidateDataset(IDatasetRequirement dataset)
+    {
+        if (dataset is null || dataset.Fields is null)
+            throw new ArgumentException("Dataset requirements and their fields cannot be null.");
+        RequireName(dataset.Name);
+        var fields = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var field in dataset.Fields)
+        {
+            ValidateField(field);
+            if (!fields.Add(field.Name)) throw new ArgumentException($"Duplicate field '{field.Name}'.");
+        }
+    }
+
+    private static void ValidateField(IFieldRequirement field)
+    {
+        if (field is null) throw new ArgumentException("Field requirements cannot be null.");
+        RequireName(field.Name);
+        if (field.Type is not null) RequireName(field.Type.Name);
+        ValidateParameterTypes(field);
+        if (field.Length < 0 || field.Precision <= 0 || field.Scale < 0 || field.Scale > field.Precision)
+            throw new ArgumentException("Invalid length, precision, or scale.");
+    }
+
+    private static void ValidateParameterTypes(IFieldRequirement field)
+    {
+        if (field.Length is not null && field.Type?.Name != "string")
+            throw new ArgumentException("Length requires logical type string.");
+        if ((field.Precision is not null || field.Scale is not null) && field.Type?.Name != "decimal")
+            throw new ArgumentException("Precision and scale require logical type decimal.");
+    }
     private static void RequireName(string name) => ArgumentException.ThrowIfNullOrWhiteSpace(name);
 }
 
-public sealed class ConsumerContractBuilder(string id)
+public sealed class ConsumerContractBuilder(string id) : IConsumerContract
 {
     private string? version;
     private ContractTarget? target;
     private readonly List<IDatasetRequirement> datasets = [];
+    public string Id => id;
+    string? IConsumerContract.Version => version;
+    ContractTarget? IConsumerContract.Target => target;
+    public IReadOnlyList<IDatasetRequirement> Datasets => datasets.ToArray();
     public ConsumerContractBuilder Version(string value) { version = value; return this; }
     public ConsumerContractBuilder Target(string value) { target = new(value); return this; }
     public ConsumerContractBuilder Dataset(string name, Action<DatasetRequirementBuilder>? configure = null)
@@ -126,4 +147,3 @@ public sealed class FieldRequirementBuilder(string name)
     public FieldRequirementBuilder Scale(int value) { scale = value; return this; }
     internal FieldRequirement Build() => new(name, type, nullable, length, precision, scale);
 }
-

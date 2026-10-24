@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Consumer Contract Requirements, serialization, and structural satisfaction evaluation.</Description>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Packata.Core/Packata.Core.csproj" />
     <PackageReference Include="YamlDotNet" Version="18.1.0" />

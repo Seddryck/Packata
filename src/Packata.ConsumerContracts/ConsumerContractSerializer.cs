@@ -22,6 +22,8 @@ public static class ConsumerContractSerializer
                 .WithDuplicateKeyChecking().Build().Deserialize<Document>(content);
         if (document is null || document.ApiVersion != "v1" || document.Kind != "ConsumerContract")
             throw new ArgumentException("Expected apiVersion v1 and kind ConsumerContract.");
+        if (document.Datasets is null || document.Datasets.Any(d => d is null || d.Fields is null || d.Fields.Any(f => f is null)))
+            throw new ArgumentException("Dataset and field lists cannot be null.");
         var contract = new ConsumerContract(document.Id, document.Version,
             document.Target is null ? null : new ContractTarget(document.Target.Id),
             document.Datasets.Select(d => (IDatasetRequirement)new DatasetRequirement(d.Name,
@@ -35,6 +37,7 @@ public static class ConsumerContractSerializer
         new ConsumerContract(contract.Id, contract.Version, contract.Target, contract.Datasets).Validate();
         var document = new Document
         {
+            ApiVersion = "v1", Kind = "ConsumerContract",
             Id = contract.Id, Version = contract.Version,
             Target = contract.Target is null ? null : new TargetDocument { Id = contract.Target.Id },
             Datasets = contract.Datasets.Select(d => new DatasetDocument
@@ -48,8 +51,8 @@ public static class ConsumerContractSerializer
     }
     public sealed class Document
     {
-        public string ApiVersion { get; set; } = "v1";
-        public string Kind { get; set; } = "ConsumerContract";
+        public string? ApiVersion { get; set; }
+        public string? Kind { get; set; }
         public string Id { get; set; } = "";
         public string? Version { get; set; }
         public TargetDocument? Target { get; set; }
@@ -71,4 +74,3 @@ public static class ConsumerContractSerializer
         public int? Scale { get; set; }
     }
 }
-

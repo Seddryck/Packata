@@ -257,4 +257,3 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         return values;
     }
 }
-
