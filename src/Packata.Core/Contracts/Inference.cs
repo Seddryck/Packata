@@ -18,8 +18,16 @@ public sealed record ContractInferenceDiagnostic(
 
 /// <summary>The inferred canonical contract together with the decisions made while producing it.</summary>
 public sealed record DataContractInferenceResult(
-    DataContract Contract,
+    DataContract? Value,
     IReadOnlyList<ContractInferenceDiagnostic> Diagnostics)
 {
+    public bool IsSuccessful =>
+        Value is not null && Diagnostics.All(x => x.Severity != InferenceSeverity.Error);
+
     public bool HasWarnings => Diagnostics.Any(x => x.Severity == InferenceSeverity.Warning);
+
+    public DataContract Contract => RequireContract();
+
+    public DataContract RequireContract() =>
+        Value ?? throw new InvalidOperationException("Contract inference did not produce a contract.");
 }

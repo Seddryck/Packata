@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>$(CliToolRuntimeIdentifiers)</RuntimeIdentifiers>
     <ToolPackageRuntimeIdentifiers>$(RuntimeIdentifiers)</ToolPackageRuntimeIdentifiers>
     <AssemblyName>packata</AssemblyName>
     <RootNamespace>Packata.Cli</RootNamespace>
@@ -17,6 +17,15 @@
 
   <ItemGroup>
     <PackageReference Include="Spectre.Console.Cli" Version="0.57.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.DataPackage\Packata.DataPackage.csproj" />
+    <ProjectReference Include="..\Packata.OpenDataContract\Packata.OpenDataContract.csproj" />
+    <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
+    <ProjectReference Include="..\Packata.ResourceReaders.Database\Packata.ResourceReaders.Database.csproj" />
   </ItemGroup>
 
   <ItemGroup>

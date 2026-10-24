@@ -35,6 +35,33 @@ public class CanonicalDatabaseReaderTests
     }
 
     [Test]
+    public async Task OpenAsync_builds_qualified_database_query_from_inferred_endpoint_metadata()
+    {
+        var inner = new Mock<IDataReader>();
+        var command = new Mock<IDbCommand>();
+        command.SetupSet(value => value.CommandText = It.IsAny<string>());
+        command.Setup(value => value.ExecuteReader()).Returns(inner.Object);
+        var connection = new Mock<IDbConnection>();
+        connection.Setup(value => value.CreateCommand()).Returns(command.Object);
+        var databases = new StubDatabaseSessionFactory(
+            new DatabaseSession(connection.Object, value => $"[{value}]"));
+        var endpoint = Endpoint("sales") with
+        {
+            Format = new DataFormat("database", Options: new Dictionary<string, object?>
+            {
+                ["catalog"] = "warehouse",
+                ["databaseQualifier"] = "commerce"
+            })
+        };
+
+        using var reader = await Factory(databases).OpenAsync(
+            new DataEndpointReadRequest(endpoint, AssetPath: "Customer"));
+
+        command.VerifySet(value => value.CommandText =
+            "SELECT * FROM [warehouse].[commerce].[sales].[Customer]", Times.Once);
+    }
+
+    [Test]
     public async Task Disposing_database_reader_disposes_reader_command_and_connection()
     {
         var inner = new Mock<IDataReader>();

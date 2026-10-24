@@ -120,6 +120,27 @@ var contract = result.Contract;
 Pass `CsvDataContractInferenceOptions` to configure PocketCsvReader sampling, culture, header and dialect inference,
 or to override generated contract, asset, and endpoint metadata.
 
+An existing relational database can bootstrap the same canonical model. Database metadata discovery is delegated
+to DubUrl, while Packata maps tables, supported views, fields, keys, relationships, constraints, and diagnostics.
+Install `Packata.ResourceReaders.Database` plus the DubUrl provider package for the database being inspected:
+
+```csharp
+using DubUrl;
+using Packata.ResourceReaders.Database;
+
+var connection = new ConnectionUrl(Environment.GetEnvironmentVariable("DATABASE_URL")!);
+var result = await new DatabaseDataContractInference().InferAsync(connection);
+
+foreach (var diagnostic in result.Diagnostics)
+    Console.WriteLine($"{diagnostic.Severity}: {diagnostic.Message}");
+
+var contract = result.RequireContract();
+```
+
+`DatabaseDataContractInferenceOptions` forwards DubUrl discovery filters and completeness settings and can override
+generated contract, asset, and endpoint metadata. Returned endpoints omit URL credentials and query options; bind
+runtime credentials through application configuration rather than persisting them in a contract.
+
 The NDJSON provider recognizes `ndjson`, `jsonl`, `application/x-ndjson`, and `application/ndjson`. With a
 canonical schema, its field order follows that schema, additional properties are ignored, and missing or JSON
 `null` properties return `DBNull.Value`. Without a schema, each record exposes its properties in source order.
@@ -188,6 +209,36 @@ Install the CLI from NuGet:
 dotnet tool install --global Packata-cli
 packata --help
 ```
+
+Infer a bound CSV asset from an ODCS or Data Package v2 document. The default command only displays the inferred
+schema, dialect, diagnostics, and confidence; it does not modify the contract:
+
+```console
+packata infer datapackage.json --asset customers
+```
+
+Write an enriched copy with `--output`, or explicitly update the source document atomically with `--write`:
+
+```console
+packata infer datapackage.json --asset customers --output enriched-datapackage.json
+packata infer contract.yaml --asset customers --write
+```
+
+Use `--maximum-records`, `--maximum-bytes`, `--culture`, `--header`, and `--no-dialect-inference` to control the
+bounded PocketCsvReader inference. The CSV location, format, encoding, compression, and existing dialect hints are
+resolved from the selected asset's endpoint binding.
+
+The same command infers a bound database table or view when the selected asset resolves to a database endpoint:
+
+```console
+packata infer contract.yaml --asset customers
+packata infer contract.yaml --asset customers --output enriched-contract.yaml
+```
+
+Database connection details and the physical object name are resolved from the endpoint binding. Discovery is
+delegated to DubUrl; the corresponding database connector must be available to the CLI. CSV-only sampling and
+dialect options are ignored for database assets. Non-sensitive connection query options are retained in inferred
+metadata, sensitive query values are redacted, authority credentials are omitted, and URL fragments are removed.
 
 Update an existing installation with `dotnet tool update --global Packata-cli`.
 

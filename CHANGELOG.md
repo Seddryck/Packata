@@ -14,3 +14,5 @@
 - Canonical contract, asset, schema, field, endpoint, governance, diagnostics, and extension metadata models.
 - Data Package v2 and ODCS adapters into the canonical model.
 - Concurrent-safe asynchronous readers for delimited, spreadsheet, Parquet, and database endpoints.
+- Canonical contract inference from existing database schemas through DubUrl discovery, including bound-asset CLI
+  inference and credential-safe connection metadata.

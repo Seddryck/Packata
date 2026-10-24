@@ -12,6 +12,9 @@ public static class Program
         {
             configuration.SetApplicationName("packata");
             configuration.SetApplicationVersion(ApplicationVersion.Value);
+            configuration.AddCommand<InferCommand>("infer")
+                .WithDescription("Infer the schema of a bound CSV or database contract asset.")
+                .WithExample(["datapackage.json", "--asset", "customers"]);
         });
 
         return app.Run(args);

@@ -9,6 +9,11 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Chrononuensis" Version="0.28.0" />
+    <PackageReference Include="DubUrl.Provider.DuckDb" Version="0.43.0" />
+    <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.43.0" />
+    <PackageReference Include="DuckDB.NET.Data.Full" Version="1.5.6" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.14" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />

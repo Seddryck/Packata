@@ -337,7 +337,7 @@ jobs:
           dotnet-version: 10.0.401
 
       - name: Restore CLI package dependencies
-        run: dotnet restore src/Packata.Cli/Packata.Cli.csproj
+        run: dotnet restore src/Packata.Cli/Packata.Cli.csproj -p:BuildCliToolPackage=true
 
       - name: Package CLI pointer and RID-specific tools
         run: >-
@@ -347,6 +347,7 @@ jobs:
           --nologo
           --output .artifacts/cli-nuget
           -p:Version=${{ needs.calculate-version.outputs.semver }}
+          -p:BuildCliToolPackage=true
           -p:ContinuousIntegrationBuild=true
 
       - name: Validate CLI tool package
