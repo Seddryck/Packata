@@ -111,16 +111,15 @@ public sealed class DatabaseCliTests
     }
 
     [Test]
-    public async Task Bundled_catalog_lists_versioned_metadata_and_reports_missing_distributions_explicitly()
+    public void Bundled_catalog_contains_pinned_distributions_without_loading_or_installing_connectors()
     {
         var catalog = Configuration.Catalog();
         Assert.That(catalog.Entries, Is.Not.Empty);
-        Assert.That(catalog.Entries.All(entry => entry.Version == "0.43.0"), Is.True);
+        Assert.That(catalog.Entries.All(entry => entry.Version == "0.46.0"), Is.True);
         using var connectors = new CliConnectors(Configuration);
-        Assert.That(connectors.List().All(entry => !entry.DownloadAvailable), Is.True);
-        var error = await Assert.ThrowsAsync<CliException>(async () =>
-            await connectors.InstallAsync("duckdb-native", CancellationToken.None));
-        Assert.That(error!.Message, Does.Contain("connector-distribution-missing").And.Contain("connectors.catalog"));
+        Assert.That(connectors.List().All(entry => entry.DownloadAvailable), Is.True);
+        Assert.That(catalog.Entries.All(entry => entry.DownloadUri?.Scheme == "https"
+            && entry.Sha256?.Length == 64 && entry.Sha256.All(Uri.IsHexDigit)), Is.True);
     }
 
     [Test]
@@ -166,6 +165,26 @@ public sealed class DatabaseCliTests
         Assert.That(preview.ExitCode, Is.Zero, preview.Output + preview.Error);
         using var previewJson = JsonDocument.Parse(preview.Output);
         Assert.That(previewJson.RootElement.GetProperty("rows")[0][0].GetInt64(), Is.EqualTo(42));
+    }
+
+    [Test, Explicit("Downloads the pinned SQLite connector from the public DubUrl GitHub Release into an isolated store.")]
+    public void Published_catalog_acquires_sqlite_on_first_inference_and_reuses_it_for_offline_preview()
+    {
+        Configuration.Set("connectors.store", Path.Combine(_root, "published-store"));
+        Seed();
+        var source = WriteContract();
+        var inference = Run("schema", "infer", source, "--asset", "customers");
+        Assert.That(inference.ExitCode, Is.Zero, inference.Output + inference.Error);
+        Assert.That(inference.Error, Does.Contain("Acquiring connector sqlite-microsoft"));
+        var installed = Configuration.Store.Inspect().Single();
+        Assert.That(installed.Manifest.Version, Is.EqualTo("0.46.0"));
+        Configuration.Set("connectors.offline", "true");
+        var preview = Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        Assert.That(preview.ExitCode, Is.Zero, preview.Output + preview.Error);
+        using var rows = JsonDocument.Parse(preview.Output);
+        Assert.That(rows.RootElement.GetProperty("rows")[0][0].GetInt64(), Is.EqualTo(42));
+        Assert.That(preview.Error, Is.Empty);
+        Assert.That(Run("connector", "install", "sqlite-microsoft").ExitCode, Is.Zero);
     }
 
     [Test]
@@ -313,7 +332,7 @@ public sealed class DatabaseCliTests
         var driver = typeof(SqliteFactory).Assembly;
         var entry = new ConnectorDefinition
         {
-            Provider = "sqlite-native", Version = "1.0.0", Aliases = ["sqlite"], DubUrlApiRange = "[0.43,0.44)",
+            Provider = "sqlite-native", Version = "1.0.0", Aliases = ["sqlite"], DubUrlApiRange = "[0.46,0.47)",
             Assembly = Path.GetFileName(implementation.Location), ImplementationAssemblies = [Path.GetFileName(implementation.Location)],
             Driver = driver.GetName().Name!, DriverAssembly = Path.GetFileName(driver.Location),
             Databases = [new("SQLite3", ["sqlite", "sq"])], TargetFrameworks = ["net8.0", "net9.0", "net10.0"], RuntimeIdentifiers = []

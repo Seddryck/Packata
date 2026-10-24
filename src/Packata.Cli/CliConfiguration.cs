@@ -1,5 +1,4 @@
 using System.Text.Json;
-using DubUrl.Application;
 using DubUrl.Core.ProviderPacks;
 
 namespace Packata.Cli;
@@ -111,7 +110,12 @@ internal sealed class CliConfiguration
     public ProviderPackCatalog Catalog()
     {
         var catalog = (string)Get("connectors.catalog").Value;
-        if (Get("connectors.catalog").Origin == "default") return BundledProviderCatalog.Create();
+        if (Get("connectors.catalog").Origin == "default")
+        {
+            using var bundled = typeof(CliConfiguration).Assembly.GetManifestResourceStream("Packata.Cli.ConnectorCatalog")
+                ?? throw new CliException("The CLI distribution catalog is missing.");
+            return ProviderPackCatalog.Read(bundled);
+        }
         try { using var stream = File.OpenRead(catalog); return ProviderPackCatalog.Read(stream); }
         catch { throw new CliException("The configured connector catalog could not be read or validated."); }
     }

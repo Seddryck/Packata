@@ -1,0 +1,890 @@
+{
+  "schemaVersion": 2,
+  "entries": [
+    {
+      "aliases": [
+        "access",
+        "msaccess"
+      ],
+      "databases": [
+        {
+          "name": "Microsoft Access",
+          "schemes": [
+            "odbc+accdb",
+            "odbc+access",
+            "odbc+msaccess",
+            "odbc+mdb"
+          ]
+        }
+      ],
+      "provider": "access-odbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Access.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Access.dll",
+        "DubUrl.Provider.Odbc.dll"
+      ],
+      "driver": "System.Data.Odbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [
+        "win-x64",
+        "win-x86"
+      ],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-access-odbc-0.46.0.zip",
+      "sha256": "3F1558724343198B4AA9E7D8592119962E88FC4CAA2426F44764D64879D371DF"
+    },
+    {
+      "aliases": [],
+      "databases": [
+        {
+          "name": "Microsoft Access",
+          "schemes": [
+            "oledb+accdb",
+            "oledb+access",
+            "oledb+msaccess",
+            "oledb+mdb"
+          ]
+        }
+      ],
+      "provider": "access-oledb",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Access.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Access.dll",
+        "DubUrl.OleDb.dll"
+      ],
+      "driver": "System.Data.OleDb",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [
+        "win-x64",
+        "win-x86"
+      ],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-access-oledb-0.46.0.zip",
+      "sha256": "16E548E209F19D9BB858132F9F51A00510D935A96F32660B199FC79CC09CBFE9"
+    },
+    {
+      "aliases": [
+        "db2"
+      ],
+      "databases": [
+        {
+          "name": "IBM DB2",
+          "schemes": [
+            "db2"
+          ]
+        }
+      ],
+      "provider": "db2-ibm",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Db2.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Db2.dll"
+      ],
+      "driver": "IBM.Data.Db2",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-db2-ibm-0.46.0.zip",
+      "sha256": "FBCDD328DAAC9EB3F81B3C2974CCF9C6F1CEBBB7863144E0B02A0ACD8138D9F3"
+    },
+    {
+      "aliases": [
+        "drill"
+      ],
+      "databases": [
+        {
+          "name": "Apache Drill",
+          "schemes": [
+            "odbc+drill"
+          ]
+        }
+      ],
+      "provider": "drill-odbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Drill.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Drill.dll",
+        "DubUrl.Provider.Odbc.dll"
+      ],
+      "driver": "System.Data.Odbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-drill-odbc-0.46.0.zip",
+      "sha256": "17C17D36D8D3011DF76FFBBAE48EBC9FD6F7A51C855B16A006ACE7603DAD7B2D"
+    },
+    {
+      "aliases": [],
+      "databases": [
+        {
+          "name": "DuckDB",
+          "schemes": [
+            "adbc+duck",
+            "adbc+duckdb"
+          ]
+        }
+      ],
+      "provider": "duckdb-adbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.DuckDb.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.DuckDb.dll"
+      ],
+      "driver": "DubUrl.Provider.DuckDb.Adbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-duckdb-adbc-0.46.0.zip",
+      "sha256": "28A472428714932CCF6F9CC6AA5802E185E791D6C9490F2ACBEA276BD2D65158"
+    },
+    {
+      "aliases": [
+        "duck",
+        "duckdb"
+      ],
+      "databases": [
+        {
+          "name": "DuckDB",
+          "schemes": [
+            "duck",
+            "duckdb"
+          ]
+        }
+      ],
+      "provider": "duckdb-native",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.DuckDb.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.DuckDb.dll"
+      ],
+      "driver": "DuckDB.NET.Data",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [
+        "win-x64",
+        "win-arm64",
+        "linux-x64",
+        "linux-arm64",
+        "osx-x64",
+        "osx-arm64"
+      ],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-duckdb-native-0.46.0.zip",
+      "sha256": "8D34159BC89C9233B6FB6597E89F9EDA69FA32CDE05F4147A742C7E7C74E5D25"
+    },
+    {
+      "aliases": [],
+      "databases": [
+        {
+          "name": "DuckDB",
+          "schemes": [
+            "odbc+duck",
+            "odbc+duckdb"
+          ]
+        }
+      ],
+      "provider": "duckdb-odbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.DuckDb.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.DuckDb.dll",
+        "DubUrl.Provider.Odbc.dll"
+      ],
+      "driver": "System.Data.Odbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-duckdb-odbc-0.46.0.zip",
+      "sha256": "32645A7B9C1888A35C660C0A110CD11C0DF7670446B1C2E5865E72E00DB56BAA"
+    },
+    {
+      "aliases": [
+        "excel"
+      ],
+      "databases": [
+        {
+          "name": "Microsoft Excel",
+          "schemes": [
+            "odbc+xls",
+            "odbc+xlsx",
+            "odbc+xlsb",
+            "odbc+xlsm"
+          ]
+        }
+      ],
+      "provider": "excel-odbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Excel.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Excel.dll",
+        "DubUrl.Provider.Odbc.dll"
+      ],
+      "driver": "System.Data.Odbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [
+        "win-x64",
+        "win-x86"
+      ],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-excel-odbc-0.46.0.zip",
+      "sha256": "474AB0361D3E584F6379C45F9F35BF1D038628840B63F8EBA6A9B59882DE097D"
+    },
+    {
+      "aliases": [],
+      "databases": [
+        {
+          "name": "Microsoft Excel",
+          "schemes": [
+            "oledb+xls",
+            "oledb+xlsx",
+            "oledb+xlsm",
+            "oledb+xlsb"
+          ]
+        }
+      ],
+      "provider": "excel-oledb",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Excel.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Excel.dll",
+        "DubUrl.OleDb.dll"
+      ],
+      "driver": "System.Data.OleDb",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [
+        "win-x64",
+        "win-x86"
+      ],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-excel-oledb-0.46.0.zip",
+      "sha256": "FDD2D9B824AB55B9A227CBBFFE10263A220C7EFD96993DFA6CD9317945CD3ADF"
+    },
+    {
+      "aliases": [
+        "firebird"
+      ],
+      "databases": [
+        {
+          "name": "Firebird SQL",
+          "schemes": [
+            "fb",
+            "firebird"
+          ]
+        }
+      ],
+      "provider": "firebird-firebirdclient",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.FirebirdSql.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.FirebirdSql.dll"
+      ],
+      "driver": "FirebirdSql.Data.FirebirdClient",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-firebird-firebirdclient-0.46.0.zip",
+      "sha256": "57DABE9D1AD62433A75B3331F85A73583E214A399E7BD122DB351E372C64DABA"
+    },
+    {
+      "aliases": [
+        "maria",
+        "mariadb",
+        "mariadb-mysqlconnector",
+        "mysql"
+      ],
+      "databases": [
+        {
+          "name": "MariaDB",
+          "schemes": [
+            "maria",
+            "mariadb"
+          ]
+        },
+        {
+          "name": "MySQL",
+          "schemes": [
+            "mysql",
+            "my"
+          ]
+        }
+      ],
+      "provider": "mysql-mysqlconnector",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.MySql.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.MySql.dll"
+      ],
+      "driver": "MySqlConnector",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-mysql-mysqlconnector-0.46.0.zip",
+      "sha256": "BD2FCB24846B3B841F057664E616801E8A086A9960933A5D533664BFD2E138D0"
+    },
+    {
+      "aliases": [
+        "mariadb-odbc"
+      ],
+      "databases": [
+        {
+          "name": "MariaDB",
+          "schemes": [
+            "odbc+maria",
+            "odbc+mariadb"
+          ]
+        },
+        {
+          "name": "MySQL",
+          "schemes": [
+            "odbc+mysql",
+            "odbc+my"
+          ]
+        }
+      ],
+      "provider": "mysql-odbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.MySql.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.MySql.dll",
+        "DubUrl.Provider.Odbc.dll"
+      ],
+      "driver": "System.Data.Odbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-mysql-odbc-0.46.0.zip",
+      "sha256": "37685990702326094FFF5F579D22F93E88B03B1C725A869D355D6C441354799A"
+    },
+    {
+      "aliases": [
+        "oracle"
+      ],
+      "databases": [
+        {
+          "name": "Oracle Database",
+          "schemes": [
+            "oracle",
+            "or",
+            "ora"
+          ]
+        }
+      ],
+      "provider": "oracle-managed",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Oracle.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Oracle.dll"
+      ],
+      "driver": "Oracle.ManagedDataAccess",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-oracle-managed-0.46.0.zip",
+      "sha256": "D83A3287D5BD19E597061BF5EE11C2E6AEFA3B8C1E44BC3234690E42648C74D2"
+    },
+    {
+      "aliases": [],
+      "databases": [
+        {
+          "name": "Oracle Database",
+          "schemes": [
+            "oledb+oracle",
+            "oledb+or",
+            "oledb+ora"
+          ]
+        }
+      ],
+      "provider": "oracle-oledb",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Oracle.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Oracle.dll",
+        "DubUrl.OleDb.dll"
+      ],
+      "driver": "System.Data.OleDb",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [
+        "win-x64",
+        "win-x86"
+      ],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-oracle-oledb-0.46.0.zip",
+      "sha256": "CDD489CC8446BC7AFA29A030AD4FB8991B271C1EBC96B826A0A2120F8B3F0C42"
+    },
+    {
+      "aliases": [
+        "cockroach",
+        "cockroachdb",
+        "cockroachdb-npgsql",
+        "crate",
+        "cratedb",
+        "cratedb-npgsql",
+        "crdb",
+        "npgsql",
+        "pg",
+        "postgres",
+        "postgresql",
+        "questdb",
+        "questdb-npgsql",
+        "timescale",
+        "timescale-npgsql"
+      ],
+      "databases": [
+        {
+          "name": "CockRoachDB",
+          "schemes": [
+            "cr",
+            "cockroach",
+            "cockroachdb",
+            "crdb",
+            "cdb"
+          ]
+        },
+        {
+          "name": "CrateDB",
+          "schemes": [
+            "crt",
+            "crate",
+            "cratedb"
+          ]
+        },
+        {
+          "name": "PostgreSQL",
+          "schemes": [
+            "pg",
+            "pgx",
+            "pgsql",
+            "postgres",
+            "postgresql"
+          ]
+        },
+        {
+          "name": "QuestDb",
+          "schemes": [
+            "quest",
+            "questdb"
+          ]
+        },
+        {
+          "name": "Timescale",
+          "schemes": [
+            "ts",
+            "timescale"
+          ]
+        }
+      ],
+      "provider": "postgresql-npgsql",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.PostgreSql.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.PostgreSql.dll"
+      ],
+      "driver": "Npgsql",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-postgresql-npgsql-0.46.0.zip",
+      "sha256": "91D7B01BC77538C47FF4170AF062F2C0E5917E793A1D26B87EE18421A80576FC"
+    },
+    {
+      "aliases": [
+        "questdb-odbc",
+        "timescale-odbc"
+      ],
+      "databases": [
+        {
+          "name": "PostgreSQL",
+          "schemes": [
+            "odbc+pg",
+            "odbc+pgx",
+            "odbc+pgsql",
+            "odbc+postgres",
+            "odbc+postgresql"
+          ]
+        },
+        {
+          "name": "QuestDb",
+          "schemes": [
+            "odbc+quest",
+            "odbc+questdb"
+          ]
+        },
+        {
+          "name": "Timescale",
+          "schemes": [
+            "odbc+ts",
+            "odbc+timescale"
+          ]
+        }
+      ],
+      "provider": "postgresql-odbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.PostgreSql.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.PostgreSql.dll",
+        "DubUrl.Provider.Odbc.dll"
+      ],
+      "driver": "System.Data.Odbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-postgresql-odbc-0.46.0.zip",
+      "sha256": "D2DD7D262FCB3944FC278185C55D009272517B27AD468423D0B11C9498D85EF4"
+    },
+    {
+      "aliases": [
+        "singlestore"
+      ],
+      "databases": [
+        {
+          "name": "SingleStore",
+          "schemes": [
+            "sg",
+            "sgs",
+            "singlestore",
+            "single",
+            "singlestoredb"
+          ]
+        }
+      ],
+      "provider": "singlestore-singlestoreconnector",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.MySql.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.MySql.dll"
+      ],
+      "driver": "SingleStoreConnector",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-singlestore-singlestoreconnector-0.46.0.zip",
+      "sha256": "3AC5320ADD6586EB172F2DCC932156CAE48908632DC2B8063C1F984871C5C2B0"
+    },
+    {
+      "aliases": [
+        "snowflake"
+      ],
+      "databases": [
+        {
+          "name": "Snowflake",
+          "schemes": [
+            "sf",
+            "snowflake"
+          ]
+        }
+      ],
+      "provider": "snowflake-native",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Snowflake.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Snowflake.dll"
+      ],
+      "driver": "Snowflake.Data",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-snowflake-native-0.46.0.zip",
+      "sha256": "734A59CD05FFF61B4FB9EFFE4A5B3A79961F86E2BFD995263A93B71DB2E25126"
+    },
+    {
+      "aliases": [
+        "sqlite"
+      ],
+      "databases": [
+        {
+          "name": "SQLite3",
+          "schemes": [
+            "sq",
+            "sqlite"
+          ]
+        }
+      ],
+      "provider": "sqlite-microsoft",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Sqlite.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Sqlite.dll"
+      ],
+      "driver": "Microsoft.Data.Sqlite",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [
+        "win-x64",
+        "win-arm64",
+        "linux-x64",
+        "linux-arm64",
+        "linux-musl-x64",
+        "linux-musl-arm64",
+        "osx-x64",
+        "osx-arm64"
+      ],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-sqlite-microsoft-0.46.0.zip",
+      "sha256": "00E6C38BBB4462C409BCB19EB167A6CF4662B84488F58C7A02C586B9EE9CE373"
+    },
+    {
+      "aliases": [],
+      "databases": [
+        {
+          "name": "Microsoft SQL Server",
+          "schemes": [
+            "odbc+mssql",
+            "odbc+ms",
+            "odbc+sqlserver",
+            "odbc+mssqlserver"
+          ]
+        }
+      ],
+      "provider": "sqlserver-odbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.SqlServer.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.SqlServer.dll",
+        "DubUrl.Provider.Odbc.dll"
+      ],
+      "driver": "System.Data.Odbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-sqlserver-odbc-0.46.0.zip",
+      "sha256": "2B6C890B72A80FFC118893CAE806DCF92608AAE3198FC89A1CE1ABBD6A048212"
+    },
+    {
+      "aliases": [
+        "mssql",
+        "sqlserver"
+      ],
+      "databases": [
+        {
+          "name": "Microsoft SQL Server",
+          "schemes": [
+            "mssql",
+            "ms",
+            "sqlserver",
+            "mssqlserver"
+          ]
+        }
+      ],
+      "provider": "sqlserver-sqlclient",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.SqlServer.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.SqlServer.dll"
+      ],
+      "driver": "Microsoft.Data.SqlClient",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-sqlserver-sqlclient-0.46.0.zip",
+      "sha256": "1D1E338717ACBF57F244E6628450193C88C740ACAB987DFE41FF036956D67526"
+    },
+    {
+      "aliases": [
+        "teradata"
+      ],
+      "databases": [
+        {
+          "name": "Teradata",
+          "schemes": [
+            "td",
+            "teradata",
+            "tera",
+            "teradatasql"
+          ]
+        }
+      ],
+      "provider": "teradata-native",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Teradata.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Teradata.dll"
+      ],
+      "driver": "Teradata.Client",
+      "driverAssembly": "Teradata.Client.Provider.dll",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-teradata-native-0.46.0.zip",
+      "sha256": "3378BBEE6908FE85AF22CFF6143FEA937725EF812EBDA3D8C3758B63E13527C3"
+    },
+    {
+      "aliases": [
+        "text"
+      ],
+      "databases": [
+        {
+          "name": "Text files",
+          "schemes": [
+            "odbc+txt",
+            "odbc+csv",
+            "odbc+tsv"
+          ]
+        }
+      ],
+      "provider": "text-odbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Text.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Text.dll",
+        "DubUrl.Provider.Odbc.dll"
+      ],
+      "driver": "System.Data.Odbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-text-odbc-0.46.0.zip",
+      "sha256": "7FC0E5B15F2BC0ECC0E947F565584D5579FB1171489FC7BDC6A73715D11A91DC"
+    },
+    {
+      "aliases": [],
+      "databases": [
+        {
+          "name": "Trino",
+          "schemes": [
+            "odbc+tr",
+            "odbc+trino"
+          ]
+        }
+      ],
+      "provider": "trino-odbc",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Trino.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Trino.dll",
+        "DubUrl.Provider.Odbc.dll"
+      ],
+      "driver": "System.Data.Odbc",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-trino-odbc-0.46.0.zip",
+      "sha256": "6761382CC1E40CF5E99E4DF8A23498CB5F0F4597B4BBF547710C411B3826DE98"
+    },
+    {
+      "aliases": [
+        "trino"
+      ],
+      "databases": [
+        {
+          "name": "Trino",
+          "schemes": [
+            "tr",
+            "trino"
+          ]
+        }
+      ],
+      "provider": "trino-prestoado",
+      "version": "0.46.0",
+      "dubUrlApiRange": "[0.46.0,1.0.0)",
+      "assembly": "DubUrl.Provider.Trino.dll",
+      "implementationAssemblies": [
+        "DubUrl.Provider.Trino.dll"
+      ],
+      "driver": "NReco.PrestoAdo",
+      "targetFrameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "runtimeIdentifiers": [],
+      "downloadUri": "https://github.com/Seddryck/DubUrl/releases/download/v0.46.0/duburl-connector-trino-prestoado-0.46.0.zip",
+      "sha256": "FD7B634CADE0B7438B9149090495910492056D2DBA6B2D17EECA00A8F6810224"
+    }
+  ]
+}

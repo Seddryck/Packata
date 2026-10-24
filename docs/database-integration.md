@@ -2,7 +2,7 @@
 
 `Packata.Database` supplies the shared DubUrl service used by database readers and provisioners.
 Core and the document-format packages have no DubUrl dependency. The completed integration uses
-published DubUrl **0.43.0**, including its application connector service. Keep the DubUrl package
+published DubUrl **0.46.0**, including its application connector service. Keep the DubUrl package
 family on compatible versions: the older 1.1.0 publication does not expose these module/pack APIs.
 The initial shared-service milestone (`cbf64b6`) was separately compiled against 0.29.34 before
 upgrading to the modular API for the subsequent integration steps.
@@ -65,7 +65,7 @@ trimming or Native AOT support for a driver, dialect or dependency closure.
    identifier characters; use the namespace field for qualification. SQLite uses its supported
    double-quoted syntax rather than the unquoted formatter supplied by DubUrl.
 
-User info, structured database names and provider options are encoded safely. DubUrl 0.43.0 decodes
+User info, structured database names and provider options are encoded safely. DubUrl 0.46.0 decodes
 URI components at parsing; Packata does not decode a second time. File and inline readers retain
 their dispatch and never invoke database connector availability or acquisition.
 

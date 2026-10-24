@@ -248,7 +248,7 @@ packata schema infer contract.yaml --asset customers --output enriched-contract.
 ```
 
 Database connection details and the physical object name are resolved from the endpoint binding. Discovery is
-delegated to DubUrl; the CLI loads installed connectors or acquires them through a configured curated distribution catalog. CSV-only sampling and
+delegated to DubUrl; the CLI loads installed connectors or acquires them through its bundled curated distribution catalog. CSV-only sampling and
 dialect options are ignored for database assets. Non-sensitive connection query options are retained in inferred
 metadata, sensitive query values are redacted, authority credentials are omitted, and URL fragments are removed.
 
@@ -258,8 +258,8 @@ Manage connectors with `packata connector list`, `packata connector show <id>`, 
 `packata config list` shows effective settings and their origins. The original `packata infer` spelling
 remains a compatibility alias. See [database CLI commands and configuration](docs/cli-database.md) for all actions,
 settings, connector preferences, and runtime connection environment overrides.
-DubUrl 0.43.0's bundled catalog has metadata only; downloads currently require setting
-`connectors.catalog` to a compatible distribution catalog containing archive URLs and hashes.
+The bundled DubUrl 0.46.0 distribution catalog pins archive URLs and hashes, so first-use connector
+downloads require no catalog configuration.
 
 Update an existing installation with `dotnet tool update --global Packata-cli`.
 

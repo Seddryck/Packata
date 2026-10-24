@@ -15,7 +15,7 @@ remain `--maximum-records`, `--maximum-bytes`, `--culture`, `--header`, and `--n
 Use `packata schema infer --help` for their defaults. Bare subjects show help.
 
 Database inference uses the shared connection service. It loads a compatible installed connector
-or downloads the pinned connector from a configured distribution catalog on first use, then continues in the same process. Acquisition
+or downloads the pinned connector from the bundled distribution catalog on first use, then continues in the same process. Acquisition
 progress goes to stderr. No separate installation command or application code is required.
 File-only inference does not read connector configuration or acquire database connectors.
 
@@ -56,7 +56,7 @@ packata config unset connectors.store
 | --- | --- | --- |
 | `connectors.offline` | `false` | Disable connector downloads, including explicit installation; available connectors and database networking still work. |
 | `connectors.store` | DubUrl's OS-appropriate per-user store | Directory for verified installed connector packs. |
-| `connectors.catalog` | Bundled DubUrl 0.43.0 metadata catalog | Explicit local curated distribution catalog override, validated by DubUrl. |
+| `connectors.catalog` | Bundled DubUrl 0.46.0 distribution catalog | Optional local curated distribution catalog override, validated by DubUrl. |
 | `connectors.preferred.<scheme>` | No preference | Resolve a scheme with multiple candidate technologies to a canonical connector ID. |
 
 Settings are written atomically to `Packata/config.json` under the OS user application-data
@@ -66,12 +66,13 @@ CI jobs. No machine-wide configuration is changed. Store/catalog paths become ab
 `config list/get` report effective origins and masked user values, with `--output-format text|json`.
 `unset` removes a setting without deleting installed packs. Configuration never stores credentials.
 
-DubUrl 0.43.0's bundled catalog contains connector descriptions but no archive URLs or hashes.
-Until a compatible distribution catalog is shipped, downloads require configuring its local path
-once with `packata config set connectors.catalog <path>`. The published DubUrl 0.40.0 catalog uses
-an incompatible schema and cannot substitute for it. Missing distribution metadata produces an
-explicit diagnostic; Packata does not invent URLs or bypass digest validation. Installed compatible
-connectors remain usable with the default metadata catalog.
+The CLI embeds the schema-v2 `connector-catalog.json` published with
+[DubUrl v0.46.0](https://github.com/Seddryck/DubUrl/releases/tag/v0.46.0), including immutable archive
+URLs, SHA-256 hashes, and compatibility metadata. First-use downloads work without catalog setup.
+The catalog entries are pinned with the CLI source. The original release download has SHA-256
+`CB7F078BEA5299D077120FC718079977683A4768EE3A5D3E6E91495E9C8BF719`; it is not fetched or
+silently upgraded at runtime. A future catalog update must review the package versions and archive
+pins together. Hosts may still select another validated local distribution catalog explicitly.
 
 Prepare an offline job by installing its connector before enabling offline mode:
 
