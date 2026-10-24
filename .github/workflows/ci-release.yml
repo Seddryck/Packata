@@ -119,7 +119,8 @@ jobs:
               )
 
               if ($project -in $thresholdProjects) {
-                $arguments += '-p:Threshold=10', '-p:ThresholdType=line'
+                # Gate total coverage for this test run, not each referenced plug-in assembly.
+                $arguments += '-p:Threshold=10', '-p:ThresholdType=line', '-p:ThresholdStat=total'
               }
 
               & dotnet @arguments
