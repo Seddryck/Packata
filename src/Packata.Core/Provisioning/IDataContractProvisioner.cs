@@ -23,8 +23,18 @@ public sealed record ProvisioningDiagnostic(
     string AssetId,
     string Message);
 
+public sealed record SchemaProvisioningPlan(
+    string Script,
+    IReadOnlyList<ProvisioningDiagnostic> Diagnostics);
+
 public interface IDataContractProvisioner
 {
+    SchemaProvisioningPlan PlanSchema(
+        DataContract contract,
+        ContractProvisioningOptions? options = null);
+
+    void DeploySchema(SchemaProvisioningPlan plan);
+
     IReadOnlyList<ProvisioningDiagnostic> DeploySchema(
         DataContract contract,
         ContractProvisioningOptions? options = null);
