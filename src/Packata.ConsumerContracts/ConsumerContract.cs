@@ -18,6 +18,10 @@ public interface IFieldRequirement
 {
     string Name { get; }
     LogicalType? Type { get; }
+    bool? Nullable { get; }
+    int? Length { get; }
+    int? Precision { get; }
+    int? Scale { get; }
 }
 
 public sealed record LogicalType(string Name)
@@ -38,7 +42,7 @@ public sealed record LogicalType(string Name)
     public static LogicalType Array { get; } = new("array");
 }
 
-public sealed record FieldRequirement(string Name, LogicalType? Type = null) : IFieldRequirement;
+public sealed record FieldRequirement(string Name, LogicalType? Type = null, bool? Nullable = null, int? Length = null, int? Precision = null, int? Scale = null) : IFieldRequirement;
 public sealed record DatasetRequirement(string Name, IReadOnlyList<IFieldRequirement> Fields) : IDatasetRequirement;
 public sealed record ConsumerContract(string Id, string? Version, ContractTarget? Target,
     IReadOnlyList<IDatasetRequirement> Datasets) : IConsumerContract
@@ -62,6 +66,12 @@ public sealed record ConsumerContract(string Id, string? Version, ContractTarget
                 RequireName(field.Name);
                 if (!fields.Add(field.Name)) throw new ArgumentException($"Duplicate field '{field.Name}'.");
                 if (field.Type is not null) RequireName(field.Type.Name);
+                if (field.Length is not null && field.Type?.Name != "string")
+                    throw new ArgumentException("Length requires logical type string.");
+                if ((field.Precision is not null || field.Scale is not null) && field.Type?.Name != "decimal")
+                    throw new ArgumentException("Precision and scale require logical type decimal.");
+                if (field.Length < 0 || field.Precision <= 0 || field.Scale < 0 || field.Scale > field.Precision)
+                    throw new ArgumentException("Invalid length, precision, or scale.");
             }
         }
     }
@@ -107,6 +117,13 @@ public sealed class DatasetRequirementBuilder(string name)
 public sealed class FieldRequirementBuilder(string name)
 {
     private LogicalType? type;
+    private bool? nullable;
+    private int? length, precision, scale;
     public FieldRequirementBuilder Type(LogicalType value) { type = value; return this; }
-    internal FieldRequirement Build() => new(name, type);
+    public FieldRequirementBuilder Nullable(bool value) { nullable = value; return this; }
+    public FieldRequirementBuilder Length(int value) { length = value; return this; }
+    public FieldRequirementBuilder Precision(int value) { precision = value; return this; }
+    public FieldRequirementBuilder Scale(int value) { scale = value; return this; }
+    internal FieldRequirement Build() => new(name, type, nullable, length, precision, scale);
 }
+

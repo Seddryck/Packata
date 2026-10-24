@@ -75,7 +75,11 @@ public sealed record DataField(
     IReadOnlyList<DataConstraint>? Constraints = null,
     IReadOnlyList<DataQualityRule>? QualityRules = null,
     IReadOnlyList<DataField>? Children = null,
-    ExtensionMetadata? Extensions = null)
+    ExtensionMetadata? Extensions = null,
+    bool? Nullable = null,
+    int? Length = null,
+    int? Precision = null,
+    int? Scale = null)
 {
     public IReadOnlyList<DataConstraint> Constraints { get; init; } = Constraints ?? [];
     public IReadOnlyList<DataQualityRule> QualityRules { get; init; } = QualityRules ?? [];
@@ -178,3 +182,4 @@ public sealed record AuthoritativeReference(
     string Url,
     string? Type = null,
     string? Description = null);
+

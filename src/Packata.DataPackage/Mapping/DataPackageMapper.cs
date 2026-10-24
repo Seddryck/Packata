@@ -130,6 +130,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 .Where(x => x is not null).Cast<DataConstraint>().ToArray();
             return new DataField(name, field.Type, Format: field.Format,
                 Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
+                Nullable: field.Constraints?.Get<Native.RequiredConstraint>() is { } required ? !required.Value : null,
+                Length: field.Constraints?.Get<Native.MaxLengthConstraint>()?.Value,
                 Constraints: constraints,
                 Extensions: ExtensionMetadata.For("datapackage", FieldExtensions(field)));
         }).ToArray();
@@ -255,3 +257,4 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         return values;
     }
 }
+

@@ -16,13 +16,34 @@ public sealed record ContractSatisfaction(IReadOnlyList<RequirementSatisfaction>
 public interface ILogicalTypeCompatibilityPolicy
 {
     SatisfactionStatus Evaluate(LogicalType required, string? produced);
+    SatisfactionStatus EvaluateParameter(IFieldRequirement required, DataField produced, string parameter);
 }
 public sealed class ExactLogicalTypeCompatibilityPolicy : ILogicalTypeCompatibilityPolicy
 {
     public SatisfactionStatus Evaluate(LogicalType required, string? produced) => produced is null
         ? SatisfactionStatus.Unknown
-        : string.Equals(required.Name, produced, StringComparison.OrdinalIgnoreCase)
+        : string.Equals(Normalize(required.Name), Normalize(produced), StringComparison.OrdinalIgnoreCase)
             ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied;
+
+    private static string Normalize(string name) => name.ToLowerInvariant() switch
+    {
+        "number" => "decimal", "timestamp" => "datetime", _ => name
+    };
+
+    public SatisfactionStatus EvaluateParameter(IFieldRequirement required, DataField produced, string parameter)
+    {
+        bool? compatible = parameter switch
+        {
+            "length" when produced.Length is not null => produced.Length <= required.Length,
+            "scale" when produced.Scale is not null => produced.Scale <= required.Scale,
+            "precision" when produced.Precision is not null && produced.Scale is not null
+                && required.Precision is not null && required.Scale is not null =>
+                produced.Precision - produced.Scale <= required.Precision - required.Scale,
+            _ => null
+        };
+        return compatible is null ? SatisfactionStatus.Unknown
+            : compatible.Value ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied;
+    }
 }
 
 public static class SatisfactionExtensions
@@ -60,14 +81,33 @@ public sealed class SatisfactionEngine(ILogicalTypeCompatibilityPolicy? policy =
                     ? SatisfactionStatus.Unknown : produced is null ? SatisfactionStatus.Unsatisfied : SatisfactionStatus.Satisfied;
                 results.Add(new(dataset.Name, field.Name, "field", status,
                     status == SatisfactionStatus.Satisfied ? "Field found" : status == SatisfactionStatus.Unsatisfied ? "Field not found" : "Field cannot be evaluated"));
+                var typeStatus = produced?.LogicalType is null ? SatisfactionStatus.Unknown : SatisfactionStatus.Satisfied;
                 if (field.Type is not null)
                 {
-                    var typeStatus = produced is null ? SatisfactionStatus.Unknown : policy.Evaluate(field.Type, produced.LogicalType);
+                    typeStatus = produced is null ? SatisfactionStatus.Unknown : policy.Evaluate(field.Type, produced.LogicalType);
                     results.Add(new(dataset.Name, field.Name, "type", typeStatus,
                         $"Expected {field.Type.Name}, found {produced?.LogicalType ?? "unknown"}"));
+                }
+                var canEvaluate = produced is not null && typeStatus == SatisfactionStatus.Satisfied;
+                if (field.Nullable is not null)
+                {
+                    var nullableStatus = !canEvaluate || produced!.Nullable is null ? SatisfactionStatus.Unknown
+                        : field.Nullable.Value || !produced.Nullable.Value ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied;
+                    results.Add(new(dataset.Name, field.Name, "nullable", nullableStatus,
+                        nullableStatus == SatisfactionStatus.Unknown ? "Nullability cannot be evaluated"
+                            : "Expected nullable: " + field.Nullable + ", found: " + produced!.Nullable));
+                }
+                foreach (var parameter in new[] { ("length", field.Length), ("precision", field.Precision), ("scale", field.Scale) })
+                {
+                    if (parameter.Item2 is null) continue;
+                    var parameterStatus = canEvaluate ? policy.EvaluateParameter(field, produced!, parameter.Item1) : SatisfactionStatus.Unknown;
+                    results.Add(new(dataset.Name, field.Name, parameter.Item1, parameterStatus,
+                        parameterStatus == SatisfactionStatus.Unknown ? parameter.Item1 + " cannot be evaluated"
+                            : parameter.Item1 + " compatibility: " + parameterStatus));
                 }
             }
         }
         return new(results);
     }
 }
+

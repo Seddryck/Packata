@@ -94,6 +94,10 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             GetFormat(property.LogicalType),
             property.Required ?? false,
             constraints,
+            Nullable: property.Required.HasValue ? !property.Required.Value : null,
+            Length: (property.LogicalType as StringLogicalType)?.MaxLength,
+            Precision: (property.LogicalType as NumberLogicalType)?.Precision,
+            Scale: (property.LogicalType as NumberLogicalType)?.Scale,
             Extensions: extensions.Count == 0
                 ? ExtensionMetadata.Empty
                 : ExtensionMetadata.For("odcs", extensions));
@@ -247,3 +251,4 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             _ => null
         };
 }
+

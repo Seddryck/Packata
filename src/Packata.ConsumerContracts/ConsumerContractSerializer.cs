@@ -26,7 +26,7 @@ public static class ConsumerContractSerializer
             document.Target is null ? null : new ContractTarget(document.Target.Id),
             document.Datasets.Select(d => (IDatasetRequirement)new DatasetRequirement(d.Name,
                 d.Fields.Select(f => (IFieldRequirement)new FieldRequirement(f.Name,
-                    f.Type is null ? null : new LogicalType(f.Type))).ToArray())).ToArray());
+                    f.Type is null ? null : new LogicalType(f.Type), f.Nullable, f.Length, f.Precision, f.Scale)).ToArray())).ToArray());
         contract.Validate();
         return contract;
     }
@@ -39,7 +39,7 @@ public static class ConsumerContractSerializer
             Target = contract.Target is null ? null : new TargetDocument { Id = contract.Target.Id },
             Datasets = contract.Datasets.Select(d => new DatasetDocument
             {
-                Name = d.Name, Fields = d.Fields.Select(f => new FieldDocument { Name = f.Name, Type = f.Type?.Name }).ToList()
+                Name = d.Name, Fields = d.Fields.Select(f => new FieldDocument { Name = f.Name, Type = f.Type?.Name, Nullable = f.Nullable, Length = f.Length, Precision = f.Precision, Scale = f.Scale }).ToList()
             }).ToList()
         };
         return json ? JsonSerializer.Serialize(document, JsonOptions)
@@ -65,5 +65,10 @@ public static class ConsumerContractSerializer
     {
         public string Name { get; set; } = "";
         public string? Type { get; set; }
+        public bool? Nullable { get; set; }
+        public int? Length { get; set; }
+        public int? Precision { get; set; }
+        public int? Scale { get; set; }
     }
 }
+
