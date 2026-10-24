@@ -16,17 +16,21 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         InferSettings settings,
         CancellationToken cancellationToken)
     {
+        var databaseOperation = false;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             var document = ContractDocument.Load(settings.Source);
+            CliDatabase.ResolveOverrides(document.Contract.Endpoints, settings.ConnectionEnvironment);
+            CliDatabase.ParsePairs(settings.Connectors, "--connector");
             var asset = SelectAsset(document.Contract, settings.Asset);
             var endpoint = SelectEndpoint(document.Contract, asset);
+            databaseOperation = endpoint.Kind == EndpointKind.Database;
             var inference = endpoint.Kind switch
             {
                 EndpointKind.File => await InferCsvAsync(document, asset, endpoint, settings).ConfigureAwait(false),
                 EndpointKind.Database => await InferDatabaseAsync(
-                    document, asset, endpoint, cancellationToken).ConfigureAwait(false),
+                    document, asset, endpoint, settings, cancellationToken).ConfigureAwait(false),
                 _ => throw new NotSupportedException(
                     $"Asset '{asset.Id}' is not bound to a supported file or database endpoint.")
             };
@@ -54,6 +58,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         }
         catch (Exception exception)
         {
+            if (databaseOperation) return CliOutput.Error(exception);
             AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(exception.Message)}");
             return 1;
         }
@@ -82,7 +87,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
     }
 
     private static async Task<InferenceSelection> InferDatabaseAsync(
-        ContractDocument document, DataAsset asset, DataEndpoint endpoint, CancellationToken cancellationToken)
+        ContractDocument document, DataAsset asset, DataEndpoint endpoint, InferSettings settings, CancellationToken cancellationToken)
     {
         if (endpoint.Location is not ConnectionLocation location)
             throw new NotSupportedException(
@@ -103,12 +108,28 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
             Environment = endpoint.Environment
         };
         var rootPath = Path.GetDirectoryName(document.SourcePath);
-        var result = await new DatabaseDataContractInference(options)
-            .InferAsync(location, rootPath, cancellationToken).ConfigureAwait(false);
+        DataContractInferenceResult result;
+        using var database = new CliDatabase(new CliConfiguration(), rootPath ?? "", document.Contract.Endpoints,
+            settings.Connectors, settings.ConnectionEnvironment);
+        try
+        {
+            var connection = await database.ResolveAsync(endpoint, cancellationToken).ConfigureAwait(false);
+            result = await new DatabaseDataContractInference(options).InferAsync(connection, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Packata.Database.DatabaseConnectionException error)
+        {
+            throw new CliException(error.Code + ": " + error.Message +
+                " Use 'packata connector list', '--connector SCHEME=ID', or 'packata config list' to check acquisition settings. Downloads require a distribution catalog with archive URLs and hashes; configure one with 'packata config set connectors.catalog <path>'.");
+        }
+        catch (CliException) { throw; }
+        catch { throw new CliException("Database inference failed. Check connectivity, permissions, connector compatibility and runtime credentials."); }
         var contract = result.RequireContract();
         var inferredAsset = SelectInferredDatabaseAsset(contract, asset, physicalName);
         var inferredEndpoint = contract.Endpoints.Single(item =>
             item.Id == inferredAsset.EndpointBindings.Single().EndpointId);
+        if (database.HasOverride(endpoint.Id))
+            inferredEndpoint = inferredEndpoint with { Location = new ConnectionLocation(location.Scheme, Namespace: location.Namespace) };
         return new(result, inferredAsset, inferredEndpoint);
     }
 

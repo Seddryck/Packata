@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Shared database connections, provider composition and curated connector acquisition for Packata.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+    <PackageReference Include="DubUrl.Application" Version="0.46.0" />
+  </ItemGroup>
+</Project>

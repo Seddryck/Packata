@@ -5,6 +5,7 @@ using DubUrl;
 using DubUrl.Discovery;
 using DubUrl.Schema;
 using DubUrl.Schema.Constraints;
+using Packata.Database;
 using Packata.Core.Contracts;
 using DatabaseForeignKeyConstraint = DubUrl.Schema.Constraints.ForeignKeyConstraint;
 using DatabaseIndex = DubUrl.Schema.Index;
@@ -57,12 +58,12 @@ public sealed class DatabaseDataContractInference
     /// Inspects a canonical database location. Relative SQLite and DuckDB paths are resolved from
     /// <paramref name="rootPath"/> when supplied.
     /// </summary>
-    public Task<DataContractInferenceResult> InferAsync(ConnectionLocation location, string? rootPath = null,
+    public async Task<DataContractInferenceResult> InferAsync(ConnectionLocation location, string? rootPath = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(location);
-        var url = DubUrlDatabaseSessionFactory.BuildConnectionUrl(location, rootPath ?? string.Empty);
-        return InferAsync(url, cancellationToken);
+        using var connections = new DubUrlConnectionService(rootPath ?? string.Empty);
+        return await InferAsync(connections.Resolve(location), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

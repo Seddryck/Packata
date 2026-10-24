@@ -8,7 +8,7 @@ using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal sealed class PreviewSettings : CommandSettings
+internal sealed class PreviewSettings : DatabaseCommandSettings
 {
     [CommandArgument(0, "<SOURCE>")]
     [Description("ODCS YAML or Data Package v2 JSON/YAML contract document.")]
@@ -61,24 +61,41 @@ internal sealed class PreviewCommand : AsyncCommand<PreviewSettings>
             var mapped = ContractSelection.Map(source);
             foreach (var diagnostic in mapped.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!mapped.IsSuccessful) return ExitCodes.InvalidDocument;
+            CliDatabase.ResolveOverrides(mapped.Value!.Endpoints, settings.ConnectionEnvironment);
+            CliDatabase.ParsePairs(settings.Connectors, "--connector");
             var asset = ContractSelection.Asset(mapped.Value!, settings.Asset);
             var request = PreviewService.Request(mapped.Value!, asset);
             endpoint = request.Endpoint;
-            var sample = await PreviewService.ReadAsync(PreviewService.CreateFactory(source.BaseUri), request,
+            using var database = endpoint.Kind == EndpointKind.Database
+                ? new CliDatabase(new CliConfiguration(), source.BaseUri.IsFile ? source.BaseUri.LocalPath : string.Empty,
+                    mapped.Value!.Endpoints, settings.Connectors, settings.ConnectionEnvironment) : null;
+            var factory = database?.CreateReaders(source.BaseUri) ?? PreviewService.CreateFactory(source.BaseUri);
+            var sample = await PreviewService.ReadAsync(factory, request,
                 settings.Limit, settings.Columns, cancellationToken).ConfigureAwait(false);
             Write(sample, settings.Output);
             return ExitCodes.Success;
         }
         catch (Exception exception)
         {
-            var diagnostic = CommandOutput.Failure(exception);
-            if (endpoint is not null && exception is not (OperationCanceledException or ContractOperationException))
-                diagnostic = diagnostic with { Message = $"Unable to preview asset '{settings.Asset}' at endpoint '{endpoint.Id}' (format '{endpoint.Format?.Name ?? "auto"}'). Check the reader provider, format, binding, and resource access." };
-            if (exception is ReaderProviderUnavailableException unavailable)
-                diagnostic = diagnostic with { Message = $"{diagnostic.Message} Required package: {unavailable.SuggestedPackage}; registration: {unavailable.RegistrationMethod}." };
-            CommandOutput.Diagnostic(diagnostic);
+            CommandOutput.Diagnostic(PreviewFailure(exception, endpoint, settings.Asset));
             return CommandOutput.FailureExitCode(exception);
         }
+    }
+
+    private static MappingDiagnostic PreviewFailure(Exception exception, DataEndpoint? endpoint, string assetId)
+    {
+        var diagnostic = CommandOutput.Failure(exception);
+        if (endpoint is not null && exception is not (OperationCanceledException or ContractOperationException))
+            diagnostic = diagnostic with { Message = $"Unable to preview asset '{assetId}' at endpoint '{endpoint.Id}' (format '{endpoint.Format?.Name ?? "auto"}'). Check the reader provider, format, binding, and resource access." };
+        return exception switch
+        {
+            ReaderProviderUnavailableException unavailable => diagnostic with
+            { Message = $"{diagnostic.Message} Required package: {unavailable.SuggestedPackage}; registration: {unavailable.RegistrationMethod}." },
+            Packata.Database.DatabaseConnectionException connector => diagnostic with
+            { Code = connector.Code, Message = connector.Message + " Check 'packata connector list' and 'packata config list'." },
+            CliException configuration => diagnostic with { Message = configuration.Message },
+            _ => diagnostic
+        };
     }
 
     internal static void Write(PreviewSample sample, string output, IAnsiConsole? console = null)

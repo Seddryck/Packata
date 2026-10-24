@@ -37,6 +37,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Pinned from https://github.com/Seddryck/DubUrl/releases/tag/v0.46.0. -->
+    <EmbeddedResource Include="Resources/connector-catalog-0.46.0.json" LogicalName="Packata.Cli.ConnectorCatalog" />
     <InternalsVisibleTo Include="Packata.Cli.Testing" />
   </ItemGroup>
 

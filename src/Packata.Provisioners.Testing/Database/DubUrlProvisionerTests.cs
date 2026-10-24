@@ -1,11 +1,15 @@
 using System.Data;
+using System.Data.Common;
 using DubUrl;
+using DubUrl.Mapping;
 using DubUrl.BulkCopy;
 using DubUrl.Querying.Dialects;
 using DubUrl.Querying.Dialects.Functions;
 using DubUrl.Querying.TypeMapping;
 using DubUrl.Schema;
 using Moq;
+using DubUrl.Provider.SqlServer.Sql;
+using DubUrl.Provider.DuckDb.Sql;
 using NUnit.Framework;
 using Packata.Core.Contracts;
 using Packata.Core.Provisioning;
@@ -93,6 +97,104 @@ public class DubUrlProvisionerTests
         readerFactory.VerifyAll();
     }
 
+    [Test]
+    public async Task ExecuteAsync_rejects_bulk_loading_before_DDL_or_source_reads()
+    {
+        var fixture = CreateFixture();
+        var readers = new Mock<IDataEndpointReaderFactory>(MockBehavior.Strict);
+        var provisioner = fixture.WithReader(readers.Object, new FixedCapabilities(new(true, true, false)));
+        var error = await Assert.ThrowsAsync<DatabaseOperationNotSupportedException>(async () =>
+            await provisioner.ExecuteAsync(Contract(new DataSchema([new DataField("Id", "integer")]))));
+        Assert.That(error!.Operation, Is.EqualTo(DatabaseOperation.BulkLoading));
+        Assert.That(error.Message, Does.Contain("BulkLoading").And.Contain("Provider"));
+        fixture.Deployer.Verify(x => x.DeploySchema(It.IsAny<ConnectionUrl>(), It.IsAny<string>()), Times.Never);
+        fixture.BulkFactory.Verify(x => x.Create(It.IsAny<ConnectionUrl>()), Times.Never);
+        readers.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public void Schema_only_remains_available_without_bulk_loading()
+    {
+        var fixture = CreateFixture();
+        var provisioner = fixture.WithReader(Mock.Of<IDataEndpointReaderFactory>(), new FixedCapabilities(new(true, true, false)));
+        provisioner.DeploySchema(Contract(new DataSchema([new DataField("Id", "integer")])));
+        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object, "CREATE TABLE"), Times.Once);
+        Assert.That(provisioner.GetOperationSupport(), Is.EqualTo(new DatabaseOperationSupport(true, true, false)));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_rejects_schema_deployment_before_DDL_or_source_reads()
+    {
+        var fixture = CreateFixture();
+        var readers = new Mock<IDataEndpointReaderFactory>(MockBehavior.Strict);
+        var provisioner = fixture.WithReader(readers.Object, new FixedCapabilities(new(true, false, true)));
+        var error = await Assert.ThrowsAsync<DatabaseOperationNotSupportedException>(async () =>
+            await provisioner.ExecuteAsync(Contract(new DataSchema([new DataField("Id", "integer")]))));
+        Assert.That(error!.Operation, Is.EqualTo(DatabaseOperation.SchemaDeployment));
+        fixture.Deployer.Verify(x => x.DeploySchema(It.IsAny<ConnectionUrl>(), It.IsAny<string>()), Times.Never);
+        readers.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public void ExecuteAsync_checks_cancellation_and_missing_reader_factory_before_DDL()
+    {
+        var fixture = CreateFixture();
+        var contract = Contract(new DataSchema([new DataField("Id", "integer")]));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Assert.That(async () => await fixture.Provisioner.ExecuteAsync(contract, cancellationToken: cancellation.Token),
+            Throws.TypeOf<OperationCanceledException>());
+        Assert.That(async () => await fixture.Provisioner.ExecuteAsync(contract),
+            Throws.InvalidOperationException.With.Message.Contains("reader factory"));
+        fixture.Deployer.Verify(x => x.DeploySchema(It.IsAny<ConnectionUrl>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public void Default_capabilities_do_not_treat_an_arbitrary_dialect_as_provisioning_support()
+    {
+        var fixture = CreateFixture();
+        Assert.That(new DubUrlOperationCapabilities().GetSupport(fixture.Connection.Object),
+            Is.EqualTo(new DatabaseOperationSupport(true, false, false)));
+    }
+
+    [Test]
+    public void Default_capabilities_use_the_registered_bulk_adapter_without_opening_connections()
+    {
+        var dialects = new DialectRegistryBuilder();
+        dialects.AddDialect<TSqlDialect>(["mssql"]);
+        var connection = new Mock<ConnectionUrl>("mssql://./test", new ProviderCatalogBuilder().Build());
+        connection.Setup(x => x.Dialect).Returns(dialects.Build().Get<TSqlDialect>());
+        connection.Setup(x => x.BulkCopyProvider).Returns(Mock.Of<IBulkCopyProvider>());
+        var policy = new DubUrlOperationCapabilities();
+        Assert.That(policy.GetSupport(connection.Object), Is.EqualTo(new DatabaseOperationSupport(true, true, true)));
+        connection.Verify(x => x.Open(), Times.Never);
+        connection.Setup(x => x.BulkCopyProvider).Returns((IBulkCopyProvider?)null);
+        Assert.That(policy.GetSupport(connection.Object), Is.EqualTo(new DatabaseOperationSupport(true, true, false)));
+        connection.Verify(x => x.Connect(), Times.Never);
+    }
+
+    [Test]
+    public void A_DuckDB_dialect_without_a_bulk_adapter_does_not_imply_loading_support()
+    {
+        var dialects = new DialectRegistryBuilder();
+        dialects.AddDialect<DuckDbDialect>(["duckdb"]);
+        var connection = new Mock<ConnectionUrl>("duckdb://memory", new ProviderCatalogBuilder().Build());
+        connection.Setup(x => x.Dialect).Returns(dialects.Build().Get<DuckDbDialect>());
+        Assert.That(new DubUrlOperationCapabilities().GetSupport(connection.Object),
+            Is.EqualTo(new DatabaseOperationSupport(true, true, false)));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_with_supported_operations_deploys_and_loads()
+    {
+        var fixture = CreateFixture();
+        var diagnostics = await fixture.WithReader(Mock.Of<IDataEndpointReaderFactory>()).ExecuteAsync(
+            Contract(new DataSchema([new DataField("Id", "integer")])));
+        fixture.Deployer.Verify(x => x.DeploySchema(fixture.Connection.Object, "CREATE TABLE"), Times.Once);
+        fixture.BulkFactory.Verify(x => x.Create(fixture.Connection.Object), Times.Once);
+        Assert.That(diagnostics.Single().Code, Is.EqualTo("PROV001"));
+    }
+
     private static DataContract Contract(DataSchema schema)
     {
         var asset = new DataAsset("customers", "Customer", "Customer", null, AssetKind.Table, schema);
@@ -106,16 +208,16 @@ public class DubUrlProvisionerTests
         var dialect = new Mock<IDialect>();
         dialect.Setup(x => x.DbTypeMapper).Returns(typeMapper.Object);
         dialect.Setup(x => x.SqlFunctionMapper).Returns(functionMapper.Object);
-        var connection = new Mock<ConnectionUrl>("mssql://./mydb");
+        var connection = new Mock<ConnectionUrl>("mssql://./mydb", new ProviderCatalogBuilder().Build());
         connection.Setup(x => x.Dialect).Returns(dialect.Object);
-        var renderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None);
+        var renderer = new Mock<SchemaScriptRenderer>(dialect.Object, SchemaCreationOptions.None, null);
         renderer.Setup(x => x.Render(It.IsAny<Schema>())).Returns("CREATE TABLE");
         var deployer = new Mock<SchemaScriptDeployer>();
         var bulkCopy = new Mock<IBulkCopyEngine>();
         var bulkFactory = new Mock<BulkCopyEngineFactory>();
         bulkFactory.Setup(x => x.Create(connection.Object)).Returns(bulkCopy.Object);
         var provisioner = new DubUrlProvisioner(connection.Object, renderer.Object, deployer.Object,
-            bulkCopyEngineFactory: bulkFactory.Object);
+            bulkCopyEngineFactory: bulkFactory.Object, capabilities: new FixedCapabilities(new(true, true, true)));
         return new(provisioner, connection, renderer, deployer, bulkFactory, bulkCopy);
     }
 
@@ -123,8 +225,14 @@ public class DubUrlProvisionerTests
         Mock<SchemaScriptRenderer> Renderer, Mock<SchemaScriptDeployer> Deployer,
         Mock<BulkCopyEngineFactory> BulkFactory, Mock<IBulkCopyEngine> BulkCopy)
     {
-        public DubUrlProvisioner WithReader(IDataEndpointReaderFactory reader) =>
+        public DubUrlProvisioner WithReader(IDataEndpointReaderFactory reader, IDatabaseOperationCapabilities? capabilities = null) =>
             new(Connection.Object, Renderer.Object, Deployer.Object,
-                bulkCopyEngineFactory: BulkFactory.Object, readerFactory: reader);
+                bulkCopyEngineFactory: BulkFactory.Object, readerFactory: reader,
+                capabilities: capabilities ?? new FixedCapabilities(new(true, true, true)));
+    }
+
+    private sealed class FixedCapabilities(DatabaseOperationSupport support) : IDatabaseOperationCapabilities
+    {
+        public DatabaseOperationSupport GetSupport(ConnectionUrl connection) => support;
     }
 }

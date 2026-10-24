@@ -21,6 +21,7 @@ public static class Program
 
     internal static int Run(string[] args, CancellationToken cancellationToken)
     {
+        if (args.Length == 1 && args[0] is "schema" or "config" or "connector") args = [args[0], "--help"];
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
         {
@@ -65,8 +66,30 @@ public static class Program
                     .WithExample(["data", "preview", "contract.yaml", "--asset", "customers", "--limit", "20"]);
             });
             configuration.AddCommand<InferCommand>("infer")
-                .WithDescription("Infer the schema of a bound CSV or database contract asset.")
-                .WithExample(["datapackage.json", "--asset", "customers"]);
+                .WithDescription("Infer a bound CSV or database schema; compatibility alias for schema infer.")
+                .WithExample(["infer", "datapackage.json", "--asset", "customers"]);
+            configuration.AddBranch("schema", schema =>
+            {
+                schema.SetDescription("Infer resource structure from contract asset bindings.");
+                schema.AddCommand<InferCommand>("infer")
+                    .WithDescription("Infer the schema of a bound CSV or database asset.")
+                    .WithExample(["schema", "infer", "datapackage.json", "--asset", "customers"]);
+            });
+            configuration.AddBranch("config", config =>
+            {
+                config.SetDescription("User settings: connectors.offline (false; downloads only), connectors.store (per-user; DUBURL_PROVIDER_STORE overrides), connectors.catalog (bundled), connectors.preferred.<scheme>. PACKATA_CONFIG_HOME overrides the user config directory.");
+                config.AddCommand<ConfigListCommand>("list").WithDescription("Show effective settings and origins.");
+                config.AddCommand<ConfigGetCommand>("get").WithDescription("Read an effective setting.");
+                config.AddCommand<ConfigSetCommand>("set").WithDescription("Persist a user setting; filesystem paths become absolute.");
+                config.AddCommand<ConfigUnsetCommand>("unset").WithDescription("Remove a user override, preserving installed connectors.");
+            });
+            configuration.AddBranch("connector", connector =>
+            {
+                connector.SetDescription("Discover and prepare curated database connectors using shared user configuration.");
+                connector.AddCommand<ConnectorListCommand>("list").WithDescription("List catalog and installed connectors without downloading or loading them.");
+                connector.AddCommand<ConnectorShowCommand>("show").WithDescription("Show versions, availability, compatibility and prerequisites.");
+                connector.AddCommand<ConnectorInstallCommand>("install").WithDescription("Install and activate the pinned connector; respects connectors.offline.");
+            });
         });
 
         return app.Run(args, cancellationToken);

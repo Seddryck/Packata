@@ -4,7 +4,7 @@ using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal sealed class InferSettings : CommandSettings
+internal sealed class InferSettings : DatabaseCommandSettings
 {
     [CommandArgument(0, "<SOURCE>")]
     [Description("ODCS or Data Package v2 contract containing the bound asset.")]

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Packata.DataPackage/Packata.DataPackage.csproj" />
+    <ProjectReference Include="../../src/Packata.OpenDataContract/Packata.OpenDataContract.csproj" />
+    <ProjectReference Include="../../src/Packata.ResourceReaders.Database/Packata.ResourceReaders.Database.csproj" />
+    <ProjectReference Include="../../src/Packata.Provisioners/Packata.Provisioners.csproj" />
+    <PackageReference Include="DubUrl.Provider.DuckDb" Version="0.46.0" />
+    <PackageReference Include="DuckDB.NET.Data" Version="1.5.6" />
+    <PackageReference Include="DuckDB.NET.Bindings.Full" Version="1.5.6" />
+  </ItemGroup>
+</Project>

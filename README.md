@@ -39,6 +39,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | Package | Purpose |
 |---|---|
 | `Packata.Core` | Standards-neutral contracts for assets, schemas, endpoints, diagnostics, readers, and provisioners |
+| `Packata.Database` | Shared DubUrl connection configuration and runtime endpoint resolution |
 | `Packata.DataPackage` | Data Package v2 models, JSON/YAML serialization, validation, and canonical mapping |
 | `Packata.OpenDataContract` | ODCS models, YAML serialization, validation, and canonical mapping |
 | `Packata.ResourceReaders` | Core reader factory and access to delimited resources through `IDataReader` |
@@ -225,14 +226,14 @@ Infer a bound CSV asset from an ODCS or Data Package v2 document. The default co
 schema, dialect, diagnostics, and confidence; it does not modify the contract:
 
 ```console
-packata infer datapackage.json --asset customers
+packata schema infer datapackage.json --asset customers
 ```
 
 Write an enriched copy with `--output`, or explicitly update the source document atomically with `--write`:
 
 ```console
-packata infer datapackage.json --asset customers --output enriched-datapackage.json
-packata infer contract.yaml --asset customers --write
+packata schema infer datapackage.json --asset customers --output enriched-datapackage.json
+packata schema infer contract.yaml --asset customers --write
 ```
 
 Use `--maximum-records`, `--maximum-bytes`, `--culture`, `--header`, and `--no-dialect-inference` to control the
@@ -242,14 +243,23 @@ resolved from the selected asset's endpoint binding.
 The same command infers a bound database table or view when the selected asset resolves to a database endpoint:
 
 ```console
-packata infer contract.yaml --asset customers
-packata infer contract.yaml --asset customers --output enriched-contract.yaml
+packata schema infer contract.yaml --asset customers
+packata schema infer contract.yaml --asset customers --output enriched-contract.yaml
 ```
 
 Database connection details and the physical object name are resolved from the endpoint binding. Discovery is
-delegated to DubUrl; the corresponding database connector must be available to the CLI. CSV-only sampling and
+delegated to DubUrl; the CLI loads installed connectors or acquires them through its bundled curated distribution catalog. CSV-only sampling and
 dialect options are ignored for database assets. Non-sensitive connection query options are retained in inferred
 metadata, sensitive query values are redacted, authority credentials are omitted, and URL fragments are removed.
+
+Manage connectors with `packata connector list`, `packata connector show <id>`, and
+`packata connector install <id>`. Configure download policy once with
+`packata config set connectors.offline true`; available connectors and database network connections still work.
+`packata config list` shows effective settings and their origins. The original `packata infer` spelling
+remains a compatibility alias. See [database CLI commands and configuration](docs/cli-database.md) for all actions,
+settings, connector preferences, and runtime connection environment overrides.
+The bundled DubUrl 0.46.0 distribution catalog pins archive URLs and hashes, so first-use connector
+downloads require no catalog configuration.
 
 Update an existing installation with `dotnet tool update --global Packata-cli`.
 
@@ -296,6 +306,12 @@ foreach (var asset in contract.Assets)
 ```
 
 ODCS documents map to the same canonical model through the `Packata.OpenDataContract.Mapping` namespace. See [MIGRATION.md](MIGRATION.md) for side-by-side mapping examples and guidance for upgrading from earlier Packata versions.
+
+For shared database connections, host-supplied credentials, and operation preflight, see
+[database integration](docs/database-integration.md) and the runnable
+[ODCS and Data Package example](examples/DatabaseConnections). The
+[connector acquisition example](examples/ConnectorAcquisition) demonstrates acquisition on the first read
+from a host-supplied catalog and reuse on later reads.
 
 ## License
 

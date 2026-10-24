@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using DubUrl;
 using DubUrl.Mapping;
 using Packata.Core.Provisioning;
+using Packata.Core.Contracts;
+using Packata.Core.Reading;
+using Packata.Database;
 
 namespace Packata.Provisioners.Database;
 public class DubUrlProvisionerBuilder : IDubUrlTypeStep, IDubUrlLocationStep, IDubUrlSettingsStep
@@ -17,16 +20,20 @@ public class DubUrlProvisionerBuilder : IDubUrlTypeStep, IDubUrlLocationStep, ID
     private string? Database { get; set; } = null;
     private string? Username { get; set; } = null;
     private string? Password { get; set; } = null;
-    protected SchemeRegistry SchemeRegistry { get; }
+    private readonly IDatabaseConnectionService _connections;
+    private readonly IDataEndpointReaderFactory? _readers;
+    private readonly IDatabaseOperationCapabilities? _capabilities;
 
     public DubUrlProvisionerBuilder()
-        : this(new SchemeRegistryBuilder()
-                        .WithAssemblies(typeof(SchemeRegistryBuilder).Assembly)
-                        .WithAutoDiscoveredMappings()
-                        .Build()) { }
+        : this(DubUrlConnectionService.Default) { }
+
+    public DubUrlProvisionerBuilder(IDatabaseConnectionService connections,
+        IDataEndpointReaderFactory? readerFactory = null, IDatabaseOperationCapabilities? capabilities = null)
+        => (_connections, _readers, _capabilities) =
+            (connections ?? throw new ArgumentNullException(nameof(connections)), readerFactory, capabilities);
 
     protected internal DubUrlProvisionerBuilder(SchemeRegistry schemeRegistry)
-        => SchemeRegistry = schemeRegistry;
+        : this(new DubUrlConnectionService(schemeRegistry)) { }
 
     public IDubUrlLocationStep Using(string databaseType)
     {
@@ -78,13 +85,9 @@ public class DubUrlProvisionerBuilder : IDubUrlTypeStep, IDubUrlLocationStep, ID
             throw new InvalidOperationException("Server must be specified or in-memry should be set to true.");
 
         var server = InMemory ? "memory" : Server;
-        var credentials = Username is null || Password is null ? string.Empty : $"{Username}:{Password}@";
-        var port = Port is null ? string.Empty : $":{Port}";
-        var database = Database is null ? string.Empty : $"/{Database}";
-
-        var url = $"{DatabaseType}://{credentials}{server}{port}{database}";
-
-        return new DubUrlProvisioner(new ConnectionUrl(url, SchemeRegistry));
+        var url = _connections.Resolve(new ConnectionLocation(DatabaseType, server, Port, Database),
+            new DatabaseRuntimeOptions(Username, Password));
+        return new DubUrlProvisioner(url, readerFactory: _readers, capabilities: _capabilities);
     }
 
     IDataContractProvisioner IDataContractProvisionerBuilder.Build()
