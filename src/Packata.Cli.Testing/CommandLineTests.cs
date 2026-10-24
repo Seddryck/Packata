@@ -17,6 +17,7 @@ public sealed class CommandLineTests
             Assert.That(result.ExitCode, Is.Zero);
             Assert.That(result.StandardOutput, Does.Contain("packata"));
             Assert.That(result.StandardOutput, Does.Contain("USAGE"));
+            Assert.That(result.StandardOutput.Contains('\u001b'), Is.False);
             Assert.That(result.StandardError, Is.Empty);
         });
     }
