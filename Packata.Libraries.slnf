@@ -20,7 +20,9 @@
       "src\\Packata.ResourceReaders.WebLogs\\Packata.ResourceReaders.WebLogs.csproj",
       "src\\Packata.ResourceReaders\\Packata.ResourceReaders.csproj",
       "src\\Packata.Storages.Testing\\Packata.Storages.Testing.csproj",
-      "src\\Packata.Storages\\Packata.Storages.csproj"
+      "src\\Packata.Storages\\Packata.Storages.csproj",
+      "src\\Packata.ConsumerContracts\\Packata.ConsumerContracts.csproj",
+      "src\\Packata.ConsumerContracts.Testing\\Packata.ConsumerContracts.Testing.csproj"
     ]
   }
 }

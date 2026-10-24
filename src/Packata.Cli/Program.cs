@@ -10,6 +10,15 @@ public static class Program
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
         {
+            configuration.AddBranch("contract", contract =>
+                contract.AddCommand<SatisfiesCommand>("satisfies")
+                    .WithDescription("Evaluate consumer requirements against an ODCS or Data Package contract."));
+            if (args.Length >= 2 && args[0] == "contract" && args[1] == "satisfies")
+                configuration.SetExceptionHandler((exception, _) =>
+                {
+                    if (!args.Contains("--quiet")) Console.Error.WriteLine(exception.Message);
+                    return 2;
+                });
             configuration.SetApplicationName("packata");
             configuration.SetApplicationVersion(ApplicationVersion.Value);
             configuration.AddCommand<InferCommand>("infer")

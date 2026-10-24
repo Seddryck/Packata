@@ -51,6 +51,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.ResourceReaders.Database` | Optional database reader provider |
 | `Packata.Storages` | Access to documents and resources on local, HTTP(S), S3, and Azure storage |
 | `Packata.Provisioners` | Provisioning of canonical data contracts to relational platforms |
+| `Packata.ConsumerContracts` | Consumer requirements, fluent construction, YAML/JSON serialization, and satisfaction evaluation |
 | `Packata-cli` | Cross-platform command-line interface distributed as a RID-aware .NET tool and release archives |
 
 Packata libraries and the CLI target .NET 8, .NET 9, and .NET 10.
@@ -289,3 +290,80 @@ ODCS documents map to the same canonical model through the `Packata.OpenDataCont
 ## License
 
 Packata is licensed under the [Apache License 2.0](LICENSE).
+
+## Consumer Contract Requirements
+
+Consumer requirements describe the subset of a producer contract that an application needs.
+Install `Packata.ConsumerContracts` and construct requirements fluently:
+
+```csharp
+using Packata.ConsumerContracts;
+using Packata.OpenDataContract.Mapping;
+
+ConsumerContract requirements = ConsumerContract.For("sales-report")
+    .Version("1.0.0")
+    .Target("sales")
+    .Dataset("orders", dataset => dataset
+        .Field("order_id", field => field.Type(LogicalType.String).Nullable(false).Length(50))
+        .Field("amount", field => field.Type(LogicalType.Decimal).Precision(18).Scale(2)));
+
+var producer = new Packata.OpenDataContract.DataContractFactory().LoadFromFile("sales.odcs.yaml");
+ContractSatisfaction result = producer.ToCanonicalContract().RequireValue().Satisfies(requirements);
+string yaml = ConsumerContractSerializer.Serialize(requirements);
+ConsumerContract restored = ConsumerContractSerializer.Deserialize(yaml);
+```
+
+The equivalent YAML is:
+
+```yaml
+apiVersion: v1
+kind: ConsumerContract
+id: sales-report
+version: 1.0.0
+target:
+  id: sales
+datasets:
+  - name: orders
+    fields:
+      - name: order_id
+        type: string
+        nullable: false
+        length: 50
+      - name: amount
+        type: decimal
+        precision: 18
+        scale: 2
+```
+
+Pass `json: true` to serialize or deserialize JSON. Dataset and field names match exactly,
+using ordinal, case-sensitive comparison. A dataset can have no fields; a field can have no
+constraints. Extra producer datasets and fields are ignored. The consumer must declare at
+least one dataset, and duplicate names and invalid type parameters are rejected.
+
+`nullable: false` requires a non-nullable producer. A consumer accepting nulls also accepts
+a non-nullable producer. String `length` bounds the maximum the consumer can accept.
+Decimal compatibility checks both scale and integral digit capacity (`precision - scale`);
+missing scale prevents an integral capacity comparison. The default policy matches logical
+type names case-insensitively, treating ODCS `number` as `decimal` and `timestamp` as
+`datetime`. Custom types use `new LogicalType("geography")`. Supply an
+`ILogicalTypeCompatibilityPolicy` to `Satisfies` to customize type and parameter compatibility.
+
+Evaluation returns a separate result for each declared constraint. Missing producer metadata
+and constraints blocked by a missing field or mismatched type produce `Unknown`. Overall
+status is `Unsatisfied` if any result is unsatisfied, otherwise `Unknown` if any result is
+unknown, otherwise `Satisfied`. ODCS `required` and `logicalTypeOptions.maxLength`,
+`precision`, and `scale` populate the corresponding canonical field metadata. Data Package
+`required` and `maxLength` constraints are also mapped; absent metadata stays unknown.
+
+Evaluate YAML or JSON ODCS and Data Package files from the CLI:
+
+```bash
+packata contract satisfies sales.odcs.yaml --requirements sales-report.ccr.yaml
+packata contract satisfies sales.odcs.json -r sales-report.ccr.json --format json
+packata contract satisfies datapackage.json -r sales-report.ccr.yaml --quiet
+```
+
+Text output distinguishes satisfied (`✓`), unsatisfied (`✗`), and unknown (`?`) results.
+JSON output exposes the complete structured result with named status values. Exit codes are
+`0` for all requirements satisfied, `1` for unsatisfied or unknown requirements, and `2`
+for invalid inputs or evaluation errors. `--quiet` suppresses both normal and error output.

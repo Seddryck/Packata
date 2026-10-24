@@ -71,12 +71,38 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
 
     private static DataField MapField(SchemaProperty property)
     {
+        var constraints = MapFieldConstraints(property);
+        var extensions = MapFieldExtensions(property);
+
+        return new DataField(
+            property.Name,
+            GetLogicalTypeName(property.LogicalType),
+            property.PhysicalType,
+            GetFormat(property.LogicalType),
+            property.Required ?? false,
+            constraints,
+            Nullable: property.Required.HasValue ? !property.Required.Value : null,
+            Length: (property.LogicalType as StringLogicalType)?.MaxLength,
+            Precision: (property.LogicalType as NumberLogicalType)?.Precision,
+            Scale: (property.LogicalType as NumberLogicalType)?.Scale,
+            Extensions: extensions.Count == 0
+                ? ExtensionMetadata.Empty
+                : ExtensionMetadata.For("odcs", extensions));
+    }
+
+    private static IReadOnlyList<DataConstraint> MapFieldConstraints(SchemaProperty property)
+    {
         var constraints = new List<DataConstraint>();
         if (property.PrimaryKey)
             constraints.Add(new DataConstraint("primaryKey", true));
         if (property.Unique == true)
             constraints.Add(new DataConstraint("unique", true));
 
+        return constraints;
+    }
+
+    private static Dictionary<string, object?> MapFieldExtensions(SchemaProperty property)
+    {
         var extensions = new Dictionary<string, object?>();
         if (property.Classification is not null)
             extensions["classification"] = property.Classification;
@@ -87,16 +113,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         if (property.CustomProperties.Count > 0)
             extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
 
-        return new DataField(
-            property.Name,
-            GetLogicalTypeName(property.LogicalType),
-            property.PhysicalType,
-            GetFormat(property.LogicalType),
-            property.Required ?? false,
-            constraints,
-            Extensions: extensions.Count == 0
-                ? ExtensionMetadata.Empty
-                : ExtensionMetadata.For("odcs", extensions));
+        return extensions;
     }
 
     private static DataEndpoint MapEndpoint(BaseServer server)
