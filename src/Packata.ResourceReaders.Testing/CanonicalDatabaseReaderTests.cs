@@ -173,6 +173,24 @@ public class CanonicalDatabaseReaderTests
             Throws.TypeOf<ArgumentException>());
     }
 
+    [TestCase("sqlite", "customers.db")]
+    [TestCase("duckdb", "warehouse with spaces%+.duckdb")]
+    public void BuildConnectionUrl_preserves_the_absolute_file_path(string scheme, string fileName)
+    {
+        var rootPath = Path.Combine(Path.GetTempPath(), "packata contracts");
+        var location = new ConnectionLocation(scheme, Database: "./" + fileName);
+
+        var url = DubUrlDatabaseSessionFactory.BuildConnectionUrl(location, rootPath);
+        var parsed = DubUrl.Parsing.ConnectionUri.Parse(url);
+        var decodedPath = parsed.Segments.Last();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(decodedPath, Is.EqualTo(Path.GetFullPath(Path.Combine(rootPath, fileName)).Replace(Path.DirectorySeparatorChar, '/')));
+            Assert.That(Path.IsPathFullyQualified(decodedPath), Is.True);
+        });
+    }
+
     [Test]
     public void OpenAsync_requires_database_table()
     {

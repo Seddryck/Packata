@@ -60,9 +60,8 @@ internal sealed class DubUrlDatabaseSessionFactory(string rootPath) : IDatabaseS
     {
         var absolute = Path.GetFullPath(Path.Combine(rootPath, location.Database!))
             .Replace(Path.DirectorySeparatorChar, '/');
-        var path = string.Join('/', absolute.Split('/', StringSplitOptions.RemoveEmptyEntries)
-            .Select(Uri.EscapeDataString));
-        return $"{location.Scheme.Trim()}:///{path}";
+        // A single encoded segment preserves the Unix root slash through DubUrl's file-path mapper.
+        return $"{location.Scheme.Trim()}:///{Uri.EscapeDataString(absolute)}";
     }
 
     private static string BuildServerUrl(ConnectionLocation location)
