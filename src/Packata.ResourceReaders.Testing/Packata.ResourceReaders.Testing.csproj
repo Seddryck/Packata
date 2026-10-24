@@ -17,11 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
-    <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.43.0" />
-    <PackageReference Include="DubUrl.Provider.DuckDb" Version="0.43.0" />
-    <PackageReference Include="DuckDB.NET.Data" Version="1.5.6" />
-    <PackageReference Include="DuckDB.NET.Bindings.Full" Version="1.5.6" />
     <PackageReference Include="Moq" Version="4.21.0" />
     <PackageReference Include="RichardSzalay.MockHttp" Version="7.1.0" />
     <PackageReference Include="NUnit" Version="5.0.0" />

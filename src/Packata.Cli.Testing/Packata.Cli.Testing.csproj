@@ -19,6 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.43.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
     <ProjectReference Include="..\Packata.Cli\Packata.Cli.csproj" />
     <None Include="..\Packata.ResourceReaders.Testing\Resources\my-book.xlsx" Link="Resources\my-book.xlsx" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Packata.ResourceReaders.Testing\Resources\iris.parquet" Link="Resources\iris.parquet" CopyToOutputDirectory="PreserveNewest" />

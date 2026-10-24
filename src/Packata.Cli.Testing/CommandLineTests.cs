@@ -38,7 +38,7 @@ public sealed class CommandLineTests
     [Test]
     public void InferHelp_DocumentsAssetSelectionAndPersistenceModes()
     {
-        var result = Run("infer", "--help");
+        var result = Run("schema", "infer", "--help");
 
         Assert.Multiple(() =>
         {
@@ -101,7 +101,7 @@ public sealed class CommandLineTests
         directory.Write("customers.csv", "Name,Age\nAlice,42\nBob,35\n");
         var original = File.ReadAllText(source);
 
-        var result = RunIn(directory.Path, "infer", "datapackage.json", "--asset", "customers");
+        var result = RunIn(directory.Path, "schema", "infer", "datapackage.json", "--asset", "customers");
 
         Assert.Multiple(() =>
         {
@@ -121,7 +121,7 @@ public sealed class CommandLineTests
         directory.Write("customers.csv", "Name;Age\nAlice;42\nBob;35\n");
         var original = File.ReadAllText(source);
 
-        var result = RunIn(directory.Path, "infer", "datapackage.json", "--asset", "customers",
+        var result = RunIn(directory.Path, "schema", "infer", "datapackage.json", "--asset", "customers",
             "--output", "enriched.json");
 
         var enrichedPath = System.IO.Path.Combine(directory.Path, "enriched.json");
@@ -151,7 +151,7 @@ public sealed class CommandLineTests
         directory.Write("customers.csv", "Name;Age\nAlice;42\nBob;35\n");
         var original = File.ReadAllText(source);
 
-        var result = RunIn(directory.Path, "infer", "datapackage.yaml", "--asset", "customers",
+        var result = RunIn(directory.Path, "schema", "infer", "datapackage.yaml", "--asset", "customers",
             "--output", "enriched.yaml");
 
         var enrichedPath = System.IO.Path.Combine(directory.Path, "enriched.yaml");
@@ -173,7 +173,7 @@ public sealed class CommandLineTests
         var source = directory.Write("contract.yaml", OdcsYaml());
         directory.Write("customers.csv", "Name,Age\nAlice,42\nBob,35\n");
 
-        var result = RunIn(directory.Path, "infer", "contract.yaml", "--asset", "customers", "--write");
+        var result = RunIn(directory.Path, "schema", "infer", "contract.yaml", "--asset", "customers", "--write");
         var updated = File.ReadAllText(source);
 
         Assert.Multiple(() =>
@@ -195,7 +195,7 @@ public sealed class CommandLineTests
         directory.Write("datapackage.json", DataPackageJson());
         directory.Write("customers.csv", "Name,Place\nAlice,Brussels\nBob,Paris\n");
 
-        var result = RunIn(directory.Path, "infer", "datapackage.json", "--asset", "customers");
+        var result = RunIn(directory.Path, "schema", "infer", "datapackage.json", "--asset", "customers");
 
         Assert.Multiple(() =>
         {
@@ -211,7 +211,7 @@ public sealed class CommandLineTests
         directory.Write("datapackage.json", DataPackageJson());
         directory.Write("customers.csv", "Name\nAlice\n");
 
-        var result = RunIn(directory.Path, "infer", "datapackage.json", "--asset", "missing");
+        var result = RunIn(directory.Path, "schema", "infer", "datapackage.json", "--asset", "missing");
 
         Assert.Multiple(() =>
         {
@@ -227,7 +227,7 @@ public sealed class CommandLineTests
         directory.Write("datapackage.json", DataPackageJson().Replace("\"format\": \"csv\"", "\"format\": \"json\""));
         directory.Write("customers.csv", "Name\nAlice\n");
 
-        var result = RunIn(directory.Path, "infer", "datapackage.json", "--asset", "customers");
+        var result = RunIn(directory.Path, "schema", "infer", "datapackage.json", "--asset", "customers");
 
         Assert.Multiple(() =>
         {
@@ -242,7 +242,7 @@ public sealed class CommandLineTests
         using var directory = new TemporaryDirectory();
         directory.Write("datapackage.json", DataPackageJson());
 
-        var result = RunIn(directory.Path, "infer", "datapackage.json", "--asset", "customers",
+        var result = RunIn(directory.Path, "schema", "infer", "datapackage.json", "--asset", "customers",
             "--output", "copy.json", "--write");
 
         Assert.Multiple(() =>

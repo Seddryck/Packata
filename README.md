@@ -226,14 +226,14 @@ Infer a bound CSV asset from an ODCS or Data Package v2 document. The default co
 schema, dialect, diagnostics, and confidence; it does not modify the contract:
 
 ```console
-packata infer datapackage.json --asset customers
+packata schema infer datapackage.json --asset customers
 ```
 
 Write an enriched copy with `--output`, or explicitly update the source document atomically with `--write`:
 
 ```console
-packata infer datapackage.json --asset customers --output enriched-datapackage.json
-packata infer contract.yaml --asset customers --write
+packata schema infer datapackage.json --asset customers --output enriched-datapackage.json
+packata schema infer contract.yaml --asset customers --write
 ```
 
 Use `--maximum-records`, `--maximum-bytes`, `--culture`, `--header`, and `--no-dialect-inference` to control the
@@ -243,14 +243,23 @@ resolved from the selected asset's endpoint binding.
 The same command infers a bound database table or view when the selected asset resolves to a database endpoint:
 
 ```console
-packata infer contract.yaml --asset customers
-packata infer contract.yaml --asset customers --output enriched-contract.yaml
+packata schema infer contract.yaml --asset customers
+packata schema infer contract.yaml --asset customers --output enriched-contract.yaml
 ```
 
 Database connection details and the physical object name are resolved from the endpoint binding. Discovery is
-delegated to DubUrl; the corresponding database connector must be available to the CLI. CSV-only sampling and
+delegated to DubUrl; the CLI loads installed connectors or acquires them through a configured curated distribution catalog. CSV-only sampling and
 dialect options are ignored for database assets. Non-sensitive connection query options are retained in inferred
 metadata, sensitive query values are redacted, authority credentials are omitted, and URL fragments are removed.
+
+Manage connectors with `packata connector list`, `packata connector show <id>`, and
+`packata connector install <id>`. Configure download policy once with
+`packata config set connectors.offline true`; available connectors and database network connections still work.
+`packata config list` shows effective settings and their origins. The original `packata infer` spelling
+remains a compatibility alias. See [database CLI commands and configuration](docs/cli-database.md) for all actions,
+settings, connector preferences, and runtime connection environment overrides.
+DubUrl 0.43.0's bundled catalog has metadata only; downloads currently require setting
+`connectors.catalog` to a compatible distribution catalog containing archive URLs and hashes.
 
 Update an existing installation with `dotnet tool update --global Packata-cli`.
 
