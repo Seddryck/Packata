@@ -93,7 +93,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             diagnostics.Add(new("ODCS002", MappingSeverity.Warning, $"schema/{sourceAsset}/relationships",
                 $"Relationship type '{relationship.Type}' was retained but will not be provisioned as a foreign key."));
 
-        return new([from.Value.Field!], to.Value.Asset!, [to.Value.Field!], relationship.Id,
+        return new([from.Value.Field], to.Value.Asset, [to.Value.Field], relationship.Id,
             relationship.Type, MapCustomProperties(relationship.CustomProperties));
     }
 

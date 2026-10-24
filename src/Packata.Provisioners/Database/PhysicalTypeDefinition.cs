@@ -8,7 +8,7 @@ internal sealed record PhysicalTypeDefinition(NativeDatabaseType NativeType, int
 {
     private static readonly Regex TypePattern = new(
         @"^(?<name>[a-z][a-z0-9 ]*)(?:\((?<first>\d+)(?:\s*,\s*(?<second>\d+))?\))?$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
     public static bool TryParse(string? value, out PhysicalTypeDefinition? definition)
     {
@@ -44,11 +44,11 @@ internal sealed record PhysicalTypeDefinition(NativeDatabaseType NativeType, int
         try
         {
             var nativeType = new NativeDatabaseType(name);
-            definition = second is not null
-                ? new(nativeType, Precision: first, Scale: second)
-                : first is not null
-                    ? new(nativeType, Length: first)
-                    : new(nativeType);
+            definition = new(nativeType);
+            if (second is not null)
+                definition = new(nativeType, Precision: first, Scale: second);
+            else if (first is not null)
+                definition = new(nativeType, Length: first);
             return true;
         }
         catch (ArgumentException)
