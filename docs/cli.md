@@ -32,3 +32,24 @@ are redacted. Redirected output has no ANSI styling.
 Exit codes for these new commands: `0` success, `1` invalid document or operation,
 `2` invocation error, `3` I/O failure, and `130` cancellation. These do not change
 the existing `infer` command's exit-code contract.
+
+## Inspect the canonical contract
+
+```console
+packata contract inspect contract.yaml
+packata contract inspect datapackage.json --asset customers --output json
+```
+
+Inspection uses the same source loading and `--format` options as validation.
+Text output displays identity, metadata, assets, schema fields and constraints,
+endpoint bindings, locations, formats, and governance as a tree. Mapping warnings
+remain visible on stderr. `--asset` selects an exact canonical identifier and
+restricts the result to that asset and its referenced endpoints; unknown or
+ambiguous identifiers fail.
+
+JSON is a single object with `schemaVersion: 1`, `source`, `contract`, and
+`diagnostics`. `contract` contains `identity`, `metadata`, `assets`, `endpoints`,
+`governance`, and `extensions`, using camelCase property names and string enum
+values. Schema fields/constraints and endpoint bindings are nested under each
+asset. Diagnostics use the same four fields as validation. Credentials and
+connection URLs are redacted, including nested extension metadata.

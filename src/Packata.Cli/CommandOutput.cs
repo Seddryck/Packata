@@ -30,6 +30,7 @@ internal static class CommandOutput
     // Exception messages from parsers and database drivers may contain source lines or credentials.
     public static MappingDiagnostic Failure(Exception exception) => exception switch
     {
+        ContractOperationException operation => operation.Diagnostic,
         OperationCanceledException => new("CLI130", MappingSeverity.Error, "$", "Operation cancelled."),
         IOException or UnauthorizedAccessException or HttpRequestException =>
             new("CLI003", MappingSeverity.Error, "$", "Unable to read the source. Check its location and access permissions."),
