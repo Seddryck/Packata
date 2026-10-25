@@ -50,7 +50,10 @@ public static class Program
             });
             configuration.AddBranch("contract", contract =>
             {
-                contract.SetDescription("Validate and inspect contract documents.");
+                contract.SetDescription("Validate, inspect, and compare contract documents.");
+                contract.AddCommand<DiffCommand>("diff")
+                    .WithDescription("Compare a baseline (previous) contract to a candidate (current) contract.")
+                    .WithExample(["contract", "diff", "sales-v1.odcs.yaml", "sales-v2.odcs.yaml", "--output", "json"]);
                 contract.AddCommand<ValidateCommand>("validate")
                     .WithDescription("Validate an ODCS or Data Package v2 contract.")
                     .WithExample(["contract", "validate", "contract.yaml", "--output", "json"]);

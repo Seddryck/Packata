@@ -208,12 +208,14 @@ public sealed class ExportCommandTests
         Assert.That(result.Output, Does.Contain("--format").And.Contain("--dataset").And.Contain("--output").And.Contain("json-schema"));
     }
 
-    [Test]
-    public async Task Export_RejectsTemporalBoundsInsteadOfDroppingThem()
+    [TestCase("\n")]
+    [TestCase("\r\n")]
+    public async Task Export_RejectsTemporalBoundsInsteadOfDroppingThem(string lineEnding)
     {
         using var workspace = new CliWorkspace();
-        var source = workspace.Write("sales.yaml", Odcs.Replace("logicalType: date\n",
-            "logicalType: date\n        logicalTypeOptions:\n          minimum: '2020-01-01'\n"));
+        var document = Odcs.ReplaceLineEndings(lineEnding).Replace("logicalType: date",
+            $"logicalType: date{lineEnding}        logicalTypeOptions:{lineEnding}          minimum: '2020-01-01'");
+        var source = workspace.Write("sales.yaml", document);
         var result = await CliWorkspace.Run("export", source, "-f", "json-schema", "-d", "orders");
         Assert.That(result.ExitCode, Is.EqualTo(1));
         Assert.That(result.Error, Does.Contain("minimum"));

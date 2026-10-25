@@ -69,6 +69,113 @@ values. Schema fields/constraints and endpoint bindings are nested under each
 asset. Diagnostics use the same four fields as validation. Credentials and
 connection URLs are redacted, including nested extension metadata.
 
+## Compare two contract versions
+
+```console
+packata contract diff sales-v1.odcs.yaml sales-v2.odcs.yaml
+packata contract diff old/datapackage.json new/datapackage.json --output json
+packata contract diff old/descriptor new/descriptor --baseline-format odcs --candidate-format datapackage
+packata contract diff old.zip https://example.test/new.zip --quiet
+```
+
+The **baseline is previous** and the **candidate is current**. An addition is present
+only in the candidate, a removal only in the baseline, and a modification retains
+baseline-to-candidate values. Differences are factual data; this command does not
+apply a compatibility policy or decide whether a change is breaking.
+
+| Option | Values | Default |
+| --- | --- | --- |
+| `--baseline-format` | `auto`, `odcs`, `datapackage` | `auto` |
+| `--candidate-format` | `auto`, `odcs`, `datapackage` | `auto` |
+| `--output` | `text`, `json` | `text` |
+| `--quiet` | Suppress all result output, including JSON; diagnostics remain on stderr | off |
+
+Each input is independently detected, validated, and mapped using the inspection
+command's descriptor loader. Local, HTTP(S), and local/remote ZIP sources are
+supported. Referenced datasets are never opened, databases are never connected,
+and connectors are never acquired or configured. The command does not write either input.
+
+ODCS-to-ODCS and Data Package v2-to-Data Package v2 comparisons use the canonical
+library's `DataContract.Diff` API. Cross-standard comparisons also use that shared
+model directly, including preserved extension metadata; there is no CLI-specific
+matching or normalization. Differences outside the canonical mapping are not
+compared. For example, the current ODCS mapper does not populate canonical SLAs or
+quality rules; those change kinds are presented when returned by the library.
+Unsupported source formats, values the library cannot snapshot (such as custom
+objects in extension metadata), duplicate semantic identities, and unknown library
+change kinds fail explicitly rather than returning an empty successful diff.
+
+Text output names both inputs, states `baseline -> candidate`, then prints each
+change's operation, asset, semantic path, concrete kind, and payload values. An
+empty result says `No differences detected.` Library ordering is preserved.
+Redirected text and JSON contain no ANSI styling. Text diagnostics go to stderr.
+
+JSON stdout contains exactly one object, with this versioned shape:
+
+```json
+{
+  "schemaVersion": 1,
+  "baseline": "sales-v1.odcs.yaml",
+  "candidate": "sales-v2.odcs.yaml",
+  "hasChanges": true,
+  "changes": [
+    {
+      "kind": "PropertyTypeChanged",
+      "operation": "modified",
+      "asset": "property",
+      "path": "schema.orders.properties.amount.type",
+      "datasetId": "orders",
+      "propertyId": "amount",
+      "previous": "integer",
+      "current": "number"
+    }
+  ],
+  "diagnostics": []
+}
+```
+
+Every change has `kind`, `operation` (`added`, `removed`, or `modified`), `asset`,
+and the library's semantic `path`. The following additional fields are emitted
+at the same level; fields for other kinds are absent. Applicable values retain
+explicit JSON nulls, so `"previous": null` differs from an absent `previous` field.
+
+| Kind | Asset | Additional fields |
+| --- | --- | --- |
+| `ServerAdded`, `ServerRemoved` | `server` | `server`: canonical endpoint |
+| `ServerModified` | `server` | `previous`, `current`: canonical endpoints |
+| `SlaAdded`, `SlaRemoved` | `sla` | `sla`: canonical service level |
+| `SlaModified` | `sla` | `previous`, `current`: canonical service levels |
+| `DatasetAdded`, `DatasetRemoved` | `dataset` | `dataset`: canonical asset including its subtree |
+| `DatasetModified` | `dataset` | `previous`, `current`: canonical assets |
+| `PropertyAdded`, `PropertyRemoved` | `property` | `datasetId`, `propertyId`, `property`: canonical field |
+| `PropertyModified` | `property` | `datasetId`, `propertyId`, `previous`, `current`: canonical fields |
+| `PropertyTypeChanged` | `property` | `datasetId`, `propertyId`, `previous`, `current`: logical-type strings or null |
+| `RelationshipAdded`, `RelationshipRemoved` | `relationship` | `relationship`: canonical relationship |
+| `RelationshipModified` | `relationship` | `previous`, `current`: canonical relationships |
+| `QualityRuleAdded`, `QualityRuleRemoved` | `qualityRule` | `qualityRule`: canonical quality rule |
+| `QualityRuleModified` | `qualityRule` | `previous`, `current`: canonical quality rules |
+| `ContractMetadataChanged` | `contractMetadata` | `previous`, `current`: identity, metadata, governance, or extensions, according to `path` |
+
+Payload records use camelCase property names and string enum values. Canonical
+extensions are objects keyed by namespace, with each namespace's key/value map
+preserved. Extension dictionary keys keep their original casing. No CLR type or
+assembly metadata is added. Changes are ordered by ordinal path and concrete kind,
+as returned by the library. See the README's comparison section for identity,
+escaped-path, subtree, and immutable-snapshot rules.
+
+Each diagnostic has `input` (`baseline`, `candidate`, or `comparison`), `source`,
+`code`, `severity`, `sourcePath`, and `message`. Successful JSON includes warnings
+in `diagnostics`; quiet mode sends them to stderr. Credentials and connection
+strings are redacted in source identifiers, diagnostics, paths, descriptions,
+and nested payloads in both representations. Failures emit diagnostics on stderr
+and no successful or partial diff object on stdout.
+
+Exit codes are `0` for a completed comparison, **including differences**, `1` for
+an invalid/unsupported contract or comparison, `2` for invalid invocation or option
+values, `3` for I/O failure, and `130` for cancellation. Automation can inspect
+`hasChanges` and `changes`; compatibility gates, filters, rename heuristics, and
+patch generation are not part of this command.
+
 ## Export a dataset schema
 
 ```console
