@@ -38,11 +38,7 @@ internal sealed class DialectExportCommand : AsyncCommand<DialectExportSettings>
     {
         try
         {
-            // Refuse accidental source replacement even when --overwrite is supplied.
-            var sourceUri = Uri.TryCreate(settings.Source, UriKind.Absolute, out var uri) ? uri : new Uri(Path.GetFullPath(settings.Source));
-            if (settings.Output is not null && sourceUri.IsFile && Path.GetFullPath(settings.Output).Equals(
-                sourceUri.LocalPath, StringComparison.OrdinalIgnoreCase))
-                throw new ContractOperationException("CLI024", "$", "Dialect output must differ from the source contract path.");
+            ValidateOutputPath(settings);
             var source = await ContractSource.LoadAsync(settings.Source, "auto", cancellationToken).ConfigureAwait(false);
             var mapped = ContractSelection.Map(source);
             foreach (var diagnostic in mapped.Diagnostics) CommandOutput.Diagnostic(diagnostic);
@@ -51,8 +47,7 @@ internal sealed class DialectExportCommand : AsyncCommand<DialectExportSettings>
             foreach (var diagnostic in result.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!result.IsSuccessful) return ExitCodes.InvalidDocument;
             cancellationToken.ThrowIfCancellationRequested();
-            if (settings.Output is null) Console.WriteLine(result.Value);
-            else ContractDocumentWriter.Write(settings.Output, result.Value! + Environment.NewLine, settings.Overwrite);
+            WriteOutput(settings, result.Value!);
             return ExitCodes.Success;
         }
         catch (Exception exception)
@@ -62,5 +57,20 @@ internal sealed class DialectExportCommand : AsyncCommand<DialectExportSettings>
                 : CommandOutput.Failure(exception));
             return CommandOutput.FailureExitCode(exception);
         }
+    }
+
+    private static void ValidateOutputPath(DialectExportSettings settings)
+    {
+        // Refuse accidental source replacement even when --overwrite is supplied.
+        var sourceUri = Uri.TryCreate(settings.Source, UriKind.Absolute, out var uri) ? uri : new Uri(Path.GetFullPath(settings.Source));
+        if (settings.Output is not null && sourceUri.IsFile && Path.GetFullPath(settings.Output).Equals(
+            sourceUri.LocalPath, StringComparison.OrdinalIgnoreCase))
+            throw new ContractOperationException("CLI024", "$", "Dialect output must differ from the source contract path.");
+    }
+
+    private static void WriteOutput(DialectExportSettings settings, string json)
+    {
+        if (settings.Output is null) Console.WriteLine(json);
+        else ContractDocumentWriter.Write(settings.Output, json + Environment.NewLine, settings.Overwrite);
     }
 }

@@ -30,8 +30,30 @@ public sealed class CsvDialectExporter
     {
         ArgumentNullException.ThrowIfNull(contract);
         var diagnostics = new List<MappingDiagnostic>();
-        MappingResult<TableDelimitedDialect> Fail(string code, string path, string message)
-            => MappingResult<TableDelimitedDialect>.Failure(new MappingDiagnostic(code, MappingSeverity.Error, path, message));
+        var selected = SelectEndpoint(contract, endpointId);
+        if (!selected.IsSuccessful) return new(null, selected.Diagnostics);
+
+        var endpoint = selected.Value!;
+        var path = $"$.endpoints[{contract.Endpoints.ToList().IndexOf(endpoint)}].format";
+        var dialect = new TableDelimitedDialect { Profile = Profile };
+        var options = endpoint.Format?.Options ?? new Dictionary<string, object?>();
+        foreach (var (name, value) in options)
+            ApplyOption(dialect, name, value, path, diagnostics);
+
+        NormalizeHeaderRows(dialect, options);
+        ValidateCharacters(dialect, path, diagnostics);
+        ValidateHeaderRows(dialect, path, diagnostics);
+        if (dialect.QuoteChar is null)
+            diagnostics.Add(new("CSV007", MappingSeverity.Warning, $"{path}.options.quoteChar",
+                "The null quoteChar is exported as an empty string because the Table Dialect profile requires a string. Check the consumer's support for disabled quoting."));
+
+        return new(diagnostics.Any(d => d.Severity == MappingSeverity.Error) ? null : dialect, diagnostics);
+    }
+
+    private static MappingResult<DataEndpoint> SelectEndpoint(DataContract contract, string endpointId)
+    {
+        MappingResult<DataEndpoint> Fail(string code, string path, string message)
+            => MappingResult<DataEndpoint>.Failure(new MappingDiagnostic(code, MappingSeverity.Error, path, message));
 
         if (string.IsNullOrWhiteSpace(endpointId))
             return Fail("CSV001", "$.endpoints", "Select a CSV endpoint by its exact identifier.");
@@ -46,48 +68,65 @@ public sealed class CsvDialectExporter
         if (!IsCsv(endpoint))
             return Fail("CSV003", path, "The selected endpoint must describe a CSV file (format csv, text/csv, or a .csv path).");
 
-        var dialect = new TableDelimitedDialect { Profile = Profile };
-        var options = endpoint.Format?.Options ?? new Dictionary<string, object?>();
-        foreach (var (name, value) in options)
+        return MappingResult<DataEndpoint>.Success(endpoint);
+    }
+
+    private static void ApplyOption(TableDelimitedDialect dialect, string name, object? value,
+        string path, List<MappingDiagnostic> diagnostics)
+    {
+        if (Properties.Contains(name, StringComparer.Ordinal))
         {
-            if (Properties.Contains(name, StringComparer.Ordinal))
-            {
-                var property = typeof(TableDialect).GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)!;
-                if (TryValue(value, property.PropertyType, out var converted)) property.SetValue(dialect, converted);
-                else diagnostics.Add(new("CSV004", MappingSeverity.Error, $"{path}.options.{name}",
-                    $"Invalid CSV dialect setting '{name}'; expected {property.PropertyType.Name}."));
-            }
-            else if (name == "dialectType" && value is null or "delimited") { }
-            else if (name == "dialectProfile" && value is null or Profile or "https://datapackage.org/profiles/1.0/tabledialect.json") { }
-            else if (name == "headerRepeat" && value is true) { }
-            else if (value is not null)
-                diagnostics.Add(new("CSV005", MappingSeverity.Warning, $"{path}.options.{name}",
-                    $"Setting '{name}' is not represented by the exported CSV Table Dialect profile and was omitted."));
+            var property = typeof(TableDialect).GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)!;
+            if (TryValue(value, property.PropertyType, out var converted)) property.SetValue(dialect, converted);
+            else diagnostics.Add(new("CSV004", MappingSeverity.Error, $"{path}.options.{name}",
+                $"Invalid CSV dialect setting '{name}'; expected {property.PropertyType.Name}."));
+            return;
         }
 
+        if (value is null || IsDefaultMetadata(name, value)) return;
+        diagnostics.Add(new("CSV005", MappingSeverity.Warning, $"{path}.options.{name}",
+            $"Setting '{name}' is not represented by the exported CSV Table Dialect profile and was omitted."));
+    }
+
+    private static bool IsDefaultMetadata(string name, object value) => name switch
+    {
+        "dialectType" => value is "delimited",
+        "dialectProfile" => value is Profile or "https://datapackage.org/profiles/1.0/tabledialect.json",
+        "headerRepeat" => value is true,
+        _ => false
+    };
+
+    private static void NormalizeHeaderRows(TableDelimitedDialect dialect, IReadOnlyDictionary<string, object?> options)
+    {
         // Native dialect models retain [1] as their default even when header is false.
         if (!dialect.Header && (!options.ContainsKey("headerRows") || dialect.HeaderRows?.SequenceEqual([1]) == true))
             dialect.HeaderRows = [];
+    }
+
+    private static void ValidateCharacters(TableDelimitedDialect dialect, string path, List<MappingDiagnostic> diagnostics)
+    {
         void Invalid(string name, string message) => diagnostics.Add(new("CSV006", MappingSeverity.Error, $"{path}.options.{name}", message));
         if (string.IsNullOrEmpty(dialect.Delimiter)) Invalid("delimiter", "Delimiter must be a non-empty string.");
         if (string.IsNullOrEmpty(dialect.LineTerminator)) Invalid("lineTerminator", "Line terminator must be a non-empty string.");
         foreach (var (name, value) in new[] { ("quoteChar", dialect.QuoteChar), ("escapeChar", dialect.EscapeChar), ("commentChar", dialect.CommentChar) })
-            if (value is not null && value.Length != 1 && !(name == "quoteChar" && value.Length == 0))
+            if (!IsValidCharacter(name, value))
                 Invalid(name, $"Setting '{name}' must contain one character (or an empty quoteChar to disable quoting).");
         if (dialect.HeaderJoin is null) Invalid("headerJoin", "Header join must be a string.");
         if (dialect.EscapeChar is not null && (!string.IsNullOrEmpty(dialect.QuoteChar) || dialect.DoubleQuote))
             Invalid("escapeChar", "Escape and quote strategies cannot be combined. Set quoteChar to null and doubleQuote to false for escape mode.");
-        if (dialect.Header && dialect.HeaderRows is not { Count: > 0 }
-            || !dialect.Header && dialect.HeaderRows is { Count: > 0 })
+    }
+
+    private static bool IsValidCharacter(string name, string? value) =>
+        value is null || value.Length == 1 || (name == "quoteChar" && value.Length == 0);
+
+    private static void ValidateHeaderRows(TableDelimitedDialect dialect, string path, List<MappingDiagnostic> diagnostics)
+    {
+        void Invalid(string name, string message) => diagnostics.Add(new("CSV006", MappingSeverity.Error, $"{path}.options.{name}", message));
+        var hasHeaderRows = dialect.HeaderRows is { Count: > 0 };
+        if (dialect.Header != hasHeaderRows)
             Invalid("headerRows", "Header rows must be non-empty when header is true and empty when header is false.");
         foreach (var (name, rows) in new[] { ("headerRows", dialect.HeaderRows), ("commentRows", dialect.CommentRows) })
             if (rows?.Any(row => row <= 0) == true) Invalid(name, $"Setting '{name}' must contain positive row numbers.");
-
-        if (dialect.QuoteChar is null)
-            diagnostics.Add(new("CSV007", MappingSeverity.Warning, $"{path}.options.quoteChar",
-                "The null quoteChar is exported as an empty string because the Table Dialect profile requires a string. Check the consumer's support for disabled quoting."));
-
-        return new(diagnostics.Any(d => d.Severity == MappingSeverity.Error) ? null : dialect, diagnostics);
     }
 
     private static bool IsCsv(DataEndpoint endpoint)
@@ -98,13 +137,15 @@ public sealed class CsvDialectExporter
         if (!string.IsNullOrEmpty(name)) return name is "csv" or "csv.gz" or "csv.gzip";
         var mediaType = endpoint.Format?.MediaType?.Split(';')[0].Trim();
         if (!string.IsNullOrEmpty(mediaType)) return mediaType.Equals("text/csv", StringComparison.OrdinalIgnoreCase);
-        return endpoint.Location is PathLocation { Paths.Count: > 0 } paths && paths.Paths.All(path =>
-        {
-            var file = Uri.TryCreate(path, UriKind.Absolute, out var uri) ? uri.AbsolutePath : path;
-            if (file.EndsWith(".gz", StringComparison.OrdinalIgnoreCase)) file = file[..^3];
-            else if (file.EndsWith(".gzip", StringComparison.OrdinalIgnoreCase)) file = file[..^5];
-            return file.EndsWith(".csv", StringComparison.OrdinalIgnoreCase);
-        });
+        return endpoint.Location is PathLocation { Paths.Count: > 0 } paths && paths.Paths.All(IsCsvPath);
+    }
+
+    private static bool IsCsvPath(string path)
+    {
+        var file = Uri.TryCreate(path, UriKind.Absolute, out var uri) ? uri.AbsolutePath : path;
+        if (file.EndsWith(".gz", StringComparison.OrdinalIgnoreCase)) file = file[..^3];
+        else if (file.EndsWith(".gzip", StringComparison.OrdinalIgnoreCase)) file = file[..^5];
+        return file.EndsWith(".csv", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryValue(object? value, Type type, out object? converted)
@@ -117,22 +158,34 @@ public sealed class CsvDialectExporter
             return converted is null or string;
         }
         if (type == typeof(bool)) { converted = value; return value is bool; }
-        if (type == typeof(List<int>))
+        return type == typeof(List<int>) && TryRows(value, out converted);
+    }
+
+    private static bool TryRows(object? value, out object? converted)
+    {
+        converted = null;
+        if (value is null) return true;
+        if (value is not IEnumerable sequence || value is string) return false;
+        var rows = new List<int>();
+        foreach (var item in sequence)
         {
-            if (value is null) { converted = null; return true; }
-            if (value is not IEnumerable sequence || value is string) return false;
-            var rows = new List<int>();
-            foreach (var item in sequence)
-            {
-                var row = item is JValue token ? token.Value : item;
-                if (row is int number) rows.Add(number);
-                else if (row is long integer && integer is >= int.MinValue and <= int.MaxValue) rows.Add((int)integer);
-                else return false;
-            }
-            converted = rows;
-            return true;
+            if (!TryRow(item, out var row)) return false;
+            rows.Add(row);
         }
-        return false;
+        converted = rows;
+        return true;
+    }
+
+    private static bool TryRow(object? value, out int row)
+    {
+        if (value is JValue token) value = token.Value;
+        switch (value)
+        {
+            case int number: row = number; return true;
+            case long integer when integer is >= int.MinValue and <= int.MaxValue:
+                row = (int)integer; return true;
+            default: row = 0; return false;
+        }
     }
 
     private static string Serialize(TableDelimitedDialect dialect)
