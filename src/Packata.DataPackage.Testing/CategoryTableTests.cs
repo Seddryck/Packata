@@ -60,7 +60,7 @@ public class CategoryTableTests
         var contract = new DataPackageMapper().Map(package).RequireValue();
         var field = contract.Assets[0].Schema!.Fields[0];
         Assert.That(field.Extensions["datapackage"]["categories"], Is.Not.SameAs(categories.Reference));
-        Assert.That(((CategoryTableReference)field.Extensions["datapackage"]["categories"]!).Resource, Is.EqualTo(categories.Reference.Resource));
+        Assert.That(((IReadOnlyDictionary<string, object?>)field.Extensions["datapackage"]["categories"]!)["resource"], Is.EqualTo(categories.Reference.Resource));
         Assert.That(contract.Assets[1].Extensions["datapackage"]["categoryFieldMap"], Is.Not.SameAs(map));
         Assert.That(field.Constraints, Is.Empty, "References must not become empty or expanded DDL enum constraints.");
     }
@@ -103,9 +103,9 @@ public class CategoryTableTests
             reference.Package = packageName; reference.EncodedAs = "label";
             Assert.That(DataPackageValidator.Validate(package).Issues, Is.Empty);
             var field = new DataPackageMapper().Map(package).RequireValue().Assets[0].Schema!.Fields[0];
-            var snapshot = (CategoryTableReference)field.Extensions["datapackage"]["categories"]!;
-            Assert.That(snapshot, Is.Not.SameAs(reference));
-            Assert.That(snapshot.Package, Is.EqualTo(reference.Package));
+            var snapshot = (IReadOnlyDictionary<string, object?>)field.Extensions["datapackage"]["categories"]!;
+            Assert.That(snapshot["resource"], Is.EqualTo(reference.Resource));
+            Assert.That(snapshot["package"], Is.EqualTo(reference.Package));
         }
     }
 

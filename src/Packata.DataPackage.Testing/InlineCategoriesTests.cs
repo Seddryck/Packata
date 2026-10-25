@@ -141,7 +141,8 @@ public class InlineCategoriesTests
             Assert.That(mapped.Constraints.Single().Value, Is.EqualTo(new[] { "001" }));
             Assert.That(mapped.Extensions["datapackage"]["categoriesOrdered"], Is.EqualTo(ordered));
             Assert.That(mapped.Extensions["datapackage"]["categories"], Is.Not.SameAs(field.Categories));
-            Assert.That(((CategoryCollection)mapped.Extensions["datapackage"]["categories"]!).Select(entry => (entry.Value, entry.Label)),
+            Assert.That(((IReadOnlyList<object?>)mapped.Extensions["datapackage"]["categories"]!).Cast<IReadOnlyDictionary<string, object?>>()
+                .Select(entry => (entry["value"], entry["label"])),
                 Is.EqualTo(field.Categories!.Select(entry => (entry.Value, entry.Label))));
             field.Constraints = null;
             mapped = new DataPackageMapper().Map(Package(field)).RequireValue().Assets.Single().Schema!.Fields.Single();

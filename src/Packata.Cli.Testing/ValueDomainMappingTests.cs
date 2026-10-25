@@ -12,6 +12,12 @@ namespace Packata.Cli.Testing;
 public class ValueDomainMappingTests
 {
     [Test]
+    public void Canonical_diff_can_snapshot_mapped_categories()
+    {
+        DataContract Create() => Map(new DP.StringField { Name = "code", Type = "string", Categories = [new DP.Category("A", "Alpha")] }).RequireValue();
+        Assert.That(Create().Diff(Create()).Changes, Is.Empty);
+    }
+    [Test]
     public void Json_schema_export_uses_effective_values_without_labels_or_unresolved_expansion()
     {
         var a = ScalarValue.From("A");
@@ -110,7 +116,7 @@ public class ValueDomainMappingTests
         Assert.That(field.Constraints.Single().Value, Is.EqualTo(new[] { "C", "A" }));
         native.Categories!.Add(new DP.Category("D", "Changed")); native.CategoriesOrdered = !ordered;
         Assert.That(field.ValueDomain.Entries, Has.Count.EqualTo(3));
-        Assert.That(((DP.CategoryCollection)field.Extensions["datapackage"]["categories"]!), Has.Count.EqualTo(3));
+        Assert.That(((IReadOnlyList<object?>)field.Extensions["datapackage"]["categories"]!), Has.Count.EqualTo(3));
     }
 
     [Test]
@@ -163,10 +169,11 @@ public class ValueDomainMappingTests
         Assert.That(definition.ValueField.Segments, Is.EqualTo(new[] { "code" }));
         Assert.That(definition.LabelField!.Segments, Is.EqualTo(new[] { "name" }));
         Assert.That(definition.Ordered, Is.False);
+        Assert.That(result.RequireValue().Diff(result.RequireValue()).Changes, Is.Empty);
         reference.Resource = "changed"; map.Value = "changed"; map.Ordered = true;
         Assert.That(domain.Reference.ResourceName, Is.EqualTo("codes"));
         Assert.That(definition.ValueField.Segments, Is.EqualTo(new[] { "code" }));
-        Assert.That(((DP.CategoryTableReference)field.Extensions["datapackage"]["categories"]!).Resource, Is.EqualTo("codes"));
+        Assert.That(((IReadOnlyDictionary<string, object?>)field.Extensions["datapackage"]["categories"]!)["resource"], Is.EqualTo("codes"));
         native.Categories = new DP.CategoryTableReference { Resource = "codes" };
         native.Constraints = new(); native.Constraints.Add(new DP.EnumConstraint(new object[] { "A" }));
         // Restore the valid table descriptor; explicit membership does not require loading its data.

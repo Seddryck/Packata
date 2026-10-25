@@ -244,8 +244,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             ["homepage"] = resource.Homepage,
             ["sources"] = resource.Sources,
             ["licenses"] = resource.Licenses,
-            ["categoryFieldMap"] = resource.CategoryFieldMap is not { } map ? null : new Native.CategoryFieldMap
-            { Value = map.Value, Label = map.Label, Ordered = map.Ordered }
+            ["categoryFieldMap"] = resource.CategoryFieldMap is not { } map ? null : MetadataSnapshot.CopyDictionary(
+                new Dictionary<string, object?> { ["value"] = map.Value, ["label"] = map.Label, ["ordered"] = map.Ordered })
         };
 
     private static IReadOnlyDictionary<string, object?> FieldExtensions(Native.Field field)
@@ -271,17 +271,12 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
     {
         if (categories is null) return null;
         if (categories.Reference is { } reference)
-            return new Native.CategoryTableReference { Resource = reference.Resource, Package = reference.Package, EncodedAs = reference.EncodedAs };
-        return new Native.CategoryCollection(categories.Select(category => category switch
-        {
-            Native.Category value => (Native.ICategory)new Native.Category(value.Value, value.Label),
-            Native.CategoryLabel value => new Native.CategoryLabel(value.Label),
-            Native.CategoryInteger value => new Native.CategoryInteger((long)value.Value),
-            _ => new CategorySnapshot(MetadataSnapshot.CopyValue(category.Value)!, category.Label)
-        }));
+            return MetadataSnapshot.CopyDictionary(new Dictionary<string, object?>
+            { ["resource"] = reference.Resource, ["package"] = reference.Package, ["encodedAs"] = reference.EncodedAs });
+        return Array.AsReadOnly(categories.Select(category => category is Native.Category
+            ? (object?)MetadataSnapshot.CopyDictionary(new Dictionary<string, object?> { ["value"] = category.Value, ["label"] = category.Label })
+            : MetadataSnapshot.CopyValue(category.Value)).ToArray());
     }
-
-    private sealed record CategorySnapshot(object Value, string? Label) : Native.ICategory;
 
     private static object? NormalizeInlineValue(object? value) => value switch
     {

@@ -96,9 +96,12 @@ reference remains visible with unknown membership.
 The old metadata paths remain available: ODCS enum snapshots under
 `field.Extensions["odcs"]["enum"]`, Data Package category metadata under
 `field.Extensions["datapackage"]["categories"]`, and resource field-map metadata
-under `asset.Extensions["datapackage"]["categoryFieldMap"]`. Data Package metadata
-keeps its existing native payload types as detached copies; ODCS snapshots use
-read-only dictionaries/lists. Prefer the common API for new cross-format code.
+under `asset.Extensions["datapackage"]["categoryFieldMap"]`. These domain-related
+snapshots use read-only dictionaries/lists and primitive values, which the canonical
+diff API can snapshot without depending on native format classes. Code that cast
+the old Data Package extension payloads to native category/reference objects should
+use `field.ValueDomain` / `asset.CategoryTable` instead, or read the preserved source
+property names as dictionary keys. Prefer the common API for new cross-format code.
 
 DataField and DataAsset constructors append optional model arguments, preserving
 existing source call sites. Consumers upgrading the assembly should rebuild.
