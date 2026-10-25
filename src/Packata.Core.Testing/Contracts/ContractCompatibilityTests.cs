@@ -191,6 +191,130 @@ public class ContractCompatibilityTests
         Assert.That(result.Diagnostics.Select(x => x.Input), Is.EquivalentTo(new[] { "baseline", "candidate" }));
     }
 
+    [TestCase(ContractStandard.Odcs)]
+    [TestCase(ContractStandard.DataPackage)]
+    public void UnmappedSourceMembers_ReportInputSpecificDiagnosticsAndPreventCompatibility(ContractStandard standard)
+    {
+        var contract = Contract(new DataField("id", "integer"));
+        var baseline = new CompatibilityInput(contract, standard, Descriptor: new Dictionary<string, object?>());
+        var candidate = baseline with { Descriptor = new Dictionary<string, object?> { ["unsupported"] = "value" } };
+        var result = ContractCompatibility.Compare(baseline, candidate);
+
+        Assert.That(result.Completed, Is.True);
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.Unknown));
+        Assert.That(result.Diagnostics.Single(), Is.EqualTo(new CompatibilityDiagnostic("candidate", "CMP020",
+            MappingSeverity.Warning, "$.unsupported", "Source semantics are not covered by this compatibility policy.")));
+        Assert.That(result.Findings.Single().Rule, Is.EqualTo("candidate:source-coverage"));
+    }
+
+    [Test]
+    public void DataPackageRequiredness_NormalizesNullabilityRecursively()
+    {
+        var field = new DataField("details", "object", Required: true, Nullable: false, Children:
+            [new("values", "array", Required: true, Nullable: false, Items: new("element", "integer", Required: true, Nullable: false))]);
+        var baseline = Contract(field);
+        var child = field.Children[0];
+        var candidate = Contract(field with
+        {
+            Nullable = true,
+            Children = [child with { Nullable = true, Items = child.Items! with { Nullable = true } }]
+        });
+        var descriptor = new Dictionary<string, object?>();
+        var result = ContractCompatibility.Compare(new CompatibilityInput(baseline, ContractStandard.DataPackage, Descriptor: descriptor),
+            new CompatibilityInput(candidate, ContractStandard.DataPackage, Descriptor: descriptor));
+
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.Compatible));
+        Assert.That(result.Findings, Is.Empty);
+        var odcs = ContractCompatibility.Compare(new CompatibilityInput(baseline, ContractStandard.Odcs, Descriptor: descriptor),
+            new CompatibilityInput(candidate, ContractStandard.Odcs, Descriptor: descriptor));
+        Assert.That(odcs.Outcome, Is.EqualTo(CompatibilityOutcome.Breaking));
+        Assert.That(odcs.Findings.Count(x => x.Rule == "nullability"), Is.EqualTo(3));
+    }
+
+    [TestCase(ContractStandard.Canonical)]
+    [TestCase(ContractStandard.DataPackage)]
+    public void MissingSchemas_PreventCompatibilityEvenWhenContractsAreIdentical(ContractStandard standard)
+    {
+        var contract = Contract();
+        contract = contract with { Assets = [contract.Assets[0] with { Schema = null }] };
+        var input = new CompatibilityInput(contract, standard, Descriptor: new Dictionary<string, object?>());
+        var result = ContractCompatibility.Compare(input, input);
+
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.Unknown));
+        Assert.That(result.Findings.Select(x => x.Rule), Is.EquivalentTo(new[] { "baseline:schema-coverage", "candidate:schema-coverage" }));
+        Assert.That(result.Findings.Select(x => x.Path.Value), Is.All.EqualTo("schema.orders"));
+    }
+
+    [Test]
+    public void DatasetAccessAndSchemaChanges_AreClassifiedIndependently()
+    {
+        var baseline = Contract(new DataField("id", "integer"));
+        var asset = baseline.Assets[0];
+        var access = baseline with { Assets = [asset with { PhysicalName = "orders_v2", Kind = AssetKind.View }] };
+        var result = ContractCompatibility.Compare(baseline, access);
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.PotentiallyBreaking));
+        Assert.That(result.Findings.Single().Rule, Is.EqualTo("dataset-access"));
+
+        var changed = access with { Assets = [access.Assets[0] with { Schema = asset.Schema! with { PrimaryKey = ["id"] } }] };
+        result = ContractCompatibility.Compare(baseline, changed);
+        Assert.That(result.Findings.Select(x => x.Rule), Is.EquivalentTo(new[] { "dataset-access", "dataset-semantics" }));
+        Assert.That(result.Findings.Select(x => x.Classification), Is.EquivalentTo(new[]
+        {
+            CompatibilityClassification.PotentiallyBreaking, CompatibilityClassification.Unknown
+        }));
+    }
+
+    [Test]
+    public void IdentityAndGovernanceChanges_HaveDifferentCompatibilityImplications()
+    {
+        var baseline = Contract();
+        var renamed = baseline with { Identity = baseline.Identity with { Name = "Sales" } };
+        var result = ContractCompatibility.Compare(baseline, renamed);
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.PotentiallyBreaking));
+        Assert.That(result.Findings.Single().Rule, Is.EqualTo("contract-identity"));
+
+        var versioned = baseline with { Identity = baseline.Identity with { Version = "2.0.0" } };
+        Assert.That(ContractCompatibility.Compare(baseline, versioned).Findings.Single().Rule, Is.EqualTo("descriptive-metadata"));
+
+        var governed = baseline with { Governance = new(Ownership: new("analytics")) };
+        result = ContractCompatibility.Compare(baseline, governed);
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.Unknown));
+        Assert.That(result.Findings.Single().Rule, Is.EqualTo("contract-metadata"));
+    }
+
+    [Test]
+    public void ServerChanges_ArePotentiallyBreakingAndQualitySemanticsRemainUnknown()
+    {
+        var baseline = Contract(new DataField("id", "integer"));
+        var candidate = baseline with { Endpoints = [new("files", "Local files", EndpointKind.File, "test", new PathLocation(["orders.csv"]))] };
+        var result = ContractCompatibility.Compare(baseline, candidate);
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.PotentiallyBreaking));
+        Assert.That(result.Findings.Single().Rule, Is.EqualTo("server-access"));
+
+        candidate = baseline with { Assets = [baseline.Assets[0] with { QualityRules = [new("custom", Expression: "id > 0")] }] };
+        result = ContractCompatibility.Compare(baseline, candidate);
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.Unknown));
+        Assert.That(result.Findings.Single().Rule, Is.EqualTo("unsupported-change"));
+    }
+
+    [Test]
+    public void FieldExtensions_RemainUnknownWhileRepresentationChangesArePotentiallyBreaking()
+    {
+        var baseline = new DataField("id", "integer");
+        var candidate = baseline with
+        {
+            PhysicalName = "order_id", PhysicalType = "bigint",
+            Extensions = ExtensionMetadata.For("custom", new Dictionary<string, object?> { ["semantics"] = "identity" })
+        };
+        var result = Compare(baseline, candidate);
+
+        Assert.That(result.Findings.Select(x => x.Rule), Is.EquivalentTo(new[] { "physical-representation", "field-extensions" }));
+        Assert.That(result.Findings.Select(x => x.Classification), Is.EquivalentTo(new[]
+        {
+            CompatibilityClassification.PotentiallyBreaking, CompatibilityClassification.Unknown
+        }));
+    }
+
     [Test]
     public void ArrayItemPaths_DoNotConfuseTraversalWithLiteralFieldNames()
     {
