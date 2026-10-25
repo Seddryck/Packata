@@ -38,7 +38,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 
 | Package | Purpose |
 |---|---|
-| `Packata.Core` | Standards-neutral contracts for assets, schemas, endpoints, diagnostics, readers, and provisioners |
+| `Packata.Core` | Standards-neutral contracts, typed contract differences, assets, schemas, endpoints, diagnostics, readers, and provisioners |
 | `Packata.Database` | Shared DubUrl connection configuration and runtime endpoint resolution |
 | `Packata.DataPackage` | Data Package v2 models, JSON/YAML serialization, validation, and canonical mapping |
 | `Packata.OpenDataContract` | ODCS models, YAML serialization, validation, and canonical mapping |
@@ -334,6 +334,45 @@ For shared database connections, host-supplied credentials, and operation prefli
 [ODCS and Data Package example](examples/DatabaseConnections). The
 [connector acquisition example](examples/ConnectorAcquisition) demonstrates acquisition on the first read
 from a host-supplied catalog and reuse on later reads.
+
+## Compare contracts
+
+Compare any two canonical contracts after mapping them from ODCS or Data Package:
+
+```csharp
+using Packata.Core.Contracts;
+
+var diff = previousContract.Diff(currentContract);
+var additions = diff.Changes.OfType<IAdded>();
+var serverChanges = diff.Changes.OfType<IServerChange>();
+
+foreach (var change in diff.Changes)
+{
+    if (change is PropertyTypeChanged { Previous: var before, Current: var after } type)
+        Console.WriteLine($"{type.DatasetId}/{type.PropertyId}: {before} -> {after}");
+}
+```
+
+Servers use endpoint IDs, datasets use asset IDs, properties use field names, and SLAs use
+service-level names. Matching is ordinal and independent of collection order. Nested properties
+and array items have paths such as `schema.orders.properties.lines.items.type`. Path segments
+escape dots and backslashes with a backslash. Renaming an identifier produces a removal and an addition.
+Named relationships use their names; unnamed relationships use a length-prefixed composite of kind,
+target asset, source fields, and target fields. Quality rules use a length-prefixed composite of kind
+and expression because the canonical model has no quality-rule ID. Changing either composite identity
+produces a removal and an addition. Missing or duplicate semantic identifiers are rejected, including
+inside added or removed datasets.
+
+Additions and removals include the entire affected subtree. Modifications retain both values;
+property logical-type changes have a dedicated `PropertyTypeChanged` type. Other property details
+use `PropertyModified`, dataset/schema details use `DatasetModified`, and contract-level details
+use `ContractMetadataChanged`. These factual changes do not classify compatibility or execute policies.
+
+Results are read-only snapshots, sorted by ordinal path and concrete change-type name. Snapshotting
+supports canonical records and scalar, string-keyed dictionary, sequence, or `JsonElement` values in
+extension metadata, constraints, SLAs, and inline data. Dictionaries and sequences become read-only
+collections; JSON values become equivalent scalar/collection values. Unsupported custom values fail
+with `NotSupportedException` rather than retaining mutable references. Neither input is modified.
 
 ## License
 
