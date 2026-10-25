@@ -1,3 +1,10 @@
+---
+title: Database commands and configuration
+nav_order: 4
+nav_exclude: false
+permalink: /cli-database/
+---
+
 # Database commands and user configuration
 
 Infer a bound resource with the canonical subject/action command:
