@@ -4,6 +4,21 @@ Install the .NET tool with `dotnet tool install --global Packata-cli`. Run
 `packata --help` or `packata --version` to discover commands and the installed version.
 The existing `packata infer` command remains available.
 
+## Export a CSV dialect
+
+```console
+packata dialect export datapackage.json --endpoint customers-endpoint
+packata dialect export contract.yaml --endpoint local --output customers.dialect.json
+```
+
+Export a selected CSV endpoint as standalone Data Package v2 Table Dialect JSON.
+Use `contract inspect` to find the endpoint ID. `--endpoint` is required; without
+`--output` the descriptor goes to stdout. Diagnostics go to stderr. Replacing an
+existing output file requires `--overwrite`; the source contract is protected.
+Export reads contract metadata without opening CSV data. See
+[CSV dialect export](csv-dialect-export.md) for the library API, supported
+settings, defaults, diagnostics, and an example with two endpoint dialects.
+
 ## Validate a contract
 
 ```console

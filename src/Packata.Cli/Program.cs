@@ -21,7 +21,7 @@ public static class Program
 
     internal static int Run(string[] args, CancellationToken cancellationToken)
     {
-        if (args.Length == 1 && args[0] is "schema" or "config" or "connector") args = [args[0], "--help"];
+        if (args.Length == 1 && args[0] is "schema" or "config" or "connector" or "dialect") args = [args[0], "--help"];
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
         {
@@ -57,6 +57,13 @@ public static class Program
                 contract.AddCommand<InspectCommand>("inspect")
                     .WithDescription("Inspect canonical contract metadata, assets, and endpoints.")
                     .WithExample(["contract", "inspect", "contract.yaml", "--asset", "customers"]);
+            });
+            configuration.AddBranch("dialect", dialect =>
+            {
+                dialect.SetDescription("Export endpoint parsing configuration.");
+                dialect.AddCommand<DialectExportCommand>("export")
+                    .WithDescription("Export a selected CSV endpoint as a standalone Data Package v2 Table Dialect JSON descriptor.")
+                    .WithExample(["dialect", "export", "datapackage.json", "--endpoint", "customers-endpoint"]);
             });
             configuration.AddBranch("data", data =>
             {
