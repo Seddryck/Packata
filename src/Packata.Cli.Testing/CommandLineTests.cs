@@ -188,6 +188,43 @@ public sealed class CommandLineTests
         });
     }
 
+    [TestCase("\n", true, true)]
+    [TestCase("\r\n", true, true)]
+    [TestCase("\n", false, true)]
+    [TestCase("\r\n", false, true)]
+    [TestCase("\n", true, false)]
+    [TestCase("\r\n", true, false)]
+    [TestCase("\n", false, false)]
+    [TestCase("\r\n", false, false)]
+    public void Infer_Yaml_PreservesLineTerminatorAndSupportsPreview(
+        string lineTerminator, bool odcs, bool write)
+    {
+        using var directory = new TemporaryDirectory();
+        var source = directory.Write("contract.yaml", odcs ? OdcsYaml() : DataPackageYaml());
+        directory.Write("customers.csv", string.Join(lineTerminator, ["Name,Age", "Alice,42", "Bob,35", ""]));
+        var arguments = new List<string> { "infer", "contract.yaml", "--asset", "customers", "--header", "present" };
+        arguments.AddRange(write ? ["--write"] : ["--output", "enriched.yaml"]);
+
+        var inference = RunIn(directory.Path, arguments.ToArray());
+        Assert.That(inference.ExitCode, Is.Zero, inference.StandardOutput + inference.StandardError);
+        var output = write ? source : System.IO.Path.Combine(directory.Path, "enriched.yaml");
+        var reloaded = ContractDocument.Load(output);
+        Assert.That(reloaded.Contract.Endpoints.Single().Format!.Options["lineTerminator"],
+            Is.EqualTo(lineTerminator));
+
+        var preview = RunIn(directory.Path, "data", "preview", output, "--asset", "customers", "--output", "json");
+        Assert.That(preview.ExitCode, Is.Zero, preview.StandardOutput + preview.StandardError);
+        var sample = JObject.Parse(preview.StandardOutput);
+        Assert.Multiple(() =>
+        {
+            Assert.That(sample["columns"]!.Values<string>(), Is.EqualTo(new[] { "Name", "Age" }));
+            Assert.That(sample["rows"]!.Count(), Is.EqualTo(2));
+            Assert.That(sample["rows"]![0]!.Values<string>(), Is.EqualTo(new[] { "Alice", "42" }));
+            Assert.That(sample["rows"]![1]!.Values<string>(), Is.EqualTo(new[] { "Bob", "35" }));
+            Assert.That(preview.StandardError, Is.Empty);
+        });
+    }
+
     [Test]
     public void Infer_AmbiguousInputDisplaysConfidenceWarning()
     {
