@@ -3,9 +3,9 @@ using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal sealed class DiffCommand : AsyncCommand<DiffSettings>
+internal sealed class DiffCommand : AsyncCommand<ContractComparisonSettings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, DiffSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, ContractComparisonSettings settings, CancellationToken cancellationToken)
     {
         var diagnostics = new List<ComparisonDiagnostic>();
         var input = "baseline";
