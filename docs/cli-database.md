@@ -23,10 +23,21 @@ File-only inference does not read connector configuration or acquire database co
 
 ```console
 packata connector list
+packata connector list --verbose
 packata connector list --scheme postgresql --output-format json
 packata connector show postgresql-npgsql
 packata connector install postgresql-npgsql
 ```
+
+`list` displays a compact table of connector IDs, versions, status and download availability,
+with the current runtime and counts of installed and active connector versions. Unhealthy
+status takes precedence over active or installed status; diagnostic codes appear beneath the
+affected row. Shared discovery and connectivity caveats appear once.
+
+Use `list --verbose` for per-connector discovery facts, aliases, API/framework/runtime metadata,
+driver and dependency notes. Missing runtime metadata is shown as `Not specified`, which does
+not imply compatibility with every runtime. `show` and installation results use this detailed
+layout. Text output remains readable without color and when redirected.
 
 `list` and `show` inspect local catalog/store facts without loading modules, downloading archives,
 or opening a database. JSON is a stable array of version records with `listed`, `installed`,

@@ -11,6 +11,10 @@ internal sealed class ConnectorListSettings : PresentationSettings
     [CommandOption("--scheme <SCHEME>")]
     [Description("Filter connectors by database connection scheme.")]
     public string? Scheme { get; init; }
+
+    [CommandOption("--verbose")]
+    [Description("Show connector aliases, compatibility, discovery facts and prerequisites.")]
+    public bool Verbose { get; init; }
 }
 internal sealed class ConnectorShowSettings : PresentationSettings
 {
@@ -80,36 +84,27 @@ internal sealed class CliConnectors : IDisposable
             definition?.DownloadUri is not null && !string.IsNullOrWhiteSpace(definition.Sha256),
             "Loaded status is not inspected by discovery. Installation does not establish server connectivity. " +
             $"Current runtime: {RuntimeInformation.RuntimeIdentifier}. " +
-            (definition?.Driver is "System.Data.Odbc" or "System.Data.OleDb"
-                ? "A compatible external vendor driver must be installed separately."
-                : "Required managed and native driver dependencies must be available for this runtime."));
+            ConnectorOutput.DependencyNote(definition?.Driver));
     }
 
     public void Dispose() => _http.Dispose();
 
-    public static void Write(IReadOnlyList<ConnectorDescription> connectors, string format)
+    public static void Write(IReadOnlyList<ConnectorDescription> connectors, string format, bool verbose = false)
     {
         if (format == "json") { CliOutput.Json(connectors); return; }
-        foreach (var info in connectors)
-        {
-            Console.WriteLine($"{info.Id} {info.Version} [{string.Join(", ", info.Schemes)}] " +
-                $"listed={info.Listed} installed={info.Installed} active={info.Active} unhealthy={info.Unhealthy} loaded=not-inspected download-available={info.DownloadAvailable}");
-            Console.WriteLine($"  API={info.ApiRange ?? "unknown"}; frameworks={string.Join(",", info.TargetFrameworks)}; runtimes={string.Join(",", info.RuntimeIdentifiers)}");
-            Console.WriteLine("  " + info.Prerequisites);
-            foreach (var code in info.DiagnosticCodes) Console.WriteLine("  " + code);
-        }
+        ConnectorOutput.Write(connectors, Console.Out, verbose);
     }
 }
 
 internal sealed class ConnectorListCommand : Command<ConnectorListSettings>
 {
     public override int Execute(CommandContext context, ConnectorListSettings settings, CancellationToken cancellationToken)
-        => CliOutput.Run(() => { using var connectors = new CliConnectors(new CliConfiguration()); CliConnectors.Write(connectors.List(settings.Scheme), settings.OutputFormat); });
+        => CliOutput.Run(() => { using var connectors = new CliConnectors(new CliConfiguration()); CliConnectors.Write(connectors.List(settings.Scheme), settings.OutputFormat, settings.Verbose); });
 }
 internal sealed class ConnectorShowCommand : Command<ConnectorShowSettings>
 {
     public override int Execute(CommandContext context, ConnectorShowSettings settings, CancellationToken cancellationToken)
-        => CliOutput.Run(() => { using var connectors = new CliConnectors(new CliConfiguration()); CliConnectors.Write(connectors.Show(settings.Id), settings.OutputFormat); });
+        => CliOutput.Run(() => { using var connectors = new CliConnectors(new CliConfiguration()); CliConnectors.Write(connectors.Show(settings.Id), settings.OutputFormat, verbose: true); });
 }
 internal sealed class ConnectorInstallCommand : AsyncCommand<ConnectorInstallSettings>
 {
@@ -118,7 +113,7 @@ internal sealed class ConnectorInstallCommand : AsyncCommand<ConnectorInstallSet
         try
         {
             using var connectors = new CliConnectors(new CliConfiguration());
-            CliConnectors.Write([await connectors.InstallAsync(settings.Id, cancellationToken).ConfigureAwait(false)], "text");
+            CliConnectors.Write([await connectors.InstallAsync(settings.Id, cancellationToken).ConfigureAwait(false)], "text", verbose: true);
             return 0;
         }
         catch (OperationCanceledException) { Console.Error.WriteLine("Connector installation was cancelled."); return 2; }
