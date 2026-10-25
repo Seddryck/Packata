@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Packata.Core.Storage;
 
 namespace Packata.DataPackage.Serialization.Json;
+
 internal class DataPackageSerializer : IDataPackageSerializer
 {
     public DataPackage Deserialize(StreamReader reader, IDocumentContainer container, IStorageProvider provider)
@@ -16,6 +17,7 @@ internal class DataPackageSerializer : IDataPackageSerializer
         var serializer = new JsonSerializer
         {
             ContractResolver = resolver,
+            DateParseHandling = DateParseHandling.None,
             ObjectCreationHandling = ObjectCreationHandling.Replace
         };
         var dataPackage = serializer.Deserialize<DataPackage>(new JsonTextReader(reader))

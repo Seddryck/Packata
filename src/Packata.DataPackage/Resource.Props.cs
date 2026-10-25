@@ -138,6 +138,9 @@ public partial class Resource
     /// <example>{ "fields": [{ "name": "id", "type": "integer" }] }</example>
     public Schema? Schema { get; set; }
 
+    /// <summary>Value, label, and ordering metadata from the Category Tables recipe.</summary>
+    public CategoryFieldMap? CategoryFieldMap { get; set; }
+
     /// <summary>
     /// The Table dialect descriptor.
     /// </summary>

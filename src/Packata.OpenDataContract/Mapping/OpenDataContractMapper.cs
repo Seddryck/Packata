@@ -64,7 +64,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints,
         ICollection<MappingDiagnostic> diagnostics)
     {
-        var fields = schema.Properties.Select(MapField).ToArray();
+        var fields = schema.Properties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics)).ToArray();
         var primaryKey = schema.Properties
             .Where(x => x.PrimaryKey)
             .OrderBy(x => x.PrimaryKeyPosition ?? int.MaxValue)
@@ -126,21 +126,55 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         };
     }
 
-    private static DataField MapField(SchemaProperty property)
+    private static DataField MapField(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics)
     {
+        var domain = MapValueDomain(property, path, diagnostics);
+        var constraints = MapConstraints(property);
+        if (domain?.AllowedValues is not null)
+            constraints = constraints.Where(value => value.Kind != "enum").ToArray();
         return new DataField(
             property.Name,
             GetLogicalTypeName(property.LogicalType),
             property.PhysicalType,
             GetFormat(property.LogicalType),
             property.Required ?? false,
-            MapConstraints(property),
-            Children: property.Properties.Select(MapField).ToArray(),
+            constraints,
+            Children: property.Properties.Select(child => MapField(child, $"{path}/properties/{child.Name}", diagnostics)).ToArray(),
             Extensions: MapFieldExtensionMetadata(property),
             PhysicalName: property.PhysicalName,
             Description: property.Description,
             Nullable: property.Nullable ?? false,
-            Items: property.Items is null ? null : MapField(property.Items));
+            Items: property.Items is null ? null : MapField(property.Items, $"{path}/items", diagnostics),
+            ValueDomain: domain);
+    }
+
+    private static ValueDomain? MapValueDomain(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics)
+    {
+        if (property.Enum is null) return null;
+        var entries = new List<ValueOption>();
+        for (var index = 0; index < property.Enum.Count; index++)
+        {
+            var entry = property.Enum[index];
+            if (!ScalarValue.TryCreate(entry.Value, out var value) || value.Kind == ScalarKind.Null || !value.IsCompatibleWith(GetLogicalTypeName(property.LogicalType)))
+            {
+                diagnostics.Add(new("ODCS004", MappingSeverity.Warning, $"{path}/enum/{index}/value",
+                    "The enum value is non-scalar, outside the supported scalar range, or incompatible with the field type; the original constraint and metadata were retained without a scalar domain."));
+                return null;
+            }
+            var metadata = EnumMetadataSnapshot.Entry(entry).Where(pair => pair.Key is not ("value" or "label" or "description"));
+            entries.Add(new ValueOption(value, entry.Label, entry.Description,
+                ExtensionMetadata.For("odcs", metadata.ToDictionary(pair => pair.Key, pair => pair.Value))));
+        }
+        try
+        {
+            if (entries.Count == 0) throw new ArgumentException("ODCS enum requires at least one entry.");
+            return new ValueDomain(entries, entries.Select(entry => entry.Value));
+        }
+        catch (ArgumentException exception)
+        {
+            diagnostics.Add(new("ODCS004", MappingSeverity.Warning, $"{path}/enum", exception.Message));
+            return null;
+        }
     }
 
     private static IReadOnlyList<DataConstraint> MapConstraints(SchemaProperty property)
@@ -150,7 +184,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         if (property.Unique == true) constraints.Add(new("unique", true));
         AddRangeAndLengthConstraints(property.LogicalType, constraints);
         if (property.Enum is { Count: > 0 })
-            constraints.Add(new("enum", property.Enum.Select(value => value.Value).ToArray()));
+            constraints.Add(new("enum", property.Enum.Select(value => MetadataSnapshot.CopyValue(value.Value)).ToArray()));
         return constraints;
     }
 
@@ -163,6 +197,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
         if (property.CustomProperties.Count > 0)
             extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
+        if (property.Enum is not null)
+            extensions["enum"] = EnumMetadataSnapshot.Copy(property.Enum);
         return extensions;
     }
 

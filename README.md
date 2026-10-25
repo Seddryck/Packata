@@ -328,6 +328,10 @@ The normalized model leaves comparison direction to consumers; it does not selec
 Export a selected CSV endpoint's parsing settings as a standalone descriptor with
 `CsvDialectExporter` or `packata dialect export <SOURCE> --endpoint <ID>`.
 See [CSV dialect export](docs/csv-dialect-export.md) for examples and supported settings.
+See [Data Package categories](docs/datapackage-categories.md) for standard DPv2 inline values,
+ordering, and the separate Category Tables recipe for reusable resource references.
+The [shared value-domain API](docs/value-domains.md) exposes values, labels, descriptions,
+ordering, and table references through the canonical model for both formats.
 
 For shared database connections, host-supplied credentials, and operation preflight, see
 [database integration](docs/database-integration.md) and the runnable
