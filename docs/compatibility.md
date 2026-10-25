@@ -1,3 +1,10 @@
+---
+title: Contract compatibility
+nav_order: 10
+nav_exclude: false
+permalink: /compatibility/
+---
+
 # Contract compatibility
 
 `packata contract compare <BASELINE> <CANDIDATE>` answers: **can consumers built

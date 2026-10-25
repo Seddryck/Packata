@@ -10,7 +10,9 @@ public sealed class CliOptionConsistencyTests
     [TestCase("contract|validate", "text")]
     [TestCase("contract|inspect", "json")]
     [TestCase("contract|inspect", "text")]
+    [TestCase("contract|compare", "json")]
     [TestCase("contract|diff", "json")]
+    [TestCase("contract|compare", "text")]
     [TestCase("contract|diff", "text")]
     [TestCase("data|preview", "json")]
     [TestCase("data|preview", "csv")]
@@ -39,6 +41,7 @@ public sealed class CliOptionConsistencyTests
 
     [TestCase("contract|validate")]
     [TestCase("contract|inspect")]
+    [TestCase("contract|compare")]
     [TestCase("contract|diff")]
     [TestCase("data|preview")]
     public async Task Reports_ProtectExistingFilesIncludingTheSource(string command)
@@ -63,6 +66,7 @@ public sealed class CliOptionConsistencyTests
 
     [TestCase("contract|validate")]
     [TestCase("contract|inspect")]
+    [TestCase("contract|compare")]
     [TestCase("contract|diff")]
     [TestCase("schema|infer")]
     [TestCase("schema|export")]
@@ -82,6 +86,7 @@ public sealed class CliOptionConsistencyTests
 
     [TestCase("contract|validate")]
     [TestCase("contract|inspect")]
+    [TestCase("contract|compare")]
     [TestCase("contract|diff")]
     [TestCase("data|preview")]
     [TestCase("schema|export")]
@@ -199,6 +204,7 @@ public sealed class CliOptionConsistencyTests
 
     private static string[] Arguments(string command, string source) => command switch
     {
+        "contract|compare" => ["contract", "compare", source, source, "--fail-on", "none"],
         "contract|diff" => ["contract", "diff", source, source],
         "data|preview" => ["data", "preview", source, "--asset", "customers"],
         "schema|infer" => ["schema", "infer", source, "--asset", "customers"],

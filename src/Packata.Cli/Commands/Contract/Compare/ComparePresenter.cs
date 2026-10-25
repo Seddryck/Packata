@@ -6,7 +6,7 @@ namespace Packata.Cli;
 internal static class ComparePresenter
 {
     internal static JObject Result(string? baseline, string? candidate, CompatibilityResult? result,
-        IReadOnlyList<DiffDiagnostic> diagnostics, string? failOn, int exitCode)
+        IReadOnlyList<ComparisonDiagnostic> diagnostics, string? failOn, int exitCode)
         => (JObject)CommandOutput.RedactedJson(new
         {
             schemaVersion = 1, baseline, candidate, direction = "baseline-to-candidate",
@@ -41,14 +41,15 @@ internal static class ComparePresenter
     private static int Count(CompatibilityResult? result, CompatibilityClassification classification)
         => result?.Findings.Count(x => x.Classification == classification) ?? 0;
 
-    internal static void Text(JObject payload)
+    internal static void Text(JObject payload, TextWriter? writer = null)
     {
-        Console.WriteLine($"Baseline (previous): {payload["baseline"]}");
-        Console.WriteLine($"Candidate (current): {payload["candidate"]}");
-        Console.WriteLine($"Direction: baseline -> candidate; policy: {payload["policy"]}");
-        Console.WriteLine($"Analysis: {payload["outcome"]}; completed: {payload["completed"]}; exit code: {payload["exitCode"]}");
+        writer ??= Console.Out;
+        writer.WriteLine($"Baseline (previous): {payload["baseline"]}");
+        writer.WriteLine($"Candidate (current): {payload["candidate"]}");
+        writer.WriteLine($"Direction: baseline -> candidate; policy: {payload["policy"]}");
+        writer.WriteLine($"Analysis: {payload["outcome"]}; completed: {payload["completed"]}; exit code: {payload["exitCode"]}");
         foreach (var finding in payload["findings"] ?? new JArray())
-            Console.WriteLine($"{finding["classification"]} {finding["path"]}: {finding["explanation"]}");
-        Console.WriteLine($"Totals: {payload["totals"]?.ToString(Newtonsoft.Json.Formatting.None)}");
+            writer.WriteLine($"{finding["classification"]} {finding["path"]}: {finding["explanation"]}");
+        writer.WriteLine($"Totals: {payload["totals"]?.ToString(Newtonsoft.Json.Formatting.None)}");
     }
 }

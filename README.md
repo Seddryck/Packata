@@ -14,7 +14,7 @@ Packata is a standards-neutral .NET library for working with Data Package v2 and
 ## About
 
 Compare contract versions with `packata contract compare previous.yaml current.yaml
---output json` to assess consumer compatibility. The reusable
+--output-format json` to assess consumer compatibility. The reusable
 `ContractCompatibility.Compare` API applies the same [versioned policy](docs/compatibility.md).
 Use `contract diff` for factual differences. See [CLI documentation](docs/cli.md)
 for source formats, JSON results, and compatibility gates.

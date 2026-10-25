@@ -24,7 +24,7 @@ entry points for `schema infer` and `schema export`, with the same options.
 | `--output <PATH>`, `-o <PATH>` | Destination file, never a representation name |
 | `--asset <ID>` | Exact Data Package resource name or ODCS schema object name |
 
-Validation, inspection, diff, preview, config list/get, and connector list/show
+Validation, inspection, diff, compatibility comparison, preview, config list/get, and connector list/show
 can save their normal result using `--output`. Existing files are protected and
 file output has no ANSI styling. File output is committed only after rendering.
 Diagnostics remain on stderr (and retain their existing inclusion in JSON results).
@@ -38,7 +38,7 @@ with `--output-format json|text|table|csv`; `--output json` now means a file nam
 `json`. Replace validation/inspection `--format` with `--input-format`, export
 `--format` with `--output-format`, and export `--dataset` / `-d` with `--asset`.
 The export `-f` shorthand still selects the output format. Old long option names
-are rejected rather than guessed. For diff, `--input-format` sets both inputs;
+are rejected rather than guessed. For diff and compare, `--input-format` sets both inputs;
 `--baseline-format` and `--candidate-format` override it independently, including
 an explicit `auto` to re-enable detection for one input.
 
@@ -226,9 +226,9 @@ patch generation are not part of this command.
 
 ```console
 packata contract compare sales-v1.odcs.yaml sales-v2.odcs.yaml
-packata contract compare old/datapackage.json new/datapackage.json --output json
+packata contract compare old/datapackage.json new/datapackage.json --output-format json
 packata contract compare previous current --baseline-format odcs --candidate-format odcs --policy baseline-consumers-v1
-packata contract compare previous.yaml current.yaml --fail-on breaking,unknown --output json
+packata contract compare previous.yaml current.yaml --fail-on breaking,unknown --output-format json
 packata contract compare previous.yaml current.yaml --fail-on none
 ```
 
@@ -237,17 +237,21 @@ The question is whether baseline consumers can safely consume candidate data.
 Only same-standard ODCS 3.2.0 and Data Package v2 comparisons are supported.
 Local, HTTP(S), and ZIP descriptors use the existing loader; referenced data,
 databases, and connectors are never opened. Each input's standard is detected
-independently, or selected with its format option.
+independently. `--input-format` selects a shared input standard; per-input format options override it.
 
 | Option | Values | Default |
 | --- | --- | --- |
-| `--baseline-format`, `--candidate-format` | auto, odcs, datapackage | auto |
-| `--output` | text, json | text |
+| `--baseline-format`, `--candidate-format` | auto, odcs, datapackage | inherit `--input-format` |
+| `--output-format` | text, json | text |
+| `--output <PATH>`, `-o <PATH>` | new destination file | stdout |
+| `--input-format` | auto, odcs, datapackage; shared default for both inputs | auto |
 | `--policy` | baseline-consumers-v1 | baseline-consumers-v1 |
 | `--fail-on` | comma-separated breaking,potentially-breaking,unknown; or none | breaking,potentially-breaking,unknown |
 | `--quiet` | suppress stdout; retain stderr diagnostics | false |
 
-The [policy and backend API](compatibility.md) document directional rules,
+Use `--output-format json -o compatibility.json` to save the report. Existing files, including source descriptors, are protected. `--quiet` also suppresses file creation. Completed reports are saved even when the compatibility gate fails; invalid documents and failed analyses retain their structured failure envelopes.
+
+The [policy and backend API]({{ '/compatibility/' | relative_url }}) document directional rules,
 matching, source semantics, and unsupported constructs. Integer → number is
 breaking for integer consumers; number → integer strengthens the guarantee.
 Additional fields are safe under the open-record assumption. `contract diff`
@@ -265,7 +269,7 @@ breaking schema.orders.properties.amount.type: The candidate type permits logica
 Totals: {"breaking":1,"potentiallyBreaking":0,"nonBreaking":0,"unknown":0}
 ```
 
-JSON uses `schemaVersion: 1`; the [JSON schema](schemas/contract-compare-v1.schema.json)
+JSON uses `schemaVersion: 1`; the [JSON schema]({{ '/schemas/contract-compare-v1.schema.json' | relative_url }})
 defines this envelope:
 
 | Field | Meaning |
@@ -315,8 +319,8 @@ An unchanged supported contract produces:
 Invalid inputs, loading errors, cancellation, and failed analysis emit this same
 JSON envelope with `completed: false`, `outcome: failed`, `isCompatible: false`,
 `hasChanges: null`, `gatePassed: null`, and diagnostics. Findings can be partial.
-Invalid invocations emit a failure envelope when `--output json` or
-`--output=json` is present, with null sources; the usage error also goes to stderr.
+Invalid invocations emit a failure envelope when `--output-format json` or
+`--output-format=json` requests stdout, with null sources; the usage error also goes to stderr. Invocation errors never create output files.
 An invalid output format itself cannot select JSON. `--quiet` suppresses every
 envelope. Otherwise JSON diagnostics stay inside the envelope and ordinary logs
 do not contaminate machine-readable stdout.
@@ -326,7 +330,7 @@ do not contaminate machine-readable stdout.
 | 0 | Completed analysis passes the selected gate |
 | 1 | Invalid/malformed contract or descriptor package |
 | 2 | Invalid invocation/options |
-| 3 | Source I/O/access failure |
+| 3 | Source or output I/O/access failure |
 | 4 | Completed analysis contains a classification selected by --fail-on |
 | 5 | Analysis/mapping cannot complete, including unsupported cross-standard comparisons |
 | 130 | Cancellation |

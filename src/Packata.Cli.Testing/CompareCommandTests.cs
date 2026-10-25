@@ -34,7 +34,7 @@ public class CompareCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("descriptor", content);
-        var result = await CliWorkspace.Run("contract", "compare", source, source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", source, source, "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Error + result.Output);
         var json = JObject.Parse(result.Output);
         Assert.Multiple(() =>
@@ -60,9 +60,9 @@ public class CompareCommandTests
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("baseline", content);
         var candidate = workspace.Write("candidate", content.Replace("integer", "number"));
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", "json");
-        var again = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", "json");
-        var reverse = await CliWorkspace.Run("contract", "compare", candidate, baseline, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
+        var again = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
+        var reverse = await CliWorkspace.Run("contract", "compare", candidate, baseline, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         Assert.That(reverse.ExitCode, Is.Zero, reverse.Error + reverse.Output);
         Assert.That(again.Output, Is.EqualTo(result.Output));
@@ -75,7 +75,7 @@ public class CompareCommandTests
         Assert.That((string?)findings.Single()["change"]!["kind"], Is.EqualTo("PropertyTypeChanged"));
         Assert.That(findings.Single()["sourceLocation"]!.Type, Is.EqualTo(JTokenType.Null));
         // The factual command still succeeds and does not carry a compatibility outcome.
-        var diff = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output", "json");
+        var diff = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output-format", "json");
         Assert.That(diff.ExitCode, Is.Zero);
         Assert.That(JObject.Parse(diff.Output)["outcome"], Is.Null);
     }
@@ -88,10 +88,10 @@ public class CompareCommandTests
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("baseline", content);
         var candidate = workspace.Write("candidate", content.Replace(before, after));
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         Assert.That((string?)JObject.Parse(result.Output)["outcome"], Is.EqualTo("breaking"));
-        var reverse = await CliWorkspace.Run("contract", "compare", candidate, baseline, "--output", "json");
+        var reverse = await CliWorkspace.Run("contract", "compare", candidate, baseline, "--output-format", "json");
         Assert.That(reverse.ExitCode, Is.Zero, reverse.Error + reverse.Output);
     }
 
@@ -104,7 +104,7 @@ public class CompareCommandTests
             : Package.Replace("\"required\":true", "\"required\":true,\"maximum\":10");
         var baseline = workspace.Write("baseline", content);
         var candidate = workspace.Write("candidate", content.Replace("10", "20"));
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         var json = JObject.Parse(result.Output);
         Assert.That((string?)json["outcome"], Is.EqualTo("breaking"));
@@ -130,7 +130,7 @@ public class CompareCommandTests
             """;
         var baseline = workspace.Write("baseline.yaml", content);
         var candidate = workspace.Write("candidate.yaml", content.Replace("10", "20"));
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         Assert.That((string?)JObject.Parse(result.Output)["outcome"], Is.EqualTo("breaking"));
     }
@@ -140,7 +140,7 @@ public class CompareCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("source", Odcs + "\n        logicalTypeOptions:\n          minimum: 999999999999999999999999999999999999999999\n");
-        var result = await CliWorkspace.Run("contract", "compare", source, source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", source, source, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         Assert.That((string?)JObject.Parse(result.Output)["outcome"], Is.EqualTo("unknown"));
         Assert.That(JObject.Parse(result.Output)["diagnostics"]!.Select(x => (string?)x["code"]), Does.Contain("CMP020"));
@@ -164,7 +164,7 @@ public class CompareCommandTests
             _ => Odcs + "\n        futureGuarantee: true\n"
         };
         var candidate = workspace.Write("candidate", changed);
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--fail-on", failOn, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--fail-on", failOn, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(exitCode), result.Error + result.Output);
         var json = JObject.Parse(result.Output);
         Assert.That((string?)json["outcome"], Is.EqualTo(outcome));
@@ -181,7 +181,7 @@ public class CompareCommandTests
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("baseline", content);
         var candidate = workspace.Write("candidate", content.Replace(before, after));
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         var changes = JObject.Parse(result.Output)["findings"]!.Where(x => x["change"]?.Type == JTokenType.Object).ToArray();
         Assert.That(changes.Select(x => (string?)x["change"]!["operation"]), Does.Contain("added").And.Contain("removed"));
@@ -195,7 +195,7 @@ public class CompareCommandTests
         var valid = workspace.Write("valid", Odcs);
         var invalid = workspace.Write("invalid", "kind: Other\nschema: []\n");
         var result = await CliWorkspace.Run("contract", "compare", input == "baseline" ? invalid : valid,
-            input == "candidate" ? invalid : valid, "--output", "json");
+            input == "candidate" ? invalid : valid, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(1));
         var json = JObject.Parse(result.Output);
         Assert.That((bool?)json["completed"], Is.False);
@@ -212,7 +212,7 @@ public class CompareCommandTests
         var content = standard == "odcs" ? Odcs + "\n        ignoredByParser: true\n"
             : Package.Replace("\"name\":\"amount\",", "\"name\":\"amount\",\"ignoredByParser\":true,");
         var source = workspace.Write("source", content);
-        var result = await CliWorkspace.Run("contract", "compare", source, source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", source, source, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         var json = JObject.Parse(result.Output);
         Assert.That((bool?)json["completed"], Is.True);
@@ -222,7 +222,7 @@ public class CompareCommandTests
         if (standard == "datapackage")
         {
             source = workspace.Write("no-schema", CliWorkspace.PackageJson);
-            result = await CliWorkspace.Run("contract", "compare", source, source, "--output", "json");
+            result = await CliWorkspace.Run("contract", "compare", source, source, "--output-format", "json");
             Assert.That(result.ExitCode, Is.EqualTo(4));
             Assert.That((string?)JObject.Parse(result.Output)["outcome"], Is.EqualTo("unknown"));
         }
@@ -234,10 +234,10 @@ public class CompareCommandTests
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("baseline", Odcs);
         var candidate = workspace.Write("candidate", Odcs + "\n      - name: extra\n        logicalType: string\n");
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Error + result.Output);
         Assert.That((int?)JObject.Parse(result.Output)["totals"]!["nonBreaking"], Is.EqualTo(1));
-        result = await CliWorkspace.Run("contract", "compare", candidate, baseline, "--output", "json");
+        result = await CliWorkspace.Run("contract", "compare", candidate, baseline, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4));
         Assert.That((int?)JObject.Parse(result.Output)["totals"]!["breaking"], Is.EqualTo(1));
     }
@@ -251,7 +251,7 @@ public class CompareCommandTests
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("valid", Odcs);
         var candidate = content is null ? Path.Combine(workspace.Path, name) : workspace.Write(name, content);
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(exitCode), result.Output + result.Error);
         Assert.That((bool?)JObject.Parse(result.Output)["completed"], Is.False);
         Assert.That(result.Output + result.Error, Does.Not.Contain("DO-NOT-EMIT"));
@@ -263,11 +263,11 @@ public class CompareCommandTests
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("odcs", Odcs);
         var candidate = workspace.Write("package", Package);
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(5));
         Assert.That((bool?)JObject.Parse(result.Output)["completed"], Is.False);
         var unsupported = workspace.Write("unsupported", Package.Replace("\"name\":\"sales\",", "\"name\":\"sales\",\"sources\":[{\"title\":\"Origin\",\"path\":\"https://example.test\"}],"));
-        result = await CliWorkspace.Run("contract", "compare", unsupported, unsupported, "--output", "json");
+        result = await CliWorkspace.Run("contract", "compare", unsupported, unsupported, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(5), result.Error + result.Output);
         Assert.That((string?)JObject.Parse(result.Output)["outcome"], Is.EqualTo("failed"));
     }
@@ -276,9 +276,10 @@ public class CompareCommandTests
     [TestCase("--fail-on", "unknown,none")]
     [TestCase("--baseline-format", "xml")]
     [TestCase("--candidate-format", "xml")]
+    [TestCase("--input-format", "xml")]
     public async Task InvalidOptions_EmitInvocationFailureJson(string option, string value)
     {
-        var result = await CliWorkspace.Run("contract", "compare", "a", "b", option, value, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "compare", "a", "b", option, value, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(2));
         Assert.That((string?)JObject.Parse(result.Output)["outcome"], Is.EqualTo("failed"));
         Assert.That(result.Error, Does.Contain("CLI002"));
@@ -289,10 +290,96 @@ public class CompareCommandTests
     {
         var help = await CliWorkspace.Run("contract", "compare", "--help");
         Assert.That(help.ExitCode, Is.Zero);
-        Assert.That(help.Output, Does.Contain("BASELINE").And.Contain("CANDIDATE").And.Contain("--policy").And.Contain("--fail-on"));
-        var missing = await CliWorkspace.Run("contract", "compare", "a", "--output=json");
+        Assert.That(help.Output, Does.Contain("BASELINE").And.Contain("CANDIDATE").And.Contain("--policy").And.Contain("--fail-on")
+            .And.Contain("--input-format").And.Contain("--output-format").And.Contain("--output"));
+        var missing = await CliWorkspace.Run("contract", "compare", "a", "--output-format=json");
         Assert.That(missing.ExitCode, Is.EqualTo(2));
         Assert.That((bool?)JObject.Parse(missing.Output)["completed"], Is.False);
+    }
+
+    [Test]
+    public async Task PerInputFormats_OverrideTheSharedInputFormat()
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("descriptor", Package);
+        var result = await CliWorkspace.Run("contract", "compare", source, source, "--input-format", "odcs",
+            "--baseline-format", "datapackage", "--candidate-format", "auto", "--output-format", "json");
+        Assert.That(result.ExitCode, Is.Zero, result.Error);
+        Assert.That((bool?)JObject.Parse(result.Output)["isCompatible"], Is.True);
+    }
+
+    [TestCase("odcs", Odcs)]
+    [TestCase("datapackage", Package)]
+    public async Task SharedInputFormat_AppliesToBothDocuments(string format, string content)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("descriptor", content);
+        var result = await CliWorkspace.Run("contract", "compare", source, source, "--input-format", format, "--output-format", "json");
+        Assert.That(result.ExitCode, Is.Zero, result.Error);
+        Assert.That((bool?)JObject.Parse(result.Output)["isCompatible"], Is.True);
+    }
+
+    [TestCase("text", false, 0)]
+    [TestCase("json", false, 0)]
+    [TestCase("json", true, 4)]
+    [TestCase("text", true, 4)]
+    public async Task OutputFiles_ContainTheSameReportAndRetainTheGateExitCode(string format, bool breaking, int exitCode)
+    {
+        using var workspace = new CliWorkspace();
+        var baseline = workspace.Write("baseline", Odcs);
+        var candidate = workspace.Write("candidate", breaking ? Odcs.Replace("integer", "number") : Odcs);
+        var stdout = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", format);
+        var output = Path.Combine(workspace.Path, "json");
+        var file = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", format, "--output=" + output);
+        Assert.Multiple(() =>
+        {
+            Assert.That(file.ExitCode, Is.EqualTo(exitCode), file.Error);
+            Assert.That(file.Output, Is.Empty);
+            Assert.That(File.ReadAllText(output), Is.EqualTo(stdout.Output));
+        });
+    }
+
+    [Test]
+    public async Task InvalidDocument_CanBeSavedWithoutOverwritingAnExistingFailureReport()
+    {
+        using var workspace = new CliWorkspace();
+        var baseline = workspace.Write("baseline", Odcs);
+        var candidate = workspace.Write("candidate", "{broken");
+        var output = Path.Combine(workspace.Path, "failure.json");
+        var first = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json", "-o", output);
+        var payload = File.ReadAllText(output);
+        Assert.That(first.ExitCode, Is.EqualTo(1), first.Error);
+        Assert.That((bool?)JObject.Parse(payload)["completed"], Is.False);
+        var second = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json", "-o", output);
+        Assert.That(second.ExitCode, Is.EqualTo(3), second.Error);
+        Assert.That(second.Output, Is.Empty);
+        Assert.That(File.ReadAllText(output), Is.EqualTo(payload));
+    }
+
+    [TestCase("text")]
+    [TestCase("json")]
+    public async Task QuietComparison_DoesNotCreateAnOutputFile(string format)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("descriptor", Odcs);
+        var output = Path.Combine(workspace.Path, "quiet.json");
+        var result = await CliWorkspace.Run("contract", "compare", source, source, "--quiet", "--output-format", format, "-o", output);
+        Assert.That(result.ExitCode, Is.Zero, result.Error);
+        Assert.That(result.Output, Is.Empty);
+        Assert.That(File.Exists(output), Is.False);
+    }
+
+    [TestCase("--policy", "other")]
+    [TestCase("--output-format", "xml")]
+    [TestCase("--input-format", "xml")]
+    public async Task InvalidInvocation_DoesNotCreateAnOutputFile(string option, string value)
+    {
+        using var workspace = new CliWorkspace();
+        var output = Path.Combine(workspace.Path, "invalid.json");
+        var result = await CliWorkspace.Run("contract", "compare", "missing", "missing", option, value, "-o", output);
+        Assert.That(result.ExitCode, Is.EqualTo(2));
+        Assert.That(result.Output, Is.Empty);
+        Assert.That(File.Exists(output), Is.False);
     }
 
     [TestCase("text")]
@@ -301,7 +388,7 @@ public class CompareCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("source", Odcs + "\n        futureGuarantee: true\n");
-        var result = await CliWorkspace.Run("contract", "compare", source, source, "--quiet", "--output", output);
+        var result = await CliWorkspace.Run("contract", "compare", source, source, "--quiet", "--output-format", output);
         Assert.That(result.ExitCode, Is.EqualTo(4));
         Assert.That(result.Output, Is.Empty);
         Assert.That(result.Error, Does.Contain("CMP020"));
@@ -314,7 +401,7 @@ public class CompareCommandTests
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("baseline", Odcs);
         var candidate = workspace.Write("candidate", Odcs + "\n        description: 'pwd=DO-NOT-EMIT'\n        customProperties:\n          - property: settings\n            value:\n              password: DO-NOT-EMIT\n");
-        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output", output);
+        var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", output);
         Assert.That(result.Output + result.Error, Does.Not.Contain("DO-NOT-EMIT"));
         if (output == "json") Assert.That(result.Output, Does.Contain("[redacted]"));
     }
@@ -329,7 +416,7 @@ public class CompareCommandTests
         try
         {
             Console.SetOut(output);
-            var exit = await new CompareCommand().ExecuteAsync(null!, new CompareSettings { Baseline = "missing", Candidate = "missing", Output = "json" }, cancellation.Token);
+            var exit = await new CompareCommand().ExecuteAsync(null!, new CompareSettings { Baseline = "missing", Candidate = "missing", OutputFormat = "json" }, cancellation.Token);
             Assert.That(exit, Is.EqualTo(130));
             Assert.That((string?)JObject.Parse(output.ToString())["outcome"], Is.EqualTo("failed"));
         }
@@ -355,7 +442,7 @@ public class CompareCommandTests
         {
             ["PACKATA_CONFIG_HOME"] = workspace.Write("bad-config-dir", "not a directory"),
             ["DUBURL_PROVIDER_STORE"] = workspace.Write("bad-provider-dir", "not a directory")
-        }, "contract", "compare", zipPath, $"http://127.0.0.1:{port}/package.zip", "--output", "json");
+        }, "contract", "compare", zipPath, $"http://127.0.0.1:{port}/package.zip", "--output-format", "json");
         await serve;
         Assert.That(result.ExitCode, Is.Zero, result.Error + result.Output);
 

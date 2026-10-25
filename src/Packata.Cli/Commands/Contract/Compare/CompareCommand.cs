@@ -1,40 +1,7 @@
-using System.ComponentModel;
 using Packata.Core.Contracts;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Packata.Cli;
-
-internal sealed class CompareSettings : DiffSettings
-{
-    [CommandOption("--policy <POLICY>")]
-    [Description("Consumer policy: baseline-consumers-v1. Candidate data must remain safe for baseline consumers.")]
-    [DefaultValue(CompatibilityResult.ConsumerPolicy)]
-    public string Policy { get; init; } = CompatibilityResult.ConsumerPolicy;
-
-    [CommandOption("--fail-on <CLASSIFICATIONS>")]
-    [Description("Comma-separated breaking,potentially-breaking,unknown, or none. Defaults to all three; changes the gate only.")]
-    [DefaultValue("breaking,potentially-breaking,unknown")]
-    public string FailOn { get; init; } = "breaking,potentially-breaking,unknown";
-
-    public override ValidationResult Validate()
-    {
-        var inherited = base.Validate();
-        if (!inherited.Successful) return inherited;
-        if (Policy != CompatibilityResult.ConsumerPolicy)
-            return ValidationResult.Error("--policy must be baseline-consumers-v1.");
-        return FailOn == "none" || FailOn.Split(',').All(x => x is "breaking" or "potentially-breaking" or "unknown")
-            ? ValidationResult.Success() : ValidationResult.Error("--fail-on must list breaking,potentially-breaking,unknown, or be none.");
-    }
-
-    internal bool Gates(CompatibilityClassification classification) => FailOn.Split(',').Contains(classification switch
-    {
-        CompatibilityClassification.Breaking => "breaking",
-        CompatibilityClassification.PotentiallyBreaking => "potentially-breaking",
-        CompatibilityClassification.Unknown => "unknown",
-        _ => "non-breaking"
-    }, StringComparer.Ordinal);
-}
 
 internal sealed class CompareCommand : AsyncCommand<CompareSettings>
 {
@@ -46,7 +13,7 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
 
     private sealed class ComparisonExecution(CompareSettings settings, CancellationToken cancellationToken)
     {
-        private readonly List<DiffDiagnostic> diagnostics = [];
+        private readonly List<ComparisonDiagnostic> diagnostics = [];
         private string input = "baseline";
         private string source = settings.Baseline;
 
@@ -54,11 +21,11 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
         {
             try
             {
-                var baseline = await Load(settings.Baseline, settings.BaselineFormat).ConfigureAwait(false);
+                var baseline = await Load(settings.Baseline, settings.BaselineFormat ?? settings.InputFormat).ConfigureAwait(false);
                 if (baseline is null) return Write(null, ExitCodes.InvalidDocument);
                 input = "candidate";
                 source = settings.Candidate;
-                var candidate = await Load(settings.Candidate, settings.CandidateFormat).ConfigureAwait(false);
+                var candidate = await Load(settings.Candidate, settings.CandidateFormat ?? settings.InputFormat).ConfigureAwait(false);
                 if (candidate is null) return Write(null, ExitCodes.InvalidDocument);
                 input = "comparison";
                 source = settings.Baseline + " -> " + settings.Candidate;
@@ -107,7 +74,7 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
         private async Task<CompatibilityInput?> Load(string location, string format)
         {
             var document = await ContractSource.LoadAsync(location, format, cancellationToken).ConfigureAwait(false);
-            var validation = ValidateCommand.Validate(document);
+            var validation = ContractValidation.Validate(document);
             foreach (var diagnostic in validation)
                 diagnostics.Add(new(input, source, diagnostic.Code, diagnostic.Severity, diagnostic.SourcePath, diagnostic.Message));
             if (validation.Any(x => x.Severity == MappingSeverity.Error)) return null;
@@ -118,13 +85,25 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
 
         private int Write(CompatibilityResult? result, int exitCode)
         {
+            try { return WriteResult(result, exitCode); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                CommandOutput.Diagnostic(CommandOutput.Failure(exception));
+                return ExitCodes.Io;
+            }
+        }
+
+        private int WriteResult(CompatibilityResult? result, int exitCode)
+        {
             var payload = ComparePresenter.Result(settings.Baseline, settings.Candidate, result, diagnostics, settings.FailOn, exitCode);
             if (!settings.Quiet)
             {
-                if (settings.Output == "json") CommandOutput.Json(payload);
-                else ComparePresenter.Text(payload);
+                using var output = new OutputDestination(settings.Output);
+                if (settings.OutputFormat == "json") CommandOutput.Json(payload, output.Writer);
+                else ComparePresenter.Text(payload, output.Writer);
+                output.Commit();
             }
-            if (settings.Quiet || settings.Output == "text")
+            if (settings.Quiet || settings.OutputFormat == "text")
                 foreach (var diagnostic in diagnostics)
                     CommandOutput.Diagnostic(new(diagnostic.Code, diagnostic.Severity,
                         $"{diagnostic.Input} ({diagnostic.Source}) {diagnostic.SourcePath}", diagnostic.Message));

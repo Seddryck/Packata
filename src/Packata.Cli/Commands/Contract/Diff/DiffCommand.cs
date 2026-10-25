@@ -3,14 +3,11 @@ using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal sealed record DiffDiagnostic(string Input, string Source, string Code,
-    MappingSeverity Severity, string SourcePath, string Message);
-
 internal sealed class DiffCommand : AsyncCommand<DiffSettings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, DiffSettings settings, CancellationToken cancellationToken)
     {
-        var diagnostics = new List<DiffDiagnostic>();
+        var diagnostics = new List<ComparisonDiagnostic>();
         var input = "baseline";
         var source = settings.Baseline;
         try
