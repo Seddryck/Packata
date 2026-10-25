@@ -41,32 +41,56 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
     internal const int GateFailure = 4;
     internal const int AnalysisFailure = 5;
 
-    public override async Task<int> ExecuteAsync(CommandContext context, CompareSettings settings, CancellationToken cancellationToken)
+    public override Task<int> ExecuteAsync(CommandContext context, CompareSettings settings, CancellationToken cancellationToken)
+        => new ComparisonExecution(settings, cancellationToken).RunAsync();
+
+    private sealed class ComparisonExecution(CompareSettings settings, CancellationToken cancellationToken)
     {
-        var diagnostics = new List<DiffDiagnostic>();
-        var input = "baseline";
-        var source = settings.Baseline;
-        try
+        private readonly List<DiffDiagnostic> diagnostics = [];
+        private string input = "baseline";
+        private string source = settings.Baseline;
+
+        internal async Task<int> RunAsync()
         {
-            var baseline = await Load(settings.Baseline, settings.BaselineFormat).ConfigureAwait(false);
-            if (baseline is null) return Write(null, ExitCodes.InvalidDocument);
-            input = "candidate";
-            source = settings.Candidate;
-            var candidate = await Load(settings.Candidate, settings.CandidateFormat).ConfigureAwait(false);
-            if (candidate is null) return Write(null, ExitCodes.InvalidDocument);
-            input = "comparison";
-            source = settings.Baseline + " -> " + settings.Candidate;
-            var result = ContractCompatibility.Compare(baseline, candidate, cancellationToken);
+            try
+            {
+                var baseline = await Load(settings.Baseline, settings.BaselineFormat).ConfigureAwait(false);
+                if (baseline is null) return Write(null, ExitCodes.InvalidDocument);
+                input = "candidate";
+                source = settings.Candidate;
+                var candidate = await Load(settings.Candidate, settings.CandidateFormat).ConfigureAwait(false);
+                if (candidate is null) return Write(null, ExitCodes.InvalidDocument);
+                input = "comparison";
+                source = settings.Baseline + " -> " + settings.Candidate;
+                var result = ContractCompatibility.Compare(baseline, candidate, cancellationToken);
+                AddDiagnostics(result);
+                return Write(result, ResultExitCode(result));
+            }
+            catch (Exception exception)
+            {
+                return HandleFailure(exception);
+            }
+        }
+
+        private void AddDiagnostics(CompatibilityResult result)
+        {
             foreach (var diagnostic in result.Diagnostics)
                 diagnostics.Add(new(diagnostic.Input, diagnostic.Input switch
                 {
-                    "baseline" => settings.Baseline, "candidate" => settings.Candidate, _ => source
+                    "baseline" => settings.Baseline,
+                    "candidate" => settings.Candidate,
+                    _ => source
                 }, diagnostic.Code, diagnostic.Severity, diagnostic.Path, diagnostic.Message));
-            return Write(result, !result.Completed
-                ? result.Diagnostics.Any(x => x.Code == "CMP130") ? ExitCodes.Cancelled : AnalysisFailure
-                : result.Findings.Any(x => settings.Gates(x.Classification)) ? GateFailure : ExitCodes.Success);
         }
-        catch (Exception exception)
+
+        private int ResultExitCode(CompatibilityResult result)
+        {
+            if (!result.Completed)
+                return result.Diagnostics.Any(x => x.Code == "CMP130") ? ExitCodes.Cancelled : AnalysisFailure;
+            return result.Findings.Any(x => settings.Gates(x.Classification)) ? GateFailure : ExitCodes.Success;
+        }
+
+        private int HandleFailure(Exception exception)
         {
             if (input == "comparison" && exception is not OperationCanceledException)
             {
@@ -80,7 +104,7 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
             return Write(null, exception is InvalidDataException ? ExitCodes.InvalidDocument : CommandOutput.FailureExitCode(exception));
         }
 
-        async Task<CompatibilityInput?> Load(string location, string format)
+        private async Task<CompatibilityInput?> Load(string location, string format)
         {
             var document = await ContractSource.LoadAsync(location, format, cancellationToken).ConfigureAwait(false);
             var validation = ValidateCommand.Validate(document);
@@ -92,7 +116,7 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
             return comparisonInput;
         }
 
-        int Write(CompatibilityResult? result, int exitCode)
+        private int Write(CompatibilityResult? result, int exitCode)
         {
             var payload = ComparePresenter.Result(settings.Baseline, settings.Candidate, result, diagnostics, settings.FailOn, exitCode);
             if (!settings.Quiet)

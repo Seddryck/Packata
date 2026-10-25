@@ -20,8 +20,8 @@ public sealed record CompatibilityFinding(ContractPath Path, CompatibilityClassi
 public sealed class CompatibilityResult
 {
     public const string ConsumerPolicy = "baseline-consumers-v1";
-    public string Direction => "baseline-to-candidate";
-    public string Policy => ConsumerPolicy;
+    public string Direction { get; } = "baseline-to-candidate";
+    public string Policy { get; } = ConsumerPolicy;
     public bool Completed { get; }
     public CompatibilityOutcome Outcome { get; }
     public bool IsCompatible => Completed && Outcome == CompatibilityOutcome.Compatible;
@@ -36,11 +36,16 @@ public sealed class CompatibilityResult
             .ThenBy(x => x.Rule, StringComparer.Ordinal).ThenBy(x => x.Change?.GetType().Name, StringComparer.Ordinal).ToArray());
         Diagnostics = Array.AsReadOnly(diagnostics.OrderBy(x => x.Input, StringComparer.Ordinal)
             .ThenBy(x => x.Path, StringComparer.Ordinal).ThenBy(x => x.Code, StringComparer.Ordinal).ToArray());
-        Outcome = !completed ? CompatibilityOutcome.Failed
-            : Findings.Any(x => x.Classification == CompatibilityClassification.Breaking) ? CompatibilityOutcome.Breaking
-            : Findings.Any(x => x.Classification == CompatibilityClassification.PotentiallyBreaking) ? CompatibilityOutcome.PotentiallyBreaking
-            : Findings.Any(x => x.Classification == CompatibilityClassification.Unknown) ? CompatibilityOutcome.Unknown
-            : CompatibilityOutcome.Compatible;
+        Outcome = DetermineOutcome();
+    }
+
+    private CompatibilityOutcome DetermineOutcome()
+    {
+        if (!Completed) return CompatibilityOutcome.Failed;
+        if (Findings.Any(x => x.Classification == CompatibilityClassification.Breaking)) return CompatibilityOutcome.Breaking;
+        if (Findings.Any(x => x.Classification == CompatibilityClassification.PotentiallyBreaking)) return CompatibilityOutcome.PotentiallyBreaking;
+        if (Findings.Any(x => x.Classification == CompatibilityClassification.Unknown)) return CompatibilityOutcome.Unknown;
+        return CompatibilityOutcome.Compatible;
     }
 }
 
@@ -65,8 +70,9 @@ public static class ContractCompatibility
             cancellationToken.ThrowIfCancellationRequested();
             if (!Enum.IsDefined(baseline.Standard) || !Enum.IsDefined(candidate.Standard) || baseline.Standard != candidate.Standard)
                 diagnostics.Add(new("comparison", "CMP001", MappingSeverity.Error, "$", "Only same-standard comparisons are supported."));
-            Inspect(baseline, "baseline");
-            Inspect(candidate, "candidate");
+            var inspection = new CompatibilityInspection(diagnostics, findings, cancellationToken);
+            inspection.Inspect(baseline, "baseline");
+            inspection.Inspect(candidate, "candidate");
             if (diagnostics.Any(x => x.Severity == MappingSeverity.Error)) return new(false, findings, diagnostics);
             var previous = Prepare(baseline);
             var current = Prepare(candidate);
@@ -76,8 +82,8 @@ public static class ContractCompatibility
                 findings.AddRange(CompatibilityRules.Classify(change));
             }
             // These newer canonical facets are not emitted by ContractDiffer yet.
-            Extra("sla", previous.Sla, current.Sla);
-            Extra("lifecycle", previous.Lifecycle, current.Lifecycle);
+            Extra(findings, "sla", previous.Sla, current.Sla);
+            Extra(findings, "lifecycle", previous.Lifecycle, current.Lifecycle);
             cancellationToken.ThrowIfCancellationRequested();
             return new(true, findings, diagnostics);
         }
@@ -92,57 +98,13 @@ public static class ContractCompatibility
             diagnostics.Add(new("comparison", "CMP002", MappingSeverity.Error, "$", "Invalid semantic identifiers or unsupported canonical values prevented analysis."));
             return new(false, findings, diagnostics);
         }
+    }
 
-        void Inspect(CompatibilityInput input, string name)
-        {
-            if (input.Contract is null)
-                diagnostics.Add(new(name, "CMP003", MappingSeverity.Error, "$", "No canonical contract was supplied."));
-            foreach (var diagnostic in input.Diagnostics ?? [])
-            {
-                diagnostics.Add(new(name, diagnostic.Code, diagnostic.Severity, diagnostic.SourcePath, diagnostic.Message));
-                if (diagnostic.Severity == MappingSeverity.Warning)
-                    Unknown(diagnostic.SourcePath, "mapping-warning", "Mapping reported ambiguity or unsupported semantics; compatibility is not established.");
-            }
-            if (input.Standard != ContractStandard.Canonical && input.Descriptor is null)
-                Unknown("$", "source-coverage", "The original descriptor was not supplied; source mapping coverage cannot be established.");
-            if (input.Descriptor is { } descriptor)
-                foreach (var path in CompatibilityCoverage.Unsupported(descriptor, input.Standard))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    diagnostics.Add(new(name, "CMP020", MappingSeverity.Warning, path, "Source semantics are not covered by this compatibility policy."));
-                    Unknown(path, "source-coverage", "Unsupported or unmapped source semantics prevent a complete compatibility verdict.");
-                }
-            if (input.Contract is { } contract)
-                foreach (var asset in contract.Assets)
-                {
-                    if (asset.Schema is null)
-                        Unknown(ContractPath.Root("schema").Append(asset.Id).Value, "schema-coverage", "No schema is available for this dataset.");
-                    foreach (var field in asset.Schema?.Fields ?? []) CheckField(field, ContractPath.Root("schema").Append(asset.Id).Append("properties").Append(field.Name));
-                }
-
-            void CheckField(DataField field, ContractPath path)
-            {
-                if (field.Constraints.Any(x => string.IsNullOrEmpty(x.Kind))
-                    || field.Constraints.Select(x => x.Kind).Distinct(StringComparer.Ordinal).Count() != field.Constraints.Count)
-                    diagnostics.Add(new(name, "CMP004", MappingSeverity.Error, path.Value, "Constraint kinds must be non-empty and unique."));
-                if (!CompatibilityRules.KnownType(field.LogicalType))
-                    Unknown(path.Append("type").Value, "type-coverage", "The field type is unspecified or unsupported by this policy.");
-                foreach (var constraint in field.Constraints.Where(x => !CompatibilityRules.SupportedConstraintValue(x)))
-                    Unknown(path.Append("constraints").Append(constraint.Kind).Value, "constraint-coverage", "This constraint has no supported compatibility rule.");
-                foreach (var child in field.Children) CheckField(child, path.Append("properties").Append(child.Name));
-                if (field.Items is { } items) CheckField(items, path.Append("items"));
-            }
-
-            void Unknown(string path, string rule, string explanation)
-                => findings.Add(new(new(path), CompatibilityClassification.Unknown, name + ":" + rule, explanation, null));
-        }
-
-        void Extra(string path, object? previous, object? current)
-        {
-            if (!ContractDiffValues.Equal(previous, current))
-                findings.Add(new(ContractPath.Root(path), CompatibilityClassification.Unknown, "unclassified-model-facet",
-                    "This canonical facet changed but is not covered by the factual differ or compatibility policy.", null));
-        }
+    private static void Extra(List<CompatibilityFinding> findings, string path, object? previous, object? current)
+    {
+        if (!ContractDiffValues.Equal(previous, current))
+            findings.Add(new(ContractPath.Root(path), CompatibilityClassification.Unknown, "unclassified-model-facet",
+                "This canonical facet changed but is not covered by the factual differ or compatibility policy.", null));
     }
 
     private static DataContract Prepare(CompatibilityInput input)
@@ -150,14 +112,18 @@ public static class ContractCompatibility
         var contract = input.Contract!;
         if (input.Standard != ContractStandard.DataPackage) return contract;
         // DP required rejects null/missing values. ODCS required and nullable are independent.
-        return contract with { Assets = contract.Assets.Select(asset => asset with
+        return contract with
         {
-            Schema = asset.Schema is { } schema ? schema with { Fields = schema.Fields.Select(Field).ToArray() } : null
-        }).ToArray() };
+            Assets = contract.Assets.Select(asset => asset with
+            {
+                Schema = asset.Schema is { } schema ? schema with { Fields = schema.Fields.Select(Field).ToArray() } : null
+            }).ToArray()
+        };
 
         static DataField Field(DataField field) => field with
         {
-            Nullable = !field.Required, Children = field.Children.Select(Field).ToArray(),
+            Nullable = !field.Required,
+            Children = field.Children.Select(Field).ToArray(),
             Items = field.Items is { } items ? Field(items) : null
         };
     }

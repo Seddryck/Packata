@@ -5,16 +5,22 @@ namespace Packata.Core.Contracts;
 
 internal static class CompatibilityRules
 {
+    private const string Minimum = "minimum";
+    private const string Maximum = "maximum";
+    private const string ExclusiveMinimum = "exclusiveMinimum";
+    private const string ExclusiveMaximum = "exclusiveMaximum";
+    private const string Required = "required";
+
     internal static bool KnownType(string? type) => type is "string" or "integer" or "number" or "boolean"
         or "date" or "time" or "timestamp" or "datetime" or "object" or "array";
-    internal static bool KnownConstraint(string kind) => kind is "minimum" or "maximum" or "exclusiveMinimum"
-        or "exclusiveMaximum" or "minLength" or "maxLength" or "minItems" or "maxItems" or "minProperties"
-        or "maxProperties" or "unique" or "uniqueItems" or "primaryKey" or "enum" or "pattern" or "required";
+    internal static bool KnownConstraint(string kind) => kind is Minimum or Maximum or ExclusiveMinimum
+        or ExclusiveMaximum or "minLength" or "maxLength" or "minItems" or "maxItems" or "minProperties"
+        or "maxProperties" or "unique" or "uniqueItems" or "primaryKey" or "enum" or "pattern" or Required;
 
     internal static bool SupportedConstraintValue(DataConstraint constraint) => constraint.Kind switch
     {
         "unique" or "uniqueItems" or "primaryKey" => constraint.Value is bool,
-        "enum" or "required" => constraint.Value is IEnumerable and not string,
+        "enum" or Required => constraint.Value is IEnumerable and not string,
         "pattern" => constraint.Value is string,
         "minLength" or "maxLength" or "minItems" or "maxItems" or "minProperties" or "maxProperties"
             => Number(constraint.Value, out var count) && count >= 0 && count == decimal.Truncate(count),
@@ -22,64 +28,82 @@ internal static class CompatibilityRules
     };
 
     internal static IEnumerable<CompatibilityFinding> Classify(IContractChange change)
-    {
-        var findings = new List<CompatibilityFinding>();
-        switch (change)
-        {
-            case DatasetAdded:
-                Add("dataset-added", CompatibilityClassification.NonBreaking, "Additional datasets do not affect existing name-based consumers."); break;
-            case DatasetRemoved:
-                Add("dataset-removed", CompatibilityClassification.Breaking, "A dataset available to baseline consumers was removed."); break;
-            case PropertyAdded when IsItems(change.Path):
-            case PropertyRemoved when IsItems(change.Path):
-                Add("items-shape", CompatibilityClassification.Unknown, "Array item definition changes require semantics not covered by this policy."); break;
-            case PropertyAdded:
-                Add("property-added", CompatibilityClassification.NonBreaking, "Additional fields are allowed by the policy's open-record assumption."); break;
-            case PropertyRemoved:
-                Add("property-removed", CompatibilityClassification.Breaking, "A field available to baseline consumers was removed."); break;
-            case PropertyTypeChanged type:
-                Add("logical-type", Type(type.Previous, type.Current), TypeExplanation(type.Previous, type.Current)); break;
-            case PropertyModified property:
-                Field(property.Previous, property.Current); break;
-            case DatasetModified dataset:
-                if (dataset.Previous.Name != dataset.Current.Name || dataset.Previous.PhysicalName != dataset.Current.PhysicalName
-                    || dataset.Previous.Kind != dataset.Current.Kind || !Equal(dataset.Previous.EndpointBindings, dataset.Current.EndpointBindings))
-                    Add("dataset-access", CompatibilityClassification.PotentiallyBreaking, "Dataset naming, representation, or endpoint bindings changed; consumer access assumptions may be affected.");
-                if (!Equal(dataset.Previous.Schema?.PrimaryKey, dataset.Current.Schema?.PrimaryKey)
-                    || !Equal(dataset.Previous.Schema?.Extensions, dataset.Current.Schema?.Extensions)
-                    || !Equal(dataset.Previous.Extensions, dataset.Current.Extensions)
-                    || (dataset.Previous.Schema is null) != (dataset.Current.Schema is null))
-                    Add("dataset-semantics", CompatibilityClassification.Unknown, "Schema keys, schema availability, or extension semantics require additional policy rules.");
-                break;
-            case ContractMetadataChanged metadata:
-                if (metadata.Path.Value == "metadata") break;
-                if (metadata.Previous is ContractIdentity previous && metadata.Current is ContractIdentity current)
-                {
-                    if (previous.Id != current.Id || previous.Name != current.Name)
-                        Add("contract-identity", CompatibilityClassification.PotentiallyBreaking, "Contract identity changed and may affect consumer discovery.");
-                }
-                else Add("contract-metadata", CompatibilityClassification.Unknown, "Governance or extension metadata may carry semantics this policy cannot classify.");
-                break;
-            case IServerChange:
-                Add("server-access", CompatibilityClassification.PotentiallyBreaking, "Server access or representation changed; operational impact depends on the consumer."); break;
-            default:
-                Add("unsupported-change", CompatibilityClassification.Unknown, "Relationship, quality, SLA, or unrecognized change semantics have no supported rule."); break;
-        }
-        if (findings.Count == 0)
-            Add("descriptive-metadata", CompatibilityClassification.NonBreaking, "Only descriptive metadata changed; producer structural guarantees are unchanged.");
-        return findings;
+        => new ChangeClassifier(change).Classify();
 
-        void Add(string rule, CompatibilityClassification classification, string explanation, string? facet = null, string? key = null)
+    private sealed class ChangeClassifier(IContractChange change)
+    {
+        private readonly List<CompatibilityFinding> findings = [];
+
+        internal IEnumerable<CompatibilityFinding> Classify()
+        {
+            switch (change)
+            {
+                case DatasetAdded:
+                    Add("dataset-added", CompatibilityClassification.NonBreaking, "Additional datasets do not affect existing name-based consumers."); break;
+                case DatasetRemoved:
+                    Add("dataset-removed", CompatibilityClassification.Breaking, "A dataset available to baseline consumers was removed."); break;
+                case PropertyAdded when IsItems(change.Path):
+                case PropertyRemoved when IsItems(change.Path):
+                    Add("items-shape", CompatibilityClassification.Unknown, "Array item definition changes require semantics not covered by this policy."); break;
+                case PropertyAdded:
+                    Add("property-added", CompatibilityClassification.NonBreaking, "Additional fields are allowed by the policy's open-record assumption."); break;
+                case PropertyRemoved:
+                    Add("property-removed", CompatibilityClassification.Breaking, "A field available to baseline consumers was removed."); break;
+                case PropertyTypeChanged type:
+                    Add("logical-type", Type(type.Previous, type.Current), TypeExplanation(type.Previous, type.Current)); break;
+                case PropertyModified property:
+                    Field(property.Previous, property.Current); break;
+                case DatasetModified dataset:
+                    Dataset(dataset);
+                    break;
+                case ContractMetadataChanged metadata:
+                    Metadata(metadata);
+                    break;
+                case IServerChange:
+                    Add("server-access", CompatibilityClassification.PotentiallyBreaking, "Server access or representation changed; operational impact depends on the consumer."); break;
+                default:
+                    Add("unsupported-change", CompatibilityClassification.Unknown, "Relationship, quality, SLA, or unrecognized change semantics have no supported rule."); break;
+            }
+            if (findings.Count == 0)
+                Add("descriptive-metadata", CompatibilityClassification.NonBreaking, "Only descriptive metadata changed; producer structural guarantees are unchanged.");
+            return findings;
+        }
+
+        private void Dataset(DatasetModified dataset)
+        {
+            if (dataset.Previous.Name != dataset.Current.Name || dataset.Previous.PhysicalName != dataset.Current.PhysicalName
+                || dataset.Previous.Kind != dataset.Current.Kind || !Equal(dataset.Previous.EndpointBindings, dataset.Current.EndpointBindings))
+                Add("dataset-access", CompatibilityClassification.PotentiallyBreaking, "Dataset naming, representation, or endpoint bindings changed; consumer access assumptions may be affected.");
+            if (!Equal(dataset.Previous.Schema?.PrimaryKey, dataset.Current.Schema?.PrimaryKey)
+                || !Equal(dataset.Previous.Schema?.Extensions, dataset.Current.Schema?.Extensions)
+                || !Equal(dataset.Previous.Extensions, dataset.Current.Extensions)
+                || (dataset.Previous.Schema is null) != (dataset.Current.Schema is null))
+                Add("dataset-semantics", CompatibilityClassification.Unknown, "Schema keys, schema availability, or extension semantics require additional policy rules.");
+        }
+
+        private void Metadata(ContractMetadataChanged metadata)
+        {
+            if (metadata.Path.Value == "metadata") return;
+            if (metadata.Previous is not ContractIdentity previous || metadata.Current is not ContractIdentity current)
+            {
+                Add("contract-metadata", CompatibilityClassification.Unknown, "Governance or extension metadata may carry semantics this policy cannot classify.");
+                return;
+            }
+            if (previous.Id != current.Id || previous.Name != current.Name)
+                Add("contract-identity", CompatibilityClassification.PotentiallyBreaking, "Contract identity changed and may affect consumer discovery.");
+        }
+
+        private void Add(string rule, CompatibilityClassification classification, string explanation, string? facet = null, string? key = null)
         {
             var path = facet is null ? change.Path : change.Path.Append(facet);
             findings.Add(new(key is null ? path : path.Append(key), classification, rule, explanation, change));
         }
 
-        void Field(DataField previous, DataField current)
+        private void Field(DataField previous, DataField current)
         {
             if (previous.Required != current.Required)
                 Add("requiredness", current.Required ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking,
-                    current.Required ? "The candidate guarantees field presence." : "The candidate no longer guarantees field presence.", "required");
+                    current.Required ? "The candidate guarantees field presence." : "The candidate no longer guarantees field presence.", Required);
             if (previous.Nullable != current.Nullable)
                 Add("nullability", current.Nullable ? CompatibilityClassification.Breaking : CompatibilityClassification.NonBreaking,
                     current.Nullable ? "Candidate data may contain nulls that baseline consumers did not accept." : "The candidate strengthens the non-null guarantee.", "nullable");
@@ -89,11 +113,18 @@ internal static class CompatibilityRules
                 Add("field-extensions", CompatibilityClassification.Unknown, "Source-specific field extensions changed and need a dedicated rule.", "extensions");
             var before = Index(previous.Constraints);
             var after = Index(current.Constraints);
-            Bounds("minimum", "exclusiveMinimum", true);
-            Bounds("maximum", "exclusiveMaximum", false);
-            foreach (var kind in before.Keys.Union(after.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal))
+            Bounds(before, after, Minimum, ExclusiveMinimum, true);
+            Bounds(before, after, Maximum, ExclusiveMaximum, false);
+            Constraints(before, after);
+        }
+
+        private void Constraints(Dictionary<string, object?> before, Dictionary<string, object?> after)
+        {
+            var kinds = before.Keys.Union(after.Keys, StringComparer.Ordinal)
+                .Where(kind => kind is not (Minimum or Maximum or ExclusiveMinimum or ExclusiveMaximum))
+                .Order(StringComparer.Ordinal);
+            foreach (var kind in kinds)
             {
-                if (kind is "minimum" or "maximum" or "exclusiveMinimum" or "exclusiveMaximum") continue;
                 before.TryGetValue(kind, out var left);
                 after.TryGetValue(kind, out var right);
                 if (Equal(left, right)) continue;
@@ -105,26 +136,35 @@ internal static class CompatibilityRules
                     _ => "Constraint implication cannot be established by this policy."
                 }, "constraints", kind);
             }
-
-            void Bounds(string inclusive, string exclusive, bool lower)
-            {
-                if (Equal(before.GetValueOrDefault(inclusive), after.GetValueOrDefault(inclusive))
-                    && Equal(before.GetValueOrDefault(exclusive), after.GetValueOrDefault(exclusive))) return;
-                var classification = !Bound(before, inclusive, exclusive, lower, out var left, out var leftExclusive)
-                    || !Bound(after, inclusive, exclusive, lower, out var right, out var rightExclusive)
-                    ? CompatibilityClassification.Unknown
-                    : left is null ? CompatibilityClassification.NonBreaking
-                    : right is null ? CompatibilityClassification.Breaking
-                    : (lower ? right > left : right < left) || right == left && (!leftExclusive || rightExclusive)
-                        ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking;
-                Add("constraint:" + inclusive, classification, classification switch
-                {
-                    CompatibilityClassification.NonBreaking => "The candidate preserves or tightens this numeric bound.",
-                    CompatibilityClassification.Breaking => "The candidate relaxes this numeric bound beyond the baseline guarantee.",
-                    _ => "Numeric bound implication cannot be established."
-                }, "constraints", inclusive);
-            }
         }
+
+        private void Bounds(Dictionary<string, object?> before, Dictionary<string, object?> after,
+            string inclusive, string exclusive, bool lower)
+        {
+            if (Equal(before.GetValueOrDefault(inclusive), after.GetValueOrDefault(inclusive))
+                && Equal(before.GetValueOrDefault(exclusive), after.GetValueOrDefault(exclusive))) return;
+            var classification = ClassifyBounds(before, after, inclusive, exclusive, lower);
+            Add("constraint:" + inclusive, classification, classification switch
+            {
+                CompatibilityClassification.NonBreaking => "The candidate preserves or tightens this numeric bound.",
+                CompatibilityClassification.Breaking => "The candidate relaxes this numeric bound beyond the baseline guarantee.",
+                _ => "Numeric bound implication cannot be established."
+            }, "constraints", inclusive);
+        }
+    }
+
+    private static CompatibilityClassification ClassifyBounds(Dictionary<string, object?> before, Dictionary<string, object?> after,
+        string inclusive, string exclusive, bool lower)
+    {
+        if (!Bound(before, inclusive, exclusive, lower, out var left, out var leftExclusive)
+            || !Bound(after, inclusive, exclusive, lower, out var right, out var rightExclusive))
+            return CompatibilityClassification.Unknown;
+        if (left is null) return CompatibilityClassification.NonBreaking;
+        if (right is null) return CompatibilityClassification.Breaking;
+        if (left == right)
+            return !leftExclusive || rightExclusive ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking;
+        var tighter = lower ? right > left : right < left;
+        return tighter ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking;
     }
 
     private static Dictionary<string, object?> Index(IReadOnlyList<DataConstraint> constraints)
@@ -155,28 +195,42 @@ internal static class CompatibilityRules
     private static CompatibilityClassification Constraint(string kind, object? previous, object? current)
     {
         if (!KnownConstraint(kind)) return CompatibilityClassification.Unknown;
-        if (kind is "pattern" or "required") return CompatibilityClassification.Unknown;
+        if (kind is "pattern" or Required) return CompatibilityClassification.Unknown;
         if (kind is "unique" or "uniqueItems" or "primaryKey")
-        {
-            if (!Boolean(previous, out var before) || !Boolean(current, out var after)) return CompatibilityClassification.Unknown;
-            return before && !after ? CompatibilityClassification.Breaking : CompatibilityClassification.NonBreaking;
-        }
+            return BooleanConstraint(previous, current);
         if (kind == "enum")
-        {
-            if (current is null) return CompatibilityClassification.Breaking;
-            if (current is not IEnumerable values || current is string) return CompatibilityClassification.Unknown;
-            if (previous is null) return CompatibilityClassification.NonBreaking;
-            if (previous is not IEnumerable baseline || previous is string) return CompatibilityClassification.Unknown;
-            var allowed = baseline.Cast<object?>().ToArray();
-            return values.Cast<object?>().All(value => allowed.Any(old => Equal(old, value)
-                || Number(old, out var oldNumber) && Number(value, out var newNumber) && oldNumber == newNumber))
-                ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking;
-        }
+            return EnumConstraint(previous, current);
+        return NumericConstraint(kind, previous, current);
+    }
+
+    private static CompatibilityClassification BooleanConstraint(object? previous, object? current)
+    {
+        if (!Boolean(previous, out var before) || !Boolean(current, out var after)) return CompatibilityClassification.Unknown;
+        return before && !after ? CompatibilityClassification.Breaking : CompatibilityClassification.NonBreaking;
+    }
+
+    private static CompatibilityClassification EnumConstraint(object? previous, object? current)
+    {
+        if (current is null) return CompatibilityClassification.Breaking;
+        if (current is not IEnumerable values || current is string) return CompatibilityClassification.Unknown;
+        if (previous is null) return CompatibilityClassification.NonBreaking;
+        if (previous is not IEnumerable baseline || previous is string) return CompatibilityClassification.Unknown;
+        var allowed = baseline.Cast<object?>().ToArray();
+        return values.Cast<object?>().All(value => allowed.Any(old => EnumValueEqual(old, value)))
+            ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking;
+    }
+
+    private static bool EnumValueEqual(object? previous, object? current) => Equal(previous, current)
+        || Number(previous, out var left) && Number(current, out var right) && left == right;
+
+    private static CompatibilityClassification NumericConstraint(string kind, object? previous, object? current)
+    {
         if (previous is null) return Number(current, out _) ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Unknown;
         if (current is null) return Number(previous, out _) ? CompatibilityClassification.Breaking : CompatibilityClassification.Unknown;
         if (!Number(previous, out var left) || !Number(current, out var right)) return CompatibilityClassification.Unknown;
-        var minimum = kind is "minimum" or "exclusiveMinimum" or "minLength" or "minItems" or "minProperties";
-        return (minimum ? right >= left : right <= left) ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking;
+        var minimum = kind is Minimum or ExclusiveMinimum or "minLength" or "minItems" or "minProperties";
+        var tighter = minimum ? right >= left : right <= left;
+        return tighter ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking;
     }
 
     private static bool Boolean(object? value, out bool result)
@@ -189,17 +243,7 @@ internal static class CompatibilityRules
 
     private static bool IsItems(ContractPath path)
     {
-        var segments = new List<string>();
-        var segment = new System.Text.StringBuilder();
-        var escaped = false;
-        foreach (var character in path.Value)
-        {
-            if (escaped) { segment.Append(character); escaped = false; }
-            else if (character == '\\') escaped = true;
-            else if (character == '.') { segments.Add(segment.ToString()); segment.Clear(); }
-            else segment.Append(character);
-        }
-        segments.Add(segment.ToString());
+        var segments = PathSegments(path);
         // Consume property identifiers as data, including identifiers literally named
         // "items" or "properties". Only traversal segments denote array items.
         var lastWasItems = false;
@@ -216,6 +260,22 @@ internal static class CompatibilityRules
         return lastWasItems;
     }
 
+    private static List<string> PathSegments(ContractPath path)
+    {
+        var segments = new List<string>();
+        var segment = new System.Text.StringBuilder();
+        var escaped = false;
+        foreach (var character in path.Value)
+        {
+            if (escaped) { segment.Append(character); escaped = false; }
+            else if (character == '\\') escaped = true;
+            else if (character == '.') { segments.Add(segment.ToString()); segment.Clear(); }
+            else segment.Append(character);
+        }
+        segments.Add(segment.ToString());
+        return segments;
+    }
+
     private static bool Bound(Dictionary<string, object?> constraints, string inclusive, string exclusive, bool lower,
         out decimal? bound, out bool isExclusive)
     {
@@ -225,7 +285,7 @@ internal static class CompatibilityRules
         {
             if (!constraints.TryGetValue(kind, out var value)) continue;
             if (!Number(value, out var number)) return false;
-            if (bound is null || (lower ? number > bound : number < bound) || number == bound && kind == exclusive)
+            if (bound is null || IsTighterBound(number, bound.Value, lower) || number == bound && kind == exclusive)
             {
                 bound = number;
                 isExclusive = kind == exclusive;
@@ -233,6 +293,9 @@ internal static class CompatibilityRules
         }
         return true;
     }
+
+    private static bool IsTighterBound(decimal candidate, decimal baseline, bool lower)
+        => lower ? candidate > baseline : candidate < baseline;
 
     private static bool Number(object? value, out decimal result)
     {

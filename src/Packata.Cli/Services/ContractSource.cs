@@ -18,7 +18,7 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         var mapped = Map();
         return new(mapped.Value, NativeDocument is Packata.DataPackage.DataPackage
             ? ContractStandard.DataPackage : ContractStandard.Odcs, mapped.Diagnostics,
-            DescriptorRoot is null ? null : (IReadOnlyDictionary<string, object?>)Tree(DescriptorRoot)!);
+            DescriptorRoot is null ? null : Tree(DescriptorRoot));
     }
 
     public MappingResult<DataContract> Map() => NativeDocument switch
@@ -87,9 +87,13 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
     // Transport-only projection; source coverage and all compatibility rules live in Core.
     private static object? Tree(YamlNode node) => node switch
     {
-        YamlMappingNode map => map.Children.ToDictionary(pair => ((YamlScalarNode)pair.Key).Value ?? string.Empty, pair => Tree(pair.Value), StringComparer.Ordinal),
+        YamlMappingNode map => Tree(map),
         YamlSequenceNode sequence => sequence.Children.Select(Tree).ToArray(),
         YamlScalarNode scalar => scalar.Value,
         _ => null
     };
+
+    private static IReadOnlyDictionary<string, object?> Tree(YamlMappingNode map)
+        => map.Children.ToDictionary(pair => ((YamlScalarNode)pair.Key).Value ?? string.Empty,
+            pair => Tree(pair.Value), StringComparer.Ordinal);
 }

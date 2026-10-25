@@ -47,8 +47,8 @@ internal static class ComparePresenter
         Console.WriteLine($"Candidate (current): {payload["candidate"]}");
         Console.WriteLine($"Direction: baseline -> candidate; policy: {payload["policy"]}");
         Console.WriteLine($"Analysis: {payload["outcome"]}; completed: {payload["completed"]}; exit code: {payload["exitCode"]}");
-        foreach (var finding in payload["findings"]!)
+        foreach (var finding in payload["findings"] ?? new JArray())
             Console.WriteLine($"{finding["classification"]} {finding["path"]}: {finding["explanation"]}");
-        Console.WriteLine($"Totals: {payload["totals"]!.ToString(Newtonsoft.Json.Formatting.None)}");
+        Console.WriteLine($"Totals: {payload["totals"]?.ToString(Newtonsoft.Json.Formatting.None)}");
     }
 }

@@ -76,6 +76,53 @@ public class ContractCompatibilityTests
         Assert.That(Compare(exclusive, mixed).Outcome, Is.EqualTo(CompatibilityOutcome.Compatible));
     }
 
+    [TestCase("minimum", 10, "exclusiveMinimum", 10, CompatibilityOutcome.Compatible)]
+    [TestCase("exclusiveMinimum", 10, "minimum", 10, CompatibilityOutcome.Breaking)]
+    [TestCase("maximum", 10, "exclusiveMaximum", 10, CompatibilityOutcome.Compatible)]
+    [TestCase("exclusiveMaximum", 10, "maximum", 10, CompatibilityOutcome.Breaking)]
+    [TestCase("exclusiveMinimum", 10, "minimum", 11, CompatibilityOutcome.Compatible)]
+    [TestCase("minimum", 10, "exclusiveMinimum", 9, CompatibilityOutcome.Breaking)]
+    [TestCase("exclusiveMaximum", 10, "maximum", 9, CompatibilityOutcome.Compatible)]
+    [TestCase("maximum", 10, "exclusiveMaximum", 11, CompatibilityOutcome.Breaking)]
+    [TestCase(null, 0, "minimum", 10, CompatibilityOutcome.Compatible)]
+    [TestCase("minimum", 10, null, 0, CompatibilityOutcome.Breaking)]
+    [TestCase(null, 0, "maximum", 10, CompatibilityOutcome.Compatible)]
+    [TestCase("maximum", 10, null, 0, CompatibilityOutcome.Breaking)]
+    public void NumericBounds_RespectDirectionPresenceAndExclusivity(string? beforeKind, int before,
+        string? afterKind, int after, CompatibilityOutcome expected)
+    {
+        var baseline = new DataField("value", "number", Constraints: beforeKind is null ? [] : [new(beforeKind, before)]);
+        var candidate = baseline with { Constraints = afterKind is null ? [] : [new(afterKind, after)] };
+        var result = Compare(baseline, candidate);
+
+        Assert.That(result.Outcome, Is.EqualTo(expected));
+        Assert.That(result.Findings, Has.Count.EqualTo(1));
+        Assert.That(result.Findings[0].Rule, Is.AnyOf("constraint:minimum", "constraint:maximum"));
+    }
+
+    [TestCase("minimum", "exclusiveMinimum", 10, 9)]
+    [TestCase("maximum", "exclusiveMaximum", 10, 11)]
+    public void CombinedNumericBounds_PreserveTheStrongerInclusiveGuarantee(string inclusive, string exclusive,
+        int strong, int weak)
+    {
+        var baseline = new DataField("value", "number", Constraints: [new(inclusive, strong)]);
+        var candidate = baseline with { Constraints = [new(inclusive, strong), new(exclusive, weak)] };
+
+        Assert.That(Compare(baseline, candidate).Outcome, Is.EqualTo(CompatibilityOutcome.Compatible));
+        Assert.That(Compare(candidate, baseline).Outcome, Is.EqualTo(CompatibilityOutcome.Compatible));
+    }
+
+    [Test]
+    public void DescriptiveMetadata_StillProducesANonBreakingFinding()
+    {
+        var baseline = Contract(new DataField("id", "integer"));
+        var candidate = baseline with { Metadata = new(Description: "Updated description") };
+        var result = ContractCompatibility.Compare(baseline, candidate);
+
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.Compatible));
+        Assert.That(result.Findings.Single().Rule, Is.EqualTo("descriptive-metadata"));
+    }
+
     [TestCase("unique")]
     [TestCase("uniqueItems")]
     [TestCase("primaryKey")]
