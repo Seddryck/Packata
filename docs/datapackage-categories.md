@@ -82,7 +82,9 @@ never mistaken for local resources. Registry resolution, automatic downloading,
 value expansion, and generating DDL enum constraints from category table rows are
 not implemented. Explicit enum constraints remain available as declared.
 
-Canonical field extensions retain the reference object under
+The [shared value-domain model](value-domains.md) exposes inline values and optional
+labels via `DataField.ValueDomain`, and table mappings via `DataAsset.CategoryTable`.
+Canonical field extensions also retain a detached copy of the reference object under
 `extensions["datapackage"]["categories"]`; resource extensions retain
 `categoryFieldMap`. References are not converted into empty inline categories.
 

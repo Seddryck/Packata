@@ -140,7 +140,9 @@ public class InlineCategoriesTests
             var mapped = new DataPackageMapper().Map(Package(field)).RequireValue().Assets.Single().Schema!.Fields.Single();
             Assert.That(mapped.Constraints.Single().Value, Is.EqualTo(new[] { "001" }));
             Assert.That(mapped.Extensions["datapackage"]["categoriesOrdered"], Is.EqualTo(ordered));
-            Assert.That(mapped.Extensions["datapackage"]["categories"], Is.SameAs(field.Categories));
+            Assert.That(mapped.Extensions["datapackage"]["categories"], Is.Not.SameAs(field.Categories));
+            Assert.That(((CategoryCollection)mapped.Extensions["datapackage"]["categories"]!).Select(entry => (entry.Value, entry.Label)),
+                Is.EqualTo(field.Categories!.Select(entry => (entry.Value, entry.Label))));
             field.Constraints = null;
             mapped = new DataPackageMapper().Map(Package(field)).RequireValue().Assets.Single().Schema!.Fields.Single();
             Assert.That(mapped.Constraints.Single().Value, Is.EqualTo(new[] { "B", "001" }));
@@ -153,10 +155,10 @@ public class InlineCategoriesTests
     public void Full_descriptor_rejects_non_boolean_ordering_flags(string value)
     {
         var input = "{\"resources\":[{\"name\":\"data\",\"data\":[],\"schema\":{\"fields\":[{\"name\":\"f\",\"type\":\"string\",\"categories\":[\"a\"],\"categoriesOrdered\":" + value + "}]}}]}";
-        foreach (var format in new[] {SerializationFormat.Json,SerializationFormat.Yaml})
+        foreach (var format in new[] { SerializationFormat.Json, SerializationFormat.Yaml })
         {
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(input));
-            Assert.That(() => new DataPackageFactory().LoadFromStream(stream,format),Throws.Exception);
+            Assert.That(() => new DataPackageFactory().LoadFromStream(stream, format), Throws.Exception);
         }
     }
 

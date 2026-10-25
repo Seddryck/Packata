@@ -163,7 +163,7 @@ public class DubUrlProvisionerTests
         fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
             .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
         var contract = Contract(new DataSchema(
-            [new DataField("code", "string", Constraints: [new("pattern", "^[A-Z]+$")]) ]));
+            [new DataField("code", "string", Constraints: [new("pattern", "^[A-Z]+$")])]));
 
         var diagnostics = fixture.Provisioner.DeploySchema(contract);
 
@@ -184,7 +184,7 @@ public class DubUrlProvisionerTests
         fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
             .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
         var contract = Contract(new DataSchema(
-            [new DataField("status", "string", Constraints: [new("enum", new[] { "new", "closed" })]) ]));
+            [new DataField("status", "string", Constraints: [new("enum", new[] { "new", "closed" })])]));
 
         var diagnostics = fixture.Provisioner.DeploySchema(contract);
 
@@ -195,6 +195,27 @@ public class DubUrlProvisionerTests
             Assert.That(diagnostics, Is.Empty);
             Assert.That(membership.Values, Is.EqualTo(new[] { "new", "closed" }));
         });
+    }
+
+    [Test]
+    public void DeploySchema_uses_domain_values_instead_of_labels_and_does_not_expand_unresolved_references()
+    {
+        var fixture = CreateFixture();
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
+        var a = ScalarValue.From("new");
+        var b = ScalarValue.From("closed");
+        var contract = Contract(new DataSchema(
+        [
+            new DataField("status","string",ValueDomain:new([new(a,"New item","Description"),new(b,"Closed item")],[a])),
+            new DataField("unknown","string",ValueDomain:new(reference:new("codes")))
+        ]));
+        var diagnostics = fixture.Provisioner.DeploySchema(contract);
+        Assert.That(diagnostics, Is.Empty);
+        Assert.That(rendered!.Tables["Customer"].Columns["status"].Constraints.OfType<MembershipCheckConstraint>().Single().Values,
+            Is.EqualTo(new[] { "new" }));
+        Assert.That(rendered.Tables["Customer"].Columns["unknown"].Constraints.OfType<MembershipCheckConstraint>(), Is.Empty);
     }
 
     [Test]

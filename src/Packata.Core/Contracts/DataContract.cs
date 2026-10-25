@@ -40,7 +40,8 @@ public sealed record DataAsset(
     DataSchema? Schema,
     IReadOnlyList<EndpointBinding>? EndpointBindings = null,
     IReadOnlyList<DataQualityRule>? QualityRules = null,
-    ExtensionMetadata? Extensions = null)
+    ExtensionMetadata? Extensions = null,
+    CategoryTableDefinition? CategoryTable = null)
 {
     public IReadOnlyList<EndpointBinding> EndpointBindings { get; init; } = EndpointBindings ?? [];
     public IReadOnlyList<DataQualityRule> QualityRules { get; init; } = QualityRules ?? [];
@@ -81,9 +82,15 @@ public sealed record DataField(
     string? PhysicalName = null,
     string? Description = null,
     bool Nullable = false,
-    DataField? Items = null)
+    DataField? Items = null,
+    ValueDomain? ValueDomain = null)
 {
-    public IReadOnlyList<DataConstraint> Constraints { get; init; } = Constraints ?? [];
+    private readonly IReadOnlyList<DataConstraint> _constraints = Array.AsReadOnly((Constraints ?? []).ToArray());
+    public IReadOnlyList<DataConstraint> Constraints
+    {
+        get => ValueDomain?.ProjectConstraints(_constraints) ?? _constraints;
+        init => _constraints = Array.AsReadOnly(value.ToArray());
+    }
     public IReadOnlyList<DataQualityRule> QualityRules { get; init; } = QualityRules ?? [];
     public IReadOnlyList<DataField> Children { get; init; } = Children ?? [];
     public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;

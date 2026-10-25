@@ -14,6 +14,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         var diagnostics = new List<MappingDiagnostic>();
         var assets = new List<DataAsset>();
         var endpoints = new List<DataEndpoint>();
+        var categoryTables = document.Resources.Select((resource, index) => (resource, table: ValueDomainMapper.Table(resource, $"$.resources[{index}]", diagnostics)))
+            .ToDictionary(item => item.resource, item => item.table);
 
         for (var index = 0; index < document.Resources.Count; index++)
         {
@@ -39,8 +41,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 assetId, resource.Title ?? assetId,
                 resource.Dialect?.Table ?? resource.Name,
                 resource.Description, MapAssetKind(resource),
-                MapSchema(resource.Schema, assetId, document, sourcePath, diagnostics), bindings,
-                Extensions: ExtensionMetadata.For("datapackage", ResourceExtensions(resource))));
+                MapSchema(resource.Schema, assetId, document, categoryTables, sourcePath, diagnostics), bindings,
+                Extensions: ExtensionMetadata.For("datapackage", ResourceExtensions(resource)), CategoryTable: categoryTables[resource]));
         }
 
         var id = document.Id ?? document.Name;
@@ -107,30 +109,36 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 DialectOptions(resource.Dialect)),
             ExtensionMetadata.For("datapackage", new Dictionary<string, object?>
             {
-                ["kind"] = resource.Kind, ["profile"] = resource.Profile,
-                ["bytes"] = resource.Bytes, ["hash"] = resource.Hash
+                ["kind"] = resource.Kind,
+                ["profile"] = resource.Profile,
+                ["bytes"] = resource.Bytes,
+                ["hash"] = resource.Hash
             }));
     }
 
     private static DataSchema? MapSchema(Native.Schema? schema, string assetId, Native.DataPackage package,
+        IReadOnlyDictionary<Native.Resource, CategoryTableDefinition?> categoryTables,
         string sourcePath, ICollection<MappingDiagnostic> diagnostics)
     {
         if (schema is null) return null;
         var fields = schema.Fields.Select((field, index) =>
-            MapField(field, index, sourcePath, diagnostics)).ToArray();
+            MapField(field, index, package, categoryTables, sourcePath, diagnostics)).ToArray();
         var relationships = (schema.ForeignKeys ?? []).Select(foreignKey =>
             MapRelationship(foreignKey, assetId, package, sourcePath, diagnostics)).ToArray();
 
         return new DataSchema(fields, schema.PrimaryKey, relationships,
             ExtensionMetadata.For("datapackage", new Dictionary<string, object?>
             {
-                ["profile"] = schema.Profile, ["fieldsMatch"] = schema.FieldsMatch.ToString(),
-                ["uniqueKeys"] = schema.UniqueKeys, ["missingValues"] = schema.MissingValues,
+                ["profile"] = schema.Profile,
+                ["fieldsMatch"] = schema.FieldsMatch.ToString(),
+                ["uniqueKeys"] = schema.UniqueKeys,
+                ["missingValues"] = schema.MissingValues,
                 ["metrics"] = schema.Metrics
             }));
     }
 
-    private static DataField MapField(Native.Field field, int index, string sourcePath,
+    private static DataField MapField(Native.Field field, int index, Native.DataPackage package,
+        IReadOnlyDictionary<Native.Resource, CategoryTableDefinition?> categoryTables, string sourcePath,
         ICollection<MappingDiagnostic> diagnostics)
     {
         var name = field.Name;
@@ -141,12 +149,16 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 $"{sourcePath}.schema.fields[{index}].name", $"The field has no name; '{name}' was generated."));
         }
         var constraints = MapConstraints(field);
+        var domain = ValueDomainMapper.Field(field, package, categoryTables, $"{sourcePath}.schema.fields[{index}]", diagnostics);
+        if (domain?.AllowedValues is not null)
+            constraints = constraints.Where(value => value.Kind != "enum").ToArray();
         return new DataField(name, field.Type, PhysicalType: field.PhysicalType, Format: field.Format,
             Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
             Constraints: constraints,
             Extensions: ExtensionMetadata.For("datapackage", FieldExtensions(field)),
             PhysicalName: field.PhysicalName ?? name,
-            Description: field.Description);
+            Description: field.Description,
+            ValueDomain: domain);
     }
 
     private static DataConstraint[] MapConstraints(Native.Field field)
@@ -183,7 +195,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         Native.ExclusiveMinimumConstraint x => new("exclusiveMinimum", x.Value),
         Native.ExclusiveMaximumConstraint x => new("exclusiveMaximum", x.Value),
         Native.PatternConstraint x => new("pattern", x.Value),
-        Native.EnumConstraint x => new("enum", x.Value),
+        Native.EnumConstraint x => new("enum", MetadataSnapshot.CopyValue(x.Value)),
         Native.JsonSchemaConstraint x => new("jsonSchema", x.Value),
         Native.UnknownConstraint x => new(x.Name, x.Value),
         _ => new(constraint.GetType().Name, constraint.Value)
@@ -192,9 +204,13 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
     private static AssetKind MapAssetKind(Native.Resource resource) =>
         (resource.Type ?? resource.Kind)?.ToLowerInvariant() switch
         {
-            "table" => AssetKind.Table, "view" => AssetKind.View, "file" => AssetKind.File,
-            "object" => AssetKind.Object, _ when resource.Connection is not null => AssetKind.Table,
-            _ when resource.Paths.Count > 0 => AssetKind.File, _ => AssetKind.Unknown
+            "table" => AssetKind.Table,
+            "view" => AssetKind.View,
+            "file" => AssetKind.File,
+            "object" => AssetKind.Object,
+            _ when resource.Connection is not null => AssetKind.Table,
+            _ when resource.Paths.Count > 0 => AssetKind.File,
+            _ => AssetKind.Unknown
         };
 
     private static Ownership? MapOwnership(IEnumerable<Native.Contributor> contributors)
@@ -220,18 +236,28 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
     }
 
     private static IReadOnlyDictionary<string, object?> ResourceExtensions(Native.Resource resource) =>
-        new Dictionary<string, object?> { ["profile"] = resource.Profile, ["type"] = resource.Type,
-            ["kind"] = resource.Kind, ["homepage"] = resource.Homepage,
-            ["sources"] = resource.Sources, ["licenses"] = resource.Licenses,
-            ["categoryFieldMap"] = resource.CategoryFieldMap };
+        new Dictionary<string, object?>
+        {
+            ["profile"] = resource.Profile,
+            ["type"] = resource.Type,
+            ["kind"] = resource.Kind,
+            ["homepage"] = resource.Homepage,
+            ["sources"] = resource.Sources,
+            ["licenses"] = resource.Licenses,
+            ["categoryFieldMap"] = resource.CategoryFieldMap is not { } map ? null : new Native.CategoryFieldMap
+            { Value = map.Value, Label = map.Label, Ordered = map.Ordered }
+        };
 
     private static IReadOnlyDictionary<string, object?> FieldExtensions(Native.Field field)
     {
         var values = new Dictionary<string, object?>
         {
-            ["title"] = field.Title, ["description"] = field.Description,
-            ["example"] = field.Example, ["rdfType"] = field.RdfType,
-            ["categories"] = (object?)field.Categories?.Reference ?? field.Categories, ["categoriesOrdered"] = field.CategoriesOrdered
+            ["title"] = field.Title,
+            ["description"] = field.Description,
+            ["example"] = field.Example,
+            ["rdfType"] = field.RdfType,
+            ["categories"] = CopyCategories(field.Categories),
+            ["categoriesOrdered"] = field.CategoriesOrdered
         };
         if (field is Native.BooleanField boolean)
         {
@@ -240,6 +266,22 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         }
         return values;
     }
+
+    private static object? CopyCategories(Native.CategoryCollection? categories)
+    {
+        if (categories is null) return null;
+        if (categories.Reference is { } reference)
+            return new Native.CategoryTableReference { Resource = reference.Resource, Package = reference.Package, EncodedAs = reference.EncodedAs };
+        return new Native.CategoryCollection(categories.Select(category => category switch
+        {
+            Native.Category value => (Native.ICategory)new Native.Category(value.Value, value.Label),
+            Native.CategoryLabel value => new Native.CategoryLabel(value.Label),
+            Native.CategoryInteger value => new Native.CategoryInteger((long)value.Value),
+            _ => new CategorySnapshot(MetadataSnapshot.CopyValue(category.Value)!, category.Label)
+        }));
+    }
+
+    private sealed record CategorySnapshot(object Value, string? Label) : Native.ICategory;
 
     private static object? NormalizeInlineValue(object? value) => value switch
     {
