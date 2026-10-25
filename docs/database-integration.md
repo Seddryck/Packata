@@ -1,3 +1,10 @@
+---
+title: Database connections and provisioning
+nav_order: 5
+nav_exclude: false
+permalink: /database-integration/
+---
+
 # Database connections, connectors and provisioning
 
 `Packata.Database` supplies the shared DubUrl service used by database readers and provisioners.

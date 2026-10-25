@@ -1,0 +1,9 @@
+.site-title { gap: .75rem; }
+.site-logo { flex: 0 0 3rem; width: 3rem; height: 3rem; }
+.site-title::after { content: "Packata"; color: #293c42; font-size: 1.5rem; font-weight: 600; }
+.site-nav .nav-list-link { color: #293c42; }
+.site-nav .nav-list-link.active,
+.site-nav .nav-list-link:hover { background: #e4f2ef; }
+.site-nav .nav-list-expander { color: #23616a; }
+.site-footer { color: #293c42; }
+.main-content img { max-width: 100%; }

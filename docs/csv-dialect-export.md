@@ -1,3 +1,10 @@
+---
+title: CSV dialect export
+nav_order: 6
+nav_exclude: false
+permalink: /csv-dialect-export/
+---
+
 # Export a CSV dialect descriptor
 
 `Packata.DataPackage.Export.CsvDialectExporter` exports the parsing configuration

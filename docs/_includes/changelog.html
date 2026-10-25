@@ -1,17 +1,7 @@
-<div class="tm-timeline uk-margin-large-top">
-    {% for version in site.data.changelog %}
-    <div class="tm-timeline-entry">
-        <div class="tm-timeline-time">
-            <h5>{{ version.date }}</h5>
-        </div>
-        <div class="tm-timeline-body">
-            <h3 class="uk-flex uk-flex-middle">{{ version.title }}{% if version.label %}<span class="uk-label uk-margin-small-left">{{ version.label }}</span>{% endif %}</h3>
-            <ul class="uk-list">
-                {% for item in version.list %}
-                <li>{{ item }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-    {% endfor %}
-</div>
+{% for version in site.data.changelog %}
+<section class="changelog-entry">
+  <h2>{{ version.title | escape }}</h2>
+  <p class="text-grey-dk-000">{{ version.date | escape }}{% if version.label %} · {{ version.label | escape }}{% endif %}</p>
+  <ul>{% for item in version.list %}<li>{{ item | escape }}</li>{% endfor %}</ul>
+</section>
+{% endfor %}

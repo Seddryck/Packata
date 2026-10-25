@@ -1,7 +1,9 @@
 ---
 layout: page
 width: small
-title: Got Any Questions
+title: Contact
+nav_order: 8
+nav_exclude: false
 permalink: /contact/
 ---
 

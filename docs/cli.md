@@ -1,3 +1,10 @@
+---
+title: Command-line interface
+nav_order: 3
+nav_exclude: false
+permalink: /cli/
+---
+
 # Packata command-line interface
 
 Install the .NET tool with `dotnet tool install --global Packata-cli`. Run
@@ -16,7 +23,7 @@ Use `contract inspect` to find the endpoint ID. `--endpoint` is required; withou
 `--output` the descriptor goes to stdout. Diagnostics go to stderr. Replacing an
 existing output file requires `--overwrite`; the source contract is protected.
 Export reads contract metadata without opening CSV data. See
-[CSV dialect export](csv-dialect-export.md) for the library API, supported
+[CSV dialect export]({{ '/csv-dialect-export/' | relative_url }}) for the library API, supported
 settings, defaults, diagnostics, and an example with two endpoint dialects.
 
 ## Validate a contract
