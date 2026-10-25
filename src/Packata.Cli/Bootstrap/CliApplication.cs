@@ -19,7 +19,8 @@ internal static class CliApplication
                 Enrichment = new ProfileEnrichment { UseDefaultEnrichers = !Console.IsOutputRedirected }
             }));
             configuration.CancellationExitCode(ExitCodes.Cancelled);
-            configuration.SetExceptionHandler((exception, _) => CliErrorHandler.Invocation(exception, args));
+            configuration.SetExceptionHandler((exception, _) => CliErrorHandler.Invocation(exception,
+                detail => CompareInvocationFailure.Write(args, detail)));
             ContractCommands.Configure(configuration);
             DialectCommands.Configure(configuration);
             DataCommands.Configure(configuration);

@@ -319,11 +319,16 @@ An unchanged supported contract produces:
 Invalid inputs, loading errors, cancellation, and failed analysis emit this same
 JSON envelope with `completed: false`, `outcome: failed`, `isCompatible: false`,
 `hasChanges: null`, `gatePassed: null`, and diagnostics. Findings can be partial.
-Invalid invocations emit a failure envelope when `--output-format json` or
-`--output-format=json` requests stdout, with null sources; the usage error also goes to stderr. Invocation errors never create output files.
-An invalid output format itself cannot select JSON. `--quiet` suppresses every
+Invalid invocations emit a failure envelope when `--output-format json`,
+`--output-format=json`, or `--output-format:json` requests stdout, with null
+sources; the usage error also goes to stderr. Destination options accept these
+same space, equals, and colon forms with either `--output` or `-o`.
+Invocation errors never create output files. Options after `--` are not used to
+select presentation. An invalid output format itself cannot select JSON.
+`--quiet` (including explicit `true`) suppresses every
 envelope. Otherwise JSON diagnostics stay inside the envelope and ordinary logs
-do not contaminate machine-readable stdout.
+do not contaminate machine-readable stdout. An explicit `--quiet=false` retains
+normal reporting.
 
 | Exit code | Meaning |
 | --- | --- |
