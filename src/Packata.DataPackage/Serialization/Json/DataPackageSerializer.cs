@@ -20,6 +20,8 @@ internal class DataPackageSerializer : IDataPackageSerializer
         };
         var dataPackage = serializer.Deserialize<DataPackage>(new JsonTextReader(reader))
                             ?? throw new JsonSerializationException("The JSON data is not valid.");
+        foreach (var resource in dataPackage.Resources)
+            resource.Data = InlineDataNormalizer.Normalize(resource.Data);
         return dataPackage;
     }
 }

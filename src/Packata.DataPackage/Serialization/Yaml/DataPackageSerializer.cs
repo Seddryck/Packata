@@ -18,6 +18,7 @@ internal class DataPackageSerializer : IDataPackageSerializer
     {
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(new DataPackageNamingConvention())
+            .WithAttemptingUnquotedStringTypeDeserialization()
             
             .WithTypeDiscriminatingNodeDeserializer((o) =>
                 {
@@ -36,6 +37,8 @@ internal class DataPackageSerializer : IDataPackageSerializer
 
         var dataPackage = deserializer.Deserialize<DataPackage>(reader)
                           ?? throw new YamlDotNet.Core.YamlException("The YAML data is not valid.");
+        foreach (var resource in dataPackage.Resources)
+            resource.Data = InlineDataNormalizer.Normalize(resource.Data);
         return dataPackage;
     }
 }
