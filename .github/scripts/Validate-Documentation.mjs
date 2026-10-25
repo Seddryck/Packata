@@ -9,22 +9,25 @@ const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e =>
 const problems = [];
 const check = (ok, message) => { if (!ok) problems.push(message); };
 
+function literalEnd(source, start) {
+  const quote = source[start], verbatim = source[start - 1] === '@';
+  for (let i = start + 1; i < source.length; i++) {
+    if (source[i] === '\\' && !verbatim) { i++; continue; }
+    if (source[i] !== quote) continue;
+    if (verbatim && source[i + 1] === '"') { i++; continue; }
+    return i;
+  }
+  throw new Error('Unterminated C# literal');
+}
+
 // Balance C# blocks, ignoring comments and string/character literals.
 function block(source, start) {
   let depth = 0;
   for (let i = start; i < source.length; i++) {
     if (source.startsWith('//', i)) { i = source.indexOf('\n', i); if (i < 0) break; }
     else if (source.startsWith('/*', i)) { i = source.indexOf('*/', i + 2) + 1; }
-    else if (source[i] === '"' || source[i] === "'") {
-      const quote = source[i], verbatim = source[i - 1] === '@';
-      for (i++; i < source.length; i++) {
-        if (source[i] === '\\' && !verbatim) i++;
-        else if (source[i] === quote) {
-          if (verbatim && source[i + 1] === '"') i++;
-          else break;
-        }
-      }
-    } else if (source[i] === '{') depth++;
+    else if (source[i] === '"' || source[i] === "'") i = literalEnd(source, i);
+    else if (source[i] === '{') depth++;
     else if (source[i] === '}' && --depth === 0) return i;
   }
   throw new Error('Unbalanced C# block');
