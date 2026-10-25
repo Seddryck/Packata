@@ -1,7 +1,7 @@
 ---
 title: Why did we create Packata?
 subtitle: Transform data. Transform possibilities.
-nav_order: 2
+nav_order: 4
 permalink: /docs/why-packata/
 parent: Concepts
 nav_exclude: false

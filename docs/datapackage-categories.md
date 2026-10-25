@@ -1,3 +1,11 @@
+---
+title: Data Package categories
+parent: Contracts and standards
+nav_order: 1
+nav_exclude: false
+permalink: /datapackage-categories/
+---
+
 # Data Package categories
 
 ## Standard DPv2 inline categories
@@ -82,7 +90,7 @@ never mistaken for local resources. Registry resolution, automatic downloading,
 value expansion, and generating DDL enum constraints from category table rows are
 not implemented. Explicit enum constraints remain available as declared.
 
-The [shared value-domain model](value-domains.md) exposes inline values and optional
+The [shared value-domain model]({{ '/value-domains/' | relative_url }}) exposes inline values and optional
 labels via `DataField.ValueDomain`, and table mappings via `DataAsset.CategoryTable`.
 Canonical field extensions also retain a detached copy of the reference object under
 `extensions["datapackage"]["categories"]`; resource extensions retain

@@ -1,8 +1,10 @@
 ---
 title: Command-line interface
-nav_order: 3
+nav_order: 1
 nav_exclude: false
 permalink: /cli/
+parent: Reference
+has_children: true
 ---
 
 # Packata command-line interface
@@ -11,7 +13,34 @@ Install the .NET tool with `dotnet tool install --global Packata-cli`. Run
 `packata --help` or `packata --version` to discover commands and the installed version.
 The existing `packata infer` command remains available.
 
-## Consistent options and migration
+## Command index
+
+| Command | Reference |
+| --- | --- |
+| `contract validate` | [Validate](#validate-a-contract) |
+| `contract inspect` | [Inspect](#inspect-the-canonical-contract) |
+| `contract diff` | [Factual differences](#compare-two-contract-versions) |
+| `contract compare` | [Consumer compatibility](#assess-consumer-compatibility) |
+| `schema export`, alias `export` | [JSON Schema](#export-a-dataset-schema) |
+| `schema infer`, alias `infer` | [Schema inference]({{ '/cli-inference/' | relative_url }}) |
+| `data preview` | [Read data](#preview-bound-data) |
+| `dialect export` | [CSV dialect](#export-a-csv-dialect) |
+| `connector list`, `connector show`, `connector install` | [Connectors]({{ '/cli-database/' | relative_url }}) |
+| `config list`, `config get`, `config set`, `config unset` | [Configuration]({{ '/cli-database/' | relative_url }}) |
+
+Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `-v`. Branch-only invocations show help. Quote arguments with spaces for your shell.
+
+## Exit-code families
+
+| Commands | Codes |
+| --- | --- |
+| validate, inspect, diff, schema export/export, dialect export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
+| contract compare | Same base codes, plus 4 for a completed report failing the selected gate and 5 for incomplete analysis; see [details](#assess-consumer-compatibility) |
+| schema infer/infer | 0 success; 1 operation failure; 2 caught cancellation or invocation error; framework cancellation can return 130 |
+| config and connector discovery | 0 success; 1 operation/file failure; 2 invocation error |
+| connector install | 0 success; 1 operation failure; 2 caught cancellation/invocation error; framework cancellation can return 130 |
+
+## Shared options
 
 The CLI uses Spectre.Console.Cli. Commands are grouped under `contract`, `schema`,
 `data`, `dialect`, `connector`, and `config`. `infer` and `export` remain compatibility
@@ -33,14 +62,7 @@ its interactive inference report still goes to stdout. It has no separate output
 option because it preserves the source document representation. `--write` updates
 that source in place and cannot be combined with `--output`.
 
-This intentionally changes option names. Replace old `--output json|text|table|csv`
-with `--output-format json|text|table|csv`; `--output json` now means a file named
-`json`. Replace validation/inspection `--format` with `--input-format`, export
-`--format` with `--output-format`, and export `--dataset` / `-d` with `--asset`.
-The export `-f` shorthand still selects the output format. Old long option names
-are rejected rather than guessed. For diff and compare, `--input-format` sets both inputs;
-`--baseline-format` and `--candidate-format` override it independently, including
-an explicit `auto` to re-enable detection for one input.
+Use only the documented option names. The current parser can ignore unrecognized tokens, so a successful exit alone does not prove an unsupported flag was applied. `--output` always means a file path, not a representation. Export also accepts `-f` for `--output-format`. For diff and compare, `--input-format` sets both source standards; `--baseline-format` and `--candidate-format` override it independently, including explicit `auto`.
 
 ```console
 packata contract inspect contract.yaml --input-format odcs --output-format json -o inspection.json
@@ -49,7 +71,20 @@ packata data preview datapackage.json --asset customers --output-format csv -o c
 ```
 
 
+<!-- cli:dialect export -->
 ## Export a CSV dialect
+
+`packata dialect export <SOURCE> --endpoint <ID> [OPTIONS]`
+
+| Option / alias | Values / default | Meaning |
+| --- | --- | --- |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
+| `--endpoint <ID>` | Required | Exact CSV endpoint identifier |
+| `--output-format <FORMAT>` | `json` only; `json` | Standalone Table Dialect JSON |
+| `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+| `--overwrite` | Off | Requires `--output`; permits replacing output but never the source |
+
+All shown positional arguments are required. Use `--help` for command help.
 
 ```console
 packata dialect export datapackage.json --endpoint customers-endpoint
@@ -64,7 +99,18 @@ Export reads contract metadata without opening CSV data. See
 [CSV dialect export]({{ '/csv-dialect-export/' | relative_url }}) for the library API, supported
 settings, defaults, diagnostics, and an example with two endpoint dialects.
 
+<!-- cli:contract validate -->
 ## Validate a contract
+
+`packata contract validate <SOURCE> [OPTIONS]`
+
+| Option / alias | Values / default | Meaning |
+| --- | --- | --- |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
+| `--output-format <FORMAT>` | `text`, `json`; `text` | Result representation |
+| `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+
+All shown positional arguments are required. Use `--help` for command help.
 
 ```console
 packata contract validate contract.yaml
@@ -93,7 +139,19 @@ Exit codes for these new commands: `0` success, `1` invalid document or operatio
 `2` invocation error, `3` I/O failure, and `130` cancellation. These do not change
 the existing `infer` command's exit-code contract.
 
+<!-- cli:contract inspect -->
 ## Inspect the canonical contract
+
+`packata contract inspect <SOURCE> [OPTIONS]`
+
+| Option / alias | Values / default | Meaning |
+| --- | --- | --- |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
+| `--output-format <FORMAT>` | `text`, `json`; `text` | Result representation |
+| `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+| `--asset <ID>` | All assets | Optional exact asset identifier |
+
+All shown positional arguments are required. Use `--help` for command help.
 
 ```console
 packata contract inspect contract.yaml
@@ -114,7 +172,21 @@ values. Schema fields/constraints and endpoint bindings are nested under each
 asset. Diagnostics use the same four fields as validation. Credentials and
 connection URLs are redacted, including nested extension metadata.
 
+<!-- cli:contract diff -->
 ## Compare two contract versions
+
+`packata contract diff <BASELINE> <CANDIDATE> [OPTIONS]`
+
+| Option / alias | Values / default | Meaning |
+| --- | --- | --- |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
+| `--baseline-format <FORMAT>` | Inherits `--input-format` | Per-baseline override; explicit `auto` restores detection |
+| `--candidate-format <FORMAT>` | Inherits `--input-format` | Per-candidate override; explicit `auto` restores detection |
+| `--output-format <FORMAT>` | `text`, `json`; `text` | Result representation |
+| `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+| `--quiet` | Off | Suppress results and file creation; retain stderr diagnostics |
+
+All shown positional arguments are required. Use `--help` for command help.
 
 ```console
 packata contract diff sales-v1.odcs.yaml sales-v2.odcs.yaml
@@ -128,14 +200,6 @@ only in the candidate, a removal only in the baseline, and a modification retain
 baseline-to-candidate values. Differences are factual data; this command does not
 apply a compatibility policy or decide whether a change is breaking.
 
-| Option | Values | Default |
-| --- | --- | --- |
-| `--input-format` | `auto`, `odcs`, `datapackage` | `auto` |
-| `--baseline-format` | `auto`, `odcs`, `datapackage` | inherits `--input-format` |
-| `--candidate-format` | `auto`, `odcs`, `datapackage` | inherits `--input-format` |
-| `--output-format` | `text`, `json` | `text` |
-| `--quiet` | Suppress all result output, including JSON; diagnostics remain on stderr | off |
-
 Each input is independently detected, validated, and mapped using the inspection
 command's descriptor loader. Local, HTTP(S), and local/remote ZIP sources are
 supported. Referenced datasets are never opened, databases are never connected,
@@ -145,8 +209,7 @@ ODCS-to-ODCS and Data Package v2-to-Data Package v2 comparisons use the canonica
 library's `DataContract.Diff` API. Cross-standard comparisons also use that shared
 model directly, including preserved extension metadata; there is no CLI-specific
 matching or normalization. Differences outside the canonical mapping are not
-compared. For example, the current ODCS mapper does not populate canonical SLAs or
-quality rules; those change kinds are presented when returned by the library.
+compared. The ODCS mapper populates SLA/lifecycle commitments and typed value domains; native quality rules are not populated as canonical executable rules. Compare only what mapping preserves; compatibility coverage is assessed separately by `contract compare`.
 Unsupported source formats, values the library cannot snapshot (such as custom
 objects in extension metadata), duplicate semantic identities, and unknown library
 change kinds fail explicitly rather than returning an empty successful diff.
@@ -222,7 +285,23 @@ values, `3` for I/O failure, and `130` for cancellation. Automation can inspect
 `hasChanges` and `changes`; compatibility gates, filters, rename heuristics, and
 patch generation are not part of this command.
 
+<!-- cli:contract compare -->
 ## Assess consumer compatibility
+
+`packata contract compare <BASELINE> <CANDIDATE> [OPTIONS]`
+
+| Option / alias | Values / default | Meaning |
+| --- | --- | --- |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
+| `--baseline-format <FORMAT>` | Inherits `--input-format` | Per-baseline override; explicit `auto` restores detection |
+| `--candidate-format <FORMAT>` | Inherits `--input-format` | Per-candidate override; explicit `auto` restores detection |
+| `--output-format <FORMAT>` | `text`, `json`; `text` | Result representation |
+| `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+| `--quiet` | Off | Suppress results and file creation; retain stderr diagnostics |
+| `--policy <POLICY>` | `baseline-consumers-v1` only | Directional baseline-consumer policy |
+| `--fail-on <CLASSIFICATIONS>` | `breaking,potentially-breaking,unknown` | Comma-separated gate classes or `none`; does not reclassify results |
+
+All shown positional arguments are required. Use `--help` for command help.
 
 ```console
 packata contract compare sales-v1.odcs.yaml sales-v2.odcs.yaml
@@ -238,16 +317,6 @@ Only same-standard ODCS 3.2.0 and Data Package v2 comparisons are supported.
 Local, HTTP(S), and ZIP descriptors use the existing loader; referenced data,
 databases, and connectors are never opened. Each input's standard is detected
 independently. `--input-format` selects a shared input standard; per-input format options override it.
-
-| Option | Values | Default |
-| --- | --- | --- |
-| `--baseline-format`, `--candidate-format` | auto, odcs, datapackage | inherit `--input-format` |
-| `--output-format` | text, json | text |
-| `--output <PATH>`, `-o <PATH>` | new destination file | stdout |
-| `--input-format` | auto, odcs, datapackage; shared default for both inputs | auto |
-| `--policy` | baseline-consumers-v1 | baseline-consumers-v1 |
-| `--fail-on` | comma-separated breaking,potentially-breaking,unknown; or none | breaking,potentially-breaking,unknown |
-| `--quiet` | suppress stdout; retain stderr diagnostics | false |
 
 Use `--output-format json -o compatibility.json` to save the report. Existing files, including source descriptors, are protected. `--quiet` also suppresses file creation. Completed reports are saved even when the compatibility gate fails; invalid documents and failed analyses retain their structured failure envelopes.
 
@@ -347,7 +416,22 @@ invalid-input, I/O, analysis, or cancellation failures. JSON supplies #572 with
 classifications and explanations directly. GitHub annotations, validation
 line/column mapping, and MCP registration remain separate work.
 
+<!-- cli:schema export -->
+<!-- cli:export -->
 ## Export a dataset schema
+
+`packata schema export <SOURCE> --asset <ID> --output-format json-schema [OPTIONS]`
+
+`packata export <SOURCE> --asset <ID> --output-format json-schema [OPTIONS]`
+
+| Option / alias | Values / default | Meaning |
+| --- | --- | --- |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
+| `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
+| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema` | Target representation |
+| `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+
+All shown positional arguments are required. Use `--help` for command help.
 
 ```console
 packata schema export sales.odcs.yaml --output-format json-schema --asset orders
@@ -386,7 +470,23 @@ var schema = asset.ToJsonSchema();
 schema.Serialize(stream);
 ```
 
+<!-- cli:data preview -->
 ## Preview bound data
+
+`packata data preview <SOURCE> --asset <ID> [OPTIONS]`
+
+| Option / alias | Values / default | Meaning |
+| --- | --- | --- |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
+| `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
+| `--limit <COUNT>` | Positive 32-bit integer; `20` | Maximum data rows, excluding headers |
+| `--columns <NAMES>` | All fields | Unique exact names, comma-separated, in output order |
+| `--output-format <FORMAT>` | `table`, `json`, `csv`; `table` | Result representation |
+| `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+| `--connector <SCHEME=ID>` | Repeatable; persisted preference otherwise | Invocation connector preference |
+| `--connection-env <ENDPOINT=VARIABLE>` | Repeatable; omitted by default | Runtime database URL from environment; never persisted |
+
+All shown positional arguments are required. Use `--help` for command help.
 
 ```console
 packata data preview contract.yaml --asset customers --limit 20
@@ -400,8 +500,7 @@ metadata come from its canonical binding. Relative file paths and database files
 resolve against the descriptor directory, independently of the current directory.
 Missing or ambiguous assets and endpoint bindings fail instead of selecting one.
 The command registers delimited/inline, Excel, Parquet, and database providers.
-Database connector availability follows the shared reader stack; the CLI does
-not download connectors itself.
+Database connector acquisition uses the shared configured service; a database read can download a missing connector when downloads are enabled.
 
 `--limit` defaults to **20**, must be a positive 32-bit integer, and excludes
 headers. Reads stop at that limit or end of data. `--columns` is a comma-separated

@@ -43,6 +43,5 @@ Use `net8.0` or `net9.0` consistently to test those frameworks. The Quickstart c
 
 Runtime checks use an absolute .NET executable path rather than searching PATH. Standard Windows/Linux/macOS SDK locations work by default; for a custom installation set `DOTNET_HOST_PATH` to its absolute executable path or `DOTNET_ROOT` to the SDK host directory.
 
-The [migration/coverage inventory](project-documentation.md) maps every existing page and feature group to its destination. Detailed new tutorials and generated API pages remain outside the MVP.
 
 The `docs-pages.yml` workflow builds pull requests and deploys main to GitHub Pages. GitHub Pages must use **GitHub Actions** as its build source. Repository settings are not changed by this branch.

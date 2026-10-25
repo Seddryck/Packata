@@ -314,7 +314,7 @@ foreach (var asset in contract.Assets)
     Console.WriteLine(asset.Name);
 ```
 
-ODCS documents map to the same canonical model through the `Packata.OpenDataContract.Mapping` namespace. See [MIGRATION.md](MIGRATION.md) for side-by-side mapping examples and guidance for upgrading from earlier Packata versions.
+ODCS documents map to the same canonical model through the `Packata.OpenDataContract.Mapping` namespace.
 
 Canonical contracts expose optional `Sla` and `Lifecycle` commitments. SLA durations are grouped into
 `Freshness`, `Latency`, `Frequency`, and `Retention` lists, preserving separate commitments for different

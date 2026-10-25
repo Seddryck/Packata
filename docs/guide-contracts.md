@@ -11,13 +11,13 @@ Load a contract, validate the descriptor, map to the canonical model, and select
 ## CLI
 
 ```console
-packata contract validate datapackage.json --output json
-packata contract inspect datapackage.json --asset customers --output json
-packata contract diff datapackage.json datapackage.json --output json
-packata export datapackage.json -f json-schema -d customers
+packata contract validate datapackage.json --output-format json
+packata contract inspect datapackage.json --asset customers --output-format json
+packata contract diff datapackage.json datapackage.json --output-format json
+packata schema export datapackage.json -f json-schema --asset customers
 ```
 
-Comparing the sample with itself returns `hasChanges: false`. To compare versions, give the previous descriptor first and the candidate second. A diff with changes also exits successfully. JSON Schema export emits one record schema, not a dataset validation result. See [all CLI options and result contracts]({{ '/cli/' | relative_url }}).
+Comparing the sample with itself using `contract diff` returns `hasChanges: false`. To compare versions, give the previous descriptor first and the candidate second. A diff with changes also exits successfully. JSON Schema export emits one record schema, not a dataset validation result. See [all CLI options and result contracts]({{ '/cli/' | relative_url }}).
 
 ## .NET
 
@@ -38,3 +38,7 @@ schema.Serialize(output);
 ```
 
 Review validation issues and mapping diagnostics before continuing in production code. Source-standard validation and canonical comparison are distinct layers. ODCS uses its native serializer/validator and its mapping namespace. See [standards and limitations]({{ '/standards/' | relative_url }}) and [.NET API entry points]({{ '/reference/dotnet/' | relative_url }}).
+
+## Assess consumer compatibility
+
+Use `packata contract compare datapackage.json datapackage.json --output-format json --fail-on none` to request a directional report without gating on classifications. The baseline is previous and the candidate is current. In .NET, call `ContractCompatibility.Compare` with canonical models or native `CompatibilityInput` wrappers. This is implemented analysis of declared guarantees, not dataset validation. Unknown coverage remains unknown even when gating is disabled. See [compatibility policy]({{ '/compatibility/' | relative_url }}) and [all compare options]({{ '/cli/' | relative_url }}#assess-consumer-compatibility).

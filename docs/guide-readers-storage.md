@@ -10,7 +10,7 @@ Locate the descriptor separately from its data. Canonical endpoints contain loca
 
 ## CLI
 
-Validation, inspection, diff and metadata exports accept local and HTTP(S) descriptors and ZIP packages. Preview accepts unpacked local/HTTP(S) descriptors; inference requires a local `.json`, `.yaml` or `.yml` descriptor. Do not assume library storage backends are available in every command. See [source and output contracts]({{ '/cli/' | relative_url }}).
+Validation, inspection, diff, compatibility comparison and metadata exports accept local and HTTP(S) descriptors and ZIP packages. Preview accepts unpacked local/HTTP(S) descriptors; inference requires a local descriptor, including an extensionless file. Every contract-reading command supports `--input-format auto|odcs|datapackage`. Do not assume library storage backends are available in every command. See [source and output contracts]({{ '/cli/' | relative_url }}).
 
 The CLI preview registers delimited/inline, Excel, Parquet and database readers. Fixed-width, NDJSON, key-value and web-log providers are library options, not currently registered CLI preview formats. Database configuration is shared by preview and inference; see [connector reference]({{ '/cli-database/' | relative_url }}).
 

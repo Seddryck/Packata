@@ -8,7 +8,7 @@ permalink: /troubleshooting/
 
 | Symptom | Check |
 | --- | --- |
-| Command/option rejected | `packata --version` and command `--help`; check the [CLI reference]({{ '/cli/' | relative_url }}) for that command's option names |
+| Command/option rejected | Use `--input-format` for source standard, `--output-format` for representation and `--output`/`-o` for destination. `packata --version` and command `--help`; check the [CLI reference]({{ '/cli/' | relative_url }}) for that command's option names |
 | Asset/endpoint not found or ambiguous | Inspect the contract; use exact canonical IDs and select one binding |
 | Relative file not found | Keep sample CSV beside its descriptor; resolve library paths against the descriptor directory |
 | Recognized format missing provider | Install/register the package suggested by `ReaderProviderUnavailableException`; check CLI versus library availability |
@@ -19,3 +19,5 @@ permalink: /troubleshooting/
 | Diff reports changes but returns zero | Expected: factual differences are a successful result, not a compatibility failure |
 
 Preserve diagnostic codes and command version when [reporting an issue]({{ '/contact/' | relative_url }}). Redact connection strings and credentials; do not include raw secret-bearing URLs. Cancellation and failures use command-specific exit contracts, especially legacy inference and connector installation.
+
+A `contract compare` exit code `4` is a completed analysis failing the selected classification gate; `5` means analysis could not complete. `--fail-on none` never waives invalid inputs, I/O, analysis or cancellation failures. Inspect the structured outcome and coverage findings.

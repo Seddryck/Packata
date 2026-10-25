@@ -19,7 +19,7 @@ Packata separates a contract's source standard from the interfaces used to work 
 
 Mapping a document produces a value and diagnostics. Read warnings before using the result; ambiguous bindings or unsupported metadata cannot be silently treated as a complete mapping. Information preserved in namespaced `datapackage` or `odcs` extensions is not necessarily executable behavior. Native deserialization, canonical mapping, reading data, and evaluating a declared rule are separate capabilities.
 
-Use the native model for source-specific editing. Use the canonical model to share readers, provisioners, inference and comparison between standards. [Migration]({{ '/migration/' | relative_url }}) explains the package and API boundary.
+Use the native model for source-specific editing. Use the canonical model to share readers, provisioners, inference and comparison between standards.
 
 ## Factual differences and validation
 
@@ -29,4 +29,8 @@ Differences use ordinal semantic identifiers and escaped paths, preserve previou
 
 ## Capability boundaries
 
-Dataset validation, compatibility policy/analysis, MCP exposure, a GitHub Action integration, and command-line provisioning are separate roadmap work, not implied by inspecting, diffing or exporting a contract. The VS Code extension is **planned — not implemented**; see its [status]({{ '/reference/vscode/' | relative_url }}).
+Consumer compatibility analysis is implemented by `contract compare` and `ContractCompatibility.Compare`; see [the directional policy]({{ '/compatibility/' | relative_url }}). Factual `contract diff` remains separate. Dataset validation, MCP exposure, a GitHub Action integration, and command-line provisioning remain separate roadmap work. The VS Code extension is **planned — not implemented**; see its [status]({{ '/reference/vscode/' | relative_url }}).
+
+## Value domains
+
+[Shared value domains]({{ '/value-domains/' | relative_url }}) distinguish descriptive entries/labels from the effective allowed-value set. Category-table references preserve unknown membership without fetching rows; see [Data Package categories]({{ '/datapackage-categories/' | relative_url }}).

@@ -13,7 +13,7 @@ Select a canonical asset and its endpoint binding explicitly. Preview reads valu
 Run from the [sample]({{ '/quickstart/cli/' | relative_url }}) directory:
 
 ```console
-packata data preview datapackage.json --asset customers --columns name,id --limit 2 --output csv
+packata data preview datapackage.json --asset customers --columns name,id --limit 2 --output-format csv
 packata schema infer datapackage.json --asset customers --header present --maximum-records 100
 packata schema infer datapackage.json --asset customers --output enriched.json
 ```

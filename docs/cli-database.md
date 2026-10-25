@@ -33,16 +33,20 @@ File-only inference does not read connector configuration or acquire database co
 <!-- cli:connector list -->
 ### connector list
 
-`packata connector list [--scheme <SCHEME>] [--verbose] [--output-format <FORMAT>]`
+`packata connector list [--scheme <SCHEME>] [--verbose] [--output-format <FORMAT>] [--output <PATH>]`
 
 No positional arguments. `--scheme` optionally filters by database scheme (case-insensitive); default is all connectors. `--verbose` defaults off and expands text details. `--output-format` is `text` (default) or `json`; JSON is the full record array regardless of `--verbose`.
+
+`--output <PATH>` (alias `-o <PATH>`) optionally saves this result to a new file; default is stdout. Existing files are protected, rendering completes before writing, and file output has no ANSI styling. File-write failures return `1`.
 
 <!-- cli:connector show -->
 ### connector show
 
-`packata connector show <ID> [--output-format <FORMAT>]`
+`packata connector show <ID> [--output-format <FORMAT>] [--output <PATH>]`
 
 Required canonical connector `<ID>` (case-insensitive); prints all matching version records with detailed text. `--output-format` is `text` (default) or `json`. Unknown IDs fail.
+
+`--output <PATH>` (alias `-o <PATH>`) optionally saves this result to a new file; default is stdout. Existing files are protected, rendering completes before writing, and file output has no ANSI styling. File-write failures return `1`.
 
 <!-- cli:connector install -->
 ### connector install
@@ -54,16 +58,20 @@ Required canonical catalog `<ID>`; installs/activates its pinned version, or reu
 <!-- cli:config list -->
 ### config list
 
-`packata config list [--output-format <FORMAT>]`
+`packata config list [--output-format <FORMAT>] [--output <PATH>]`
 
 No positional arguments. `--output-format` is `text` (default) or `json`. Returns effective keys, values, origins and persisted user overrides where applicable.
+
+`--output <PATH>` (alias `-o <PATH>`) optionally saves this result to a new file; default is stdout. Existing files are protected, rendering completes before writing, and file output has no ANSI styling. File-write failures return `1`.
 
 <!-- cli:config get -->
 ### config get
 
-`packata config get <KEY> [--output-format <FORMAT>]`
+`packata config get <KEY> [--output-format <FORMAT>] [--output <PATH>]`
 
 Required supported `<KEY>`. `--output-format` is `text` (default) or `json`; JSON is a one-record array, not a scalar.
+
+`--output <PATH>` (alias `-o <PATH>`) optionally saves this result to a new file; default is stdout. Existing files are protected, rendering completes before writing, and file output has no ANSI styling. File-write failures return `1`.
 
 <!-- cli:config set -->
 ### config set
@@ -80,7 +88,7 @@ Both positional arguments are required. No application options. Writes a user ov
 Required supported `<KEY>`; no application options. Removes the user override without deleting installed connector packs. Success has no result payload. A store environment override can remain effective after unsetting the user value.
 
 <!-- end-cli -->
-Config and discovery commands return `0` on success, `1` on operation/configuration failure, `2` on invalid invocation. Each command supports framework `--help`. Application options have no short aliases. JSON uses camelCase names. See [exit-code families]({{ '/cli/' | relative_url }}#sources-output-and-exit-code-families).
+Config and discovery commands return `0` on success, `1` on operation/configuration failure, `2` on invalid invocation. Each command supports framework `--help`. Presentation commands accept `-o` as the alias for `--output`; no other short application aliases are defined here. JSON uses camelCase names. See [exit-code families]({{ '/cli/' | relative_url }}#exit-code-families).
 
 ## Connector actions
 

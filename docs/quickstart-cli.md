@@ -22,7 +22,7 @@ Download [datapackage.json]({{ '/samples/quickstart/datapackage.json' | relative
 ```console
 packata contract validate datapackage.json
 packata contract inspect datapackage.json --asset customers
-packata data preview datapackage.json --asset customers --limit 2 --output json
+packata data preview datapackage.json --asset customers --limit 2 --output-format json
 ```
 
 Validation prints `Contract is valid.` and exits with `0`. Inspection shows the `customers` asset and `customers-endpoint` endpoint. Preview returns:
@@ -36,7 +36,7 @@ Whitespace can differ. Validation and inspection read metadata; preview reads th
 ## Export and continue
 
 ```console
-packata export datapackage.json --format json-schema --dataset customers
+packata schema export datapackage.json --output-format json-schema --asset customers
 packata dialect export datapackage.json --endpoint customers-endpoint
 ```
 

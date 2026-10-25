@@ -46,4 +46,10 @@ Paths escape dots/backslashes. Added/removed subtrees are complete, modification
 - [DatabaseConnections example](https://github.com/Seddryck/Packata/tree/main/examples/DatabaseConnections): embedded database through both native standards.
 - [ConnectorAcquisition example](https://github.com/Seddryck/Packata/tree/main/examples/ConnectorAcquisition): host-curated catalog/store, first-read acquisition and reuse; requires compatible catalog and runtime dependencies.
 
-See [database integration]({{ '/database-integration/' | relative_url }}) for execution prerequisites and lifetime rules, [provisioning]({{ '/guides/provisioning/' | relative_url }}) for plan/deploy boundaries, and [migration]({{ '/migration/' | relative_url }}) for removed APIs.
+See [database integration]({{ '/database-integration/' | relative_url }}) for execution prerequisites and lifetime rules, [provisioning]({{ '/guides/provisioning/' | relative_url }}) for plan/deploy boundaries.
+
+## Consumer compatibility and value domains
+
+`ContractCompatibility.Compare(previous, current)` assesses candidate guarantees for baseline consumers under `baseline-consumers-v1`. For native standards supply `CompatibilityInput` wrappers with the matching canonical model, source standard, mapping diagnostics and original descriptor tree. Same-standard ODCS/Data Package comparisons are supported; cross-standard comparisons fail. Results distinguish completion, classifications and unknown coverage; see [policy and API details]({{ '/compatibility/' | relative_url }}).
+
+`DataField.ValueDomain` exposes typed scalar entries, optional labels/descriptions, effective `AllowedValues`, ordering and references. `DataAsset.CategoryTable` exposes logical value/label field paths. Unknown membership is null, distinct from a finite empty set. Scalar enum constraints are projected from known allowed values; metadata remains detached. See [the shared domain API]({{ '/value-domains/' | relative_url }}).

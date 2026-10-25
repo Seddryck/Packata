@@ -16,12 +16,13 @@ packata schema infer <SOURCE> --asset <ID> [OPTIONS]
 packata infer <SOURCE> --asset <ID> [OPTIONS]
 ```
 
-`infer` is a compatibility alias with identical settings and behavior. `<SOURCE>` is a **local** Data Package v2 JSON/YAML or ODCS YAML descriptor with `.json`, `.yaml` or `.yml` extension. ZIP/remote descriptors are not supported by this loader. Select one exact asset with exactly one endpoint binding. CSV inference requires a single CSV/TSV/PSV file path; ODCS CSV endpoints must be local files. Database inference reads metadata for the selected physical object using the shared database service; partial discoveries produce diagnostics.
+`infer` is a compatibility alias with identical settings and behavior. `<SOURCE>` is a **local** Data Package v2 JSON/YAML or ODCS YAML descriptor. Its content determines the standard unless `--input-format` overrides it; an extensionless descriptor is supported. ZIP/remote descriptors are not supported by this loader. Select one exact asset with exactly one endpoint binding. CSV inference requires a single CSV/TSV/PSV file path; ODCS CSV endpoints must be local files. Database inference reads metadata for the selected physical object using the shared database service; partial discoveries produce diagnostics.
 
 | Option | Values / default | Meaning |
 | --- | --- | --- |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source-standard selection; descriptor must still be local |
 | `--asset <ID>` | Required | Exact canonical asset identifier |
-| `--output <PATH>` | Omitted | Write an enriched copy to a **new** file; missing parent directories are created |
+| `--output <PATH>`, `-o <PATH>` | Omitted | Write an enriched copy to a **new** file; missing parent directories are created |
 | `--write` | Off | Atomically replace the source with its enriched form; mutually exclusive with `--output` |
 | `--maximum-records <COUNT>` | Positive integer; `1000` | Maximum sampled CSV records; ignored for databases |
 | `--maximum-bytes <COUNT>` | Positive integer; unlimited when omitted | Optional sampled CSV byte limit; ignored for databases |
@@ -31,7 +32,7 @@ packata infer <SOURCE> --asset <ID> [OPTIONS]
 | `--connector <SCHEME=ID>` | Repeatable; persisted preferences otherwise | Invocation-only connector preference |
 | `--connection-env <ENDPOINT=VARIABLE>` | Repeatable; no override by default | Runtime database URL from a named environment variable; not persisted |
 
-The CSV-only options still undergo syntax/value validation on database invocations. No `--format`, JSON presentation switch, `--overwrite`, or short option aliases are implemented for inference. See [database override precedence]({{ '/cli-database/' | relative_url }}#invocation-overrides).
+The CSV-only options still undergo syntax/value validation on database invocations. No output-format switch or `--overwrite` is implemented for inference: enriched files retain the source representation. `-o` is the short alias for `--output`. See [database override precedence]({{ '/cli-database/' | relative_url }}#invocation-overrides).
 
 ```console
 packata schema infer datapackage.json --asset customers --header present --maximum-records 100

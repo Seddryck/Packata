@@ -28,3 +28,9 @@ SLA and lifecycle metadata **are** normalized into canonical commitments. Unknow
 ## Export boundaries
 
 JSON Schema export represents one record using Draft 2020-12. Required properties and nullability are independent. Unsupported logical types, invalid constraints and constraints requiring dataset-wide evaluation fail conversion; physical storage, governance and quality execution are outside that representation. A CSV dialect export describes endpoint parsing settings and does not scan the CSV. See [contract tasks]({{ '/guides/contracts/' | relative_url }}) and [dialect export]({{ '/csv-dialect-export/' | relative_url }}).
+
+## Categories, value domains and consumer compatibility
+
+[Data Package categories]({{ '/datapackage-categories/' | relative_url }}) documents standard inline values versus the separately versioned Category Tables recipe, descriptor validation and lookup limitations. [Shared value domains]({{ '/value-domains/' | relative_url }}) covers canonical ODCS enum labels/descriptions, typed scalars, allowed membership, ordering, references and diagnostics. No category rows are loaded by mapping.
+
+[Contract compatibility]({{ '/compatibility/' | relative_url }}) is available for same-standard ODCS 3.2.0 and Data Package v2 inputs. Coverage warnings and unsupported source constructs produce explicit unknown findings; cross-standard analysis fails. Source-native preservation is distinct from an established compatibility guarantee.

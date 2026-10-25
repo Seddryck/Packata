@@ -9,6 +9,9 @@ const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e =>
   e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 const problems = [];
 const check = (ok, message) => { if (!ok) problems.push(message); };
+const hasToken = (text, token) => token.startsWith('-')
+  ? new RegExp('(^|[^\\w-])' + token + '(?![\\w-])').test(text)
+  : text.includes(token);
 
 function literalEnd(source, start) {
   const quote = source[start], verbatim = source[start - 1] === '@';
@@ -44,7 +47,8 @@ function block(source, start) {
   throw new Error('Unbalanced C# block');
 }
 const classes = new Map(), commandSettings = new Map();
-for (const file of walk('src/Packata.Cli').filter(p => p.endsWith('.cs') && !/[\\/](obj|bin)[\\/]/.test(p))) {
+const sourceFiles = walk('src/Packata.Cli').filter(p => p.endsWith('.cs') && !/[\\/](obj|bin)[\\/]/.test(p));
+for (const file of sourceFiles) {
   const source = read(file);
   for (const m of source.matchAll(/\bclass\s+(\w+)\s*:\s*(\w+)(?:<(\w+)>)?/g)) {
     const start = source.indexOf('{', m.index);
@@ -59,21 +63,28 @@ function settings(name) {
   return [...settings(entry.parent), ...[...entry.body.matchAll(/\[Command(?:Option|Argument)\((?:\d+,\s*)?"([^"]+)"\)\]/g)].map(m => m[1])];
 }
 const commands = new Map();
-function registrations(source, prefix = '') {
-  const re = /\.Add(Branch|Command<(\w+)>)\("([^"]+)"/g;
+function registrations(source, prefix = '', constants = new Map()) {
+  const re = /\.Add(Branch|Command<(\w+)>)\(("[^"]+"|\w+)/g;
   let m;
   while ((m = re.exec(source))) {
-    const name = (prefix + ' ' + m[3]).trim();
+    const localName = m[3].startsWith('"') ? m[3].slice(1, -1) : constants.get(m[3]);
+    assert(localName, `Unresolved command/branch name ${m[3]}`);
+    const name = (prefix + ' ' + localName).trim();
     if (m[1] === 'Branch') {
       const start = source.indexOf('{', re.lastIndex), end = block(source, start);
-      registrations(source.slice(start + 1, end), name); re.lastIndex = end + 1;
+      registrations(source.slice(start + 1, end), name, constants); re.lastIndex = end + 1;
     } else {
       assert(commandSettings.has(m[2]), `Unknown command ${m[2]}`);
+      assert(!commands.has(name), `Duplicate command registration ${name}`);
       commands.set(name, settings(commandSettings.get(m[2])));
     }
   }
 }
-registrations(read('src/Packata.Cli/Program.cs'));
+for (const file of sourceFiles) {
+  const source = read(file);
+  const constants = new Map([...source.matchAll(/const\s+string\s+(\w+)\s*=\s*"([^"]+)"/g)].map(m => [m[1], m[2]]));
+  registrations(source, '', constants);
+}
 assert(commands.size > 0, 'No CLI registrations discovered');
 const documented = new Map();
 function documentSections(file, source) {
@@ -108,7 +119,7 @@ for (const [name, attributes] of commands) {
   for (const attribute of attributes) {
     const tokens = attribute.startsWith('-') ? attribute.match(/--?[\w-]+/g) : [attribute];
     for (const token of tokens) {
-      check(doc.body.includes(token), `${doc.file}: ${name} is missing ${token}`);
+      check(hasToken(doc.body, token), `${doc.file}: ${name} is missing ${token}`);
       if (token.startsWith('-')) optionCount++;
     }
   }
@@ -127,11 +138,11 @@ if (cliIndex >= 0) {
     const help = result.stdout ?? '';
     for (const attribute of attributes) {
       const tokens = attribute.startsWith('-') ? attribute.match(/--?[\w-]+/g) : [attribute];
-      for (const token of tokens) check(help.includes(token), `${name}: source option/argument missing from runtime help: ${token}`);
+      for (const token of tokens) check(hasToken(help, token), `${name}: source option/argument missing from runtime help: ${token}`);
     }
-    for (const token of help.match(/--?[a-z][a-z-]*/g) ?? []) {
+    for (const token of help.match(/(?<![\w-])--?[a-z][a-z-]*/g) ?? []) {
       if (['-h', '--help', '-v', '--version'].includes(token)) continue;
-      check(documented.get(name)?.body.includes(token), `${name}: runtime option missing from documentation: ${token}`);
+      check(hasToken(documented.get(name)?.body ?? '', token), `${name}: runtime option missing from documentation: ${token}`);
     }
   }
   console.log(`Checked runtime --help for all ${commands.size} command paths.`);

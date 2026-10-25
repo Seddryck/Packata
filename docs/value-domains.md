@@ -1,3 +1,11 @@
+---
+title: Shared value domains
+parent: Concepts
+nav_order: 2
+nav_exclude: false
+permalink: /value-domains/
+---
+
 # Shared value domains
 
 `DataField.ValueDomain` exposes a common, typed API for ODCS enums and Data Package
@@ -105,5 +113,5 @@ property names as dictionary keys. Prefer the common API for new cross-format co
 
 DataField and DataAsset constructors append optional model arguments, preserving
 existing source call sites. Consumers upgrading the assembly should rebuild.
-See [Data Package categories](datapackage-categories.md) for standard versus recipe
+See [Data Package categories]({{ '/datapackage-categories/' | relative_url }}) for standard versus recipe
 syntax and the supported upstream recipe revision.
