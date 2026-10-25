@@ -228,4 +228,36 @@ public class ServiceCommitmentMapperTests
             Assert.That(result.RequireValue().Sla, Is.Null);
         });
     }
+
+    [TestCase("generalAvailability", "2028-01-01T00:00:00.")]
+    [TestCase("timeOfAvailability", "09:00:00.")]
+    public void Long_malformed_times_are_preserved_with_a_diagnostic(string property, string prefix)
+    {
+        var source = Property(property, prefix + new string('1', 100_000) + "Z");
+        var result = Map(source);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Diagnostics.Single().Code, Is.EqualTo("ODCS005"));
+            Assert.That(result.RequireValue().Sla, Is.Null);
+            Assert.That(result.Value!.Lifecycle, Is.Null);
+            Assert.That(result.Value.Extensions["odcs"]["slaProperties"], Is.EqualTo(new[] { source }));
+        });
+    }
+
+    [TestCase("schema/orders/properties")]
+    [TestCase("schema/orders/fields/id")]
+    [TestCase("schema/orders/properties/ ")]
+    [TestCase("other/orders/properties/id")]
+    [TestCase("orders..id")]
+    public void Malformed_element_paths_are_not_partially_normalized(string element)
+    {
+        var source = Property("latency", 1, "h");
+        source.Element = element;
+        var result = Map(source);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Diagnostics.Single().Code, Is.EqualTo("ODCS005"));
+            Assert.That(result.RequireValue().Sla, Is.Null);
+        });
+    }
 }
