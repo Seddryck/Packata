@@ -118,16 +118,29 @@ packata contract validate datapackage.json --output-format json
 packata contract validate descriptor --input-format odcs
 ```
 
-Validation accepts ODCS v3.2.0 YAML and Data Package v2 JSON/YAML. Detection examines
-the document root; `--input-format auto|odcs|datapackage` overrides standard detection.
-Local files, HTTP(S) descriptors, and local/HTTP(S) ZIP packages are supported.
-A ZIP must contain exactly one descriptor named `datapackage.json`,
-`datapackage.yaml`, `datapackage.yml`, `contract.yaml`, or `contract.yml`, including
-inside a subdirectory. Validation never opens referenced data resources.
+Use this command to check an ODCS 3.2.0 contract written in YAML or a Data Package v2
+descriptor written in JSON or YAML. Packata identifies the standard from the document's
+contents. If you want to select the standard yourself, use the `--input-format` option
+shown in the table above.
 
-Data Package validation uses the library's descriptor validator. ODCS validation
-uses the library's YAML/semantic validation plus checks for required identity,
-version, status, supported API version, and document kind.
+You can read the descriptor from a local file or an HTTP(S) address, either directly
+or inside a ZIP archive. Validation checks the contract document only; it does not
+open the datasets referenced by that contract.
+
+For a ZIP archive, include exactly one descriptor with one of the following filenames.
+The descriptor can be in a subdirectory.
+
+```text
+datapackage.json
+datapackage.yaml
+datapackage.yml
+contract.yaml
+contract.yml
+```
+
+Packata checks Data Package descriptors against the library's descriptor rules.
+For ODCS contracts, it checks YAML syntax and semantic rules, including the required
+identity, version and status, the supported API version, and the document kind.
 
 `--output-format text` is the default. Text diagnostics go to stderr. `--output-format json`
 writes a single object to stdout with `schemaVersion: 1`, `source`, `valid`, and
