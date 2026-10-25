@@ -163,6 +163,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
         if (property.CustomProperties.Count > 0)
             extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
+        if (property.Enum is not null)
+            extensions["enum"] = EnumMetadataSnapshot.Copy(property.Enum);
         return extensions;
     }
 
