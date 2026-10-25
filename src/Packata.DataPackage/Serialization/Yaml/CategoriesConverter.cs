@@ -1,5 +1,5 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
+using Packata.Core.Parsing;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -10,10 +10,10 @@ internal class CategoriesConverter : IYamlTypeConverter
 {
     public bool Accepts(Type type) => type == typeof(List<ICategory>) || type == typeof(CategoryCollection);
 
-    public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
+    public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
     {
         if (parser.Current is MappingStart && type == typeof(CategoryCollection))
-            return new CategoryCollection((CategoryTableReference)new CategoryMetadataConverter().ReadYaml(parser, typeof(CategoryTableReference), deserializer));
+            return new CategoryCollection((CategoryTableReference)new CategoryMetadataConverter().ReadYaml(parser, typeof(CategoryTableReference), rootDeserializer));
         parser.Consume<SequenceStart>();
         var result = new List<ICategory>();
         bool? objects = null;
@@ -61,14 +61,14 @@ internal class CategoriesConverter : IYamlTypeConverter
         if (scalar.Tag == "tag:yaml.org,2002:str" || !typedNumber && !typedOther &&
             scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded)
             return scalar.Value;
-        if (Regex.IsMatch(scalar.Value, @"^[+-]?[0-9]+$", RegexOptions.CultureInvariant))
+        if (ScalarSyntax.IsInteger(scalar.Value))
         {
             if (long.TryParse(scalar.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number)) return number;
             throw new YamlException(scalar.Start, scalar.End, $"categories[{index}].value: Integer is outside the signed 64-bit range.");
         }
         if (scalar.Tag == "tag:yaml.org,2002:int" || scalar.Tag == "tag:yaml.org,2002:bool" || scalar.Tag == "tag:yaml.org,2002:float" ||
             scalar.Tag == "tag:yaml.org,2002:null" || scalar.Value.ToLowerInvariant() is "true" or "false" or "null" or "~" or "" or ".inf" or "+.inf" or "-.inf" or ".nan" ||
-            Regex.IsMatch(scalar.Value, @"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$", RegexOptions.CultureInvariant))
+            ScalarSyntax.IsNumber(scalar.Value))
             throw new YamlException(scalar.Start, scalar.End, $"categories[{index}].value: Expected a string or signed 64-bit integer; quote string codes.");
         return scalar.Value;
     }

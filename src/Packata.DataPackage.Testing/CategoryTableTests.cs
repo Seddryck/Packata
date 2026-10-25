@@ -93,6 +93,9 @@ public class CategoryTableTests
 
     [TestCase("https://example.com/datapackage.json")]
     [TestCase("shared-codes")]
+    [TestCase("a")]
+    [TestCase("0")]
+    [TestCase("a0._-b")]
     public void External_references_are_preserved_and_not_resolved_as_local_resources(string packageName)
     {
         foreach (var format in new[] { SerializationFormat.Json, SerializationFormat.Yaml })
@@ -107,6 +110,26 @@ public class CategoryTableTests
             Assert.That(snapshot["resource"], Is.EqualTo(reference.Resource));
             Assert.That(snapshot["package"], Is.EqualTo(reference.Package));
         }
+    }
+
+    [TestCase("")]
+    [TestCase(".codes")]
+    [TestCase("_codes")]
+    [TestCase("-codes")]
+    [TestCase("Codes")]
+    [TestCase("code name")]
+    [TestCase("codes\n")]
+    [TestCase("cödés")]
+    [TestCase("code/slash")]
+    [TestCase("١")]
+    public void Invalid_registry_names_are_rejected_by_validation_and_mapping(string name)
+    {
+        var package = Load(Descriptor, SerializationFormat.Json);
+        package.Resources[0].Schema!.Fields[0].Categories!.Reference!.Package = name;
+        Assert.That(DataPackageValidator.Validate(package).Issues.Any(issue => issue.Path.EndsWith(".package")), Is.True);
+        var mapped = new DataPackageMapper().Map(package);
+        Assert.That(mapped.Diagnostics.Any(issue => issue.Code == "DP006"), Is.True);
+        Assert.That(mapped.RequireValue().Assets[0].Schema!.Fields[0].ValueDomain, Is.Null);
     }
 
     [TestCase("resource")]

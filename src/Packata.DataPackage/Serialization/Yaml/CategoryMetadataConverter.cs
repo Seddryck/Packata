@@ -7,36 +7,58 @@ namespace Packata.DataPackage.Serialization.Yaml;
 internal sealed class CategoryMetadataConverter : IYamlTypeConverter
 {
     public bool Accepts(Type type) => type == typeof(CategoryTableReference) || type == typeof(CategoryFieldMap);
-    public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
+    public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
     {
         var reference = type == typeof(CategoryTableReference);
-        var values = new Dictionary<string, string>();
-        bool? ordered = null;
+        var values = ReadProperties(parser, reference);
+        if (reference) return new CategoryTableReference
+        {
+            Resource = (string?)values.GetValueOrDefault("resource"),
+            Package = (string?)values.GetValueOrDefault("package"),
+            EncodedAs = (string?)values.GetValueOrDefault("encodedAs")
+        };
+        return new CategoryFieldMap
+        {
+            Value = (string?)values.GetValueOrDefault("value"),
+            Label = (string?)values.GetValueOrDefault("label"),
+            Ordered = (bool?)values.GetValueOrDefault("ordered")
+        };
+    }
+
+    private static Dictionary<string, object?> ReadProperties(IParser parser, bool reference)
+    {
+        var values = new Dictionary<string, object?>();
+        var keys = new HashSet<string>(StringComparer.Ordinal);
         parser.Consume<MappingStart>();
         while (!parser.TryConsume<MappingEnd>(out _))
         {
             var key = parser.Consume<Scalar>().Value;
-            if (values.ContainsKey(key)) throw new YamlException($"Duplicate category metadata property {key}.");
-            if ((reference && key is "resource" or "package" or "encodedAs") || (!reference && key is "value" or "label"))
-            {
-                var scalar = parser.Consume<Scalar>();
-                if (CategoriesConverter.ReadValue(scalar, 0) is not string text)
-                    throw new YamlException(scalar.Start, scalar.End, $"{(reference ? "categories" : "categoryFieldMap")}.{key}: Expected a string.");
-                values.Add(key, text);
-            }
-            else if (!reference && key == "ordered")
-            {
-                var scalar = parser.Consume<Scalar>();
-                if (ordered is not null || scalar.Style != ScalarStyle.Plain || !bool.TryParse(scalar.Value, out var boolean) || scalar.Tag == "tag:yaml.org,2002:str")
-                    throw new YamlException(scalar.Start, scalar.End, "categoryFieldMap.ordered must be boolean.");
-                ordered = boolean;
-            }
+            if (!keys.Add(key)) throw new YamlException($"Duplicate category metadata property {key}.");
+            if (IsStringProperty(key, reference)) values.Add(key, ReadString(parser, key, reference));
+            else if (!reference && key == "ordered") values.Add(key, ReadOrdered(parser));
             else parser.SkipThisAndNestedEvents();
         }
-        return reference ? new CategoryTableReference
-        { Resource = values.GetValueOrDefault("resource"), Package = values.GetValueOrDefault("package"), EncodedAs = values.GetValueOrDefault("encodedAs") }
-        : new CategoryFieldMap { Value = values.GetValueOrDefault("value"), Label = values.GetValueOrDefault("label"), Ordered = ordered };
+        return values;
     }
+
+    private static bool IsStringProperty(string key, bool reference)
+        => reference ? key is "resource" or "package" or "encodedAs" : key is "value" or "label";
+
+    private static string ReadString(IParser parser, string key, bool reference)
+    {
+        var scalar = parser.Consume<Scalar>();
+        if (CategoriesConverter.ReadValue(scalar, 0) is string text) return text;
+        throw new YamlException(scalar.Start, scalar.End, $"{(reference ? "categories" : "categoryFieldMap")}.{key}: Expected a string.");
+    }
+
+    private static bool ReadOrdered(IParser parser)
+    {
+        var scalar = parser.Consume<Scalar>();
+        if (scalar.Style == ScalarStyle.Plain && scalar.Tag != "tag:yaml.org,2002:str" && bool.TryParse(scalar.Value, out var value))
+            return value;
+        throw new YamlException(scalar.Start, scalar.End, "categoryFieldMap.ordered must be boolean.");
+    }
+
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
     {
         if (value is null) { emitter.Emit(new Scalar("null")); return; }

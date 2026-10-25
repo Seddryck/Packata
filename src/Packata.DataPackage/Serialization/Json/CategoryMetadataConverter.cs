@@ -5,7 +5,7 @@ namespace Packata.DataPackage.Serialization.Json;
 
 internal sealed class CategoryMetadataConverter : JsonConverter
 {
-    public override bool CanConvert(Type type) => type == typeof(CategoryTableReference) || type == typeof(CategoryFieldMap);
+    public override bool CanConvert(Type objectType) => objectType == typeof(CategoryTableReference) || objectType == typeof(CategoryFieldMap);
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
     {
         var token = JToken.Load(reader, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });

@@ -8,6 +8,7 @@ namespace Packata.DataPackage.Mapping;
 /// <summary>Maps the native Data Package v2 model to Packata's standards-neutral model.</summary>
 public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
 {
+    private const string SourceNamespace = "datapackage";
     public MappingResult<DataContract> Map(Native.DataPackage document)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -42,7 +43,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 resource.Dialect?.Table ?? resource.Name,
                 resource.Description, MapAssetKind(resource),
                 MapSchema(resource.Schema, assetId, document, categoryTables, sourcePath, diagnostics), bindings,
-                Extensions: ExtensionMetadata.For("datapackage", ResourceExtensions(resource)), CategoryTable: categoryTables[resource]));
+                Extensions: ExtensionMetadata.For(SourceNamespace, ResourceExtensions(resource)), CategoryTable: categoryTables[resource]));
         }
 
         var id = document.Id ?? document.Name;
@@ -62,7 +63,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 Terms: document.Licenses.Count == 0 ? null : new TermsOfUse(
                     string.Join(", ", document.Licenses.Select(x => x.Name ?? x.Title ?? x.Path))),
                 References: MapReferences(document)),
-            ExtensionMetadata.For("datapackage", new Dictionary<string, object?>
+            ExtensionMetadata.For(SourceNamespace, new Dictionary<string, object?>
             {
                 ["profile"] = document.Profile,
                 ["created"] = document.Created == default ? null : document.Created,
@@ -107,7 +108,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         return new DataEndpoint($"{assetId}-endpoint", resource.Title ?? resource.Name, kind, null, location,
             new DataFormat(resource.Format, resource.MediaType, resource.Encoding, resource.Compression,
                 DialectOptions(resource.Dialect)),
-            ExtensionMetadata.For("datapackage", new Dictionary<string, object?>
+            ExtensionMetadata.For(SourceNamespace, new Dictionary<string, object?>
             {
                 ["kind"] = resource.Kind,
                 ["profile"] = resource.Profile,
@@ -127,7 +128,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             MapRelationship(foreignKey, assetId, package, sourcePath, diagnostics)).ToArray();
 
         return new DataSchema(fields, schema.PrimaryKey, relationships,
-            ExtensionMetadata.For("datapackage", new Dictionary<string, object?>
+            ExtensionMetadata.For(SourceNamespace, new Dictionary<string, object?>
             {
                 ["profile"] = schema.Profile,
                 ["fieldsMatch"] = schema.FieldsMatch.ToString(),
@@ -155,7 +156,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         return new DataField(name, field.Type, PhysicalType: field.PhysicalType, Format: field.Format,
             Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
             Constraints: constraints,
-            Extensions: ExtensionMetadata.For("datapackage", FieldExtensions(field)),
+            Extensions: ExtensionMetadata.For(SourceNamespace, FieldExtensions(field)),
             PhysicalName: field.PhysicalName ?? name,
             Description: field.Description,
             ValueDomain: domain);

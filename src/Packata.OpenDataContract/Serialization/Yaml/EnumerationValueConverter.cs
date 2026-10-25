@@ -1,5 +1,5 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
+using Packata.Core.Parsing;
 using Packata.Core.Contracts;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
@@ -12,7 +12,7 @@ internal sealed class EnumerationValueConverter : IYamlTypeConverter
 {
     public bool Accepts(Type type) => type == typeof(EnumerationValue);
 
-    public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
+    public object ReadYaml(IParser parser, Type type, ObjectDeserializer rootDeserializer)
     {
         parser.Consume<MappingStart>();
         var entry = new EnumerationValue { Value = null! };
@@ -24,45 +24,70 @@ internal sealed class EnumerationValueConverter : IYamlTypeConverter
             switch (key.Value)
             {
                 case "value":
-                    entry.Value = parser.TryConsume<Scalar>(out var scalar) ? ReadScalar(scalar)! : deserializer(typeof(object))!;
+                    entry.Value = parser.TryConsume<Scalar>(out var scalar) ? ReadScalar(scalar)! : rootDeserializer(typeof(object))!;
                     break;
-                case "label": entry.Label = (string?)deserializer(typeof(string)); break;
-                case "description": entry.Description = (string?)deserializer(typeof(string)); break;
-                case "id": entry.Id = (string?)deserializer(typeof(string)); break;
-                case "tags": entry.Tags = (List<string>)deserializer(typeof(List<string>))!; break;
-                case "authoritativeDefinitions": entry.AuthoritativeDefinitions = (List<AuthoritativeDefinition>)deserializer(typeof(List<AuthoritativeDefinition>))!; break;
-                case "customProperties": entry.CustomProperties = (CustomProperties)deserializer(typeof(CustomProperties))!; break;
+                case "label": entry.Label = (string?)rootDeserializer(typeof(string)); break;
+                case "description": entry.Description = (string?)rootDeserializer(typeof(string)); break;
+                case "id": entry.Id = (string?)rootDeserializer(typeof(string)); break;
+                case "tags": entry.Tags = (List<string>)rootDeserializer(typeof(List<string>))!; break;
+                case "authoritativeDefinitions": entry.AuthoritativeDefinitions = (List<AuthoritativeDefinition>)rootDeserializer(typeof(List<AuthoritativeDefinition>))!; break;
+                case "customProperties": entry.CustomProperties = (CustomProperties)rootDeserializer(typeof(CustomProperties))!; break;
                 default: parser.SkipThisAndNestedEvents(); break;
             }
         }
         return entry;
     }
 
+    private const string IntegerTag = "tag:yaml.org,2002:int";
+    private const string FloatTag = "tag:yaml.org,2002:float";
+    private const string BooleanTag = "tag:yaml.org,2002:bool";
+    private const string NullTag = "tag:yaml.org,2002:null";
+    private const string StringTag = "tag:yaml.org,2002:str";
+
     private static object? ReadScalar(Scalar scalar)
     {
-        var typed = scalar.Tag == "tag:yaml.org,2002:int" || scalar.Tag == "tag:yaml.org,2002:float" ||
-            scalar.Tag == "tag:yaml.org,2002:bool" || scalar.Tag == "tag:yaml.org,2002:null";
-        if (scalar.Tag == "tag:yaml.org,2002:str" || !typed && scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded)
-            return scalar.Value;
-        if (scalar.Tag != "tag:yaml.org,2002:int" && scalar.Tag != "tag:yaml.org,2002:float")
-        {
-            if (scalar.Value.ToLowerInvariant() is "null" or "~" or "") return null;
-            if (bool.TryParse(scalar.Value, out var boolean)) return boolean;
-        }
-        if (scalar.Tag != "tag:yaml.org,2002:float" && Regex.IsMatch(scalar.Value, @"^[+-]?[0-9]+$"))
-        {
-            if (long.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer)) return integer;
-            throw new YamlException(scalar.Start, scalar.End, "Enum integer is outside the signed 64-bit range.");
-        }
-        if (scalar.Tag == "tag:yaml.org,2002:float" || Regex.IsMatch(scalar.Value, @"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$"))
-        {
-            if (ScalarValue.TryParseNumber(scalar.Value, out var number)) return number.Value;
-            throw new YamlException(scalar.Start, scalar.End, "Enum number exceeds the supported decimal/floating range or precision.");
-        }
+        if (IsString(scalar)) return scalar.Value;
+        if (TryReadNonNumeric(scalar, out var value)) return value;
+        if (scalar.Tag != FloatTag && ScalarSyntax.IsInteger(scalar.Value)) return ReadInteger(scalar);
+        if (scalar.Tag == FloatTag || ScalarSyntax.IsNumber(scalar.Value)) return ReadNumber(scalar);
+        ValidateTextFallback(scalar);
+        return scalar.Value;
+    }
+
+    private static bool IsString(Scalar scalar)
+        => scalar.Tag == StringTag || !HasExplicitScalarType(scalar) &&
+            scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded;
+
+    private static bool HasExplicitScalarType(Scalar scalar)
+        => scalar.Tag == IntegerTag || scalar.Tag == FloatTag || scalar.Tag == BooleanTag || scalar.Tag == NullTag;
+
+    private static bool TryReadNonNumeric(Scalar scalar, out object? value)
+    {
+        value = null;
+        if (scalar.Tag == IntegerTag || scalar.Tag == FloatTag) return false;
+        if (scalar.Value.ToLowerInvariant() is "null" or "~" or "") return true;
+        if (!bool.TryParse(scalar.Value, out var boolean)) return false;
+        value = boolean;
+        return true;
+    }
+
+    private static long ReadInteger(Scalar scalar)
+    {
+        if (long.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer)) return integer;
+        throw new YamlException(scalar.Start, scalar.End, "Enum integer is outside the signed 64-bit range.");
+    }
+
+    private static object? ReadNumber(Scalar scalar)
+    {
+        if (ScalarValue.TryParseNumber(scalar.Value, out var number)) return number.Value;
+        throw new YamlException(scalar.Start, scalar.End, "Enum number exceeds the supported decimal/floating range or precision.");
+    }
+
+    private static void ValidateTextFallback(Scalar scalar)
+    {
         if (scalar.Value.ToLowerInvariant() is ".inf" or "+.inf" or "-.inf" or ".nan")
             throw new YamlException(scalar.Start, scalar.End, "Non-finite enum numbers are not supported.");
-        if (typed) throw new YamlException(scalar.Start, scalar.End, "Invalid explicitly typed enum scalar.");
-        return scalar.Value;
+        if (HasExplicitScalarType(scalar)) throw new YamlException(scalar.Start, scalar.End, "Invalid explicitly typed enum scalar.");
     }
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)

@@ -46,20 +46,21 @@ public sealed class ValueDomain
             return constraints;
         }
         if (declarations.Length > 1) throw new InvalidOperationException("Multiple enum constraints conflict with the value domain.");
-        if (declarations.Length == 1)
-        {
-            if (declarations[0].Value is not System.Collections.IEnumerable sequence || declarations[0].Value is string)
-                throw new InvalidOperationException("The enum constraint must be a sequence matching the value domain.");
-            var values = new List<ScalarValue>();
-            foreach (var item in sequence)
-            {
-                if (!ScalarValue.TryCreate(item, out var scalar)) throw new InvalidOperationException("The enum contains a value outside the scalar domain.");
-                values.Add(scalar);
-            }
-            if (!values.SequenceEqual(AllowedValues)) throw new InvalidOperationException("The enum constraint conflicts with the value domain membership or sequence.");
-        }
+        if (declarations.Length == 1) ValidateEnumDeclaration(declarations[0], AllowedValues);
         return Array.AsReadOnly(constraints.Where(value => !value.Kind.Equals("enum", StringComparison.OrdinalIgnoreCase))
             .Append(new DataConstraint("enum", Array.AsReadOnly(AllowedValues.Select(value => value.Value).ToArray()))).ToArray());
+    }
+    private static void ValidateEnumDeclaration(DataConstraint declaration, IReadOnlyList<ScalarValue> expected)
+    {
+        if (declaration.Value is not System.Collections.IEnumerable sequence || declaration.Value is string)
+            throw new InvalidOperationException("The enum constraint must be a sequence matching the value domain.");
+        var values = new List<ScalarValue>();
+        foreach (var item in sequence)
+        {
+            if (!ScalarValue.TryCreate(item, out var scalar)) throw new InvalidOperationException("The enum contains a value outside the scalar domain.");
+            values.Add(scalar);
+        }
+        if (!values.SequenceEqual(expected)) throw new InvalidOperationException("The enum constraint conflicts with the value domain membership or sequence.");
     }
 }
 

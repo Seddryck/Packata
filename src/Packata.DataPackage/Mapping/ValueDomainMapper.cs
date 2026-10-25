@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Packata.Core.Contracts;
 using Packata.DataPackage.Validation;
 
@@ -25,55 +24,86 @@ internal static class ValueDomainMapper
     {
         var enumeration = field.Constraints?.Get<EnumConstraint>();
         if (field.Categories is null && enumeration is null) return null;
-        var type = field.Type ?? (field is StringField ? "string" : field is IntegerField ? "integer" : "any");
+        var type = FieldTypeNames.Get(field);
         try
         {
             IReadOnlyList<ScalarValue>? allowed = enumeration is null ? null : Scalars(enumeration.Value, type, allowNull: true);
-            if (field.Categories?.Reference is { } reference)
-            {
-                if (type is not ("string" or "integer")) throw new ArgumentException("Category table references require a string or integer field.");
-                ValueEncoding? encoding = reference.EncodedAs switch
-                { null => null, "value" => ValueEncoding.Value, "label" => ValueEncoding.Label, _ => throw new ArgumentException("encodedAs must be value or label.") };
-                PackageLocator? locator = null;
-                if (reference.Package is { } name)
-                {
-                    if (Uri.TryCreate(name, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" && uri.AbsolutePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-                        locator = new(PackageLocatorKind.DescriptorUri, name);
-                    else if (Regex.IsMatch(name, @"^[a-z0-9][a-z0-9._-]*$")) locator = new(PackageLocatorKind.RegistryName, name);
-                    else throw new ArgumentException("Expected an HTTP(S) package descriptor URL or registry package name.");
-                }
-                string? bound = null;
-                if (locator is null)
-                {
-                    var target = package.Resources.FirstOrDefault(resource => resource.Name == reference.Resource);
-                    if (target is not null && tables.GetValueOrDefault(target) is { } table)
-                    {
-                        var valueField = target.Schema!.Fields.First(item => item.Name == table.ValueField.Segments[0]);
-                        if (valueField.Type != type || encoding == ValueEncoding.Label && table.LabelField is null)
-                            Warn(diagnostics, path + ".categories", "The referenced table's value type or label mapping is incompatible with this field.");
-                        else bound = target.Name;
-                    }
-                    else Warn(diagnostics, path + ".categories.resource", "The local category table could not be bound; its reference was retained without known membership values.");
-                }
-                return new ValueDomain(allowedValues: allowed, ordered: field.CategoriesOrdered,
-                    reference: new ValueDomainReference(reference.Resource!, locator, encoding, bound));
-            }
-            var entries = new List<ValueOption>();
-            if (field.Categories is not null)
-            {
-                if (type is not ("string" or "integer")) throw new ArgumentException("Inline categories require a string or integer field.");
-                var values = Scalars(field.Categories.Select(entry => (object?)entry.Value), type, allowNull: false);
-                for (var index = 0; index < values.Count; index++)
-                    entries.Add(new ValueOption(values[index], field.Categories[index] is Category ? field.Categories[index].Label : null));
-            }
-            else entries.AddRange(allowed!.Select(value => new ValueOption(value)));
-            return new ValueDomain(entries, allowed ?? entries.Select(entry => entry.Value).ToArray(), field.Categories is null ? null : field.CategoriesOrdered);
+            return field.Categories?.Reference is { } reference
+                ? ReferencedDomain(field, reference, type, allowed, package, tables, path, diagnostics)
+                : InlineDomain(field, type, allowed);
         }
         catch (ArgumentException exception)
         {
-            Warn(diagnostics, path + (field.Categories is null ? ".constraints.enum" : ".categories"), exception.Message + " Original constraints and source extensions were retained without a scalar domain.");
+            Warn(diagnostics, path + (field.Categories is null ? ".constraints.enum" : ".categories"),
+                exception.Message + " Original constraints and source extensions were retained without a scalar domain.");
             return null;
         }
+    }
+
+    private static ValueDomain ReferencedDomain(Field field, CategoryTableReference reference, string type,
+        IReadOnlyList<ScalarValue>? allowed, DataPackage package, IReadOnlyDictionary<Resource, CategoryTableDefinition?> tables,
+        string path, ICollection<MappingDiagnostic> diagnostics)
+    {
+        RequireCategoryType(type, "Category table references require a string or integer field.");
+        ValueEncoding? encoding = reference.EncodedAs switch
+        {
+            null => null,
+            "value" => ValueEncoding.Value,
+            "label" => ValueEncoding.Label,
+            _ => throw new ArgumentException("encodedAs must be value or label.")
+        };
+        var locator = PackageLocator(reference.Package);
+        var bound = locator is null ? BindLocalReference(reference, type, encoding, package, tables, path, diagnostics) : null;
+        return new ValueDomain(allowedValues: allowed, ordered: field.CategoriesOrdered,
+            reference: new ValueDomainReference(reference.Resource!, locator, encoding, bound));
+    }
+
+    private static PackageLocator? PackageLocator(string? name)
+    {
+        if (name is null) return null;
+        if (PackageReferenceSyntax.IsDescriptorUri(name)) return new(PackageLocatorKind.DescriptorUri, name);
+        if (PackageReferenceSyntax.IsRegistryName(name)) return new(PackageLocatorKind.RegistryName, name);
+        throw new ArgumentException("Expected an HTTP(S) package descriptor URL or registry package name.");
+    }
+
+    private static string? BindLocalReference(CategoryTableReference reference, string type, ValueEncoding? encoding,
+        DataPackage package, IReadOnlyDictionary<Resource, CategoryTableDefinition?> tables,
+        string path, ICollection<MappingDiagnostic> diagnostics)
+    {
+        var target = package.Resources.FirstOrDefault(resource => resource.Name == reference.Resource);
+        if (target is null || tables.GetValueOrDefault(target) is not { } table)
+        {
+            Warn(diagnostics, path + ".categories.resource", "The local category table could not be bound; its reference was retained without known membership values.");
+            return null;
+        }
+        var valueField = target.Schema!.Fields.First(item => item.Name == table.ValueField.Segments[0]);
+        if (FieldTypeNames.Get(valueField) != type || encoding == ValueEncoding.Label && table.LabelField is null)
+        {
+            Warn(diagnostics, path + ".categories", "The referenced table's value type or label mapping is incompatible with this field.");
+            return null;
+        }
+        return target.Name;
+    }
+
+    private static ValueDomain InlineDomain(Field field, string type, IReadOnlyList<ScalarValue>? allowed)
+    {
+        var entries = field.Categories is { } categories
+            ? InlineOptions(categories, type)
+            : allowed!.Select(value => new ValueOption(value)).ToArray();
+        return new ValueDomain(entries, allowed ?? entries.Select(entry => entry.Value).ToArray(),
+            field.Categories is null ? null : field.CategoriesOrdered);
+    }
+
+    private static IReadOnlyList<ValueOption> InlineOptions(CategoryCollection categories, string type)
+    {
+        RequireCategoryType(type, "Inline categories require a string or integer field.");
+        var values = Scalars(categories.Select(entry => (object?)entry.Value), type, allowNull: false);
+        return values.Select((value, index) => new ValueOption(value, categories[index] is Category ? categories[index].Label : null)).ToArray();
+    }
+
+    private static void RequireCategoryType(string type, string message)
+    {
+        if (!FieldTypeNames.SupportsCategories(type)) throw new ArgumentException(message);
     }
 
     private static IReadOnlyList<ScalarValue> Scalars(IEnumerable<object?> values, string type, bool allowNull)

@@ -9,7 +9,7 @@ public static class DataPackageValidator
 
     private static readonly HashSet<string> FieldTypes =
     [
-        "string", "number", "integer", "date", "time", "datetime", "year", "yearmonth",
+        FieldTypeNames.String, "number", FieldTypeNames.Integer, "date", "time", "datetime", "year", "yearmonth",
         "boolean", "object", "geopoint", "geojson", "array", "duration", "any"
     ];
 
@@ -121,29 +121,58 @@ public static class DataPackageValidator
     private static void ValidateCategories(Field field, string path, ICollection<DataPackageValidationIssue> issues)
     {
         if (field.Categories is null || field.Categories.Reference is not null) return;
-        var type = field.Type ?? (field is StringField ? "string" : field is IntegerField ? "integer" : "any");
-        if (type is not ("string" or "integer"))
+        var type = FieldTypeNames.Get(field);
+        if (!FieldTypeNames.SupportsCategories(type))
             Add(issues, $"{path}.categories", "Categories are only defined for string and integer fields.");
+        var values = CollectCategoryValues(field.Categories, type, path, issues);
+        ValidateCategorySubset(field.Constraints?.Get<EnumConstraint>(), values, path, issues);
+    }
+
+    private static HashSet<object> CollectCategoryValues(CategoryCollection categories, string type, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
         var values = new HashSet<object>();
         var labels = new HashSet<string>(StringComparer.Ordinal);
         bool? objects = null;
-        for (var index = 0; index < field.Categories.Count; index++)
+        for (var index = 0; index < categories.Count; index++)
         {
-            var category = field.Categories[index];
             var itemPath = $"{path}.categories[{index}]";
-            if (category is null || !CategoryValues.TryNormalize(category.Value, out var value))
-            { Add(issues, itemPath, "A category value must be a string or signed 64-bit integer."); continue; }
-            var isObject = category is Category;
-            if (objects is not null && objects != isObject)
+            var objectForm = ValidateCategory(categories[index], type, itemPath, values, labels, issues);
+            if (objectForm is null) continue;
+            if (objects is not null && objects != objectForm)
                 Add(issues, itemPath, "Categories must contain either scalar values or objects, not both.");
-            objects = isObject;
-            if (type == "integer" && value is not long || type == "string" && value is not string)
-                Add(issues, itemPath, "Category values must match the field's logical type.");
-            if (!values.Add(value!)) Add(issues, itemPath, "Category values must be unique.");
-            if (isObject && category.Label is not null && !labels.Add(category.Label))
-                Add(issues, $"{itemPath}.label", "Category labels must be unique when present.");
+            objects = objectForm;
         }
-        var enumeration = field.Constraints?.Get<EnumConstraint>();
+        return values;
+    }
+
+    private static bool? ValidateCategory(ICategory? category, string type, string path, ISet<object> values,
+        ISet<string> labels, ICollection<DataPackageValidationIssue> issues)
+    {
+        if (category is null || !CategoryValues.TryNormalize(category.Value, out var value))
+        {
+            Add(issues, path, "A category value must be a string or signed 64-bit integer.");
+            return null;
+        }
+        if (!MatchesCategoryType(value!, type))
+            Add(issues, path, "Category values must match the field's logical type.");
+        if (!values.Add(value!)) Add(issues, path, "Category values must be unique.");
+        var objectForm = category is Category;
+        if (objectForm && category.Label is not null && !labels.Add(category.Label))
+            Add(issues, $"{path}.label", "Category labels must be unique when present.");
+        return objectForm;
+    }
+
+    private static bool MatchesCategoryType(object value, string type) => type switch
+    {
+        FieldTypeNames.Integer => value is long,
+        FieldTypeNames.String => value is string,
+        _ => true // The field-level diagnostic reports unsupported category field types.
+    };
+
+    private static void ValidateCategorySubset(EnumConstraint? enumeration, ISet<object> values, string path,
+        ICollection<DataPackageValidationIssue> issues)
+    {
         if (enumeration is null) return;
         for (var index = 0; index < enumeration.Value.Count; index++)
             if (!CategoryValues.TryNormalize(enumeration.Value[index], out var value) || !values.Contains(value!))
