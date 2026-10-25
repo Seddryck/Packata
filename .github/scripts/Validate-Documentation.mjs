@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { dotnetExecutable } from './Documentation-Tools.mjs';
 const read = p => fs.readFileSync(p, 'utf8');
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e =>
   e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
@@ -22,13 +23,23 @@ function literalEnd(source, start) {
 
 // Balance C# blocks, ignoring comments and string/character literals.
 function block(source, start) {
-  let depth = 0;
-  for (let i = start; i < source.length; i++) {
-    if (source.startsWith('//', i)) { i = source.indexOf('\n', i); if (i < 0) break; }
-    else if (source.startsWith('/*', i)) { i = source.indexOf('*/', i + 2) + 1; }
-    else if (source[i] === '"' || source[i] === "'") i = literalEnd(source, i);
-    else if (source[i] === '{') depth++;
-    else if (source[i] === '}' && --depth === 0) return i;
+  let depth = 0, cursor = start;
+  while (cursor < source.length) {
+    if (source.startsWith('//', cursor)) {
+      const end = source.indexOf('\n', cursor);
+      cursor = end < 0 ? source.length : end + 1;
+      continue;
+    }
+    if (source.startsWith('/*', cursor)) {
+      const end = source.indexOf('*/', cursor + 2);
+      assert(end >= 0, 'Unterminated C# comment'); cursor = end + 2; continue;
+    }
+    if (source[cursor] === '"' || source[cursor] === "'") {
+      cursor = literalEnd(source, cursor) + 1; continue;
+    }
+    const character = source[cursor++];
+    if (character === '{') depth++;
+    if (character === '}' && --depth === 0) return cursor - 1;
   }
   throw new Error('Unbalanced C# block');
 }
@@ -65,15 +76,29 @@ function registrations(source, prefix = '') {
 registrations(read('src/Packata.Cli/Program.cs'));
 assert(commands.size > 0, 'No CLI registrations discovered');
 const documented = new Map();
+function documentSections(file, source) {
+  let names = [], lines = [], hasContent = false;
+  const flush = () => {
+    for (const name of names) {
+      check(!documented.has(name), `Duplicate documentation for ${name}`);
+      documented.set(name, { file, body: lines.join('\n') });
+    }
+    names = []; lines = []; hasContent = false;
+  };
+  for (const line of source.split('\n')) {
+    const marker = line.trim();
+    if (marker.startsWith('<!-- cli:') && marker.endsWith(' -->')) {
+      if (hasContent) flush();
+      names.push(marker.slice('<!-- cli:'.length, -4));
+    } else if (marker === '<!-- end-cli -->') flush();
+    else if (names.length) { lines.push(line); hasContent ||= marker.length > 0; }
+  }
+  flush();
+}
 for (const file of walk('docs').filter(p => p.endsWith('.md') && !/[\\/](_site|vendor)[\\/]/.test(p))) {
   const source = read(file);
   if (!source.startsWith('---')) continue;
-  for (const m of source.matchAll(/((?:<!-- cli:[^>]+ -->\s*)+)([\s\S]*?)(?=<!-- (?:cli:|end-cli)|$)/g)) {
-    for (const tag of m[1].matchAll(/<!-- cli:(.*?) -->/g)) {
-      check(!documented.has(tag[1]), `Duplicate documentation for ${tag[1]}`);
-      documented.set(tag[1], { file, body: m[2] });
-    }
-  }
+  documentSections(file, source);
 }
 let optionCount = 0;
 for (const [name, attributes] of commands) {
@@ -95,8 +120,9 @@ for (const token of ['--help', '-h', '-?', '--version', '-v']) check(overview.in
 const cliIndex = process.argv.indexOf('--cli');
 if (cliIndex >= 0) {
   const dll = path.resolve(process.argv[cliIndex + 1]);
+  const host = dotnetExecutable();
   for (const [name, attributes] of commands) {
-    const result = spawnSync('dotnet', [dll, ...name.split(' '), '--help'], { encoding: 'utf8', windowsHide: true });
+    const result = spawnSync(host, [dll, ...name.split(' '), '--help'], { encoding: 'utf8', windowsHide: true });
     check(result.status === 0, `${name}: help failed: ${result.stderr}`);
     const help = result.stdout ?? '';
     for (const attribute of attributes) {
@@ -114,7 +140,13 @@ if (cliIndex >= 0) {
 const pages = [];
 for (const file of walk('docs').filter(p => /\.(md|html)$/.test(p) && !/[\\/](_site|vendor|_layouts|_includes)[\\/]/.test(p))) {
   const fm = read(file).match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (fm) pages.push({ ...Object.fromEntries([...fm[1].matchAll(/^(\w+):\s*(.*?)\s*$/gm)].map(m => [m[1], m[2]])), file });
+  if (!fm) continue;
+  const fields = {};
+  for (const line of fm[1].split('\n')) {
+    const colon = line.indexOf(':');
+    if (colon > 0) fields[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
+  }
+  pages.push({ ...fields, file });
 }
 const urls = new Set();
 for (const page of pages) {
@@ -127,7 +159,7 @@ for (const url of ['/', '/docs/why-packata/', '/cli/', '/cli-database/', '/datab
 if (process.argv.includes('--site')) {
   const site = path.resolve('docs/_site'), htmlFiles = walk(site).filter(p => p.endsWith('.html'));
   const origin = 'https://seddryck.github.io';
-  const decode = s => s.replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+  const decode = s => s.replaceAll('&amp;', '&').replaceAll('&#39;', "'").replaceAll('&quot;', '"');
   for (const file of htmlFiles) {
     const relative = path.relative(site, file).split(path.sep).join('/').replace(/index\.html$/, '');
     for (const m of read(file).matchAll(/\b(?:href|src)="([^"]+)"/g)) {
