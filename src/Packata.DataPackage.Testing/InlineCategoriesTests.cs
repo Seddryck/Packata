@@ -42,9 +42,9 @@ public class InlineCategoriesTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(input));
         var package = new DataPackageFactory().LoadFromStream(stream, format);
         var fields = package.Resources.Single().Schema!.Fields;
-        Assert.That(fields[0].Categories!.Select(x => x.Value), Is.EqualTo(new[] {"2026-10-25T00:00:00Z","001"}));
+        Assert.That(fields[0].Categories!.Select(x => x.Value), Is.EqualTo(new[] { "2026-10-25T00:00:00Z", "001" }));
         Assert.That(fields[0].CategoriesOrdered, Is.True);
-        Assert.That(fields[1].Categories!.Select(x => x.Value), Is.EqualTo(new long[] {1,2147483648}));
+        Assert.That(fields[1].Categories!.Select(x => x.Value), Is.EqualTo(new long[] { 1, 2147483648 }));
         Assert.That(DataPackageValidator.Validate(package).IsValid, Is.True);
     }
 
@@ -54,12 +54,21 @@ public class InlineCategoriesTests
     {
         Assert.That(Read("[1, 2147483648, -9223372036854775808]", yaml).Select(x => x.Value),
             Is.EqualTo(new object[] { 1L, 2147483648L, long.MinValue }));
+        Assert.That(Read("[1,2147483648]", yaml).Select(x => x.Value), Is.All.TypeOf<long>());
         Assert.That(Read("[\"001\", \"2026-10-25T00:00:00Z\", \"true\"]", yaml).Select(x => x.Value),
             Is.EqualTo(new[] { "001", "2026-10-25T00:00:00Z", "true" }));
         var values = Read("[{\"value\":\"001\",\"label\":\"One\"},{\"value\":\"A\"}]", yaml);
         Assert.That(values.Select(x => x.Value), Is.EqualTo(new[] { "001", "A" }));
         Assert.That(values.Select(x => x.Label), Is.EqualTo(new string?[] { "One", null }));
         Assert.That(Read("[{\"value\":2147483648}]", yaml).Single().Value, Is.EqualTo(2147483648L));
+    }
+
+    [Test]
+    public void Plain_yaml_string_codes_do_not_use_dotnet_floating_point_coercions()
+    {
+        Assert.That(Read("[Infinity, NaN]", true).Select(x => x.Value), Is.EqualTo(new[] { "Infinity", "NaN" }));
+        Assert.That(() => Read("[!!float '1.5']", true), Throws.Exception);
+        Assert.That(Read("[!!int '12']", true).Single().Value, Is.TypeOf<long>().And.EqualTo(12L));
     }
 
     [TestCase(false)]
@@ -120,21 +129,34 @@ public class InlineCategoriesTests
     [TestCase(true)]
     public void Mapping_and_loading_preserve_ordering_states_and_enum_subsets(bool? ordered)
     {
-        foreach(var yaml in new[] {false,true})
+        foreach (var yaml in new[] { false, true })
         {
             var suffix = ordered is null ? "" : ",\"categoriesOrdered\":" + ordered.Value.ToString().ToLowerInvariant();
             var input = "{\"name\":\"f\",\"type\":\"string\",\"categories\":[{\"value\":\"B\"},{\"value\":\"001\",\"label\":\"One\"}]" + suffix + "}";
-            var field = yaml ? YamlReader.Deserialize<Field>(input) : JsonConvert.DeserializeObject<Field>(input,JsonSettings)!;
+            var field = yaml ? YamlReader.Deserialize<Field>(input) : JsonConvert.DeserializeObject<Field>(input, JsonSettings)!;
             Assert.That(field.CategoriesOrdered, Is.EqualTo(ordered));
             field.Constraints = Enum("001");
             Assert.That(DataPackageValidator.Validate(Package(field)).IsValid, Is.True);
             var mapped = new DataPackageMapper().Map(Package(field)).RequireValue().Assets.Single().Schema!.Fields.Single();
-            Assert.That(mapped.Constraints.Single().Value, Is.EqualTo(new[] {"001"}));
+            Assert.That(mapped.Constraints.Single().Value, Is.EqualTo(new[] { "001" }));
             Assert.That(mapped.Extensions["datapackage"]["categoriesOrdered"], Is.EqualTo(ordered));
             Assert.That(mapped.Extensions["datapackage"]["categories"], Is.SameAs(field.Categories));
             field.Constraints = null;
             mapped = new DataPackageMapper().Map(Package(field)).RequireValue().Assets.Single().Schema!.Fields.Single();
-            Assert.That(mapped.Constraints.Single().Value, Is.EqualTo(new[] {"B","001"}));
+            Assert.That(mapped.Constraints.Single().Value, Is.EqualTo(new[] { "B", "001" }));
+        }
+    }
+
+    [TestCase("\"true\"")]
+    [TestCase("1")]
+    [TestCase("null")]
+    public void Full_descriptor_rejects_non_boolean_ordering_flags(string value)
+    {
+        var input = "{\"resources\":[{\"name\":\"data\",\"data\":[],\"schema\":{\"fields\":[{\"name\":\"f\",\"type\":\"string\",\"categories\":[\"a\"],\"categoriesOrdered\":" + value + "}]}}]}";
+        foreach (var format in new[] {SerializationFormat.Json,SerializationFormat.Yaml})
+        {
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(input));
+            Assert.That(() => new DataPackageFactory().LoadFromStream(stream,format),Throws.Exception);
         }
     }
 
@@ -152,11 +174,11 @@ public class InlineCategoriesTests
             ]}}]}
             """;
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(input));
-        var package = new DataPackageFactory().LoadFromStream(stream,format);
-        Assert.That(package.Resources[0].Schema!.Fields[0].Constraints!.Get<EnumConstraint>()!.Value, Is.EqualTo(new[] {"001"}));
+        var package = new DataPackageFactory().LoadFromStream(stream, format);
+        Assert.That(package.Resources[0].Schema!.Fields[0].Constraints!.Get<EnumConstraint>()!.Value, Is.EqualTo(new[] { "001" }));
         Assert.That(DataPackageValidator.Validate(package).Issues, Is.Empty);
     }
 
     private static DataPackage Package(Field field) => new()
-    { Resources=[new Resource {Name="data", Type="table", Data=Array.Empty<object>(), Schema=new Schema {Fields=[field]} }] };
+    { Resources = [new Resource { Name = "data", Type = "table", Data = Array.Empty<object>(), Schema = new Schema { Fields = [field] } }] };
 }

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Packata.DataPackage;
+
 public class Field
 {
     /// <summary>
@@ -70,13 +71,16 @@ public class Field
     public FieldConstraintCollection? Constraints { get; set; }
 
     /// <summary>
-    /// Property to restrict the field to a finite set of possible values. It indicate that the field MAY be loaded as a categorical data type if supported by the implementation. The categories property MUST be either (a) an array of unique values or (b) an array of objects, each with a unique value property. The logical representation of data in the field MUST exactly match one of the values in categories.
+    /// Standard DPv2 inline category values, or a resource reference from the Category Tables recipe.
+    /// Inline values must be strings or signed 64-bit integers matching the field's logical type.
     /// </summary>
-    public List<ICategory>? Categories { get; set; }
+    public CategoryCollection? Categories { get; set; }
 
     /// <summary>
-    /// When the categories property is defined, it MAY be accompanied by a categoriesOrdered property in the field definition. When present, the categoriesOrdered property MUST be boolean. When categoriesOrdered is true, implementations SHOULD regard the order of appearance of the values in the categories property as their natural order.
+    /// Whether inline category sequence expresses natural order. Null makes no ordering assumption.
+    /// Recipe category tables additionally retain their resource-level categoryFieldMap.ordered metadata.
     /// </summary>
+    [Newtonsoft.Json.JsonConverter(typeof(Serialization.Json.CategoriesOrderedConverter))]
     public bool? CategoriesOrdered { get; set; }
 }
 

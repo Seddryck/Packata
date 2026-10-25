@@ -53,6 +53,7 @@ public static class DataPackageValidator
         ValidateSources(resource.Sources, $"{path}.sources", issues);
         ValidateLicenses(resource.Licenses, $"{path}.licenses", issues);
         ValidateSchema(resource.Schema, $"{path}.schema", resource, package, issues);
+        CategoryTableValidator.ValidateResource(resource, path, issues);
         ValidateDialect(resource.Dialect, $"{path}.dialect", issues);
     }
 
@@ -87,6 +88,7 @@ public static class DataPackageValidator
     {
         if (schema is null) return;
         var fields = ValidateFields(schema.Fields, $"{path}.fields", issues);
+        CategoryTableValidator.ValidateReferences(schema, path, package, issues);
         ValidateKey(schema.PrimaryKey, $"{path}.primaryKey", fields, issues);
         ValidateUniqueKeys(schema.UniqueKeys, path, fields, issues);
         ValidateForeignKeys(schema.ForeignKeys, path, fields, resource, package, issues);
@@ -118,7 +120,7 @@ public static class DataPackageValidator
 
     private static void ValidateCategories(Field field, string path, ICollection<DataPackageValidationIssue> issues)
     {
-        if (field.Categories is null) return;
+        if (field.Categories is null || field.Categories.Reference is not null) return;
         var type = field.Type ?? (field is StringField ? "string" : field is IntegerField ? "integer" : "any");
         if (type is not ("string" or "integer"))
             Add(issues, $"{path}.categories", "Categories are only defined for string and integer fields.");

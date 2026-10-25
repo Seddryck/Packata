@@ -9,6 +9,7 @@ using Newtonsoft.Json.Serialization;
 using Packata.Core.Storage;
 
 namespace Packata.DataPackage.Serialization.Json;
+
 internal class DataPackagePropertyResolver : DefaultContractResolver
 {
     private Dictionary<string, JsonConverter> Converters { get; } = [];
@@ -23,6 +24,7 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
         Converters.Add("missingValues", new MissingValuesConverter());
         Converters.Add("constraints", new ConstraintsConverter());
         Converters.Add("categories", new CategoriesConverter());
+        Converters.Add("categoryFieldMap", new CategoryMetadataConverter());
         Converters.Add("connection", new ConnectionConverter());
         Converters.Add("dialect", new TableDialectConverter());
         PropertyNameResolver = value =>
@@ -52,6 +54,8 @@ internal class DataPackagePropertyResolver : DefaultContractResolver
             property.Converter = Converters["constraints"];
         else if (property.PropertyName == "categories")
             property.Converter = Converters["categories"];
+        else if (property.PropertyName == "categoryfieldmap")
+            property.Converter = Converters["categoryFieldMap"];
         else if (property.PropertyName == "connection")
             property.Converter = Converters["connection"];
         else if (property.PropertyName == "dialect")

@@ -8,10 +8,12 @@ namespace Packata.DataPackage.Serialization.Yaml;
 
 internal class CategoriesConverter : IYamlTypeConverter
 {
-    public bool Accepts(Type type) => type == typeof(List<ICategory>);
+    public bool Accepts(Type type) => type == typeof(List<ICategory>) || type == typeof(CategoryCollection);
 
     public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
     {
+        if (parser.Current is MappingStart && type == typeof(CategoryCollection))
+            return new CategoryCollection((CategoryTableReference)new CategoryMetadataConverter().ReadYaml(parser, typeof(CategoryTableReference), deserializer));
         parser.Consume<SequenceStart>();
         var result = new List<ICategory>();
         bool? objects = null;
@@ -49,12 +51,15 @@ internal class CategoriesConverter : IYamlTypeConverter
             if (categoryValue is null) throw Invalid(parser, index, "A category object requires value.");
             result.Add(new Category(categoryValue, label));
         }
-        return result;
+        return type == typeof(CategoryCollection) ? new CategoryCollection(result) : (object)result;
     }
 
-    private static object ReadValue(Scalar scalar, int index)
+    internal static object ReadValue(Scalar scalar, int index)
     {
-        if (scalar.Tag == "tag:yaml.org,2002:str" || scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded)
+        var typedNumber = scalar.Tag == "tag:yaml.org,2002:int" || scalar.Tag == "tag:yaml.org,2002:float";
+        var typedOther = scalar.Tag == "tag:yaml.org,2002:bool" || scalar.Tag == "tag:yaml.org,2002:null";
+        if (scalar.Tag == "tag:yaml.org,2002:str" || !typedNumber && !typedOther &&
+            scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded)
             return scalar.Value;
         if (Regex.IsMatch(scalar.Value, @"^[+-]?[0-9]+$", RegexOptions.CultureInvariant))
         {
@@ -62,8 +67,8 @@ internal class CategoriesConverter : IYamlTypeConverter
             throw new YamlException(scalar.Start, scalar.End, $"categories[{index}].value: Integer is outside the signed 64-bit range.");
         }
         if (scalar.Tag == "tag:yaml.org,2002:int" || scalar.Tag == "tag:yaml.org,2002:bool" || scalar.Tag == "tag:yaml.org,2002:float" ||
-            scalar.Tag == "tag:yaml.org,2002:null" || scalar.Value.ToLowerInvariant() is "true" or "false" or "null" or "~" or "" ||
-            double.TryParse(scalar.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+            scalar.Tag == "tag:yaml.org,2002:null" || scalar.Value.ToLowerInvariant() is "true" or "false" or "null" or "~" or "" or ".inf" or "+.inf" or "-.inf" or ".nan" ||
+            Regex.IsMatch(scalar.Value, @"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$", RegexOptions.CultureInvariant))
             throw new YamlException(scalar.Start, scalar.End, $"categories[{index}].value: Expected a string or signed 64-bit integer; quote string codes.");
         return scalar.Value;
     }
@@ -74,8 +79,10 @@ internal class CategoriesConverter : IYamlTypeConverter
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
     {
         if (value is null) { emitter.Emit(new Scalar("null")); return; }
+        if (value is CategoryCollection { Reference: not null } collection)
+        { new CategoryMetadataConverter().WriteYaml(emitter, collection.Reference, typeof(CategoryTableReference), serializer); return; }
         emitter.Emit(new SequenceStart(null, null, false, SequenceStyle.Block));
-        foreach (var category in (List<ICategory>)value)
+        foreach (var category in (IEnumerable<ICategory>)value)
         {
             if (category is Category)
             {

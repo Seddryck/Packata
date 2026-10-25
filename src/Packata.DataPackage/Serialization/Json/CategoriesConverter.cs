@@ -5,11 +5,20 @@ namespace Packata.DataPackage.Serialization.Json;
 
 internal class CategoriesConverter : JsonConverter
 {
-    public override bool CanConvert(Type objectType) => objectType == typeof(List<ICategory>);
+    public override bool CanConvert(Type objectType) => objectType == typeof(List<ICategory>) || objectType == typeof(CategoryCollection);
 
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
     {
-        var token = JToken.Load(reader);
+        var dateHandling = reader.DateParseHandling;
+        JToken token;
+        try
+        {
+            reader.DateParseHandling = DateParseHandling.None;
+            token = JToken.Load(reader, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });
+        }
+        finally { reader.DateParseHandling = dateHandling; }
+        if (token is JObject reference && objectType == typeof(CategoryCollection))
+            return new CategoryCollection(CategoryMetadataConverter.ReadReference(reference));
         if (token is not JArray array) throw Invalid(token, "Expected an inline category array.");
         var result = new List<ICategory>();
         bool? objects = null;
@@ -36,7 +45,7 @@ internal class CategoriesConverter : JsonConverter
                 result.Add(value is string text ? new CategoryLabel(text) : new CategoryInteger((long)value));
             }
         }
-        return result;
+        return objectType == typeof(CategoryCollection) ? new CategoryCollection(result) : (object)result;
     }
 
     private static object ReadValue(JToken token)
@@ -52,8 +61,10 @@ internal class CategoriesConverter : JsonConverter
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
         if (value is null) { writer.WriteNull(); return; }
+        if (value is CategoryCollection { Reference: not null } collection)
+        { new CategoryMetadataConverter().WriteJson(writer, collection.Reference, serializer); return; }
         writer.WriteStartArray();
-        foreach (var category in (List<ICategory>)value)
+        foreach (var category in (IEnumerable<ICategory>)value)
         {
             if (category is Category)
             {

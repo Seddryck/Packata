@@ -222,7 +222,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
     private static IReadOnlyDictionary<string, object?> ResourceExtensions(Native.Resource resource) =>
         new Dictionary<string, object?> { ["profile"] = resource.Profile, ["type"] = resource.Type,
             ["kind"] = resource.Kind, ["homepage"] = resource.Homepage,
-            ["sources"] = resource.Sources, ["licenses"] = resource.Licenses };
+            ["sources"] = resource.Sources, ["licenses"] = resource.Licenses,
+            ["categoryFieldMap"] = resource.CategoryFieldMap };
 
     private static IReadOnlyDictionary<string, object?> FieldExtensions(Native.Field field)
     {
@@ -230,7 +231,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         {
             ["title"] = field.Title, ["description"] = field.Description,
             ["example"] = field.Example, ["rdfType"] = field.RdfType,
-            ["categories"] = field.Categories, ["categoriesOrdered"] = field.CategoriesOrdered
+            ["categories"] = (object?)field.Categories?.Reference ?? field.Categories, ["categoriesOrdered"] = field.CategoriesOrdered
         };
         if (field is Native.BooleanField boolean)
         {

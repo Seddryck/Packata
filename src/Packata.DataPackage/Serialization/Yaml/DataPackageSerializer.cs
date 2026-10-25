@@ -20,6 +20,7 @@ internal class DataPackageSerializer : IDataPackageSerializer
             .WithNamingConvention(new DataPackageNamingConvention())
             .WithAttemptingUnquotedStringTypeDeserialization()
             
+
             .WithTypeDiscriminatingNodeDeserializer((o) =>
                 {
                     new FieldTypeDiscriminator().Execute(o);
@@ -31,6 +32,8 @@ internal class DataPackageSerializer : IDataPackageSerializer
             .WithTypeConverter(new SingleOrArrayConverter())
             .WithTypeConverter(new ConstraintsConverter())
             .WithTypeConverter(new CategoriesConverter())
+            .WithTypeConverter(new CategoriesOrderedConverter())
+            .WithTypeConverter(new CategoryMetadataConverter())
             .WithTypeConverter(new ConnectionConverter())
             .IgnoreUnmatchedProperties()
             .Build();

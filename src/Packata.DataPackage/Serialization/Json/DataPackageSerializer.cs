@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Packata.Core.Storage;
 
 namespace Packata.DataPackage.Serialization.Json;
+
 internal class DataPackageSerializer : IDataPackageSerializer
 {
     public DataPackage Deserialize(StreamReader reader, IDocumentContainer container, IStorageProvider provider)
