@@ -252,12 +252,18 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         JObject map => map.Properties().ToDictionary(
             property => property.Name, property => NormalizeInlineValue(property.Value)),
         JArray sequence => sequence.Select(NormalizeInlineValue).ToArray(),
-        IDictionary map => map.Cast<DictionaryEntry>().ToDictionary(
+        IDictionary map => DictionaryEntries(map).ToDictionary(
             entry => entry.Key?.ToString() ?? string.Empty, entry => NormalizeInlineValue(entry.Value)),
         IEnumerable sequence when value is not string => sequence.Cast<object?>()
             .Select(NormalizeInlineValue).ToArray(),
         _ => value
     };
+
+    private static IEnumerable<DictionaryEntry> DictionaryEntries(IDictionary map)
+    {
+        foreach (DictionaryEntry entry in map)
+            yield return entry;
+    }
 
     private static IReadOnlyDictionary<string, object?> DialectOptions(Native.TableDialect? dialect)
     {

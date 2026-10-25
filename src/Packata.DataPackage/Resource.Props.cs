@@ -123,8 +123,12 @@ public partial class Resource
     /// <summary>
     /// Inline data for the resource.
     /// </summary>
-    /// <remarks>Useful for small datasets.</remarks>
-    /// <example>[1, 2, 3]</example>
+    /// <remarks>
+    /// Useful for small datasets. Deserialized arrays of records are exposed as
+    /// <c>IEnumerable&lt;IDictionary&lt;string, object?&gt;&gt;</c>, with native CLR values.
+    /// Other inline data shapes retain their scalar, dictionary, or array structure.
+    /// </remarks>
+    /// <example>[{ "id": 1, "name": "Alice" }]</example>
     public object? Data { get; set; }
 
     /// <summary>
