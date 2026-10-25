@@ -6,15 +6,11 @@ namespace Packata.Cli;
 
 internal sealed class InferSettings : DatabaseCommandSettings
 {
-    [CommandArgument(0, "<SOURCE>")]
-    [Description("ODCS or Data Package v2 contract containing the bound asset.")]
-    public required string Source { get; init; }
-
     [CommandOption("--asset <ID>")]
-    [Description("Identifier of the bound asset to infer.")]
+    [Description(OptionValidation.AssetDescription)]
     public required string Asset { get; init; }
 
-    [CommandOption("--output <PATH>")]
+    [CommandOption("-o|--output <PATH>")]
     [Description("Write an enriched copy without modifying the source document.")]
     public string? Output { get; init; }
 
@@ -47,6 +43,8 @@ internal sealed class InferSettings : DatabaseCommandSettings
 
     public override ValidationResult Validate()
     {
+        var source = base.Validate();
+        if (!source.Successful) return source;
         if (Write && Output is not null)
             return ValidationResult.Error("--output and --write cannot be combined.");
         if (MaximumRecords <= 0)
@@ -64,6 +62,7 @@ internal sealed class InferSettings : DatabaseCommandSettings
         {
             return ValidationResult.Error($"Unknown culture '{Culture}'.");
         }
-        return ValidationResult.Success();
+        if (string.IsNullOrWhiteSpace(Asset)) return ValidationResult.Error("--asset is required.");
+        return OptionValidation.Output(Output);
     }
 }

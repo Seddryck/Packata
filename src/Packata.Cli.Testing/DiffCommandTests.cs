@@ -20,7 +20,7 @@ public sealed class DiffCommandTests
         var baseline = workspace.Write("previous", content);
         var candidate = workspace.Write("current", content);
         var text = await CliWorkspace.Run("contract", "diff", baseline, candidate);
-        var result = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         var json = JObject.Parse(result.Output);
         Assert.Multiple(() =>
@@ -58,9 +58,9 @@ public sealed class DiffCommandTests
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("old.yaml", Odcs);
         var candidate = workspace.Write("new.yaml", Odcs.Replace("logicalType: integer", "logicalType: number").Replace("name: old", "name: added"));
-        var forward = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output", "json");
-        var again = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output", "json");
-        var reverse = await CliWorkspace.Run("contract", "diff", candidate, baseline, "--output", "json");
+        var forward = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output-format", "json");
+        var again = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output-format", "json");
+        var reverse = await CliWorkspace.Run("contract", "diff", candidate, baseline, "--output-format", "json");
         var text = await CliWorkspace.Run("contract", "diff", baseline, candidate);
         Assert.That(forward.ExitCode, Is.Zero, forward.Error);
         var changes = (JArray)JObject.Parse(forward.Output)["changes"]!;
@@ -91,12 +91,12 @@ public sealed class DiffCommandTests
         var baseline = workspace.Write("baseline.yaml", CliWorkspace.PackageJson);
         var candidate = workspace.Write("candidate.json", CliWorkspace.PackageYaml.Replace("customers.csv", "new.csv"));
         var result = await CliWorkspace.Run("contract", "diff", baseline, candidate,
-            "--baseline-format", "datapackage", "--candidate-format", "auto", "--output", "json");
+            "--baseline-format", "datapackage", "--candidate-format", "auto", "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         var change = JObject.Parse(result.Output)["changes"]!.Single(x => (string?)x["kind"] == "ServerModified");
         Assert.That((string?)change["current"]!["location"]!["paths"]![0], Is.EqualTo("new.csv"));
         var odcs = workspace.Write("odcs", CliWorkspace.Odcs);
-        var wrong = await CliWorkspace.Run("contract", "diff", odcs, candidate, "--candidate-format", "odcs", "--output", "json");
+        var wrong = await CliWorkspace.Run("contract", "diff", odcs, candidate, "--candidate-format", "odcs", "--output-format", "json");
         Assert.That(wrong.ExitCode, Is.EqualTo(1));
         Assert.That(wrong.Output, Is.Empty);
         Assert.That(wrong.Error, Does.Contain("candidate"));
@@ -109,7 +109,7 @@ public sealed class DiffCommandTests
         var baseline = workspace.Write("odcs", CliWorkspace.Odcs);
         var candidate = workspace.Write("package", CliWorkspace.PackageJson);
         var result = await CliWorkspace.Run("contract", "diff", baseline, candidate,
-            "--baseline-format", "odcs", "--candidate-format", "datapackage", "--output", "json");
+            "--baseline-format", "odcs", "--candidate-format", "datapackage", "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         var before = (await ContractSource.LoadAsync(baseline, "auto", default)).Map().RequireValue();
         var after = (await ContractSource.LoadAsync(candidate, "auto", default)).Map().RequireValue();
@@ -125,7 +125,7 @@ public sealed class DiffCommandTests
         var valid = workspace.Write("valid", CliWorkspace.Odcs);
         var invalid = workspace.Write("invalid", "kind: Other\nschema: []\n");
         var result = await CliWorkspace.Run("contract", "diff", input == "baseline" ? invalid : valid,
-            input == "candidate" ? invalid : valid, "--output", "json");
+            input == "candidate" ? invalid : valid, "--output-format", "json");
         Assert.Multiple(() =>
         {
             Assert.That(result.ExitCode, Is.EqualTo(1));
@@ -143,7 +143,7 @@ public sealed class DiffCommandTests
         using var workspace = new CliWorkspace();
         var valid = workspace.Write("valid", CliWorkspace.Odcs);
         var candidate = content is null ? Path.Combine(workspace.Path, name) : workspace.Write(name, content);
-        var result = await CliWorkspace.Run("contract", "diff", valid, candidate, "--output", "json", "--quiet");
+        var result = await CliWorkspace.Run("contract", "diff", valid, candidate, "--output-format", "json", "--quiet");
         Assert.Multiple(() =>
         {
             Assert.That(result.ExitCode, Is.EqualTo(exitCode));
@@ -158,14 +158,14 @@ public sealed class DiffCommandTests
         using var workspace = new CliWorkspace();
         var source = workspace.Write("contract.yaml", CliWorkspace.Odcs);
         using var locked = File.Open(source, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(3));
         Assert.That(result.Output, Is.Empty);
     }
 
     [TestCase("--baseline-format", "xml")]
     [TestCase("--candidate-format", "xml")]
-    [TestCase("--output", "csv")]
+    [TestCase("--output-format", "csv")]
     public async Task InvalidOptions_UseInvocationExitCode(string option, string value)
     {
         var result = await CliWorkspace.Run("contract", "diff", "a", "b", option, value);
@@ -190,7 +190,7 @@ public sealed class DiffCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("package", CliWorkspace.PackageJson.Replace("\"name\":\"sample\",", ""));
-        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output", output, "--quiet");
+        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output-format", output, "--quiet");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(result.Output, Is.Empty);
         Assert.That(result.Error, Does.Contain("baseline").And.Contain("candidate").And.Contain("DP002"));
@@ -201,7 +201,7 @@ public sealed class DiffCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("package", CliWorkspace.PackageJson.Replace("\"name\":\"sample\",", ""));
-        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         var diagnostics = JObject.Parse(result.Output)["diagnostics"]!;
         Assert.That(diagnostics.Select(x => (string?)x["input"]), Is.EqualTo(new[] { "baseline", "candidate" }));
@@ -229,7 +229,7 @@ public sealed class DiffCommandTests
         {
             ["PACKATA_CONFIG_HOME"] = workspace.Write("invalid-config-directory", "not a directory"),
             ["DUBURL_PROVIDER_STORE"] = workspace.Write("invalid-provider-directory", "not a directory")
-        }, "contract", "diff", zipPath, $"http://127.0.0.1:{port}/package.zip", "--output", "json");
+        }, "contract", "diff", zipPath, $"http://127.0.0.1:{port}/package.zip", "--output-format", "json");
         await serve;
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That((bool?)JObject.Parse(result.Output)["hasChanges"], Is.False);
@@ -246,7 +246,7 @@ public sealed class DiffCommandTests
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var serve = Serve(listener, Encoding.UTF8.GetBytes(document), timeout.Token);
-        var result = await CliWorkspace.Run("contract", "diff", baseline, $"http://127.0.0.1:{port}/contract.yaml", "--output", "json");
+        var result = await CliWorkspace.Run("contract", "diff", baseline, $"http://127.0.0.1:{port}/contract.yaml", "--output-format", "json");
         await serve;
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That((bool?)JObject.Parse(result.Output)["hasChanges"], Is.False);
@@ -258,7 +258,7 @@ public sealed class DiffCommandTests
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("baseline", CliWorkspace.Odcs);
         var candidate = workspace.Write("invalid.zip", "not a zip archive");
-        var result = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(1));
         Assert.That(result.Output, Is.Empty);
         Assert.That(result.Error, Does.Contain("candidate").And.Contain("CLI021"));
@@ -282,7 +282,7 @@ public sealed class DiffCommandTests
         var baseline = workspace.Write("baseline", CliWorkspace.Odcs);
         var candidate = workspace.Write("candidate", CliWorkspace.Odcs.Replace("customers.csv", "https://alice:DO-NOT-EMIT@example.test/data?token=DO-NOT-EMIT")
             + "\n    description: 'pwd=DO-NOT-EMIT'\n    customProperties:\n      - property: settings\n        value:\n          password: DO-NOT-EMIT\n          nested:\n            apiKey: DO-NOT-EMIT\n");
-        var result = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output", output);
+        var result = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output-format", output);
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(result.Output, Does.Contain("[redacted]"));
         Assert.That(result.Output + result.Error, Does.Not.Contain("DO-NOT-EMIT"));
@@ -294,7 +294,7 @@ public sealed class DiffCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = Path.Combine(workspace.Path, "token=DO-NOT-EMIT");
-        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(3));
         Assert.That(result.Error, Does.Contain("baseline").And.Contain("[redacted]").And.Not.Contain("DO-NOT-EMIT"));
         Assert.That(result.Output, Is.Empty);
@@ -307,7 +307,7 @@ public sealed class DiffCommandTests
         var package = JObject.Parse(CliWorkspace.PackageJson);
         package["sources"] = JArray.Parse("[{\"title\":\"Origin\",\"path\":\"https://example.test\"}]");
         var source = workspace.Write("package", package.ToString());
-        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "diff", source, source, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(1));
         Assert.That(result.Error, Does.Contain("comparison").And.Contain("unsupported"));
         Assert.That(result.Output, Is.Empty);

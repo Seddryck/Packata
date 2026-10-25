@@ -17,7 +17,7 @@ public sealed class ValidateCommandTests
     {
         using var workspace = new CliWorkspace();
         var path = workspace.Write(name, text);
-        var result = await CliWorkspace.Run("contract", "validate", path, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "validate", path, "--output-format", "json");
         var json = JObject.Parse(result.Output);
         Assert.Multiple(() =>
         {
@@ -34,7 +34,7 @@ public sealed class ValidateCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("invalid.json", "{\"resources\":[]}");
-        var result = await CliWorkspace.Run("contract", "validate", source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "validate", source, "--output-format", "json");
         var json = JObject.Parse(result.Output);
         Assert.Multiple(() =>
         {
@@ -50,7 +50,7 @@ public sealed class ValidateCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("invalid.yaml", "kind: Other\nschema: []\n");
-        var result = await CliWorkspace.Run("contract", "validate", source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "validate", source, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(1));
         Assert.That(JObject.Parse(result.Output)["diagnostics"]!.Count(), Is.GreaterThanOrEqualTo(4));
     }
@@ -60,7 +60,7 @@ public sealed class ValidateCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("descriptor", CliWorkspace.Odcs.Replace("kind: DataContract\n", ""));
-        var result = await CliWorkspace.Run("contract", "validate", source, "--format", "odcs");
+        var result = await CliWorkspace.Run("contract", "validate", source, "--input-format", "odcs");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(result.Output, Does.Contain("valid"));
         Assert.That(result.Output.Contains('\u001b'), Is.False);
@@ -76,7 +76,7 @@ public sealed class ValidateCommandTests
             using var writer = new StreamWriter(zip.CreateEntry("nested/datapackage.json").Open());
             writer.Write(CliWorkspace.PackageJson);
         }
-        var result = await CliWorkspace.Run("contract", "validate", path, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "validate", path, "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Output + result.Error);
     }
 
@@ -96,7 +96,7 @@ public sealed class ValidateCommandTests
             await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n"));
             await stream.WriteAsync(body);
         });
-        var result = await CliWorkspace.Run("contract", "validate", $"http://127.0.0.1:{port}/contract.yaml", "--output", "json");
+        var result = await CliWorkspace.Run("contract", "validate", $"http://127.0.0.1:{port}/contract.yaml", "--output-format", "json");
         await serve.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.That(result.ExitCode, Is.Zero, result.Output + result.Error);
     }
@@ -106,9 +106,9 @@ public sealed class ValidateCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("broken.json", "{\"password\":\"DO-NOT-EMIT\",broken");
-        var invalid = await CliWorkspace.Run("contract", "validate", source, "--output", "json");
-        var missing = await CliWorkspace.Run("contract", "validate", source + ".missing", "--output", "json");
-        var invocation = await CliWorkspace.Run("contract", "validate", source, "--output", "invalid");
+        var invalid = await CliWorkspace.Run("contract", "validate", source, "--output-format", "json");
+        var missing = await CliWorkspace.Run("contract", "validate", source + ".missing", "--output-format", "json");
+        var invocation = await CliWorkspace.Run("contract", "validate", source, "--output-format", "invalid");
         Assert.Multiple(() =>
         {
             Assert.That(invalid.ExitCode, Is.EqualTo(1));

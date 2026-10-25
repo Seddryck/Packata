@@ -61,7 +61,7 @@ identify settings that cannot be represented.
 ## CLI
 
 ```console
-packata contract inspect datapackage.json --output json
+packata contract inspect datapackage.json --output-format json
 packata dialect export datapackage.json --endpoint customers-endpoint
 packata dialect export datapackage.json --endpoint customers-endpoint --output customers.dialect.json
 packata dialect export contract.yaml --endpoint local --output local.dialect.json --overwrite

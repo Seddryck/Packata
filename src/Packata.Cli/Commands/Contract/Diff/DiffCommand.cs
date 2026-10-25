@@ -1,49 +1,7 @@
-using System.ComponentModel;
 using Packata.Core.Contracts;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Packata.Cli;
-
-internal sealed class DiffSettings : CommandSettings
-{
-    [CommandArgument(0, "<BASELINE>")]
-    [Description("Previous contract: local file, HTTP(S) descriptor, or ZIP package.")]
-    public required string Baseline { get; init; }
-
-    [CommandArgument(1, "<CANDIDATE>")]
-    [Description("Current contract; additions are present only here, removals only in the baseline.")]
-    public required string Candidate { get; init; }
-
-    [CommandOption("--baseline-format <FORMAT>")]
-    [Description("Baseline document standard: auto, odcs, or datapackage.")]
-    [DefaultValue("auto")]
-    public string BaselineFormat { get; init; } = "auto";
-
-    [CommandOption("--candidate-format <FORMAT>")]
-    [Description("Candidate document standard: auto, odcs, or datapackage.")]
-    [DefaultValue("auto")]
-    public string CandidateFormat { get; init; } = "auto";
-
-    [CommandOption("--output <FORMAT>")]
-    [Description("Result representation: text or json.")]
-    [DefaultValue("text")]
-    public string Output { get; init; } = "text";
-
-    [CommandOption("--quiet")]
-    [Description("Suppress results, including JSON; retain diagnostics on stderr.")]
-    public bool Quiet { get; init; }
-
-    public override ValidationResult Validate()
-    {
-        if (BaselineFormat is not ("auto" or "odcs" or "datapackage"))
-            return ValidationResult.Error("--baseline-format must be auto, odcs, or datapackage.");
-        if (CandidateFormat is not ("auto" or "odcs" or "datapackage"))
-            return ValidationResult.Error("--candidate-format must be auto, odcs, or datapackage.");
-        return Output is "text" or "json" ? ValidationResult.Success()
-            : ValidationResult.Error("--output must be text or json.");
-    }
-}
 
 internal sealed record DiffDiagnostic(string Input, string Source, string Code,
     MappingSeverity Severity, string SourcePath, string Message);
@@ -57,11 +15,11 @@ internal sealed class DiffCommand : AsyncCommand<DiffSettings>
         var source = settings.Baseline;
         try
         {
-            var baseline = await Load(settings.Baseline, settings.BaselineFormat).ConfigureAwait(false);
+            var baseline = await Load(settings.Baseline, settings.BaselineFormat ?? settings.InputFormat).ConfigureAwait(false);
             if (baseline is null) return Invalid();
             input = "candidate";
             source = settings.Candidate;
-            var candidate = await Load(settings.Candidate, settings.CandidateFormat).ConfigureAwait(false);
+            var candidate = await Load(settings.Candidate, settings.CandidateFormat ?? settings.InputFormat).ConfigureAwait(false);
             if (candidate is null) return Invalid();
             input = "comparison";
             source = settings.Baseline + " -> " + settings.Candidate;
@@ -71,10 +29,12 @@ internal sealed class DiffCommand : AsyncCommand<DiffSettings>
             cancellationToken.ThrowIfCancellationRequested();
             if (!settings.Quiet)
             {
-                if (settings.Output == "json") CommandOutput.Json(result);
-                else DiffPresenter.Text(result);
+                using var output = new OutputDestination(settings.Output);
+                if (settings.OutputFormat == "json") CommandOutput.Json(result, output.Writer);
+                else DiffPresenter.Text(result, output.Writer);
+                output.Commit();
             }
-            if (settings.Quiet || settings.Output == "text") WriteDiagnostics();
+            if (settings.Quiet || settings.OutputFormat == "text") WriteDiagnostics();
             return ExitCodes.Success;
         }
         catch (Exception exception)
@@ -89,7 +49,7 @@ internal sealed class DiffCommand : AsyncCommand<DiffSettings>
         async Task<DataContract?> Load(string location, string format)
         {
             var document = await ContractSource.LoadAsync(location, format, cancellationToken).ConfigureAwait(false);
-            var validation = ValidateCommand.Validate(document);
+            var validation = ContractValidation.Validate(document);
             foreach (var diagnostic in validation) Add(diagnostic);
             if (validation.Any(x => x.Severity == MappingSeverity.Error)) return null;
             var mapped = document.Map();

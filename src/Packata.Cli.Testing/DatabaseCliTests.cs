@@ -191,7 +191,7 @@ public sealed class DatabaseCliTests
         Assert.That(result.Output, Does.Contain("integer"));
         Assert.That(result.Error, Is.Empty);
         Assert.That(Run("schema", "infer", source, "--asset", "customers").ExitCode, Is.Zero);
-        var preview = Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        var preview = Run("data", "preview", source, "--asset", "customers", "--output-format", "json");
         Assert.That(preview.ExitCode, Is.Zero, preview.Output + preview.Error);
         using var previewJson = JsonDocument.Parse(preview.Output);
         Assert.That(previewJson.RootElement.GetProperty("rows")[0][0].GetInt64(), Is.EqualTo(42));
@@ -209,7 +209,7 @@ public sealed class DatabaseCliTests
         var installed = Configuration.Store.Inspect().Single();
         Assert.That(installed.Manifest.Version, Is.EqualTo("0.46.0"));
         Configuration.Set("connectors.offline", "true");
-        var preview = Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        var preview = Run("data", "preview", source, "--asset", "customers", "--output-format", "json");
         Assert.That(preview.ExitCode, Is.Zero, preview.Output + preview.Error);
         using var rows = JsonDocument.Parse(preview.Output);
         Assert.That(rows.RootElement.GetProperty("rows")[0][0].GetInt64(), Is.EqualTo(42));
@@ -309,7 +309,7 @@ public sealed class DatabaseCliTests
         Assert.That(result.Output + result.Error, Does.Not.Contain("runtime.db"));
         Assert.That(File.ReadAllText(Path.Combine(_root, "config.json")), Does.Not.Contain("runtime.db"));
         var preview = RunWithEnvironment(new() { ["PACKATA_TEST_DATABASE_URL"] = "sqlite://./runtime.db?Pooling=false" },
-            "data", "preview", source, "--asset", "customers", "--connection-env", endpoint + "=PACKATA_TEST_DATABASE_URL", "--output", "json");
+            "data", "preview", source, "--asset", "customers", "--connection-env", endpoint + "=PACKATA_TEST_DATABASE_URL", "--output-format", "json");
         Assert.That(preview.ExitCode, Is.Zero, preview.Output + preview.Error);
         Assert.That(preview.Output + preview.Error, Does.Not.Contain("runtime.db"));
     }
@@ -325,7 +325,7 @@ public sealed class DatabaseCliTests
         var legacy = Run("infer", source, "--asset", "customers");
         Assert.That(canonical.ExitCode, Is.Zero, canonical.Output + canonical.Error);
         Assert.That(legacy, Is.EqualTo(canonical));
-        var preview = Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        var preview = Run("data", "preview", source, "--asset", "customers", "--output-format", "json");
         Assert.That(preview.ExitCode, Is.Zero, preview.Output + preview.Error);
     }
 

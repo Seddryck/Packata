@@ -1,31 +1,8 @@
-using System.ComponentModel;
 using System.Runtime.InteropServices;
 using DubUrl.Application;
 using DubUrl.Core.ProviderPacks;
-using Spectre.Console.Cli;
 
 namespace Packata.Cli;
-
-internal sealed class ConnectorListSettings : PresentationSettings
-{
-    [CommandOption("--scheme <SCHEME>")]
-    [Description("Filter connectors by database connection scheme.")]
-    public string? Scheme { get; init; }
-
-    [CommandOption("--verbose")]
-    [Description("Show connector aliases, compatibility, discovery facts and prerequisites.")]
-    public bool Verbose { get; init; }
-}
-internal sealed class ConnectorShowSettings : PresentationSettings
-{
-    [CommandArgument(0, "<ID>")]
-    public required string Id { get; init; }
-}
-internal sealed class ConnectorInstallSettings : CommandSettings
-{
-    [CommandArgument(0, "<ID>")]
-    public required string Id { get; init; }
-}
 
 internal sealed record ConnectorDescription(string Id, string Version, IReadOnlyList<string> Schemes,
     bool Listed, bool Installed, bool Active, bool Unhealthy, bool? Loaded,
@@ -89,34 +66,9 @@ internal sealed class CliConnectors : IDisposable
 
     public void Dispose() => _http.Dispose();
 
-    public static void Write(IReadOnlyList<ConnectorDescription> connectors, string format, bool verbose = false)
+    public static void Write(IReadOnlyList<ConnectorDescription> connectors, string format, bool verbose = false, TextWriter? writer = null)
     {
-        if (format == "json") { CliOutput.Json(connectors); return; }
-        ConnectorOutput.Write(connectors, Console.Out, verbose);
-    }
-}
-
-internal sealed class ConnectorListCommand : Command<ConnectorListSettings>
-{
-    public override int Execute(CommandContext context, ConnectorListSettings settings, CancellationToken cancellationToken)
-        => CliOutput.Run(() => { using var connectors = new CliConnectors(new CliConfiguration()); CliConnectors.Write(connectors.List(settings.Scheme), settings.OutputFormat, settings.Verbose); });
-}
-internal sealed class ConnectorShowCommand : Command<ConnectorShowSettings>
-{
-    public override int Execute(CommandContext context, ConnectorShowSettings settings, CancellationToken cancellationToken)
-        => CliOutput.Run(() => { using var connectors = new CliConnectors(new CliConfiguration()); CliConnectors.Write(connectors.Show(settings.Id), settings.OutputFormat, verbose: true); });
-}
-internal sealed class ConnectorInstallCommand : AsyncCommand<ConnectorInstallSettings>
-{
-    public override async Task<int> ExecuteAsync(CommandContext context, ConnectorInstallSettings settings, CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var connectors = new CliConnectors(new CliConfiguration());
-            CliConnectors.Write([await connectors.InstallAsync(settings.Id, cancellationToken).ConfigureAwait(false)], "text", verbose: true);
-            return 0;
-        }
-        catch (OperationCanceledException) { Console.Error.WriteLine("Connector installation was cancelled."); return 2; }
-        catch (Exception error) { return CliOutput.Error(error); }
+        if (format == "json") { CliOutput.Json(connectors, writer); return; }
+        ConnectorOutput.Write(connectors, writer ?? Console.Out, verbose);
     }
 }

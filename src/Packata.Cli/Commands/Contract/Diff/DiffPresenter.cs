@@ -68,17 +68,18 @@ internal static class DiffPresenter
         return (JObject)CommandOutput.RedactedJson(result);
     }
 
-    internal static void Text(JObject result)
+    internal static void Text(JObject result, TextWriter? writer = null)
     {
-        Console.WriteLine($"Baseline (previous): {result["baseline"]}");
-        Console.WriteLine($"Candidate (current): {result["candidate"]}");
-        Console.WriteLine("Direction: baseline -> candidate");
-        if (!(bool)result["hasChanges"]!) Console.WriteLine("No differences detected.");
+        writer ??= Console.Out;
+        writer.WriteLine($"Baseline (previous): {result["baseline"]}");
+        writer.WriteLine($"Candidate (current): {result["candidate"]}");
+        writer.WriteLine("Direction: baseline -> candidate");
+        if (!(bool)result["hasChanges"]!) writer.WriteLine("No differences detected.");
         foreach (var change in result["changes"]!.Cast<JObject>())
         {
-            Console.WriteLine($"{change["operation"]} {change["asset"]} {change["path"]} ({change["kind"]})");
+            writer.WriteLine($"{change["operation"]} {change["asset"]} {change["path"]} ({change["kind"]})");
             foreach (var property in change.Properties().Skip(4))
-                Console.WriteLine($"  {property.Name}: {property.Value.ToString(Formatting.None)}");
+                writer.WriteLine($"  {property.Name}: {property.Value.ToString(Formatting.None)}");
         }
     }
 
