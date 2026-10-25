@@ -11,11 +11,49 @@ Install the .NET tool with `dotnet tool install --global Packata-cli`. Run
 `packata --help` or `packata --version` to discover commands and the installed version.
 The existing `packata infer` command remains available.
 
+## Consistent options and migration
+
+The CLI uses Spectre.Console.Cli. Commands are grouped under `contract`, `schema`,
+`data`, `dialect`, `connector`, and `config`. `infer` and `export` remain compatibility
+entry points for `schema infer` and `schema export`, with the same options.
+
+| Option | Meaning |
+| --- | --- |
+| `--input-format auto\|odcs\|datapackage` | Interpret the source contract; supported by every contract-reading command |
+| `--output-format` | Select the generated representation; allowed values depend on the command |
+| `--output <PATH>`, `-o <PATH>` | Destination file, never a representation name |
+| `--asset <ID>` | Exact Data Package resource name or ODCS schema object name |
+
+Validation, inspection, diff, preview, config list/get, and connector list/show
+can save their normal result using `--output`. Existing files are protected and
+file output has no ANSI styling. File output is committed only after rendering.
+Diagnostics remain on stderr (and retain their existing inclusion in JSON results).
+`schema infer --output` writes an enriched contract in the source standard, as before;
+its interactive inference report still goes to stdout. It has no separate output-format
+option because it preserves the source document representation. `--write` updates
+that source in place and cannot be combined with `--output`.
+
+This intentionally changes option names. Replace old `--output json|text|table|csv`
+with `--output-format json|text|table|csv`; `--output json` now means a file named
+`json`. Replace validation/inspection `--format` with `--input-format`, export
+`--format` with `--output-format`, and export `--dataset` / `-d` with `--asset`.
+The export `-f` shorthand still selects the output format. Old long option names
+are rejected rather than guessed. For diff, `--input-format` sets both inputs;
+`--baseline-format` and `--candidate-format` override it independently, including
+an explicit `auto` to re-enable detection for one input.
+
+```console
+packata contract inspect contract.yaml --input-format odcs --output-format json -o inspection.json
+packata schema export contract.yaml --asset customers --output-format json-schema -o customers.schema.json
+packata data preview datapackage.json --asset customers --output-format csv -o customers.csv
+```
+
+
 ## Export a CSV dialect
 
 ```console
 packata dialect export datapackage.json --endpoint customers-endpoint
-packata dialect export contract.yaml --endpoint local --output customers.dialect.json
+packata dialect export contract.yaml --endpoint local --output-format json --output customers.dialect.json
 ```
 
 Export a selected CSV endpoint as standalone Data Package v2 Table Dialect JSON.
@@ -30,12 +68,12 @@ settings, defaults, diagnostics, and an example with two endpoint dialects.
 
 ```console
 packata contract validate contract.yaml
-packata contract validate datapackage.json --output json
-packata contract validate descriptor --format odcs
+packata contract validate datapackage.json --output-format json
+packata contract validate descriptor --input-format odcs
 ```
 
 Validation accepts ODCS v3.2.0 YAML and Data Package v2 JSON/YAML. Detection examines
-the document root; `--format auto|odcs|datapackage` overrides standard detection.
+the document root; `--input-format auto|odcs|datapackage` overrides standard detection.
 Local files, HTTP(S) descriptors, and local/HTTP(S) ZIP packages are supported.
 A ZIP must contain exactly one descriptor named `datapackage.json`,
 `datapackage.yaml`, `datapackage.yml`, `contract.yaml`, or `contract.yml`, including
@@ -45,7 +83,7 @@ Data Package validation uses the library's descriptor validator. ODCS validation
 uses the library's YAML/semantic validation plus checks for required identity,
 version, status, supported API version, and document kind.
 
-`--output text` is the default. Text diagnostics go to stderr. `--output json`
+`--output-format text` is the default. Text diagnostics go to stderr. `--output-format json`
 writes a single object to stdout with `schemaVersion: 1`, `source`, `valid`, and
 `diagnostics`. Each diagnostic has `code`, `severity`, `sourcePath`, and `message`.
 Diagnostics do not include raw parser snippets or stack traces; connection secrets
@@ -59,10 +97,10 @@ the existing `infer` command's exit-code contract.
 
 ```console
 packata contract inspect contract.yaml
-packata contract inspect datapackage.json --asset customers --output json
+packata contract inspect datapackage.json --asset customers --output-format json
 ```
 
-Inspection uses the same source loading and `--format` options as validation.
+Inspection uses the same source loading and `--input-format` options as validation.
 Text output displays identity, metadata, assets, schema fields and constraints,
 endpoint bindings, locations, formats, and governance as a tree. Mapping warnings
 remain visible on stderr. `--asset` selects an exact canonical identifier and
@@ -80,7 +118,7 @@ connection URLs are redacted, including nested extension metadata.
 
 ```console
 packata contract diff sales-v1.odcs.yaml sales-v2.odcs.yaml
-packata contract diff old/datapackage.json new/datapackage.json --output json
+packata contract diff old/datapackage.json new/datapackage.json --output-format json
 packata contract diff old/descriptor new/descriptor --baseline-format odcs --candidate-format datapackage
 packata contract diff old.zip https://example.test/new.zip --quiet
 ```
@@ -92,9 +130,10 @@ apply a compatibility policy or decide whether a change is breaking.
 
 | Option | Values | Default |
 | --- | --- | --- |
-| `--baseline-format` | `auto`, `odcs`, `datapackage` | `auto` |
-| `--candidate-format` | `auto`, `odcs`, `datapackage` | `auto` |
-| `--output` | `text`, `json` | `text` |
+| `--input-format` | `auto`, `odcs`, `datapackage` | `auto` |
+| `--baseline-format` | `auto`, `odcs`, `datapackage` | inherits `--input-format` |
+| `--candidate-format` | `auto`, `odcs`, `datapackage` | inherits `--input-format` |
+| `--output-format` | `text`, `json` | `text` |
 | `--quiet` | Suppress all result output, including JSON; diagnostics remain on stderr | off |
 
 Each input is independently detected, validated, and mapped using the inspection
@@ -186,13 +225,13 @@ patch generation are not part of this command.
 ## Export a dataset schema
 
 ```console
-packata export sales.odcs.yaml --format json-schema --dataset orders
-packata export sales.odcs.yaml -f json-schema -d orders -o orders.schema.json
+packata schema export sales.odcs.yaml --output-format json-schema --asset orders
+packata schema export sales.odcs.yaml -f json-schema --asset orders -o orders.schema.json
 ```
 
 `export` accepts the same local, HTTP(S), and ZIP descriptors as inspection,
-including ODCS and Data Package v2 documents. `--format` (`-f`) selects the target
-representation and must be `json-schema`. `--dataset` (`-d`) is required and selects
+including ODCS and Data Package v2 documents. `--output-format` (`-f`) selects the target
+representation and must be `json-schema`. `--asset` is required and selects
 an exact canonical asset identifier. Missing or ambiguous identifiers fail.
 
 The result describes one dataset record as a JSON Schema Draft 2020-12 object.
@@ -227,7 +266,7 @@ schema.Serialize(stream);
 ```console
 packata data preview contract.yaml --asset customers --limit 20
 packata data preview datapackage.json --asset customers --limit 5 --columns id,name
-packata data preview contract.yaml --asset customers --output json > customers.json
+packata data preview contract.yaml --asset customers --output-format json > customers.json
 ```
 
 The source is an unpacked ODCS YAML or Data Package v2 JSON/YAML descriptor;
@@ -244,9 +283,8 @@ headers. Reads stop at that limit or end of data. `--columns` is a comma-separat
 list of unique, exact field names in output order; omitted means all columns.
 An invalid name, duplicate name, or ambiguous reader column fails.
 
-`--output table|json|csv` defaults to `table`. Here `--output` selects a
-representation; it is not the file-path option used by `infer`. Use shell
-redirection to save results. Diagnostics go to stderr. JSON/CSV stdout contains
+`--output-format table|json|csv` defaults to `table`. `--output` (`-o`) saves the
+result to a new file; omit it to write to stdout. Diagnostics go to stderr. JSON/CSV stdout contains
 only the requested representation and redirected output has no ANSI styling.
 
 JSON has the stable shape `{"schemaVersion":1,"columns":["id","name"],"rows":[[1,"Alice"]]}`.

@@ -4,67 +4,12 @@ using Packata.Core.Contracts;
 using Packata.ResourceReaders;
 using Packata.ResourceReaders.Database;
 using PocketCsvReader;
-using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal sealed class InferCommand : AsyncCommand<InferSettings>
+internal static class InferenceService
 {
-    public override async Task<int> ExecuteAsync(
-        CommandContext context,
-        InferSettings settings,
-        CancellationToken cancellationToken)
-    {
-        var databaseOperation = false;
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var document = ContractDocument.Load(settings.Source);
-            CliDatabase.ResolveOverrides(document.Contract.Endpoints, settings.ConnectionEnvironment);
-            CliDatabase.ParsePairs(settings.Connectors, "--connector");
-            var asset = SelectAsset(document.Contract, settings.Asset);
-            var endpoint = SelectEndpoint(document.Contract, asset);
-            databaseOperation = endpoint.Kind == EndpointKind.Database;
-            var inference = endpoint.Kind switch
-            {
-                EndpointKind.File => await InferCsvAsync(document, asset, endpoint, settings).ConfigureAwait(false),
-                EndpointKind.Database => await InferDatabaseAsync(
-                    document, asset, endpoint, settings, cancellationToken).ConfigureAwait(false),
-                _ => throw new NotSupportedException(
-                    $"Asset '{asset.Id}' is not bound to a supported file or database endpoint.")
-            };
-
-            InferencePresenter.Write(document.MappingDiagnostics, inference.Result,
-                inference.Asset, inference.Endpoint);
-
-            if (settings.Write || settings.Output is not null)
-            {
-                var update = ContractDocumentUpdater.Update(
-                    document, asset, endpoint, inference.Asset, inference.Endpoint);
-                foreach (var warning in update.Warnings)
-                    AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
-                var target = settings.Write ? document.SourcePath : Path.GetFullPath(settings.Output!);
-                ContractDocumentWriter.Write(target, update.Content, overwrite: settings.Write);
-                AnsiConsole.MarkupLine($"[green]Written:[/] {Markup.Escape(target)}");
-            }
-
-            return 0;
-        }
-        catch (OperationCanceledException)
-        {
-            AnsiConsole.MarkupLine("[yellow]Inference was cancelled.[/]");
-            return 2;
-        }
-        catch (Exception exception)
-        {
-            if (databaseOperation) return CliOutput.Error(exception);
-            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(exception.Message)}");
-            return 1;
-        }
-    }
-
-    private static async Task<InferenceSelection> InferCsvAsync(
+    internal static async Task<InferenceSelection> InferCsvAsync(
         ContractDocument document, DataAsset asset, DataEndpoint endpoint, InferSettings settings)
     {
         ValidateCsvEndpoint(asset, endpoint);
@@ -86,7 +31,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         return new(result, result.Contract.Assets.Single(), result.Contract.Endpoints.Single());
     }
 
-    private static async Task<InferenceSelection> InferDatabaseAsync(
+    internal static async Task<InferenceSelection> InferDatabaseAsync(
         ContractDocument document, DataAsset asset, DataEndpoint endpoint, InferSettings settings, CancellationToken cancellationToken)
     {
         if (endpoint.Location is not ConnectionLocation location)
@@ -165,7 +110,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
                 $"Database object '{physicalName}' for asset '{original.Id}' could not be resolved uniquely.");
     }
 
-    private static DataAsset SelectAsset(DataContract contract, string assetId)
+    internal static DataAsset SelectAsset(DataContract contract, string assetId)
     {
         var matches = contract.Assets.Where(asset =>
             string.Equals(asset.Id, assetId, StringComparison.Ordinal)).ToArray();
@@ -177,7 +122,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         };
     }
 
-    private static DataEndpoint SelectEndpoint(DataContract contract, DataAsset asset)
+    internal static DataEndpoint SelectEndpoint(DataContract contract, DataAsset asset)
     {
         if (asset.EndpointBindings.Count != 1)
             throw new InvalidOperationException(
@@ -293,7 +238,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
 
     private static readonly string[] SupportedFormats = ["csv", "tsv", "psv"];
 
-    private sealed record InferenceSelection(
+    internal sealed record InferenceSelection(
         DataContractInferenceResult Result,
         DataAsset Asset,
         DataEndpoint Endpoint);

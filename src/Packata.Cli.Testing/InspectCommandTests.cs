@@ -14,7 +14,7 @@ public sealed class InspectCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write(name, text);
-        var result = await CliWorkspace.Run("contract", "inspect", source, "--output", "json");
+        var result = await CliWorkspace.Run("contract", "inspect", source, "--output-format", "json");
         var json = JObject.Parse(result.Output);
         Assert.Multiple(() =>
         {
@@ -33,7 +33,7 @@ public sealed class InspectCommandTests
         var json = JObject.Parse(CliWorkspace.PackageJson);
         ((JArray)json["resources"]!).Add(JObject.Parse("{\"name\":\"orders\",\"path\":\"orders.csv\"}"));
         var source = workspace.Write("datapackage.json", json.ToString());
-        var result = await CliWorkspace.Run("contract", "inspect", source, "--asset", "customers", "--output", "json");
+        var result = await CliWorkspace.Run("contract", "inspect", source, "--asset", "customers", "--output-format", "json");
         var missing = await CliWorkspace.Run("contract", "inspect", source, "--asset", "absent");
         var output = JObject.Parse(result.Output)["contract"]!;
         Assert.Multiple(() =>

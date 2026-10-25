@@ -215,7 +215,7 @@ Validate and inspect ODCS or Data Package v2 contracts, then preview an asset's 
 
 ```console
 packata contract validate contract.yaml
-packata contract inspect contract.yaml --asset customers --output json
+packata contract inspect contract.yaml --asset customers --output-format json
 packata data preview contract.yaml --asset customers --limit 20
 ```
 

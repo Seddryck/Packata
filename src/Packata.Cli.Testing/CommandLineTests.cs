@@ -212,7 +212,7 @@ public sealed class CommandLineTests
         Assert.That(reloaded.Contract.Endpoints.Single().Format!.Options["lineTerminator"],
             Is.EqualTo(lineTerminator));
 
-        var preview = RunIn(directory.Path, "data", "preview", output, "--asset", "customers", "--output", "json");
+        var preview = RunIn(directory.Path, "data", "preview", output, "--asset", "customers", "--output-format", "json");
         Assert.That(preview.ExitCode, Is.Zero, preview.StandardOutput + preview.StandardError);
         var sample = JObject.Parse(preview.StandardOutput);
         Assert.Multiple(() =>

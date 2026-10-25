@@ -32,7 +32,7 @@ public sealed class PreviewCommandTests
         var source = workspace.Write(name, contract);
         var content = "id,name\r\n" + string.Join("\r\n", Enumerable.Range(1, 25).Select(index => $"{index},Customer {index}")) + "\r\n";
         var data = workspace.Write("customers.csv", content);
-        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--limit", "20", "--output", "json");
+        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--limit", "20", "--output-format", "json");
         var json = JObject.Parse(result.Output);
         Assert.Multiple(() =>
         {
@@ -57,7 +57,7 @@ public sealed class PreviewCommandTests
         descriptor["resources"]![0]!["schema"] = JObject.Parse("{\"fields\":[{\"name\":\"id\",\"type\":\"integer\"},{\"name\":\"name\",\"type\":\"string\"}]}");
         var source = workspace.Write("datapackage.json", descriptor.ToString());
         workspace.Write("customers.csv", "id,name\r\n" + string.Concat(Enumerable.Range(1, count).Select(index => $"{index},Customer\r\n")));
-        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output-format", "json");
         var json = JObject.Parse(result.Output);
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(json["rows"]!.Count(), Is.EqualTo(Math.Min(count, 20)));
@@ -79,7 +79,7 @@ public sealed class PreviewCommandTests
 
     [TestCase("data|preview")]
     [TestCase("data|preview|does-not-exist.yaml")]
-    [TestCase("data|preview|does-not-exist.yaml|--asset|customers|--output|xml")]
+    [TestCase("data|preview|does-not-exist.yaml|--asset|customers|--output-format|xml")]
     [TestCase("data|preview|does-not-exist.yaml|--asset|customers|--columns|id,,name")]
     [TestCase("data|preview|does-not-exist.yaml|--asset|customers|--columns|id,id")]
     public async Task Preview_RequiresArgumentsAndValidOptions(string arguments)
@@ -94,10 +94,10 @@ public sealed class PreviewCommandTests
         using var workspace = new CliWorkspace();
         var source = workspace.Write("datapackage.json", CliWorkspace.PackageJson);
         workspace.Write("customers.csv", "id,name\r\n1,\"Alice, \"\"A\"\"\r\nSmith\"\r\n");
-        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--columns", "name,id", "--output", "csv");
+        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--columns", "name,id", "--output-format", "csv");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(result.Output.Replace("\r\n", "\n"), Is.EqualTo("name,id\n\"Alice, \"\"A\"\"\nSmith\",1\n"));
-        var missing = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--columns", "absent", "--output", "json");
+        var missing = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--columns", "absent", "--output-format", "json");
         Assert.That(missing.ExitCode, Is.Not.Zero);
         Assert.That(missing.Output, Is.Empty);
         Assert.That(missing.Error, Does.Contain("unknown or ambiguous"));
@@ -114,7 +114,7 @@ public sealed class PreviewCommandTests
         descriptor["resources"]![0]!["format"] = format;
         descriptor["resources"]![0]!["dialect"] = JObject.Parse("{\"header\":true,\"sheetName\":\"Country\"}");
         var source = workspace.Write("datapackage.json", descriptor.ToString());
-        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--limit", "2", "--output", "json");
+        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--limit", "2", "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(JObject.Parse(result.Output)["rows"]!.Count(), Is.EqualTo(2));
         Assert.That(result.Output, Does.Contain(expected));
@@ -125,10 +125,10 @@ public sealed class PreviewCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("contract.yaml", CliWorkspace.Odcs.Replace("servers:", "servers:\n  - server: other\n    type: local\n    path: other.csv\n    format: csv"));
-        var ambiguous = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output", "json");
-        var missing = await CliWorkspace.Run("data", "preview", source, "--asset", "missing", "--output", "json");
+        var ambiguous = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output-format", "json");
+        var missing = await CliWorkspace.Run("data", "preview", source, "--asset", "missing", "--output-format", "json");
         source = workspace.Write("datapackage.json", CliWorkspace.PackageJson);
-        var unreadable = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        var unreadable = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output-format", "json");
         foreach (var result in new[] { ambiguous, missing, unreadable })
         {
             Assert.That(result.ExitCode, Is.Not.Zero);
@@ -147,7 +147,7 @@ public sealed class PreviewCommandTests
         descriptor["resources"]![0]!["path"] = "https://bob:DO-NOT-EMIT@example.test/data.unknown?token=DO-NOT-EMIT";
         descriptor["resources"]![0]!["format"] = "unknown";
         var source = workspace.Write("datapackage.json", descriptor.ToString());
-        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output-format", "json");
         Assert.That(result.ExitCode, Is.Not.Zero);
         Assert.That(result.Error, Does.Contain("unknown").And.Not.Contain("DO-NOT-EMIT"));
     }
@@ -171,7 +171,7 @@ public sealed class PreviewCommandTests
         using var writer = new StringWriter();
         var console = AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(writer), Ansi = AnsiSupport.No, ColorSystem = ColorSystemSupport.NoColors });
         console.Profile.Width = 24;
-        PreviewCommand.Write(new(["name", "note"], [[null, new string('x', 200) + "\r\n[red]markup[/]"]]), "table", console);
+        PreviewPresenter.Write(new(["name", "note"], [[null, new string('x', 200) + "\r\n[red]markup[/]"]]), "table", console);
         var output = writer.ToString();
         Assert.That(output, Does.Contain("(null)"));
         Assert.That(output.Contains('\u001b'), Is.False);
@@ -209,7 +209,7 @@ public sealed class PreviewCommandTests
         resource["data"] = JArray.Parse("[{\"id\":1,\"name\":null}]");
         resource["schema"] = JObject.Parse("{\"fields\":[{\"name\":\"id\",\"type\":\"integer\"},{\"name\":\"name\",\"type\":\"string\"}]}");
         source = workspace.Write("datapackage.json", json.ToString());
-        result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output", "json");
+        result = await CliWorkspace.Run("data", "preview", source, "--asset", "customers", "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(JObject.Parse(result.Output)["rows"]![0]![1]!.Type, Is.EqualTo(JTokenType.Null));
     }

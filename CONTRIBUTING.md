@@ -59,3 +59,18 @@ appropriate to start the first line of a commit with '(doc)'.
 * Link your pull request to an issue that is well documented.
 * Write unit tests.
 * Write the user documentation.
+
+## CLI structure
+
+`src/Packata.Cli/Program.cs` owns process lifetime and cancellation. `Bootstrap/`
+composes Spectre.Console.Cli and calls explicit registration modules in each
+`Commands/<Family>/` folder. Each command keeps its settings alongside its adapter;
+substantial inference, loading, validation, and connector work lives in `Services/`.
+Presenters render results independently of processing. `Shared/` contains source
+and presentation settings, option conversion, invocation errors, exit codes, and
+buffered output destinations. Namespaces remain `Packata.Cli` for internal types.
+
+Use `--input-format`, `--output-format`, `--output` for file paths, and `--asset`
+with the semantics documented in `docs/cli.md`. Do not parse raw argument arrays
+in bootstrap code to compensate for settings conversion or validation. Add focused
+CLI process tests for option behavior and file safety when adding commands.

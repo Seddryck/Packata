@@ -3,7 +3,7 @@ using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal abstract class DatabaseCommandSettings : CommandSettings
+internal abstract class DatabaseCommandSettings : ContractSourceSettings
 {
     [CommandOption("--connector <SCHEME=ID>")]
     [Description("Override a connector preference for this invocation; repeatable.")]

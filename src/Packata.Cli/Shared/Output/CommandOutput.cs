@@ -7,15 +7,6 @@ using System.Text.RegularExpressions;
 
 namespace Packata.Cli;
 
-internal static class ExitCodes
-{
-    public const int Success = 0;
-    public const int InvalidDocument = 1;
-    public const int Invocation = 2;
-    public const int Io = 3;
-    public const int Cancelled = 130;
-}
-
 internal static class CommandOutput
 {
     internal static readonly JsonSerializerSettings JsonSettings = new()
@@ -25,7 +16,7 @@ internal static class CommandOutput
         Formatting = Formatting.Indented
     };
 
-    public static void Json(object value) => Console.WriteLine(JsonConvert.SerializeObject(value, JsonSettings));
+    public static void Json(object value, TextWriter? writer = null) => (writer ?? Console.Out).WriteLine(JsonConvert.SerializeObject(value, JsonSettings));
 
     // Exception messages from parsers and database drivers may contain source lines or credentials.
     public static MappingDiagnostic Failure(Exception exception) => exception switch
@@ -33,7 +24,7 @@ internal static class CommandOutput
         ContractOperationException operation => operation.Diagnostic,
         OperationCanceledException => new("CLI130", MappingSeverity.Error, "$", "Operation cancelled."),
         IOException or UnauthorizedAccessException or HttpRequestException =>
-            new("CLI003", MappingSeverity.Error, "$", "Unable to read the source. Check its location and access permissions."),
+            new("CLI003", MappingSeverity.Error, "$", "Unable to read the source or write output. Check locations and access permissions."),
         _ => new("CLI001", MappingSeverity.Error, "$", "Invalid or unsupported contract document. Check its syntax and declared format.")
     };
 

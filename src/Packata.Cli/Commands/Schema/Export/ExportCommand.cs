@@ -1,35 +1,8 @@
-using System.ComponentModel;
 using System.Text;
 using Packata.Core.Contracts;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Packata.Cli;
-
-internal sealed class ExportSettings : CommandSettings
-{
-    [CommandArgument(0, "<SOURCE>")]
-    [Description("Local contract file, HTTP(S) descriptor, or ZIP package.")]
-    public required string Source { get; init; }
-
-    [CommandOption("-f|--format <FORMAT>")]
-    [Description("Target format: json-schema (required).")]
-    public string? Format { get; init; }
-
-    [CommandOption("-d|--dataset <NAME>")]
-    [Description("Exact canonical dataset identifier to export (required).")]
-    public string? Dataset { get; init; }
-
-    [CommandOption("-o|--output <PATH>")]
-    [Description("Write JSON to a new file instead of stdout. Existing files are protected.")]
-    public string? Output { get; init; }
-
-    public override ValidationResult Validate() => Format != "json-schema"
-        ? ValidationResult.Error("--format must be json-schema.")
-        : string.IsNullOrWhiteSpace(Dataset)
-            ? ValidationResult.Error("--dataset is required.")
-            : ValidationResult.Success();
-}
 
 internal sealed class ExportCommand : AsyncCommand<ExportSettings>
 {
@@ -37,11 +10,11 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
     {
         try
         {
-            var source = await ContractSource.LoadAsync(settings.Source, "auto", cancellationToken).ConfigureAwait(false);
+            var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
             var mapped = ContractSelection.Map(source);
             foreach (var diagnostic in mapped.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!mapped.IsSuccessful) return ExitCodes.InvalidDocument;
-            var schema = ContractSelection.Asset(mapped.Value!, settings.Dataset!).ToJsonSchema();
+            var schema = ContractSelection.Asset(mapped.Value!, settings.Asset!).ToJsonSchema();
             using var stream = new MemoryStream();
             schema.Serialize(stream);
             var content = Encoding.UTF8.GetString(stream.ToArray()) + Environment.NewLine;
