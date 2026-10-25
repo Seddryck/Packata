@@ -54,6 +54,45 @@ values. Schema fields/constraints and endpoint bindings are nested under each
 asset. Diagnostics use the same four fields as validation. Credentials and
 connection URLs are redacted, including nested extension metadata.
 
+## Export a dataset schema
+
+```console
+packata export sales.odcs.yaml --format json-schema --dataset orders
+packata export sales.odcs.yaml -f json-schema -d orders -o orders.schema.json
+```
+
+`export` accepts the same local, HTTP(S), and ZIP descriptors as inspection,
+including ODCS and Data Package v2 documents. `--format` (`-f`) selects the target
+representation and must be `json-schema`. `--dataset` (`-d`) is required and selects
+an exact canonical asset identifier. Missing or ambiguous identifiers fail.
+
+The result describes one dataset record as a JSON Schema Draft 2020-12 object.
+Stdout contains only the generated JSON; diagnostics go to stderr. `--output`
+(`-o`) writes a new UTF-8 file instead. Existing files, including the source
+contract, are protected. Export reads only the descriptor and never accesses
+referenced data or installs connectors. It uses the validation command's exit codes.
+
+String, boolean, integer, number/decimal, date, timestamp/datetime, time, array,
+and object types are supported. Dates and times use JSON Schema formats. Nested
+objects and array items are converted recursively. String lengths/patterns,
+numeric bounds, enums, array size/uniqueness, and object size/required properties
+are retained when representable. Required properties and nullability are independent:
+`required: true` adds the name to its parent's `required` list; `nullable: true`
+allows `null` alongside the field's type. Omitted nullability defaults to false.
+
+Unknown types (including map and vector), invalid constraints, temporal range
+constraints, and dataset-wide uniqueness/primary-key constraints produce conversion
+errors. A schema for one record cannot enforce uniqueness across records. No custom
+extension keywords are emitted. Physical storage details, relationships, quality
+rules, and governance metadata are outside this record-schema representation.
+
+The same converter is available in `Packata.Core.Contracts`:
+
+```csharp
+var schema = asset.ToJsonSchema();
+schema.Serialize(stream);
+```
+
 ## Preview bound data
 
 ```console
