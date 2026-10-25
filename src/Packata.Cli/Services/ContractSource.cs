@@ -11,6 +11,16 @@ namespace Packata.Cli;
 /// <summary>Loads descriptors without opening any referenced data or acquiring connectors.</summary>
 internal sealed record ContractSource(string Source, Uri BaseUri, object NativeDocument)
 {
+    internal YamlMappingNode? DescriptorRoot { get; init; }
+
+    internal CompatibilityInput CompatibilityInput()
+    {
+        var mapped = Map();
+        return new(mapped.Value, NativeDocument is Packata.DataPackage.DataPackage
+            ? ContractStandard.DataPackage : ContractStandard.Odcs, mapped.Diagnostics,
+            DescriptorRoot is null ? null : (IReadOnlyDictionary<string, object?>)Tree(DescriptorRoot)!);
+    }
+
     public MappingResult<DataContract> Map() => NativeDocument switch
     {
         Packata.DataPackage.DataPackage package => package.ToCanonicalContract(),
@@ -71,6 +81,15 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
             ? new Packata.OpenDataContract.DataContractFactory().LoadFromStream(content)
             : new Packata.DataPackage.DataPackageFactory().LoadFromStream(content,
                 text.TrimStart().StartsWith('{') ? SerializationFormat.Json : SerializationFormat.Yaml);
-        return new(source, baseUri, native);
+        return new(source, baseUri, native) { DescriptorRoot = root };
     }
+
+    // Transport-only projection; source coverage and all compatibility rules live in Core.
+    private static object? Tree(YamlNode node) => node switch
+    {
+        YamlMappingNode map => map.Children.ToDictionary(pair => ((YamlScalarNode)pair.Key).Value ?? string.Empty, pair => Tree(pair.Value), StringComparer.Ordinal),
+        YamlSequenceNode sequence => sequence.Children.Select(Tree).ToArray(),
+        YamlScalarNode scalar => scalar.Value,
+        _ => null
+    };
 }
