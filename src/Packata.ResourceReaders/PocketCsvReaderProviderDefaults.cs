@@ -30,14 +30,8 @@ internal static class PocketCsvReaderProviderDefaults
     internal static void AddField(ISchemaDescriptorBuilder schema, RuntimeTypeMapper mapper, DataField field)
     {
         var type = mapper.Map(field.LogicalType, field.Format);
-        var pattern = field.Format;
-        if ((pattern is null || pattern.Equals("default", StringComparison.OrdinalIgnoreCase))
-            && field.LogicalType is not null)
-            DefaultFormats.TryGetMapping(field.LogicalType, out pattern);
-
-        if ((type == typeof(DateTime) || type == typeof(DateTimeOffset)
-            || type == typeof(DateOnly) || type == typeof(TimeOnly))
-            && !string.IsNullOrEmpty(pattern) && pattern != "any")
+        var pattern = ResolvePattern(field);
+        if (IsTemporal(type) && pattern is not null)
         {
             schema.WithTemporalField(type, field.Name, builder =>
             {
@@ -49,5 +43,18 @@ internal static class PocketCsvReaderProviderDefaults
         else
             schema.WithField(type, field.Name,
                 builder => field.LogicalType is null ? builder : builder.WithDataSourceTypeName(field.LogicalType));
+    }
+
+    private static bool IsTemporal(Type type) =>
+        type == typeof(DateTime) || type == typeof(DateTimeOffset)
+        || type == typeof(DateOnly) || type == typeof(TimeOnly);
+
+    private static string? ResolvePattern(DataField field)
+    {
+        var pattern = field.Format;
+        if ((pattern is null || pattern.Equals("default", StringComparison.OrdinalIgnoreCase))
+            && field.LogicalType is not null)
+            DefaultFormats.TryGetMapping(field.LogicalType, out pattern);
+        return string.IsNullOrEmpty(pattern) || pattern == "any" ? null : pattern;
     }
 }
