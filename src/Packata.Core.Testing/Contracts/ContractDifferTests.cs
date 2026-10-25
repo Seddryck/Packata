@@ -270,6 +270,19 @@ public class ContractDifferTests
     }
 
     [Test]
+    public void YamlStyleDictionaries_AreSnapshottedWithTheirStringKeysAndNestedValues()
+    {
+        var values = new Dictionary<object, object> { ["nested"] = new Dictionary<object, object> { ["value"] = "retained" } };
+        var before = Contract();
+        var after = before with { Extensions = ExtensionMetadata.For("yaml", new Dictionary<string, object?> { ["settings"] = values }) };
+        var change = (ContractMetadataChanged)before.Diff(after).Changes.Single();
+        var snapshot = (ExtensionMetadata)change.Current!;
+        var settings = (IReadOnlyDictionary<string, object?>)snapshot["yaml"]["settings"]!;
+        Assert.That(((IReadOnlyDictionary<string, object?>)settings["nested"]!)["value"], Is.EqualTo("retained"));
+        Assert.Throws<NotSupportedException>(() => ((IDictionary<string, object?>)settings).Clear());
+    }
+
+    [Test]
     public void JsonExtensionValues_AreSnapshottedBeforeTheirDocumentIsDisposed()
     {
         ContractDiff diff;

@@ -80,9 +80,9 @@ internal static class ContractDiffValues
             or TimeSpan or Guid or Uri or Enum => value,
         JsonElement element => ValueFromJson(element),
         IReadOnlyDictionary<string, object?> dictionary => Dictionary(dictionary),
-        IDictionary dictionary => Dictionary(dictionary.Cast<DictionaryEntry>().Select(entry =>
-            new KeyValuePair<string, object?>(entry.Key as string
-                ?? throw new NotSupportedException("Contract diff dictionary keys must be strings."), entry.Value))),
+        IDictionary dictionary => Dictionary(dictionary.Keys.Cast<object>().Select(key =>
+            new KeyValuePair<string, object?>(key as string
+                ?? throw new NotSupportedException("Contract diff dictionary keys must be strings."), dictionary[key]))),
         IEnumerable sequence => Array.AsReadOnly(sequence.Cast<object?>().Select(Value).ToArray()),
         _ => throw new NotSupportedException($"Cannot snapshot mutable or unsupported contract value '{value.GetType()}'.")
     };
