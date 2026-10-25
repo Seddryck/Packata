@@ -552,10 +552,22 @@ packata data preview datapackage.json --asset customers --limit 5 --columns id,n
 packata data preview contract.yaml --asset customers --output-format json > customers.json
 ```
 
-Preview reads an asset from an unpacked ODCS YAML or Data Package v2 JSON/YAML descriptor.
+Preview reads an asset from an ODCS YAML or Data Package v2 JSON/YAML descriptor,
+or a local/HTTP(S) ZIP containing exactly one supported descriptor. CSV resources
+inside a ZIP are read directly from archive entries without extracting the package.
+Their paths resolve relative to the descriptor inside the archive, including when
+that descriptor is in a subdirectory:
+
+```console
+packata data preview dataset.zip --asset customers
+```
+
+For example, `datapackage.json` can reference `data/customers.csv` in the same ZIP.
 Select the asset explicitly with `--asset`. Its canonical binding supplies the file paths,
 physical table names, schema and format or dialect settings. Missing or ambiguous assets and
-bindings fail rather than being selected automatically.
+bindings fail rather than being selected automatically. Row limits, column selection and
+all output formats also apply to ZIP previews.
+
 
 Relative file paths and database files resolve against the descriptor's directory, so the
 working directory does not change which data is read. Preview registers readers for delimited

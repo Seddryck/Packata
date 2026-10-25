@@ -11,10 +11,7 @@ internal sealed class PreviewCommand : AsyncCommand<PreviewSettings>
         DataEndpoint? endpoint = null;
         try
         {
-            // ZIP descriptors are supported for validation/inspection. Data previews need an addressable resource base.
-            if (Path.GetExtension(settings.Source).Equals(".zip", StringComparison.OrdinalIgnoreCase))
-                throw new ContractOperationException("CLI023", "$", "Preview requires an unpacked ODCS or Data Package contract document.");
-            var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
+            using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken, retainArchive: true).ConfigureAwait(false);
             var mapped = ContractSelection.Map(source);
             foreach (var diagnostic in mapped.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!mapped.IsSuccessful) return ExitCodes.InvalidDocument;
@@ -26,7 +23,10 @@ internal sealed class PreviewCommand : AsyncCommand<PreviewSettings>
             using var database = endpoint.Kind == EndpointKind.Database
                 ? new CliDatabase(new CliConfiguration(), source.BaseUri.IsFile ? source.BaseUri.LocalPath : string.Empty,
                     mapped.Value!.Endpoints, settings.Connectors, settings.ConnectionEnvironment) : null;
-            var factory = database?.CreateReaders(source.BaseUri) ?? PreviewService.CreateFactory(source.BaseUri);
+            var streams = source.Archive is null ? null
+                : new PreviewService.ArchiveStreamResolver(source.Archive, source.ArchiveDescriptor!);
+            var factory = database?.CreateReaders(source.BaseUri)
+                ?? PreviewService.CreateFactory(source.BaseUri, streams: streams);
             var sample = await PreviewService.ReadAsync(factory, request,
                 settings.Limit, settings.Columns, cancellationToken).ConfigureAwait(false);
             using var output = new OutputDestination(settings.Output);

@@ -14,13 +14,13 @@ internal sealed record PreviewSample(string[] Columns, IReadOnlyList<object?[]> 
 
 internal static class PreviewService
 {
-    public static IDataEndpointReaderFactory CreateFactory(Uri baseUri, IDatabaseConnectionService? connections = null) =>
+    public static IDataEndpointReaderFactory CreateFactory(Uri baseUri, IDatabaseConnectionService? connections = null, IEndpointStreamResolver? streams = null) =>
         ResourceReaderFactory.Create(options =>
         {
             options.AddExcel().AddParquet();
             if (connections is null) options.AddDatabase(baseUri.IsFile ? baseUri.LocalPath : string.Empty);
             else options.AddDatabase(connections);
-        }, new RelativeStreamResolver(baseUri));
+        }, streams ?? new RelativeStreamResolver(baseUri));
 
     public static DataEndpointReadRequest Request(DataContract contract, DataAsset asset)
     {
@@ -72,6 +72,23 @@ internal static class PreviewService
             : reader.Read();
         cancellationToken.ThrowIfCancellationRequested();
         return result;
+    }
+
+    internal sealed class ArchiveStreamResolver(Packata.Storages.ZipDataPackageContainer archive, string descriptor) : IEndpointStreamResolver
+    {
+        private readonly DefaultEndpointStreamResolver _inner = new();
+        private readonly Uri _descriptor = new(new Uri("zip:///"), descriptor);
+
+        public async ValueTask<Stream> OpenAsync(string path, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Uri.TryCreate(path, UriKind.Absolute, out _))
+                return await _inner.OpenAsync(path, cancellationToken).ConfigureAwait(false);
+            var entry = Uri.UnescapeDataString(new Uri(_descriptor, path).AbsolutePath).TrimStart('/');
+            if (!await archive.ExistsAsync(entry).ConfigureAwait(false))
+                throw new ContractOperationException("CLI023", "$.resources.path", $"Resource entry '{entry}' was not found in the ZIP package.");
+            return await archive.OpenAsync(entry).ConfigureAwait(false);
+        }
     }
 
     private sealed class RelativeStreamResolver(Uri baseUri) : IEndpointStreamResolver
