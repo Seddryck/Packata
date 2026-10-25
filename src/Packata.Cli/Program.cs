@@ -65,6 +65,9 @@ public static class Program
                     .WithDescription("Preview a bounded sample of a bound contract asset.")
                     .WithExample(["data", "preview", "contract.yaml", "--asset", "customers", "--limit", "20"]);
             });
+            configuration.AddCommand<ExportCommand>("export")
+                .WithDescription("Export a dataset as JSON Schema Draft 2020-12.")
+                .WithExample(["export", "sales.odcs.yaml", "--format", "json-schema", "--dataset", "orders"]);
             configuration.AddCommand<InferCommand>("infer")
                 .WithDescription("Infer a bound CSV or database schema; compatibility alias for schema infer.")
                 .WithExample(["infer", "datapackage.json", "--asset", "customers"]);
