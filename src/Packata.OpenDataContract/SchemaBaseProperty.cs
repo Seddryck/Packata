@@ -43,8 +43,10 @@ public abstract class SchemaBaseProperty : SchemaElement
             "string" => new StringLogicalType(dict),
             "date" => new DateLogicalType(dict),
             "timestamp" => new TimestampLogicalType(dict),
+            "datetime" => new TimestampLogicalType(dict),
             "time" => new TimeLogicalType(dict),
             "number" => new NumberLogicalType(dict),
+            "decimal" => new NumberLogicalType(dict),
             "integer" => new IntegerLogicalType(dict),
             "object" => new ObjectLogicalType(dict),
             "array" => new ArrayLogicalType(dict),
@@ -64,6 +66,9 @@ public abstract class SchemaBaseProperty : SchemaElement
     /// Indicates if the element may contain Null values. Default is false.
     /// </summary>
     public bool? Required { get; set; }
+
+    /// <summary>Whether a present value may be null, independently of requiredness.</summary>
+    public bool? Nullable { get; set; }
 
     /// <summary>
     /// Indicates if the element contains unique values. Default is false.

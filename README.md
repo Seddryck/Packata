@@ -325,6 +325,10 @@ Unknown properties and values that cannot be normalized (including extended dura
 lifecycle milestones) are retained under `Extensions["odcs"]["slaProperties"]` with mapping diagnostics.
 The normalized model leaves comparison direction to consumers; it does not select stronger commitments.
 
+Export a selected CSV endpoint's parsing settings as a standalone descriptor with
+`CsvDialectExporter` or `packata dialect export <SOURCE> --endpoint <ID>`.
+See [CSV dialect export](docs/csv-dialect-export.md) for examples and supported settings.
+
 For shared database connections, host-supplied credentials, and operation preflight, see
 [database integration](docs/database-integration.md) and the runnable
 [ODCS and Data Package example](examples/DatabaseConnections). The

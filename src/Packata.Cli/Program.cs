@@ -21,7 +21,7 @@ public static class Program
 
     internal static int Run(string[] args, CancellationToken cancellationToken)
     {
-        if (args.Length == 1 && args[0] is "schema" or "config" or "connector") args = [args[0], "--help"];
+        if (args.Length == 1 && args[0] is "schema" or "config" or "connector" or "dialect") args = [args[0], "--help"];
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
         {
@@ -58,6 +58,13 @@ public static class Program
                     .WithDescription("Inspect canonical contract metadata, assets, and endpoints.")
                     .WithExample(["contract", "inspect", "contract.yaml", "--asset", "customers"]);
             });
+            configuration.AddBranch("dialect", dialect =>
+            {
+                dialect.SetDescription("Export endpoint parsing configuration.");
+                dialect.AddCommand<DialectExportCommand>("export")
+                    .WithDescription("Export a selected CSV endpoint as a standalone Data Package v2 Table Dialect JSON descriptor.")
+                    .WithExample(["dialect", "export", "datapackage.json", "--endpoint", "customers-endpoint"]);
+            });
             configuration.AddBranch("data", data =>
             {
                 data.SetDescription("Read data bound to contract assets.");
@@ -65,6 +72,9 @@ public static class Program
                     .WithDescription("Preview a bounded sample of a bound contract asset.")
                     .WithExample(["data", "preview", "contract.yaml", "--asset", "customers", "--limit", "20"]);
             });
+            configuration.AddCommand<ExportCommand>("export")
+                .WithDescription("Export a dataset as JSON Schema Draft 2020-12.")
+                .WithExample(["export", "sales.odcs.yaml", "--format", "json-schema", "--dataset", "orders"]);
             configuration.AddCommand<InferCommand>("infer")
                 .WithDescription("Infer a bound CSV or database schema; compatibility alias for schema infer.")
                 .WithExample(["infer", "datapackage.json", "--asset", "customers"]);

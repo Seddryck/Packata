@@ -135,9 +135,12 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             GetFormat(property.LogicalType),
             property.Required ?? false,
             MapConstraints(property),
+            Children: property.Properties.Select(MapField).ToArray(),
             Extensions: MapFieldExtensionMetadata(property),
             PhysicalName: property.PhysicalName,
-            Description: property.Description);
+            Description: property.Description,
+            Nullable: property.Nullable ?? false,
+            Items: property.Items is null ? null : MapField(property.Items));
     }
 
     private static IReadOnlyList<DataConstraint> MapConstraints(SchemaProperty property)
@@ -184,6 +187,28 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             case IntegerLogicalType integer:
                 AddNumberConstraints(integer.Minimum, integer.Maximum, integer.ExclusiveMinimum,
                     integer.ExclusiveMaximum, constraints);
+                break;
+            case ArrayLogicalType array:
+                if (array.MinItems is not null) constraints.Add(new("minItems", array.MinItems));
+                if (array.MaxItems is not null) constraints.Add(new("maxItems", array.MaxItems));
+                if (array.UniqueItems) constraints.Add(new("uniqueItems", true));
+                break;
+            case ObjectLogicalType obj:
+                if (obj.MinProperties is not null) constraints.Add(new("minProperties", obj.MinProperties));
+                if (obj.MaxProperties is not null) constraints.Add(new("maxProperties", obj.MaxProperties));
+                if (obj.Required.Length > 0) constraints.Add(new("required", obj.Required));
+                break;
+            case DateLogicalType date:
+                AddNumberConstraints(date.Minimum, date.Maximum, date.ExclusiveMinimum,
+                    date.ExclusiveMaximum, constraints);
+                break;
+            case TimestampLogicalType timestamp:
+                AddNumberConstraints(timestamp.Minimum, timestamp.Maximum, timestamp.ExclusiveMinimum,
+                    timestamp.ExclusiveMaximum, constraints);
+                break;
+            case TimeLogicalType time:
+                AddNumberConstraints(time.Minimum, time.Maximum, time.ExclusiveMinimum,
+                    time.ExclusiveMaximum, constraints);
                 break;
         }
     }
@@ -348,6 +373,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             ObjectLogicalType => "object",
             ArrayLogicalType => "array",
             BooleanLogicalType => "boolean",
+            MapLogicalType => "map",
+            VectorLogicalType => "vector",
             _ => null
         };
 
