@@ -270,7 +270,7 @@ public sealed class DiffCommandTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var command = new DiffCommand();
-        var exit = await command.ExecuteAsync(null!, new DiffSettings { Baseline = "missing", Candidate = "missing" }, cancellation.Token);
+        var exit = await command.ExecuteAsync(null!, new ContractComparisonSettings { Baseline = "missing", Candidate = "missing" }, cancellation.Token);
         Assert.That(exit, Is.EqualTo(130));
     }
 

@@ -8,7 +8,7 @@ namespace Packata.Cli;
 
 internal static class DiffPresenter
 {
-    internal static JObject Result(string baseline, string candidate, ContractDiff diff, IReadOnlyList<DiffDiagnostic> diagnostics)
+    internal static JObject Result(string baseline, string candidate, ContractDiff diff, IReadOnlyList<ComparisonDiagnostic> diagnostics)
         => (JObject)CommandOutput.RedactedJson(new
         {
             schemaVersion = 1, baseline, candidate, hasChanges = diff.Changes.Count != 0,

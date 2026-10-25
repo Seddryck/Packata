@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Packata contract compare result, version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "baseline", "candidate", "direction", "policy", "completed", "outcome", "isCompatible", "hasChanges", "failOn", "gatePassed", "exitCode", "totals", "findings", "diagnostics"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "baseline": { "type": ["string", "null"] },
+    "candidate": { "type": ["string", "null"] },
+    "direction": { "const": "baseline-to-candidate" },
+    "policy": { "const": "baseline-consumers-v1" },
+    "completed": { "type": "boolean" },
+    "outcome": { "enum": ["compatible", "breaking", "potentiallyBreaking", "unknown", "failed"] },
+    "isCompatible": { "type": "boolean" },
+    "hasChanges": { "type": ["boolean", "null"] },
+    "failOn": { "type": ["string", "null"] },
+    "gatePassed": { "type": ["boolean", "null"] },
+    "exitCode": { "enum": [0, 1, 2, 3, 4, 5, 130] },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["breaking", "potentiallyBreaking", "nonBreaking", "unknown"],
+      "properties": {
+        "breaking": { "type": "integer", "minimum": 0 },
+        "potentiallyBreaking": { "type": "integer", "minimum": 0 },
+        "nonBreaking": { "type": "integer", "minimum": 0 },
+        "unknown": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "completed": { "const": false } } },
+      "then": { "properties": { "outcome": { "const": "failed" }, "isCompatible": { "const": false }, "hasChanges": { "type": "null" }, "gatePassed": { "type": "null" } } },
+      "else": { "properties": { "outcome": { "enum": ["compatible", "breaking", "potentiallyBreaking", "unknown"] }, "hasChanges": { "type": "boolean" }, "gatePassed": { "type": "boolean" } } }
+    }
+  ],
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "classification", "rule", "explanation", "change", "sourceLocation"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "classification": { "enum": ["breaking", "potentiallyBreaking", "nonBreaking", "unknown"] },
+        "rule": { "type": "string", "minLength": 1 },
+        "explanation": { "type": "string", "minLength": 1 },
+        "change": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/change" }] },
+        "sourceLocation": { "type": "null" }
+      }
+    },
+    "change": {
+      "description": "Concrete payload members follow the typed contract diff v1 shapes documented in docs/cli.md.",
+      "type": "object",
+      "required": ["kind", "operation", "asset", "path"],
+      "properties": {
+        "kind": { "enum": ["ServerAdded", "ServerRemoved", "ServerModified", "SlaAdded", "SlaRemoved", "SlaModified", "DatasetAdded", "DatasetRemoved", "DatasetModified", "PropertyAdded", "PropertyRemoved", "PropertyModified", "PropertyTypeChanged", "RelationshipAdded", "RelationshipRemoved", "RelationshipModified", "QualityRuleAdded", "QualityRuleRemoved", "QualityRuleModified", "ContractMetadataChanged"] },
+        "operation": { "enum": ["added", "removed", "modified"] },
+        "asset": { "enum": ["server", "sla", "dataset", "property", "relationship", "qualityRule", "contractMetadata"] },
+        "path": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input", "source", "code", "severity", "sourcePath", "message", "sourceLocation"],
+      "properties": {
+        "input": { "enum": ["baseline", "candidate", "comparison", "invocation"] },
+        "source": { "type": "string" },
+        "code": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["Information", "Warning", "Error"] },
+        "sourcePath": { "type": "string" },
+        "message": { "type": "string" },
+        "sourceLocation": { "type": "null" }
+      }
+    }
+  }
+}

@@ -4,7 +4,7 @@ using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal sealed class DiffSettings : PresentationSettings
+internal class ContractComparisonSettings : PresentationSettings
 {
     [CommandArgument(0, "<BASELINE>")]
     [Description("Previous contract: local file, HTTP(S) descriptor, or ZIP package.")]

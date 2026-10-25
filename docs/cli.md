@@ -24,7 +24,7 @@ entry points for `schema infer` and `schema export`, with the same options.
 | `--output <PATH>`, `-o <PATH>` | Destination file, never a representation name |
 | `--asset <ID>` | Exact Data Package resource name or ODCS schema object name |
 
-Validation, inspection, diff, preview, config list/get, and connector list/show
+Validation, inspection, diff, compatibility comparison, preview, config list/get, and connector list/show
 can save their normal result using `--output`. Existing files are protected and
 file output has no ANSI styling. File output is committed only after rendering.
 Diagnostics remain on stderr (and retain their existing inclusion in JSON results).
@@ -38,7 +38,7 @@ with `--output-format json|text|table|csv`; `--output json` now means a file nam
 `json`. Replace validation/inspection `--format` with `--input-format`, export
 `--format` with `--output-format`, and export `--dataset` / `-d` with `--asset`.
 The export `-f` shorthand still selects the output format. Old long option names
-are rejected rather than guessed. For diff, `--input-format` sets both inputs;
+are rejected rather than guessed. For diff and compare, `--input-format` sets both inputs;
 `--baseline-format` and `--candidate-format` override it independently, including
 an explicit `auto` to re-enable detection for one input.
 
@@ -221,6 +221,131 @@ an invalid/unsupported contract or comparison, `2` for invalid invocation or opt
 values, `3` for I/O failure, and `130` for cancellation. Automation can inspect
 `hasChanges` and `changes`; compatibility gates, filters, rename heuristics, and
 patch generation are not part of this command.
+
+## Assess consumer compatibility
+
+```console
+packata contract compare sales-v1.odcs.yaml sales-v2.odcs.yaml
+packata contract compare old/datapackage.json new/datapackage.json --output-format json
+packata contract compare previous current --baseline-format odcs --candidate-format odcs --policy baseline-consumers-v1
+packata contract compare previous.yaml current.yaml --fail-on breaking,unknown --output-format json
+packata contract compare previous.yaml current.yaml --fail-on none
+```
+
+The baseline is previous and the candidate is current, matching `contract diff`.
+The question is whether baseline consumers can safely consume candidate data.
+Only same-standard ODCS 3.2.0 and Data Package v2 comparisons are supported.
+Local, HTTP(S), and ZIP descriptors use the existing loader; referenced data,
+databases, and connectors are never opened. Each input's standard is detected
+independently. `--input-format` selects a shared input standard; per-input format options override it.
+
+| Option | Values | Default |
+| --- | --- | --- |
+| `--baseline-format`, `--candidate-format` | auto, odcs, datapackage | inherit `--input-format` |
+| `--output-format` | text, json | text |
+| `--output <PATH>`, `-o <PATH>` | new destination file | stdout |
+| `--input-format` | auto, odcs, datapackage; shared default for both inputs | auto |
+| `--policy` | baseline-consumers-v1 | baseline-consumers-v1 |
+| `--fail-on` | comma-separated breaking,potentially-breaking,unknown; or none | breaking,potentially-breaking,unknown |
+| `--quiet` | suppress stdout; retain stderr diagnostics | false |
+
+Use `--output-format json -o compatibility.json` to save the report. Existing files, including source descriptors, are protected. `--quiet` also suppresses file creation. Completed reports are saved even when the compatibility gate fails; invalid documents and failed analyses retain their structured failure envelopes.
+
+The [policy and backend API]({{ '/compatibility/' | relative_url }}) document directional rules,
+matching, source semantics, and unsupported constructs. Integer → number is
+breaking for integer consumers; number → integer strengthens the guarantee.
+Additional fields are safe under the open-record assumption. `contract diff`
+continues to report factual differences only.
+
+Text output shows both sources, direction, policy, completion/outcome, findings
+with classifications/paths/explanations, and classification totals. For example:
+
+```text
+Baseline (previous): previous.yaml
+Candidate (current): current.yaml
+Direction: baseline -> candidate; policy: baseline-consumers-v1
+Analysis: breaking; completed: True; exit code: 4
+breaking schema.orders.properties.amount.type: The candidate type permits logical values outside the baseline type.
+Totals: {"breaking":1,"potentiallyBreaking":0,"nonBreaking":0,"unknown":0}
+```
+
+JSON uses `schemaVersion: 1`; the [JSON schema]({{ '/schemas/contract-compare-v1.schema.json' | relative_url }})
+defines this envelope:
+
+| Field | Meaning |
+| --- | --- |
+| baseline, candidate | Source identifiers; null on invocation parsing failures |
+| direction, policy | baseline-to-candidate and baseline-consumers-v1 |
+| completed | Analysis finished, independently of unknown findings |
+| outcome | compatible, breaking, potentiallyBreaking, unknown, failed |
+| isCompatible | True only for established, completed compatibility |
+| hasChanges | Observed canonical differences; null for incomplete analysis |
+| failOn, gatePassed, exitCode | CLI gate and outcome; gatePassed is null on failure |
+| totals | Finding counts for all four classifications, not factual-change counts |
+| findings | path, classification, rule, explanation, typed change, sourceLocation |
+| diagnostics | input, source, code, severity, sourcePath, message, sourceLocation |
+
+Typed `change` payloads reuse the documented `contract diff` kind, operation,
+asset, path, and concrete values. Several findings can reference one typed
+change. Coverage findings and model facets absent from the differ have
+`change: null`; unsupported raw-source changes need not appear in `hasChanges`.
+Current backend models provide no line/column mapping, so `sourceLocation` is
+explicitly null. Coverage diagnostic paths refer to the source descriptor;
+typed change paths refer to canonical assets. Sources, diagnostics, and nested
+typed values are redacted.
+
+An unchanged supported contract produces:
+
+```json
+{
+  "schemaVersion": 1,
+  "baseline": "previous.yaml",
+  "candidate": "current.yaml",
+  "direction": "baseline-to-candidate",
+  "policy": "baseline-consumers-v1",
+  "completed": true,
+  "outcome": "compatible",
+  "isCompatible": true,
+  "hasChanges": false,
+  "failOn": "breaking,potentially-breaking,unknown",
+  "gatePassed": true,
+  "exitCode": 0,
+  "totals": {"breaking": 0, "potentiallyBreaking": 0, "nonBreaking": 0, "unknown": 0},
+  "findings": [],
+  "diagnostics": []
+}
+```
+
+Invalid inputs, loading errors, cancellation, and failed analysis emit this same
+JSON envelope with `completed: false`, `outcome: failed`, `isCompatible: false`,
+`hasChanges: null`, `gatePassed: null`, and diagnostics. Findings can be partial.
+Invalid invocations emit a failure envelope when `--output-format json`,
+`--output-format=json`, or `--output-format:json` requests stdout, with null
+sources; the usage error also goes to stderr. Destination options accept these
+same space, equals, and colon forms with either `--output` or `-o`.
+Invocation errors never create output files. Options after `--` are not used to
+select presentation. An invalid output format itself cannot select JSON.
+`--quiet` (including explicit `true`) suppresses every
+envelope. Otherwise JSON diagnostics stay inside the envelope and ordinary logs
+do not contaminate machine-readable stdout. An explicit `--quiet=false` retains
+normal reporting.
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Completed analysis passes the selected gate |
+| 1 | Invalid/malformed contract or descriptor package |
+| 2 | Invalid invocation/options |
+| 3 | Source or output I/O/access failure |
+| 4 | Completed analysis contains a classification selected by --fail-on |
+| 5 | Analysis/mapping cannot complete, including unsupported cross-standard comparisons |
+| 130 | Cancellation |
+
+Default gating fails for breaking, potentially breaking, and unknown findings.
+`--fail-on none` enables reporting without gating; it never changes semantic
+classifications or describes unknown as compatible. It cannot waive invocation,
+invalid-input, I/O, analysis, or cancellation failures. JSON supplies #572 with
+classifications and explanations directly. GitHub annotations, validation
+line/column mapping, and MCP registration remain separate work.
 
 ## Export a dataset schema
 
