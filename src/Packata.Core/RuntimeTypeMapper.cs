@@ -13,6 +13,12 @@ public class RuntimeTypeMapper : BaseTypeMapper<Type>
 
     protected override Type DefaultMapping => typeof(object);
 
+    protected override bool TryMapFormat(string type, string? format, out Type mapping)
+    {
+        mapping = typeof(DateTimeOffset);
+        return type == "datetime" && DateTimeFormatConverter.HasOffset(format);
+    }
+
     protected override void Initialize()
     {
         Register("string", null, typeof(string));

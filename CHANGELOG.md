@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Restored strptime temporal formats in canonical text readers and mapped `datetime` patterns containing
+  `%z` or `%:z` to `DateTimeOffset` / `DbType.DateTimeOffset`, preserving source offsets.
+
 ### Breaking changes
 
 - Made `Packata.Core` standards-neutral and moved the Data Package v2 model, validation, and JSON/YAML serialization to `Packata.DataPackage`.

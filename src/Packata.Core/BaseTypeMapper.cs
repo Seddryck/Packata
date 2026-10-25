@@ -32,6 +32,11 @@ public abstract class BaseTypeMapper<T>
     }
 
     protected abstract void Initialize();
+    protected virtual bool TryMapFormat(string type, string? format, out T mapping)
+    {
+        mapping = default!;
+        return false;
+    }
     public void Register(string type, T runtimeType)
         => Register(type, null, runtimeType);
 
@@ -48,6 +53,8 @@ public abstract class BaseTypeMapper<T>
         {
             var key = new TypeFormat(type, format);
             if (Mappings.TryGetValue(key, out var runtimeType))
+                return runtimeType;
+            else if (TryMapFormat(type, format, out runtimeType))
                 return runtimeType;
             else if (Mappings.TryGetValue(new TypeFormat(type, null), out runtimeType))
                 return runtimeType;
