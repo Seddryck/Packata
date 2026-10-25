@@ -358,7 +358,13 @@ internal static class ContractDocumentUpdater
         mapping.Children.TryGetValue(new YamlScalarNode(key), out var value) ? (value as YamlScalarNode)?.Value : null;
 
     private static void SetScalar(YamlMappingNode mapping, string key, string? value) =>
-        Set(mapping, key, new YamlScalarNode(value) { Style = ScalarStyle.Any });
+        Set(mapping, key, YamlScalar(value));
+
+    private static YamlScalarNode YamlScalar(string? value) => new(value)
+    {
+        // Block scalars can lose newline-only values and normalize CRLF when reloaded.
+        Style = value?.Any(char.IsControl) == true ? ScalarStyle.DoubleQuoted : ScalarStyle.Any
+    };
 
     private static void Set(YamlMappingNode mapping, string key, YamlNode value) =>
         mapping.Children[new YamlScalarNode(key)] = value;
@@ -382,7 +388,7 @@ internal static class ContractDocumentUpdater
             foreach (var item in values) sequence.Add(YamlValue(item));
             return sequence;
         }
-        return new YamlScalarNode(ScalarValue(value)) { Style = ScalarStyle.Any };
+        return YamlScalar(ScalarValue(value));
     }
 
     private static readonly string[] DataPackageDialectOptions =
