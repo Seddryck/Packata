@@ -307,6 +307,24 @@ foreach (var asset in contract.Assets)
 
 ODCS documents map to the same canonical model through the `Packata.OpenDataContract.Mapping` namespace. See [MIGRATION.md](MIGRATION.md) for side-by-side mapping examples and guidance for upgrading from earlier Packata versions.
 
+Canonical contracts expose optional `Sla` and `Lifecycle` commitments. SLA durations are grouped into
+`Freshness`, `Latency`, `Frequency`, and `Retention` lists, preserving separate commitments for different
+dataset/field scopes. Each entry has a typed `ContractDuration`, structured `Elements`, and an optional description.
+Elapsed durations compare by ticks (`120 minutes == 2 hours == 7200 seconds`); calendar years normalize to months.
+Calendar months remain distinct from elapsed days because their length depends on a reference date.
+`Sla.Availability.Target` contains percentage targets, and `Sla.Availability.Windows` preserves all recurring
+availability times, optional end times, and dataset/field scopes. Offset-bearing window times normalize to UTC;
+times without offsets retain an unspecified zone.
+
+ODCS `generalAvailability`, `endOfSupport`, and `endOfLife` map to the corresponding `Lifecycle` milestones
+as UTC `DateTimeOffset` values. Date-only values mean midnight UTC; timestamps require an explicit offset.
+The adapter accepts dotted dataset/field paths, `schema/<dataset>/properties/<field>` paths, comma-separated
+references, and unqualified fields when the document has exactly one dataset. An explicit deprecated
+`slaDefaultElement` is honored for operational commitments. Missing commitments remain absent.
+Unknown properties and values that cannot be normalized (including extended duration bounds and duplicate
+lifecycle milestones) are retained under `Extensions["odcs"]["slaProperties"]` with mapping diagnostics.
+The normalized model leaves comparison direction to consumers; it does not select stronger commitments.
+
 For shared database connections, host-supplied credentials, and operation preflight, see
 [database integration](docs/database-integration.md) and the runnable
 [ODCS and Data Package example](examples/DatabaseConnections). The

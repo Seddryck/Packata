@@ -9,7 +9,9 @@ public sealed record DataContract(
     IReadOnlyList<DataAsset> Assets,
     IReadOnlyList<DataEndpoint> Endpoints,
     ContractGovernance Governance,
-    ExtensionMetadata? Extensions = null)
+    ExtensionMetadata? Extensions = null,
+    Sla? Sla = null,
+    Lifecycle? Lifecycle = null)
 {
     public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
 }
