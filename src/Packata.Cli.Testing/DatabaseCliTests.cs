@@ -111,6 +111,36 @@ public sealed class DatabaseCliTests
     }
 
     [Test]
+    public void Connector_text_views_and_verbose_json_work_in_a_redirected_process()
+    {
+        Configuration.Set("connectors.store", Path.Combine(_root, "store"));
+        var compact = Run("connector", "list", "--scheme", "duckdb");
+        var detailed = Run("connector", "list", "--scheme", "duckdb", "--verbose");
+        var shown = Run("connector", "show", "duckdb-native");
+        var json = Run("connector", "list", "--scheme", "duckdb", "--output-format", "json");
+        var verboseJson = Run("connector", "list", "--scheme", "duckdb", "--verbose", "--output-format", "json");
+        var help = Run("connector", "list", "--help");
+        Assert.Multiple(() =>
+        {
+            foreach (var result in new[] { compact, detailed, shown, json, verboseJson, help })
+            {
+                Assert.That(result.ExitCode, Is.Zero, result.Error);
+                Assert.That(result.Error, Is.Empty);
+                Assert.That(result.Output, Does.Not.Contain('\u001b'));
+            }
+            Assert.That(compact.Output, Does.Contain("CONNECTOR").And.Contain("Not installed").And.Not.Contain("Aliases"));
+            Assert.That(detailed.Output, Does.Contain("Aliases").And.Contain("API range").And.Contain("Dependencies"));
+            Assert.That(shown.Output, Does.Contain("duckdb-native · 0.46.0").And.Contain("Aliases"));
+            Assert.That(verboseJson.Output, Is.EqualTo(json.Output));
+            Assert.That(help.Output, Does.Contain("--verbose"));
+            Assert.That(Directory.Exists(Path.Combine(_root, "store")), Is.False);
+        });
+        using var document = JsonDocument.Parse(json.Output);
+        Assert.That(document.RootElement[0].GetProperty("loaded").ValueKind, Is.EqualTo(JsonValueKind.Null));
+        Assert.That(document.RootElement[0].GetProperty("prerequisites").GetString(), Does.Contain("Current runtime:"));
+    }
+
+    [Test]
     public void Bundled_catalog_contains_pinned_distributions_without_loading_or_installing_connectors()
     {
         var catalog = Configuration.Catalog();
