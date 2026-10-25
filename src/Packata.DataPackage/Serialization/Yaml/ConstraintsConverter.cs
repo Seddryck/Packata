@@ -22,12 +22,31 @@ internal class ConstraintsConverter : IYamlTypeConverter
 
         while (parser.TryConsume<Scalar>(out var scalar))
         {
+            if (scalar.Value == "enum")
+            {
+                list.Add(new EnumConstraint(ReadEnum(parser, deserializer)));
+                continue;
+            }
             var value = deserializer(typeof(object));
             list.Add(_constraintMapper.Map(scalar.Value, Normalize(value)));
         }
 
         parser.Consume<MappingEnd>();
         return list;
+    }
+
+    private static IEnumerable<object?> ReadEnum(IParser parser, ObjectDeserializer deserializer)
+    {
+        var values = new List<object?>();
+        parser.Consume<SequenceStart>();
+        while (!parser.TryConsume<SequenceEnd>(out _))
+        {
+            if (parser.TryConsume<Scalar>(out var scalar))
+                values.Add(scalar.Tag == "tag:yaml.org,2002:str" || scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded
+                    ? scalar.Value : Normalize(scalar.Value));
+            else values.Add(Normalize(deserializer(typeof(object))));
+        }
+        return values;
     }
 
     private static object? Normalize(object? value)

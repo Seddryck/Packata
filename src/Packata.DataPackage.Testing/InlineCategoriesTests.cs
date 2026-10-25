@@ -141,6 +141,22 @@ public class InlineCategoriesTests
     private static FieldConstraintCollection Enum(params object[] values)
     { var constraints = new FieldConstraintCollection(); constraints.Add(new EnumConstraint(values)); return constraints; }
 
+    [TestCase(SerializationFormat.Json)]
+    [TestCase(SerializationFormat.Yaml)]
+    public void Loaded_enum_subsets_preserve_quoted_string_codes_and_integer_types(SerializationFormat format)
+    {
+        const string input = """
+            {"resources":[{"name":"data","type":"table","data":[],"schema":{"fields":[
+              {"name":"f","type":"string","categories":["001","true"],"constraints":{"enum":["001"]}},
+              {"name":"n","type":"integer","categories":[1,2147483648],"constraints":{"enum":[2147483648]}}
+            ]}}]}
+            """;
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(input));
+        var package = new DataPackageFactory().LoadFromStream(stream,format);
+        Assert.That(package.Resources[0].Schema!.Fields[0].Constraints!.Get<EnumConstraint>()!.Value, Is.EqualTo(new[] {"001"}));
+        Assert.That(DataPackageValidator.Validate(package).Issues, Is.Empty);
+    }
+
     private static DataPackage Package(Field field) => new()
     { Resources=[new Resource {Name="data", Type="table", Data=Array.Empty<object>(), Schema=new Schema {Fields=[field]} }] };
 }
