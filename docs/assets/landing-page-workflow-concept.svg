@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect width="1440" height="900" fill="#FAFBF8"/>
+<rect width="1440" height="75" fill="#247580"/>
+<rect x="79" y="23" width="6" height="29" rx="2" fill="#D99536"/>
+<text x="99" y="49" fill="white" font-family="Arial,sans-serif" font-size="32" font-weight="bold">packata.</text>
+<text x="1090" y="44" fill="white" font-family="Arial,sans-serif" font-size="16">Overview</text>
+<text x="1210" y="44" fill="white" font-family="Arial,sans-serif" font-size="16">Documentation</text>
+<rect y="75" width="1440" height="667" fill="#293C42"/>
+<rect x="83" y="118" width="29" height="4" fill="#D99536"/>
+<text x="126" y="126" fill="#D99536" font-family="Arial,sans-serif" font-size="16" font-weight="bold" letter-spacing="2">OPEN-SOURCE DATA TOOLKIT FOR .NET</text>
+<text x="83" y="206" fill="#FFFFFF" font-family="Arial,sans-serif" font-weight="bold" font-size="56">From data contracts</text>
+<text x="83" y="265" fill="#FFFFFF" font-family="Arial,sans-serif" font-weight="bold" font-size="56">to actual data.</text>
+<text x="83" y="315" fill="#DDEEE9" font-family="Arial,sans-serif" font-size="19">Explore, validate and provision datasets described by</text>
+<text x="83" y="342" fill="#DDEEE9" font-family="Arial,sans-serif" font-size="19">Frictionless Data Package v2 and ODCS contracts.</text>
+<rect x="83" y="368" width="167" height="45" rx="5" fill="#D99536"/>
+<text x="108" y="397" fill="#293C42" font-family="Arial,sans-serif" font-size="17" font-weight="bold">Get started ↗</text>
+<text x="280" y="397" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="17">Explore documentation  →</text>
+<rect x="80" y="447" width="1280" height="265" rx="12" fill="#1F343A" stroke="#537078" stroke-width="2"/>
+<text x="107" y="485" fill="#D99536" font-family="Arial,sans-serif" font-size="24">◇</text>
+<text x="143" y="485" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="22" font-weight="bold">The asset workflow</text>
+<text x="1249" y="485" fill="#DDEEE9" font-family="Arial,sans-serif" font-size="15">01 — 05</text>
+<g font-family="Arial,sans-serif" font-size="15">
+<rect x="107" y="505" width="240" height="67" rx="5" fill="#355861"/><text x="122" y="528" fill="#B5DCD5">01</text><text x="122" y="552" fill="white" font-size="20" font-weight="bold">Load</text>
+<rect x="354" y="505" width="240" height="67" rx="5" fill="#355861"/><text x="369" y="528" fill="#B5DCD5">02</text><text x="369" y="552" fill="white" font-size="20" font-weight="bold">Discover</text>
+<rect x="601" y="505" width="240" height="67" rx="5" fill="#D99536"/><text x="616" y="528" fill="#293C42">03</text><text x="616" y="552" fill="#293C42" font-size="20" font-weight="bold">Preview</text>
+<rect x="848" y="505" width="240" height="67" rx="5" fill="#355861"/><text x="863" y="528" fill="#B5DCD5">04</text><text x="863" y="552" fill="white" font-size="20" font-weight="bold">Validate</text>
+<rect x="1095" y="505" width="240" height="67" rx="5" fill="#355861"/><text x="1110" y="528" fill="#B5DCD5">05</text><text x="1110" y="552" fill="white" font-size="20" font-weight="bold">Provision</text>
+</g>
+<rect x="107" y="587" width="1228" height="105" rx="5" fill="#293C42" stroke="#537078"/>
+<text x="127" y="610" fill="#D99536" font-family="Consolas,'Courier New',monospace" font-size="17">$</text>
+<text x="148" y="610" fill="#FFFFFF" font-family="Consolas,'Courier New',monospace" font-size="17">packata data preview contract.yaml --asset customers --limit 20</text>
+<line x1="127" y1="622" x2="1315" y2="622" stroke="#537078"/>
+<text x="127" y="642" fill="#D99536" font-family="Consolas,'Courier New',monospace" font-size="16">id      name          country</text>
+<text x="127" y="664" fill="#DDEEE9" font-family="Consolas,'Courier New',monospace" font-size="16">101     Alice         BE</text>
+<text x="127" y="685" fill="#DDEEE9" font-family="Consolas,'Courier New',monospace" font-size="16">102     Bob           FR</text>
+<text x="1134" y="685" fill="#D99536" font-family="Arial,sans-serif" font-size="14">Next step →</text>
+<rect y="742" width="1440" height="6" fill="#D99536"/>
+<text x="83" y="797" fill="#247580" font-family="Arial,sans-serif" font-size="16" font-weight="bold">BUILD WITH PACKATA</text>
+<text x="83" y="840" fill="#293C42" font-family="Arial,sans-serif" font-size="34" font-weight="bold">Your tools. Your workflow.</text>
+<rect x="730" y="773" width="290" height="92" rx="8" fill="#DDEEE9"/>
+<text x="758" y="809" fill="#293C42" font-family="Arial,sans-serif" font-size="22" font-weight="bold">Command-line interface</text>
+<text x="758" y="838" fill="#247580" font-family="Arial,sans-serif" font-size="17">Explore the CLI →</text>
+<rect x="1040" y="773" width="290" height="92" rx="8" fill="#DDEEE9"/>
+<text x="1068" y="809" fill="#293C42" font-family="Arial,sans-serif" font-size="22" font-weight="bold">.NET library</text>
+<text x="1068" y="838" fill="#247580" font-family="Arial,sans-serif" font-size="17">Explore the API →</text>
+</svg>
