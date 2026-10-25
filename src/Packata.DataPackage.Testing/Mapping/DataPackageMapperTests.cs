@@ -15,7 +15,12 @@ public class DataPackageMapperTests
 
         var contract = package.ToCanonicalContract().RequireValue();
 
-        Assert.That(contract.Identity.Id, Is.EqualTo("sales"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(contract.Identity.Id, Is.EqualTo("sales"));
+            Assert.That(contract.Sla, Is.Null);
+            Assert.That(contract.Lifecycle, Is.Null);
+        });
     }
 
     [Test]

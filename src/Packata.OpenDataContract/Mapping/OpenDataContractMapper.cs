@@ -28,6 +28,15 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             .ToArray();
 
         var extensions = MapCustomProperties(document.Description?.CustomProperties);
+        var commitments = ServiceCommitmentMapper.Map(document, diagnostics);
+        if (commitments.Unmapped.Count > 0)
+        {
+            var values = extensions.TryGetNamespace("odcs", out var existing)
+                ? new Dictionary<string, object?>(existing)
+                : new Dictionary<string, object?>();
+            values["slaProperties"] = commitments.Unmapped;
+            extensions = ExtensionMetadata.For("odcs", values);
+        }
 
         var contract = new CoreContract(
             new ContractIdentity(document.Id, document.Name, document.Version, document.Status),
@@ -45,7 +54,9 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                     .Where(x => !string.IsNullOrWhiteSpace(x.Url))
                     .Select(x => new AuthoritativeReference(x.Url!, x.Type))
                     .ToArray()),
-            extensions);
+            extensions,
+            commitments.Sla,
+            commitments.Lifecycle);
 
         return new MappingResult<CoreContract>(contract, diagnostics);
     }
