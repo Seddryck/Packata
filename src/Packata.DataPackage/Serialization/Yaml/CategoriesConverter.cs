@@ -1,5 +1,5 @@
-using System;
-using System.Collections.Generic;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -8,38 +8,90 @@ namespace Packata.DataPackage.Serialization.Yaml;
 
 internal class CategoriesConverter : IYamlTypeConverter
 {
-    public bool Accepts(Type type)
-        => type == typeof(List<ICategory>);
+    public bool Accepts(Type type) => type == typeof(List<ICategory>);
 
     public object ReadYaml(IParser parser, Type type, ObjectDeserializer deserializer)
     {
         parser.Consume<SequenceStart>();
-
-        var list = new List<ICategory>();
-        while (!parser.TryConsume<SequenceEnd>(out var _))
+        var result = new List<ICategory>();
+        bool? objects = null;
+        while (!parser.TryConsume<SequenceEnd>(out _))
         {
-            if (parser.TryConsume<Scalar>(out var valueScalar))
-                list.Add(new CategoryLabel(valueScalar.Value));
-            else if (parser.TryConsume<MappingStart>(out var _))
+            var index = result.Count;
+            var isObject = parser.Current is MappingStart;
+            if (objects is not null && objects != isObject)
+                throw Invalid(parser, index, "Categories must contain either scalar values or objects, not both.");
+            objects = isObject;
+            if (parser.TryConsume<Scalar>(out var scalar))
             {
-                int? value = null;
-                string? label = null;
-                while (parser.TryConsume<Scalar>(out var key))
-                {
-                    if (key.Value == "value" && parser.TryConsume<Scalar>(out var scalarValue))
-                        value = Convert.ToInt32(scalarValue.Value);
-                    else if (key.Value == "label" && parser.TryConsume<Scalar>(out var scalarLabel))
-                        label = scalarLabel.Value;
-                }
-                if (value.HasValue && label is not null)
-                    list.Add(new Category(value.Value, label));
-                parser.Consume<MappingEnd>();
+                var value = ReadValue(scalar, index);
+                result.Add(value is string text ? new CategoryLabel(text) : new CategoryInteger((long)value));
+                continue;
             }
+            if (!parser.TryConsume<MappingStart>(out _)) throw Invalid(parser, index, "Expected a scalar or category object.");
+            object? categoryValue = null;
+            string? label = null;
+            var keys = new HashSet<string>();
+            while (!parser.TryConsume<MappingEnd>(out _))
+            {
+                var key = parser.Consume<Scalar>();
+                if (!keys.Add(key.Value)) throw Invalid(parser, index, $"Duplicate property {key.Value}.");
+                if (key.Value == "value") categoryValue = ReadValue(parser.Consume<Scalar>(), index);
+                else if (key.Value == "label")
+                {
+                    var labelScalar = parser.Consume<Scalar>();
+                    if (ReadValue(labelScalar, index) is not string text)
+                        throw Invalid(parser, index, "label must be a string.");
+                    label = text;
+                }
+                else parser.SkipThisAndNestedEvents();
+            }
+            if (categoryValue is null) throw Invalid(parser, index, "A category object requires value.");
+            result.Add(new Category(categoryValue, label));
         }
-
-        return list;
+        return result;
     }
 
+    private static object ReadValue(Scalar scalar, int index)
+    {
+        if (scalar.Tag == "tag:yaml.org,2002:str" || scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded)
+            return scalar.Value;
+        if (Regex.IsMatch(scalar.Value, @"^[+-]?[0-9]+$", RegexOptions.CultureInvariant))
+        {
+            if (long.TryParse(scalar.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number)) return number;
+            throw new YamlException(scalar.Start, scalar.End, $"categories[{index}].value: Integer is outside the signed 64-bit range.");
+        }
+        if (scalar.Tag == "tag:yaml.org,2002:int" || scalar.Tag == "tag:yaml.org,2002:bool" || scalar.Tag == "tag:yaml.org,2002:float" ||
+            scalar.Tag == "tag:yaml.org,2002:null" || scalar.Value.ToLowerInvariant() is "true" or "false" or "null" or "~" or "" ||
+            double.TryParse(scalar.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+            throw new YamlException(scalar.Start, scalar.End, $"categories[{index}].value: Expected a string or signed 64-bit integer; quote string codes.");
+        return scalar.Value;
+    }
+
+    private static YamlException Invalid(IParser parser, int index, string message)
+        => new(parser.Current?.Start ?? Mark.Empty, parser.Current?.End ?? Mark.Empty, $"categories[{index}]: {message}");
+
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
-        => throw new NotImplementedException();
+    {
+        if (value is null) { emitter.Emit(new Scalar("null")); return; }
+        emitter.Emit(new SequenceStart(null, null, false, SequenceStyle.Block));
+        foreach (var category in (List<ICategory>)value)
+        {
+            if (category is Category)
+            {
+                emitter.Emit(new MappingStart());
+                emitter.Emit(new Scalar("value")); WriteValue(emitter, category.Value);
+                if (category.Label is not null)
+                { emitter.Emit(new Scalar("label")); WriteValue(emitter, category.Label); }
+                emitter.Emit(new MappingEnd());
+            }
+            else WriteValue(emitter, category.Value);
+        }
+        emitter.Emit(new SequenceEnd());
+    }
+
+    private static void WriteValue(IEmitter emitter, object value)
+        => emitter.Emit(value is string text
+            ? new Scalar(null, null, text, ScalarStyle.DoubleQuoted, true, false)
+            : new Scalar(Convert.ToString(value, CultureInfo.InvariantCulture)!));
 }

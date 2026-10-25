@@ -111,8 +111,41 @@ public static class DataPackageValidator
                 Add(issues, $"{fieldPath}.type", $"Field type '{field.Type}' is not defined by Data Package v2.");
             if (field.CategoriesOrdered is not null && field.Categories is null)
                 Add(issues, $"{fieldPath}.categoriesOrdered", "categoriesOrdered requires categories.");
+            ValidateCategories(field, fieldPath, issues);
         }
         return fields;
+    }
+
+    private static void ValidateCategories(Field field, string path, ICollection<DataPackageValidationIssue> issues)
+    {
+        if (field.Categories is null) return;
+        var type = field.Type ?? (field is StringField ? "string" : field is IntegerField ? "integer" : "any");
+        if (type is not ("string" or "integer"))
+            Add(issues, $"{path}.categories", "Categories are only defined for string and integer fields.");
+        var values = new HashSet<object>();
+        var labels = new HashSet<string>(StringComparer.Ordinal);
+        bool? objects = null;
+        for (var index = 0; index < field.Categories.Count; index++)
+        {
+            var category = field.Categories[index];
+            var itemPath = $"{path}.categories[{index}]";
+            if (category is null || !CategoryValues.TryNormalize(category.Value, out var value))
+            { Add(issues, itemPath, "A category value must be a string or signed 64-bit integer."); continue; }
+            var isObject = category is Category;
+            if (objects is not null && objects != isObject)
+                Add(issues, itemPath, "Categories must contain either scalar values or objects, not both.");
+            objects = isObject;
+            if (type == "integer" && value is not long || type == "string" && value is not string)
+                Add(issues, itemPath, "Category values must match the field's logical type.");
+            if (!values.Add(value!)) Add(issues, itemPath, "Category values must be unique.");
+            if (isObject && category.Label is not null && !labels.Add(category.Label))
+                Add(issues, $"{itemPath}.label", "Category labels must be unique when present.");
+        }
+        var enumeration = field.Constraints?.Get<EnumConstraint>();
+        if (enumeration is null) return;
+        for (var index = 0; index < enumeration.Value.Count; index++)
+            if (!CategoryValues.TryNormalize(enumeration.Value[index], out var value) || !values.Contains(value!))
+                Add(issues, $"{path}.constraints.enum[{index}]", "Enum values must be a subset of categories with matching logical types.");
     }
 
     private static void ValidateUniqueKeys(IReadOnlyList<List<string>>? uniqueKeys, string path,

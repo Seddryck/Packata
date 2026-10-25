@@ -16,6 +16,7 @@ internal class DataPackageSerializer : IDataPackageSerializer
         var serializer = new JsonSerializer
         {
             ContractResolver = resolver,
+            DateParseHandling = DateParseHandling.None,
             ObjectCreationHandling = ObjectCreationHandling.Replace
         };
         var dataPackage = serializer.Deserialize<DataPackage>(new JsonTextReader(reader))

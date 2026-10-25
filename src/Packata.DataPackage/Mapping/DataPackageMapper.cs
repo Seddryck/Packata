@@ -170,12 +170,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         return new(foreignKey.Fields, target, foreignKey.Reference?.Fields ?? []);
     }
 
-    private static object CategoryValue(Native.ICategory category) => category switch
-    {
-        Native.Category value => value.Value,
-        Native.CategoryLabel value => value.Label,
-        _ => category.Label
-    };
+    private static object CategoryValue(Native.ICategory category) => category.Value;
 
     private static DataConstraint? MapConstraint(Native.Constraint constraint) => constraint switch
     {
