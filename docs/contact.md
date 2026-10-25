@@ -2,9 +2,10 @@
 layout: page
 width: small
 title: Contact
-nav_order: 8
+nav_order: 3
 nav_exclude: false
 permalink: /contact/
+parent: Project
 ---
 
 ### Some questions to ask?

@@ -293,6 +293,9 @@ Linux distributions using glibc must use a `linux-*` archive; Alpine and other m
 
 ## Quickstart
 
+Start with the [CLI Quickstart](https://seddryck.github.io/Packata/quickstart/cli/) or the distinct [.NET Library Quickstart](https://seddryck.github.io/Packata/quickstart/dotnet/). The [VS Code extension](https://seddryck.github.io/Packata/quickstart/vscode/) is **planned, not implemented**. See [all CLI commands and options](https://seddryck.github.io/Packata/cli/) and [shared task guides](https://seddryck.github.io/Packata/guides/).
+
+
 Load a Data Package descriptor and map it to the standards-neutral model:
 
 ```csharp

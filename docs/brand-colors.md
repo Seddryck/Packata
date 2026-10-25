@@ -1,10 +1,11 @@
 ---
 layout: doc
 title: Brand colors
-nav_order: 9
+nav_order: 5
 nav_exclude: false
 permalink: /brand-colors/
 description: Packata brand color palette and usage guidance.
+parent: Project
 ---
 
 <style>

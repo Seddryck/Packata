@@ -3,6 +3,7 @@ title: Database connections and provisioning
 nav_order: 5
 nav_exclude: false
 permalink: /database-integration/
+parent: Guides
 ---
 
 # Database connections, connectors and provisioning
@@ -14,7 +15,11 @@ family on compatible versions: the older 1.1.0 publication does not expose these
 The initial shared-service milestone (`cbf64b6`) was separately compiled against 0.29.34 before
 upgrading to the modular API for the subsequent integration steps.
 
-## One service for readers and provisioners
+## CLI
+
+Use `packata connector list` and `packata connector show ID` to inspect prerequisites, then use `schema infer` or `data preview` with the same contract endpoint. Runtime URLs can come from `--connection-env ENDPOINT=VARIABLE`; secrets belong in runtime configuration. See [all connector/config options]({{ '/cli-database/' | relative_url }}) and [schema inference]({{ '/cli-inference/' | relative_url }}). CLI provisioning is not implemented; it remains [planned](https://github.com/Seddryck/Packata/issues/476).
+
+## .NET: one service for readers and provisioners
 
 ```csharp
 using Packata.Database;

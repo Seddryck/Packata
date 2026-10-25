@@ -1,8 +1,10 @@
 ---
 title: Database commands and configuration
-nav_order: 4
+nav_order: 2
 nav_exclude: false
 permalink: /cli-database/
+parent: Command-line interface
+grand_parent: Reference
 ---
 
 # Database commands and user configuration
@@ -25,6 +27,60 @@ Database inference uses the shared connection service. It loads a compatible ins
 or downloads the pinned connector from the bundled distribution catalog on first use, then continues in the same process. Acquisition
 progress goes to stderr. No separate installation command or application code is required.
 File-only inference does not read connector configuration or acquire database connectors.
+
+## Command syntax
+
+<!-- cli:connector list -->
+### connector list
+
+`packata connector list [--scheme <SCHEME>] [--verbose] [--output-format <FORMAT>]`
+
+No positional arguments. `--scheme` optionally filters by database scheme (case-insensitive); default is all connectors. `--verbose` defaults off and expands text details. `--output-format` is `text` (default) or `json`; JSON is the full record array regardless of `--verbose`.
+
+<!-- cli:connector show -->
+### connector show
+
+`packata connector show <ID> [--output-format <FORMAT>]`
+
+Required canonical connector `<ID>` (case-insensitive); prints all matching version records with detailed text. `--output-format` is `text` (default) or `json`. Unknown IDs fail.
+
+<!-- cli:connector install -->
+### connector install
+
+`packata connector install <ID>`
+
+Required canonical catalog `<ID>`; installs/activates its pinned version, or reuses a healthy active installation. No application options; output is detailed text, progress/errors use stderr. Offline mode allows reuse but prevents a required download. There are no arbitrary download URL, version, force, update or uninstall options. Exit `0` succeeds, `1` is operation failure, `2` is caught cancellation or invocation error (framework cancellation can return `130`).
+
+<!-- cli:config list -->
+### config list
+
+`packata config list [--output-format <FORMAT>]`
+
+No positional arguments. `--output-format` is `text` (default) or `json`. Returns effective keys, values, origins and persisted user overrides where applicable.
+
+<!-- cli:config get -->
+### config get
+
+`packata config get <KEY> [--output-format <FORMAT>]`
+
+Required supported `<KEY>`. `--output-format` is `text` (default) or `json`; JSON is a one-record array, not a scalar.
+
+<!-- cli:config set -->
+### config set
+
+`packata config set <KEY> <VALUE>`
+
+Both positional arguments are required. No application options. Writes a user override atomically; relative store/catalog paths become absolute from the current directory. Quote paths containing spaces. Success has no result payload. Values cannot be empty; offline is Boolean, paths are local, preferences are canonical IDs.
+
+<!-- cli:config unset -->
+### config unset
+
+`packata config unset <KEY>`
+
+Required supported `<KEY>`; no application options. Removes the user override without deleting installed connector packs. Success has no result payload. A store environment override can remain effective after unsetting the user value.
+
+<!-- end-cli -->
+Config and discovery commands return `0` on success, `1` on operation/configuration failure, `2` on invalid invocation. Each command supports framework `--help`. Application options have no short aliases. JSON uses camelCase names. See [exit-code families]({{ '/cli/' | relative_url }}#sources-output-and-exit-code-families).
 
 ## Connector actions
 

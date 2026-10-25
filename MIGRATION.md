@@ -1,3 +1,5 @@
+For the documentation website, see [Migration](https://seddryck.github.io/Packata/migration/).
+
 # Migration to the canonical Core model
 
 This is a major-version breaking change. `Packata.Core` is no longer the Data Package v2 object model. It contains the canonical asset, schema, field, endpoint, reader, provisioner, diagnostic, and extension contracts shared by every supported document format.

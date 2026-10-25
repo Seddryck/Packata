@@ -1,8 +1,9 @@
 ---
 title: CSV dialect export
-nav_order: 6
+nav_order: 4
 nav_exclude: false
 permalink: /csv-dialect-export/
+parent: Guides
 ---
 
 # Export a CSV dialect descriptor
@@ -17,7 +18,7 @@ the successor to CSV Dialect. No Data Package wrapper is required. This is a
 descriptor export, not a claim that every Table Dialect property is supported by
 PocketCsvReader or another reader; consumers must check their supported settings.
 
-## Library
+## .NET library
 
 An asset can have multiple CSV representations with different parsing settings:
 

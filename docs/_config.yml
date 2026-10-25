@@ -27,28 +27,12 @@ back_to_top: true
 back_to_top_text: Back to top
 footer_content: 'Packata · Data packages and data contracts for .NET · <a href="https://github.com/Seddryck/Packata/blob/main/LICENSE">Apache 2.0</a>'
 
-collections:
-  docs:
-    output: true
-    permalink: /docs/:name/
-just_the_docs:
-  collections:
-    docs:
-      name: Documentation
-      nav_exclude: false
-
 defaults:
   - scope:
       path: ""
     values:
       layout: page
       nav_exclude: true
-  - scope:
-      path: ""
-      type: docs
-    values:
-      layout: doc
-      nav_exclude: false
 
 markdown: kramdown
 highlighter: rouge

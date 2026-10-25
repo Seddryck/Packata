@@ -2,15 +2,10 @@
 layout: page
 title: Thanks
 permalink: /thanks/
-width: small
+nav_exclude: true
+search_exclude: true
 ---
 
-### This is a redirect page for Formspree contact form
+Thank you for your message. For support and contribution routes, visit [Contact]({{ '/contact/' | relative_url }}).
 
-Varius tempor. Nulla non sollicitudin tortor. Morbi sit amet laoreet ipsum, vel pretium mi. Morbi varius, tellus in accumsan blandit, elit ligula eleifend velit, luctus mattis ante nulla condimentum nulla.
-
-Ut malesuada varius tempor. Nulla non sollicitudin tortor. Morbi sit amet laoreet ipsum, vel pretium mi. Morbi varius, tellus in accumsan blandit, elit ligula eleifend velit, luctus mattis ante nulla condimentum nulla.
-
-Mesuada varius tempor. Nulla non sollicitudin tortor. Morbi sit amet laoreet ipsum, vel pretium mi. Morbi varius, tellus in accumsan blandit, elit ligula eleifend velit, luctus mattis ante nulla condimentum nulla.
-
-Varius tempor. Nulla non sollicitudin tortor. Morbi sit amet laoreet ipsum, vel pretium mi. Morbi varius, tellus in accumsan blandit, elit ligula eleifend velit, luctus mattis ante nulla condimentum nulla.
+This legacy form-confirmation URL is retained for existing links. The current site directs questions to GitHub rather than submitting a contact form.

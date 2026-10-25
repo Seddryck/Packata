@@ -2,9 +2,9 @@ name: Documentation website
 on:
   push:
     branches: [main]
-    paths: ['docs/**', '.github/workflows/docs-pages.yml', 'jekyll-compose.yml']
+    paths: ['docs/**', 'src/Packata.Cli/**', '.github/scripts/*Documentation*', '.github/workflows/docs-pages.yml', 'jekyll-compose.yml']
   pull_request:
-    paths: ['docs/**', '.github/workflows/docs-pages.yml', 'jekyll-compose.yml']
+    paths: ['docs/**', 'src/Packata.Cli/**', '.github/scripts/*Documentation*', '.github/workflows/docs-pages.yml', 'jekyll-compose.yml']
   workflow_dispatch:
 
 permissions:
@@ -19,6 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check CLI documentation coverage and navigation
+        run: node .github/scripts/Validate-Documentation.mjs
       - uses: ruby/setup-ruby@651ff0d62c5c79bed6d53ec518387aae20e72c1a # v1
         with:
           ruby-version: '3.3'
@@ -29,6 +34,8 @@ jobs:
         env:
           JEKYLL_ENV: production
         run: bundle exec jekyll build --strict_front_matter --disable-disk-cache
+      - name: Check rendered links and fragments
+        run: node .github/scripts/Validate-Documentation.mjs --site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/_site
