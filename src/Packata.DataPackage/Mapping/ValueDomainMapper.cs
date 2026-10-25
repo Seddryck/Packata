@@ -29,7 +29,7 @@ internal static class ValueDomainMapper
         {
             IReadOnlyList<ScalarValue>? allowed = enumeration is null ? null : Scalars(enumeration.Value, type, allowNull: true);
             return field.Categories?.Reference is { } reference
-                ? ReferencedDomain(field, reference, type, allowed, package, tables, path, diagnostics)
+                ? ReferencedDomain(field, reference, allowed, package, tables, path, diagnostics)
                 : InlineDomain(field, type, allowed);
         }
         catch (ArgumentException exception)
@@ -40,10 +40,11 @@ internal static class ValueDomainMapper
         }
     }
 
-    private static ValueDomain ReferencedDomain(Field field, CategoryTableReference reference, string type,
+    private static ValueDomain ReferencedDomain(Field field, CategoryTableReference reference,
         IReadOnlyList<ScalarValue>? allowed, DataPackage package, IReadOnlyDictionary<Resource, CategoryTableDefinition?> tables,
         string path, ICollection<MappingDiagnostic> diagnostics)
     {
+        var type = FieldTypeNames.Get(field);
         RequireCategoryType(type, "Category table references require a string or integer field.");
         ValueEncoding? encoding = reference.EncodedAs switch
         {

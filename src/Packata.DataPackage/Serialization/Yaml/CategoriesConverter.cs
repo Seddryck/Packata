@@ -14,6 +14,12 @@ internal class CategoriesConverter : IYamlTypeConverter
     {
         if (parser.Current is MappingStart && type == typeof(CategoryCollection))
             return new CategoryCollection((CategoryTableReference)new CategoryMetadataConverter().ReadYaml(parser, typeof(CategoryTableReference), rootDeserializer));
+        var result = ReadInline(parser);
+        return type == typeof(CategoryCollection) ? new CategoryCollection(result) : (object)result;
+    }
+
+    private static List<ICategory> ReadInline(IParser parser)
+    {
         parser.Consume<SequenceStart>();
         var result = new List<ICategory>();
         bool? objects = null;
@@ -24,34 +30,41 @@ internal class CategoriesConverter : IYamlTypeConverter
             if (objects is not null && objects != isObject)
                 throw Invalid(parser, index, "Categories must contain either scalar values or objects, not both.");
             objects = isObject;
-            if (parser.TryConsume<Scalar>(out var scalar))
-            {
-                var value = ReadValue(scalar, index);
-                result.Add(value is string text ? new CategoryLabel(text) : new CategoryInteger((long)value));
-                continue;
-            }
-            if (!parser.TryConsume<MappingStart>(out _)) throw Invalid(parser, index, "Expected a scalar or category object.");
-            object? categoryValue = null;
-            string? label = null;
-            var keys = new HashSet<string>();
-            while (!parser.TryConsume<MappingEnd>(out _))
-            {
-                var key = parser.Consume<Scalar>();
-                if (!keys.Add(key.Value)) throw Invalid(parser, index, $"Duplicate property {key.Value}.");
-                if (key.Value == "value") categoryValue = ReadValue(parser.Consume<Scalar>(), index);
-                else if (key.Value == "label")
-                {
-                    var labelScalar = parser.Consume<Scalar>();
-                    if (ReadValue(labelScalar, index) is not string text)
-                        throw Invalid(parser, index, "label must be a string.");
-                    label = text;
-                }
-                else parser.SkipThisAndNestedEvents();
-            }
-            if (categoryValue is null) throw Invalid(parser, index, "A category object requires value.");
-            result.Add(new Category(categoryValue, label));
+            result.Add(ReadCategory(parser, index));
         }
-        return type == typeof(CategoryCollection) ? new CategoryCollection(result) : (object)result;
+        return result;
+    }
+
+    private static ICategory ReadCategory(IParser parser, int index)
+    {
+        if (parser.TryConsume<Scalar>(out var scalar))
+        {
+            var value = ReadValue(scalar, index);
+            return value is string text ? new CategoryLabel(text) : new CategoryInteger((long)value);
+        }
+        if (!parser.TryConsume<MappingStart>(out _)) throw Invalid(parser, index, "Expected a scalar or category object.");
+        object? categoryValue = null;
+        string? label = null;
+        var keys = new HashSet<string>();
+        while (!parser.TryConsume<MappingEnd>(out _))
+        {
+            var key = parser.Consume<Scalar>();
+            if (!keys.Add(key.Value)) throw Invalid(parser, index, $"Duplicate property {key.Value}.");
+            switch (key.Value)
+            {
+                case "value": categoryValue = ReadValue(parser.Consume<Scalar>(), index); break;
+                case "label": label = ReadLabel(parser, index); break;
+                default: parser.SkipThisAndNestedEvents(); break;
+            }
+        }
+        if (categoryValue is null) throw Invalid(parser, index, "A category object requires value.");
+        return new Category(categoryValue, label);
+    }
+
+    private static string ReadLabel(IParser parser, int index)
+    {
+        if (ReadValue(parser.Consume<Scalar>(), index) is string text) return text;
+        throw Invalid(parser, index, "label must be a string.");
     }
 
     internal static object ReadValue(Scalar scalar, int index)
