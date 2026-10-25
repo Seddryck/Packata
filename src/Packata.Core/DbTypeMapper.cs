@@ -13,6 +13,12 @@ public class DbTypeMapper : BaseTypeMapper<DbType>
 
     protected override DbType DefaultMapping => DbType.Object;
 
+    protected override bool TryMapFormat(string type, string? format, out DbType mapping)
+    {
+        mapping = DbType.DateTimeOffset;
+        return type == "datetime" && DateTimeFormatConverter.HasOffset(format);
+    }
+
     protected override void Initialize()
     {
         Register("string", null, DbType.String);

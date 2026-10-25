@@ -81,8 +81,7 @@ internal sealed class DelimitedReaderProvider : IDataEndpointReaderProvider
         var schemaBuilder = new SchemaDescriptorBuilder().Indexed();
         var mapper = new RuntimeTypeMapper();
         foreach (var field in schema.Fields)
-            schemaBuilder.WithField(mapper.Map(field.LogicalType, field.Format), field.Name,
-                builder => field.LogicalType is null ? builder : builder.WithDataSourceTypeName(field.LogicalType));
+            PocketCsvReaderProviderDefaults.AddField(schemaBuilder, mapper, field);
         return schemaBuilder;
     }
 
