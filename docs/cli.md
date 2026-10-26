@@ -667,8 +667,10 @@ CSV includes a header and quotes delimiters, quotation marks and line breaks. Nu
 empty fields. Values use invariant culture, dates use round-trip format and binary values
 are base64.
 
-The table view displays null as `(null)`, flattens line breaks and truncates cells beyond
-80 characters; terminal layout may wrap cells further. JSON and CSV values are not truncated.
+The table view displays null as `(null)` and flattens line breaks. Wide previews split into
+column groups sized to the terminal, with row numbers repeated in each group. Cells stay on
+one line and show an ellipsis when they exceed the available width (at most 40 terminal cells).
+Use `--columns` to focus on specific fields. JSON and CSV values are not truncated.
 
 Preview does not write the contract or change source data. Its output buffer contains at most
 the requested rows. Staging can transfer the entire resource before parsing, and Parquet
