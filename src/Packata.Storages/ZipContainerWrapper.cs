@@ -12,6 +12,6 @@ internal class ZipContainerWrapper : IContainerWrapper
     {
         var stream = await baseContainer.OpenAsync(ArchiveSource.Path(uri)).ConfigureAwait(false);
         try { return new ZipDataPackageContainer(uri, stream); }
-        catch { stream.Dispose(); throw; }
+        catch { await stream.DisposeAsync().ConfigureAwait(false); throw; }
     }
 }

@@ -8,6 +8,7 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
 {
     private readonly Dictionary<string, StoredEntry> _entries = new(StringComparer.Ordinal);
     private bool _disposed;
+    private string? _temporaryDirectory;
     public Uri BaseUri { get; }
 
     private TarDataPackageContainer(Uri uri) => BaseUri = uri;
@@ -17,7 +18,7 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
         TarArchiveOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(tarStream);
-        using (tarStream)
+        await using (tarStream)
         {
             ArgumentNullException.ThrowIfNull(uri);
             options ??= new TarArchiveOptions();
@@ -38,8 +39,8 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
 
     private async Task InitializeAsync(Stream source, TarArchiveOptions options)
     {
-        using var bounded = new BoundedArchiveStream(source, options.MaxArchiveBytes);
-        using var reader = new TarReader(bounded, leaveOpen: true);
+        await using var bounded = new BoundedArchiveStream(source, options.MaxArchiveBytes);
+        await using var reader = new TarReader(bounded, leaveOpen: true);
         long total = 0, memory = 0;
         var count = 0;
         while (await reader.GetNextEntryAsync(copyData: false).ConfigureAwait(false) is { } entry)
@@ -47,45 +48,57 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
             if (++count > options.MaxEntries) throw new InvalidDataException("TAR entry count limit exceeded.");
             var name = NormalizePath(entry.Name);
             if (entry.EntryType == TarEntryType.Directory) continue;
-            if (entry.EntryType is not (TarEntryType.RegularFile or TarEntryType.V7RegularFile))
-                throw new NotSupportedException($"TAR entry '{name}' has unsupported type '{entry.EntryType}'.");
-            if (name.Length == 0) throw new InvalidDataException("A TAR file entry must have a resource path.");
-            if (_entries.ContainsKey(name)) throw new InvalidDataException($"Duplicate TAR entry '{name}'.");
-            if (entry.Length > options.MaxEntryBytes || entry.Length > options.MaxTotalBytes - total)
-                throw new InvalidDataException($"TAR size limit exceeded by '{name}'.");
-            total += entry.Length;
-
-            StoredEntry stored;
-            if (entry.Length <= options.MemoryThresholdBytes - memory && entry.Length <= int.MaxValue)
-            {
-                var bytes = new byte[(int)entry.Length];
-                if (entry.DataStream is not null)
-                    await entry.DataStream.ReadExactlyAsync(bytes).ConfigureAwait(false);
-                memory += bytes.Length;
-                stored = new StoredEntry(bytes, null);
-            }
-            else
-            {
-                var path = Path.Combine(options.TemporaryDirectory, $"packata-tar-{Guid.NewGuid():N}.tmp");
-                var file = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite,
-                    FileShare.Read | FileShare.Delete, 81920, FileOptions.Asynchronous | FileOptions.DeleteOnClose);
-                try
-                {
-                    if (entry.DataStream is not null)
-                        await entry.DataStream.CopyToAsync(file).ConfigureAwait(false);
-                    if (file.Length != entry.Length) throw new InvalidDataException($"Truncated TAR entry '{name}'.");
-                    await file.FlushAsync().ConfigureAwait(false);
-                    stored = new StoredEntry(null, file);
-                }
-                catch { file.Dispose(); throw; }
-            }
+            ValidateFileEntry(entry, name, options, total);
+            var stored = await StoreEntryAsync(entry, options, options.MemoryThresholdBytes - memory).ConfigureAwait(false);
             _entries.Add(name, stored);
+            total += entry.Length;
+            memory += stored.Bytes?.Length ?? 0;
         }
         // Finish decoding, including the compression footer, and enforce the full stream limit.
         await bounded.CopyToAsync(Stream.Null).ConfigureAwait(false);
         if (bounded.BytesRead < 1024) throw new InvalidDataException("The TAR archive is truncated.");
     }
 
+    private void ValidateFileEntry(TarEntry entry, string name, TarArchiveOptions options, long total)
+    {
+        if (entry.EntryType is not (TarEntryType.RegularFile or TarEntryType.V7RegularFile))
+            throw new NotSupportedException($"TAR entry '{name}' has unsupported type '{entry.EntryType}'.");
+        if (name.Length == 0) throw new InvalidDataException("A TAR file entry must have a resource path.");
+        if (_entries.ContainsKey(name)) throw new InvalidDataException($"Duplicate TAR entry '{name}'.");
+        if (entry.Length > options.MaxEntryBytes || entry.Length > options.MaxTotalBytes - total)
+            throw new InvalidDataException($"TAR size limit exceeded by '{name}'.");
+    }
+
+    private async Task<StoredEntry> StoreEntryAsync(TarEntry entry, TarArchiveOptions options, long availableMemory)
+    {
+        if (entry.Length > availableMemory || entry.Length > int.MaxValue)
+            return await StoreFileAsync(entry, options).ConfigureAwait(false);
+        var bytes = new byte[(int)entry.Length];
+        if (entry.DataStream is not null)
+            await entry.DataStream.ReadExactlyAsync(bytes).ConfigureAwait(false);
+        return new StoredEntry(bytes, null);
+    }
+
+    private async Task<StoredEntry> StoreFileAsync(TarEntry entry, TarArchiveOptions options)
+    {
+        _temporaryDirectory ??= TarTemporaryDirectory.Resolve(options.TemporaryDirectory);
+        var path = Path.Combine(_temporaryDirectory, $"packata-tar-{Guid.NewGuid():N}.tmp");
+        var file = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite,
+            FileShare.Read | FileShare.Delete, 81920, FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+        try
+        {
+            if (entry.DataStream is not null)
+                await entry.DataStream.CopyToAsync(file).ConfigureAwait(false);
+            if (file.Length != entry.Length) throw new InvalidDataException($"Truncated TAR entry '{entry.Name}'.");
+            await file.FlushAsync().ConfigureAwait(false);
+            return new StoredEntry(null, file);
+        }
+        catch
+        {
+            await file.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
     private static string NormalizePath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);

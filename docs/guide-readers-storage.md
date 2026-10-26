@@ -219,9 +219,16 @@ resources inside an archive are separate from this outer compression layer.
 
 TAR input is consumed once during `LocateAsync`, including for non-seekable HTTP
 streams. Entry order does not matter. Small entry contents share the configured
-memory budget; larger entries spill to randomly named temporary files under
-`TarArchiveOptions.TemporaryDirectory` (the system temporary directory by default).
-That directory must already exist and be writable. Resource streams are independent,
+memory budget; larger entries spill to randomly named temporary files. With
+`TarArchiveOptions.TemporaryDirectory` left null, Packata creates a private
+`Packata/archives` directory under the current user's local application data.
+It uses an owner-only Windows ACL or Unix mode `0700`. Spill files are deleted
+when released; the empty application directory remains available for later reads.
+To choose another directory, set `TemporaryDirectory` to an existing private,
+writable directory. Publicly accessible directories and symbolic links/reparse
+points are rejected. On Windows, access rules may also grant access to SYSTEM
+and local Administrators. If local application data is unavailable, configure
+a private directory explicitly. Resource streams are independent,
 so a resource can be opened repeatedly or alongside another resource. Entry paths
 are case-sensitive, normalize `.` and separators, and reject parent traversal,
 absolute paths and duplicates. Directories are skipped; links and other special

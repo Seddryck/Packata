@@ -2,6 +2,8 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net;
 using System.Text;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Moq;
 using NUnit.Framework;
 using Packata.Core.Storage;
@@ -11,14 +13,85 @@ namespace Packata.Storages.Testing;
 public class TarDataPackageContainerTests
 {
     private string _directory = null!;
+    private string _rootDirectory = null!;
 
     [SetUp]
-    public void SetUp() => _directory = Directory.CreateTempSubdirectory("packata-tar-tests-").FullName;
+    public void SetUp()
+    {
+        _rootDirectory = Directory.CreateTempSubdirectory("packata-tar-tests-").FullName;
+        _directory = TarTemporaryDirectory.CreatePrivateDirectory(Path.Combine(_rootDirectory, "private")).FullName;
+    }
 
     [TearDown]
-    public void TearDown() => Directory.Delete(_directory, recursive: true);
+    public void TearDown() => Directory.Delete(_rootDirectory, recursive: true);
 
     private TarArchiveOptions Options => new() { TemporaryDirectory = _directory };
+
+    [Test]
+    public async Task Default_spill_directory_is_private_and_files_are_cleaned_up()
+    {
+        Assert.That(new TarArchiveOptions().TemporaryDirectory, Is.Null);
+        var directory = TarTemporaryDirectory.Resolve(null);
+        Assert.That(directory, Does.StartWith(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)));
+        AssertPrivate(directory);
+        var before = Directory.GetFiles(directory);
+        using (var container = await TarDataPackageContainer.CreateAsync(new Uri("file:///package.tar"),
+            new MemoryStream(Bundle()), new TarArchiveOptions { MemoryThresholdBytes = 0 }))
+        {
+            using var reader = new StreamReader(await container.OpenAsync("data/one.csv"));
+            Assert.That(await reader.ReadToEndAsync(), Is.EqualTo("id\n1\n"));
+            Assert.That(Directory.GetFiles(directory).Except(before).Count(), Is.EqualTo(3));
+        }
+        Assert.That(Directory.GetFiles(directory), Is.EquivalentTo(before));
+    }
+
+    [Test]
+    public async Task Public_spill_directory_is_rejected_before_writing_content()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var directory = new DirectoryInfo(_directory);
+            var security = directory.GetAccessControl();
+            security.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null),
+                FileSystemRights.ReadAndExecute, AccessControlType.Allow));
+            directory.SetAccessControl(security);
+        }
+        else File.SetUnixFileMode(_directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+            | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+
+        var input = new NonSeekableStream(Bundle());
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(async () => await TarDataPackageContainer.CreateAsync(
+            new Uri("file:///package.tar"), input, Options with { MemoryThresholdBytes = 0 }));
+        Assert.That(input.Disposed, Is.True);
+        Assert.That(Directory.GetFiles(_directory), Is.Empty);
+    }
+
+    [Test]
+    public async Task Missing_spill_directory_is_rejected_and_input_closed()
+    {
+        var input = new NonSeekableStream(Bundle());
+        await Assert.ThrowsAsync<DirectoryNotFoundException>(async () => await TarDataPackageContainer.CreateAsync(
+            new Uri("file:///package.tar"), input,
+            Options with { MemoryThresholdBytes = 0, TemporaryDirectory = Path.Combine(_directory, "missing") }));
+        Assert.That(input.Disposed, Is.True);
+    }
+
+    private static void AssertPrivate(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var security = new DirectoryInfo(path).GetAccessControl();
+            Assert.That(security.AreAccessRulesProtected, Is.True);
+            foreach (FileSystemAccessRule rule in security.GetAccessRules(true, true, typeof(SecurityIdentifier)))
+            {
+                if (rule.AccessControlType == AccessControlType.Allow)
+                    Assert.That(rule.IdentityReference, Is.EqualTo(identity.User));
+            }
+        }
+        else Assert.That(File.GetUnixFileMode(path), Is.EqualTo(
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute));
+    }
 
     [TestCase(ArchiveCompression.None, "tar")]
     [TestCase(ArchiveCompression.Gzip, "tar.gz")]

@@ -10,7 +10,8 @@ public sealed record TarArchiveOptions
     public long MaxArchiveBytes { get; init; } = 5L << 30;
     /// <summary>Maximum combined entry content retained in memory; larger contents spill to disk.</summary>
     public long MemoryThresholdBytes { get; init; } = 8L << 20;
-    public string TemporaryDirectory { get; init; } = System.IO.Path.GetTempPath();
+    /// <summary>A private existing spill directory, or null to use Packata's private per-user directory.</summary>
+    public string? TemporaryDirectory { get; init; }
 
     internal void Validate()
     {
@@ -19,6 +20,6 @@ public sealed record TarArchiveOptions
         ArgumentOutOfRangeException.ThrowIfNegative(MaxTotalBytes);
         ArgumentOutOfRangeException.ThrowIfNegative(MaxArchiveBytes);
         ArgumentOutOfRangeException.ThrowIfNegative(MemoryThresholdBytes);
-        ArgumentException.ThrowIfNullOrWhiteSpace(TemporaryDirectory);
+        if (TemporaryDirectory is not null) ArgumentException.ThrowIfNullOrWhiteSpace(TemporaryDirectory);
     }
 }

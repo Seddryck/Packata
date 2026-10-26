@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Packata.Core.Storage;
 
 namespace Packata.Storages;
-public class ZipDataPackageContainer : IDocumentContainer, IDocumentContainerListable
+public class ZipDataPackageContainer : IDocumentContainerListable
 {
     private readonly Dictionary<string, ZipArchiveEntry> _entries;
     private readonly ZipArchive _archive;

@@ -49,30 +49,36 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         // The operation owns its HTTP client; retained archives no longer need it after loading.
         using var http = uri.IsFile ? null : new HttpClient();
         using var cancellation = cancellationToken.Register(() => http?.CancelPendingRequests());
-        IDocumentContainerListable? archive = null;
+        return IsArchive(source)
+            ? await LoadArchiveAsync(source, uri, http, format, cancellationToken, retainArchive).ConfigureAwait(false)
+            : await LoadDocumentAsync(source, uri, http, format, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<ContractSource> LoadDocumentAsync(string source, Uri uri, HttpClient? http,
+        string format, CancellationToken cancellationToken)
+    {
+        var baseUri = new Uri(uri, ".");
+        using var httpContainer = uri.IsFile ? null : new HttpDataPackageContainer(baseUri, http);
+        await using var stream = uri.IsFile ? File.OpenRead(uri.LocalPath)
+            : await httpContainer!.OpenAsync(uri.Segments[^1] + uri.Query).ConfigureAwait(false);
+        var text = await ReadTextAsync(stream, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Parse(source, baseUri, uri.AbsolutePath, text, format);
+    }
+
+    private static async Task<ContractSource> LoadArchiveAsync(string source, Uri uri, HttpClient? http,
+        string format, CancellationToken cancellationToken, bool retainArchive)
+    {
+        var archive = await OpenArchiveAsync(uri, http).ConfigureAwait(false);
         var retained = false;
         try
         {
-            var descriptor = uri.AbsolutePath;
-            var baseUri = new Uri(uri, ".");
-            string text;
-            if (IsArchive(source))
-            {
-                archive = await OpenArchiveAsync(uri, http).ConfigureAwait(false);
-                descriptor = await FindArchiveDescriptorAsync(archive).ConfigureAwait(false);
-                await using var entry = await archive.OpenAsync(descriptor).ConfigureAwait(false);
-                text = await ReadTextAsync(entry, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                using var httpContainer = uri.IsFile ? null : new HttpDataPackageContainer(baseUri, http);
-                await using var stream = uri.IsFile ? File.OpenRead(uri.LocalPath)
-                    : await httpContainer!.OpenAsync(uri.Segments[^1] + uri.Query).ConfigureAwait(false);
-                text = await ReadTextAsync(stream, cancellationToken).ConfigureAwait(false);
-            }
+            var descriptor = await FindArchiveDescriptorAsync(archive).ConfigureAwait(false);
+            await using var entry = await archive.OpenAsync(descriptor).ConfigureAwait(false);
+            var text = await ReadTextAsync(entry, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            var result = Parse(source, baseUri, descriptor, text, format);
-            if (retainArchive && archive is not null)
+            var result = Parse(source, new Uri(uri, "."), descriptor, text, format);
+            if (retainArchive)
             {
                 result = result with { Archive = archive, ArchiveDescriptor = descriptor };
                 retained = true;
@@ -81,10 +87,9 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         }
         finally
         {
-            if (!retained) archive?.Dispose();
+            if (!retained) archive.Dispose();
         }
     }
-
     private static async Task<IDocumentContainerListable> OpenArchiveAsync(Uri uri, HttpClient? http)
     {
         var locator = new DataPackageLocatorBuilder()
