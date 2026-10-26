@@ -141,3 +141,48 @@ call cannot be interrupted midway. Scalar result/type errors remain execution er
 | Versions | Reuse the repository's single calculated release version and release-only publication boundary. |
 | Prerequisites | Existing tracked icon/README; no additional generator or external tool. |
 | Packaging | Include projects in library solution filter, compiled-output transfer, package list and artifact validator. |
+
+## ODCS Library catalog
+
+`LibraryQualityCompiler` resolves `IMetricCatalog` by exact catalog, version and name.
+The shipped catalog is `odcs/3.2.0`, program version `packata-odcs/1`. A different
+version is a different semantic contract, never a silent upgrade. Unknown versions,
+metrics, arguments, scopes and units are compilation findings. Catalog definitions
+carry argument schemas, result type, supported targets/units and Expressif projection,
+selection, generic reduction and finalization programs. The compiler contains no
+metric-name dispatch. An injected catalog may supply other definitions.
+
+| Metric | Scope | Exact version 1 behavior |
+|---|---|---|
+| rowCount | Asset | Count every row, including rows with null fields. Rows only. Empty input is zero. |
+| nullValues | Field | Count null/DBNull cells; empty strings and markers remain distinct. |
+| missingValues | Field | Require `missingValues`, a typed scalar array; count exact typed membership. An empty array matches nothing. |
+| invalidValues | Field | Require `validValues` and/or `pattern`; validity requires every supplied criterion. Pattern only matches strings; null is valid only with explicit membership and no pattern. |
+| duplicateValues | Field or asset | Count excess occurrences after the first occurrence of each typed key. Asset scope requires non-empty `properties` containing logical top-level field names. Nulls participate in equality. |
+
+All field metrics and composite duplicates support `rows` (default) and `percent`.
+The denominator is every scanned row; percentage is `100 * numerator / denominator`.
+Numerator/denominator are retained as bounded summary evidence. Zero-denominator
+percentages are Inconclusive. Rows with missing physical fields cause Inconclusive;
+source readers' explicit missing-value normalization precedes evaluation. Packata adds
+no implicit equivalence between null, empty string, and a declared marker.
+
+Membership and composite equality reuse `ScalarValue`, so integer 1, decimal 1 and
+string "1" are different keys. Numeric expectation comparisons are mathematical.
+The [ODCS metric reference](https://bitol-io.github.io/open-data-contract-standard/v3.2.0/data-quality/)
+defines names, scopes and units; version 1 explicitly chooses excess duplicate counts,
+null-key participation, and conjunctive validity where that reference is underspecified.
+
+The pinned Expressif version lacks canonical typed-set membership and bounded regex
+matching. The catalog adds reusable `TypedMembership` and `BoundedPattern` Expressif
+predicates through a local factory/type mapper and composes them with
+`PredicationBuilder`. Their arguments use typed context variables, never string
+interpolation. Regex uses .NET culture-invariant semantics with a 100 ms match timeout.
+There is no global registry mutation. Ordinary custom programs cannot invoke these
+catalog-only predicates. Projection and percentage finalization use prepared Expressif
+expressions; host machinery only scans, counts selections and groups keys.
+
+Counting scans in constant space. Duplicate grouping and membership sets are bounded
+by `MaxStateEntries`; row scans are bounded by `MaxRows`. Exhaustion is Inconclusive,
+never an approximate pass. Readers are disposed on every exit. No scheduler, category
+label decoding, implicit array flattening or SQL fallback is provided.
