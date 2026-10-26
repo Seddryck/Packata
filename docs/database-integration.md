@@ -48,6 +48,31 @@ connectors.
 Start with a local contract that already describes the database asset and its
 endpoint. You can find their identifiers with `contract inspect`.
 
+The CLI can build the connection URL from the contract's mapped connection
+fields, such as the database scheme, host, port and database name. You do not
+have to assemble a URL yourself when the contract already supplies the details
+needed to connect. If the contract supplies a complete connection URL instead,
+that URL takes precedence over conflicting structured fields.
+
+For an asset named `customers`, preview records or discover table metadata with:
+
+```console
+packata data preview contract.yaml --asset customers --limit 2
+packata schema infer contract.yaml --asset customers
+```
+
+These commands use the connection described in the contract. The first reads up
+to two rows; the second reports inferred table metadata without changing the
+descriptor. Both still need an available connector and whatever authentication
+the database requires.
+
+### Override the connection at runtime
+
+Use `--connection-env` when you want to replace the contract's connection details
+for a particular run, for example to select a different environment or supply
+credentials outside the descriptor. This is optional, not a prerequisite for
+database access.
+
 For the following example, assume `contract.yaml` is your ODCS descriptor, its
 asset is named `customers`, and the database endpoint is named `warehouse`.
 Your environment variable `WAREHOUSE_URL` must contain the runtime connection URL.
@@ -72,6 +97,10 @@ Inference reports database metadata without changing the descriptor by default.
 Review its diagnostics because some databases or providers return partial metadata.
 A missing environment variable, unknown or duplicate endpoint override, or malformed
 URL fails before connector acquisition.
+
+This override currently takes a complete URL. The CLI does not expose separate
+runtime host, port, username or password options for building an override from
+individual values.
 
 If several connectors support the database scheme, select one for this invocation
 with `--connector postgresql=postgresql-npgsql`. Both `--connector` and
