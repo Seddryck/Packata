@@ -44,6 +44,33 @@ all rows satisfy every contract rule. The
 [preview reference]({{ '/cli/' | relative_url }}#preview-bound-data) lists all
 options and supported sources.
 
+## Preview a zipped data package
+
+You can distribute the descriptor and CSV files together in a ZIP and preview the
+selected resource directly, without extracting the package:
+
+```text
+dataset.zip
+|-- datapackage.json
+`-- data/
+    |-- customers.csv
+    `-- orders.csv
+```
+
+In `datapackage.json`, the `customers` resource uses `"path": "data/customers.csv"`.
+Read it with the same preview options:
+
+```console
+packata data preview dataset.zip --asset customers --columns name,id --limit 2 --output-format csv
+```
+
+Only the selected resource is opened. The ZIP must contain exactly one supported
+descriptor; CSV paths resolve relative to its directory inside the archive.
+Local ZIP files and accessible HTTP(S) ZIP URLs are supported. Missing descriptors
+or referenced entries produce an error. Preview leaves the archive unchanged.
+This ZIP support applies to preview; schema inference still requires a local,
+unpacked descriptor.
+
 ## Infer a schema from the data
 
 Use `schema infer` when a contract has missing or outdated field definitions.

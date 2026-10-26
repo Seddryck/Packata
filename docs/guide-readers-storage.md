@@ -29,7 +29,7 @@ restrict the dataset to files:
 | Task | Accepted descriptor locations |
 | --- | --- |
 | Validate, inspect, diff, assess compatibility, or export metadata | Local files, HTTP(S) URLs, or local and remote ZIP archives |
-| Preview records | An unpacked local or HTTP(S) descriptor |
+| Preview records | Local or HTTP(S) descriptors, or local and remote ZIP packages containing a descriptor and CSV resources |
 | Infer a schema | A local descriptor, including a file without an extension |
 
 Packata normally detects the contract standard from its contents. If you need to
@@ -57,7 +57,7 @@ you are loading a contract or reading the data it describes:
 | --- | --- | --- |
 | Local files | Yes | Yes, for supported formats |
 | HTTP(S) | Yes | Yes, for supported formats at accessible HTTP(S) URLs |
-| Local or HTTP(S) ZIP archives | Yes, for validation, inspection, diff, compatibility analysis and metadata export | No; unpack the package first |
+| Local or HTTP(S) ZIP archives | Yes, for validation, inspection, diff, compatibility analysis, metadata export and preview | Yes, for CSV resources inside the package |
 | Native S3 storage | No | No |
 | Native Azure storage | No | No |
 
@@ -65,6 +65,15 @@ Preview resolves relative data paths against the contract's location. A contract
 served over HTTP(S) can therefore refer to data files alongside it. A local
 contract can also refer to an absolute HTTP(S) data URL. Schema inference has
 its own restriction: the contract file must be local.
+
+For a zipped data package, preview reads CSV entries without extracting them. The
+ZIP must contain exactly one descriptor named `datapackage.json`, `datapackage.yaml`,
+`datapackage.yml`, `contract.yaml` or `contract.yml`. Resource paths resolve relative
+to that descriptor inside the archive, so a descriptor in `package/` can reference
+`data/customers.csv` at `package/data/customers.csv`. Select a resource with
+`--asset`; a package can contain several CSV resources. See the
+[data guide]({{ '/guides/data/' | relative_url }}#preview-a-zipped-data-package)
+for an example.
 
 An S3 or Azure object exposed at an accessible HTTP(S) URL can be read through
 that URL, for a supported data format. That uses HTTP access, not an S3 or Azure
