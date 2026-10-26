@@ -82,9 +82,9 @@ public class DataPackageLocatorBuilder
                     return new StowageDataPackageContainer(uri, store);
                 });
 
-        public KeyValuePair<string, Func<Uri, IDocumentContainer>> UseHttp(HttpClient? client = null)
+        public KeyValuePair<string, Func<Uri, IDocumentContainer>> UseHttp(HttpClient? client = null, CancellationToken cancellationToken = default)
             => new(_scheme,
-                (uri) => new HttpDataPackageContainer(uri, client ?? new HttpClient()));
+                (uri) => new HttpDataPackageContainer(uri, client, cancellationToken));
 
         public IAzureBuilder UseAzure(string accountName)
             => new AzureBuilder(_scheme, accountName);
@@ -132,18 +132,18 @@ public class DataPackageLocatorBuilder
         internal WrapperBuilder(string extension)
             => _extension = extension;
 
-        public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseZipArchive()
+        public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseZipArchive(CancellationToken cancellationToken = default)
             => new(_extension.StartsWith('.') ? _extension : '.' + _extension,
-                uri => new ZipContainerWrapper());
+                uri => new ZipContainerWrapper(cancellationToken));
 
         public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseTarArchive(
-            ArchiveCompression compression = ArchiveCompression.None, TarArchiveOptions? options = null)
+            ArchiveCompression compression = ArchiveCompression.None, TarArchiveOptions? options = null, CancellationToken cancellationToken = default)
         {
             if (!Enum.IsDefined(compression)) throw new ArgumentOutOfRangeException(nameof(compression));
             options ??= new TarArchiveOptions();
             options.Validate();
             return new(_extension.StartsWith('.') ? _extension : '.' + _extension,
-                uri => new TarContainerWrapper(compression, options));
+                uri => new TarContainerWrapper(compression, options, cancellationToken));
         }
     }
 }

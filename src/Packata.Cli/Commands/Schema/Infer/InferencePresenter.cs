@@ -12,7 +12,7 @@ internal static class InferencePresenter
         DataEndpoint endpoint)
     {
         AnsiConsole.MarkupLine($"[bold]Inferred asset:[/] {Markup.Escape(asset.Id)}");
-        AnsiConsole.MarkupLine($"[bold]Source:[/] {Markup.Escape(Display(endpoint.Location))}");
+        AnsiConsole.MarkupLine($"[bold]Source:[/] {Markup.Escape(SafeText(Display(endpoint.Location)))}");
 
         var fields = new Table().Border(TableBorder.Rounded)
             .AddColumn("Field")
@@ -87,6 +87,14 @@ internal static class InferencePresenter
         var confidenceText = confidence.HasValue ? $" (confidence {confidence:P0})" : string.Empty;
         AnsiConsole.MarkupLine(
             $"[{color}]{Markup.Escape(severity)} {Markup.Escape(code)}:[/] " +
-            $"{Markup.Escape(message + confidenceText)}");
+            $"{Markup.Escape(SafeText(message + confidenceText))}");
     }
+
+    internal static string SafeText(string text) => CommandOutput.Redact(System.Text.RegularExpressions.Regex.Replace(
+        text, @"[^\s<>""']+[?#][^\s<>""']+", match =>
+        {
+            var value = match.Value;
+            var end = value.IndexOfAny(['?', '#']);
+            return end < 0 ? value : value[..end] + "[redacted]";
+        }, System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)));
 }

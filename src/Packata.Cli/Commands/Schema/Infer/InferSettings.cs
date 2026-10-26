@@ -15,7 +15,7 @@ internal sealed class InferSettings : DatabaseCommandSettings
     public string? Output { get; init; }
 
     [CommandOption("--write")]
-    [Description("Atomically update the source document in place.")]
+    [Description("Atomically update an ordinary local descriptor; remote/archive sources are rejected.")]
     public bool Write { get; init; }
 
     [CommandOption("--maximum-records <COUNT>")]

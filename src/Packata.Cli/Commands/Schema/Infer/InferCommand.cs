@@ -15,7 +15,11 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var document = ContractDocument.Load(settings.Source, settings.InputFormat);
+            if (settings.Write && (ContractSource.IsArchive(settings.Source)
+                || (Uri.TryCreate(settings.Source, UriKind.Absolute, out var sourceUri) && !sourceUri.IsFile)))
+                throw new NotSupportedException("--write requires an ordinary local descriptor; remote descriptors and archives cannot be replaced.");
+            using var document = await ContractDocument.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
+            var outputDocument = settings.Output is null ? document : StandaloneInferenceOutput.Prepare(document);
             CliDatabase.ResolveOverrides(document.Contract.Endpoints, settings.ConnectionEnvironment);
             CliDatabase.ParsePairs(settings.Connectors, "--connector");
             var asset = InferenceService.SelectAsset(document.Contract, settings.Asset);
@@ -39,10 +43,11 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
             if (settings.Write || settings.Output is not null)
             {
                 var update = ContractDocumentUpdater.Update(
-                    document, asset, endpoint, inference.Asset, inference.Endpoint);
+                    outputDocument, asset, endpoint, inference.Asset, inference.Endpoint);
                 foreach (var warning in update.Warnings)
                     AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
                 var target = settings.Write ? document.SourcePath : Path.GetFullPath(settings.Output!);
+                cancellationToken.ThrowIfCancellationRequested();
                 ContractDocumentWriter.Write(target, update.Content, overwrite: settings.Write);
                 AnsiConsole.MarkupLine($"[green]Written:[/] {Markup.Escape(target)}");
             }
@@ -57,7 +62,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         catch (Exception exception)
         {
             if (databaseOperation) return CliOutput.Error(exception);
-            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(exception.Message)}");
+            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(InferencePresenter.SafeText(exception.Message))}");
             return 1;
         }
     }

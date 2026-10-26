@@ -12,11 +12,15 @@ public class HttpStorageHandler : IStorageHandler
 {
     protected readonly HttpClient _client;
     private readonly bool _disposeClient;
+    private readonly CancellationToken _cancellationToken;
+    /// <summary>The final response location after the client's redirect policy has been applied.</summary>
+    public Uri? ResponseUri { get; private set; }
 
-    public HttpStorageHandler(HttpClient? httpClient = null)
+    public HttpStorageHandler(HttpClient? httpClient = null, CancellationToken cancellationToken = default)
     {
         _disposeClient = httpClient is null;
         _client = httpClient ?? new HttpClient();
+        _cancellationToken = cancellationToken;
     }
 
     public virtual Task<Stream> OpenAsync(string absolutePath)
@@ -27,7 +31,15 @@ public class HttpStorageHandler : IStorageHandler
         ThrowIfDisposed();
         try
         {
-            return await _client.GetStreamAsync(uri);
+            var response = await _client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, _cancellationToken).ConfigureAwait(false);
+            try
+            {
+                response.EnsureSuccessStatusCode();
+                ResponseUri = response.RequestMessage?.RequestUri ?? uri;
+                var stream = await response.Content.ReadAsStreamAsync(_cancellationToken).ConfigureAwait(false);
+                return new BoundedReadStream(stream, SeekableStaging.DefaultMaximumBytes, _cancellationToken, response);
+            }
+            catch { response.Dispose(); throw; }
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {

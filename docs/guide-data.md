@@ -205,8 +205,9 @@ resolved relative to the descriptor, including `../` paths that stay inside the 
 Streams and temporary storage are released after success, failure or cancellation.
 See the [storage guide]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net)
 for limits and patched Brotli runtime requirements.
-Archive support applies to preview; schema inference still requires a local,
-unpacked descriptor.
+Schema inference also accepts these archive formats and HTTP/HTTPS descriptors and
+data files, including CSV-family, Excel and Parquet resources. See [inference transport,
+staging limits and output restrictions]({{ '/cli-inference/' | relative_url }}).
 
 ## Infer a schema from the data
 

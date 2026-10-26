@@ -17,27 +17,46 @@ packata infer <SOURCE> --asset <ID> [OPTIONS]
 ```
 
 The `infer` entry point is an alias for schema inference, with the same options and behavior.
-Supply a local ODCS YAML or Data Package v2 JSON/YAML descriptor. Packata detects its standard
+Supply an ODCS YAML or Data Package v2 JSON/YAML descriptor. Packata detects its standard
 from the contents unless you set `--input-format`, and accepts extensionless descriptors.
-This loader does not accept remote descriptors or ZIP, TAR, TAR.GZ or TAR.BR archives.
+Descriptors can be local or served over HTTP/HTTPS, directly or inside ZIP, TAR,
+TAR.GZ or TAR.BR archives. Archives use the [shared descriptor-selection rules]({{ '/cli/' | relative_url }}).
 
 Select one exact asset with exactly one endpoint binding. For CSV inference, that binding
-must provide a single CSV, TSV or PSV path; an ODCS CSV endpoint must be a local file.
+must provide a single CSV, TSV or PSV path.
 For a database, the shared service discovers the selected physical object's metadata and
 reports diagnostics when discovery is partial.
 
 Excel (`xls`/`xlsx`) and Parquet (`parquet`/`pqt`) bindings also use one file path.
 Parquet extracts declared footer metadata without sampling rows; Excel profiles one
-rectangular worksheet and reports sampling uncertainty. ODCS file endpoints must be
-local; Data Package resources use the existing resource resolver. Explicit format takes
-precedence over a recognized media type and path extension. Streams must be seekable.
+rectangular worksheet and reports sampling uncertainty. Both standards support local,
+HTTP/HTTPS and archive-relative files. Relative paths resolve against the descriptor's
+local directory, remote URL directory, or archive member directory. Absolute HTTP/HTTPS
+data URLs are independent of that base. Archive traversal outside the root is rejected.
+Explicit format takes precedence over a recognized media type and path extension,
+including URLs with query parameters or no extension. Unsupported formats remain unsupported.
+
+Excel and Parquet require seekable streams. The CLI stages non-seekable HTTP/ZIP
+inputs into temporary files, deleted on success, failure or cancellation. Staging is
+limited to 256 MiB; Excel additionally enforces its workbook limit (64 MiB by default,
+or `--maximum-bytes`). Limits are checked while copying, even without Content-Length.
+HTTP descriptor/archive transfers and non-seekable resource reads also have a 256 MiB
+limit. TAR materialization retains its separate [storage limits]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net).
+Parquet still reads only footer metadata after staging; staging may transfer the entire
+file, without materializing rows. Existing footer/field/depth and sampling limits apply.
+
+HTTP uses the existing GET transport and .NET redirect behavior. Public and pre-signed
+HTTPS object URLs work without native cloud-provider configuration. No CLI HTTP header,
+interactive login or credential configuration is added; do not put credentials in
+descriptors. HTTP errors fail inference without writing output. Displayed URLs redact
+queries, fragments and user information. Native `s3://` and Azure schemes are unsupported.
 
 | Option | Values / default | Meaning |
 | --- | --- | --- |
-| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source-standard selection; descriptor must still be local |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source-standard selection, independent of descriptor transport |
 | `--asset <ID>` | Required | Exact canonical asset identifier |
 | `--output <PATH>`, `-o <PATH>` | Omitted | Write an enriched copy to a **new** file; missing parent directories are created |
-| `--write` | Off | Atomically replace the source with its enriched form; mutually exclusive with `--output` |
+| `--write` | Off | Atomically replace an ordinary local descriptor; rejected for remote/archive sources; mutually exclusive with `--output` |
 | `--maximum-records <COUNT>` | Positive integer; `1000` | Maximum sampled CSV/Excel data records; ignored for databases, rejected for Parquet |
 | `--maximum-bytes <COUNT>` | Positive integer; CSV unlimited, Excel 64 MiB when omitted | CSV sample byte limit or complete Excel workbook byte limit; ignored for databases, rejected for Parquet |
 | `--culture <NAME>` | Invariant culture when omitted/empty | Culture for inferred CSV values, e.g. `fr-FR`; ignored for databases |
@@ -66,6 +85,8 @@ packata schema infer datapackage.json --asset customers --no-dialect-inference -
 packata schema infer contract.yaml --asset customers --connector postgresql=postgresql-npgsql --connection-env warehouse=WAREHOUSE_URL
 packata schema infer workbook-contract.yaml --asset measurements --sheet-name Measurements --header present --write
 packata schema infer parquet-contract.yaml --asset measurements --output enriched.yaml
+packata schema infer https://example.org/contracts/contract.yaml --asset customers
+packata schema infer https://example.org/packages/package.tar.gz --asset customers
 ```
 
 ## Output and mutation
@@ -77,6 +98,13 @@ output contract.
 Without an output option, the descriptor is left unchanged. Choose `--output` to create a
 new enriched file; an existing file is refused. Choose `--write` only when you want to replace
 the source itself. That update has no overwrite prompt.
+
+`--write` is rejected for remote and archived descriptors before acquisition. `--output`
+normalizes all remote-relative resource paths to absolute URLs and reports `CLI131` so
+reloading the standalone descriptor retains their original targets. Archived descriptors
+can be saved only when all resource references already use absolute locators; archive-relative
+references cause an explicit refusal before any output is written. Archives are neither
+extracted nor repackaged by inference. Updates retain atomic local-write protections.
 
 An update enriches the selected resource or schema and its endpoint metadata. It does not
 convert the document into another standard. Review preservation warnings before accepting it:
@@ -99,8 +127,7 @@ stream ownership, resource limits and further limitations.
 
 Runtime connection overrides are not saved in the enriched contract. Relative output paths
 resolve from the working directory, while data paths resolve from the contract's resource
-context. File-inference errors may include source-specific text, so redact sensitive details
-before sharing logs.
+context. Temporary staging filenames never replace resource identities.
 
 ## Exit codes
 
