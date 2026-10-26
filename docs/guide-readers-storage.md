@@ -141,6 +141,29 @@ If the format is recognized but the provider is missing, Packata throws
 `ReaderProviderUnavailableException`. Its message names the package and
 registration method to add.
 
+### Read compressed delimited resources
+
+The built-in delimited reader supports CSV, TSV and PSV resources compressed with
+Brotli (`.br`) or Gzip (`.gz` and `.gzip`), including HTTP(S) URLs with query
+strings. It preserves the underlying format and delegates decompression to
+PocketCsvReader.
+
+For paths without a compression suffix, set canonical format metadata explicitly:
+
+```csharp
+var format = new DataFormat("csv", Compression: "brotli");
+// "br" is also accepted, as is the compound format new DataFormat("csv.br").
+```
+
+`DataFormat` is in `Packata.Core.Contracts`. Its explicit `Compression` value
+takes precedence over compression inferred from the compound format, media type
+or path. A compound format such as `csv.br` takes precedence over the media type
+and path. Compression identifiers are case-insensitive and may have a leading dot.
+
+This configuration compresses an individual resource. Whole-package `.tar.br`
+archives use the storage configuration below. HTTP `Content-Encoding: br`
+describes transport encoding and is separate from resource compression.
+
 ## Resolve file locations in a .NET application
 
 Resolve relative data paths against the directory containing the descriptor. If

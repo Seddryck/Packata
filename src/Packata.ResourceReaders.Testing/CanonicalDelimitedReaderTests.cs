@@ -194,16 +194,86 @@ public class CanonicalDelimitedReaderTests
             Throws.TypeOf<InvalidOperationException>());
     }
 
-    [Test]
-    public async Task OpenAsync_infers_gzip_compression_from_path()
+    [TestCase("data.csv.gz")]
+    [TestCase("data.csv.gzip")]
+    [TestCase("https://example.test/data.csv.gz?download=1")]
+    public async Task OpenAsync_infers_gzip_compression_from_path(string path)
     {
         var bytes = Compress("id,name\r\n1,alpha\r\n");
-        var resolver = new DictionaryResolver(("data.csv.gz", bytes));
+        var resolver = new DictionaryResolver((path, bytes));
 
-        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(Endpoint(["data.csv.gz"]));
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(Endpoint([path]));
 
         Assert.That(reader.Read(), Is.True);
         Assert.That(reader["name"], Is.EqualTo("alpha"));
+    }
+
+    [TestCase("data.csv.br", ',')]
+    [TestCase("data.tsv.br", '\t')]
+    [TestCase("data.psv.br", '|')]
+    [TestCase("DATA.CSV.BR", ',')]
+    [TestCase("https://example.test/data.tsv.br?download=1", '\t')]
+    public async Task OpenAsync_infers_brotli_compression_and_underlying_format(string path, char delimiter)
+    {
+        var bytes = CompressBrotli($"id{delimiter}name\r\n1{delimiter}alpha\r\n");
+        var resolver = new DictionaryResolver((path, bytes));
+
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(Endpoint([path]));
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader.FieldCount, Is.EqualTo(2));
+        Assert.That(reader["id"], Is.EqualTo("1"));
+        Assert.That(reader["name"], Is.EqualTo("alpha"));
+        Assert.That(reader.Read(), Is.False);
+    }
+
+    [TestCase("data.csv", "csv", "brotli", null)]
+    [TestCase("data.csv", "csv", "br", null)]
+    [TestCase("data.csv", "csv", " .BR ", null)]
+    [TestCase("https://example.test/download?name=data.csv.gz", "csv", "br", null)]
+    [TestCase("data.csv.gz", "csv", "brotli", "application/gzip")]
+    [TestCase("data.csv.gz", "csv.gz", "br", null)]
+    [TestCase("data", "csv.br", null, null)]
+    [TestCase("data", " .CSV.BR ", null, null)]
+    [TestCase("data.csv.gz", "csv.br", null, null)]
+    public async Task OpenAsync_reads_brotli_with_explicit_metadata(string path, string name,
+        string? compression, string? mediaType)
+    {
+        var resolver = new DictionaryResolver((path, CompressBrotli("id,name\r\n1,alpha\r\n")));
+        var endpoint = Endpoint([path], new DataFormat(name, mediaType, Compression: compression));
+
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(endpoint);
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha"));
+        Assert.That(reader.Read(), Is.False);
+    }
+
+    [TestCase("data.csv.br", "csv")]
+    [TestCase("data.csv.br", "csv.br")]
+    public async Task OpenAsync_explicit_gzip_overrides_brotli_inference(string path, string name)
+    {
+        var resolver = new DictionaryResolver((path, Compress("id,name\r\n1,alpha\r\n")));
+        var endpoint = Endpoint([path], new DataFormat(name, Compression: "gzip"));
+
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(endpoint);
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha"));
+        Assert.That(reader.Read(), Is.False);
+    }
+
+    [Test]
+    public async Task OpenAsync_reads_an_explicit_gzip_compound_format()
+    {
+        var resolver = new DictionaryResolver(("data", Compress("id,name\r\n1,alpha\r\n")));
+
+        using var reader = await new ResourceReaderFactory(resolver)
+            .OpenAsync(Endpoint(["data"], new DataFormat("csv.gz")));
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader["name"], Is.EqualTo("alpha"));
+        Assert.That(reader.Read(), Is.False);
     }
 
     [Test]
@@ -259,6 +329,14 @@ public class CanonicalDelimitedReaderTests
         using var output = new MemoryStream();
         using (var gzip = new GZipStream(output, CompressionLevel.SmallestSize, leaveOpen: true))
             gzip.Write(Encoding.UTF8.GetBytes(value));
+        return output.ToArray();
+    }
+
+    private static byte[] CompressBrotli(string value)
+    {
+        using var output = new MemoryStream();
+        using (var brotli = new BrotliStream(output, CompressionLevel.SmallestSize, leaveOpen: true))
+            brotli.Write(Encoding.UTF8.GetBytes(value));
         return output.ToArray();
     }
 

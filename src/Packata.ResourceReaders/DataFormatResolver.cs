@@ -23,6 +23,11 @@ internal sealed class DataFormatResolver
             explicitFormat = explicitFormat[..^3];
             compression ??= "gzip";
         }
+        else if (explicitFormat?.EndsWith(".br", StringComparison.Ordinal) == true)
+        {
+            explicitFormat = explicitFormat[..^3];
+            compression ??= "brotli";
+        }
 
         explicitFormat = Canonicalize(explicitFormat);
 
@@ -48,9 +53,9 @@ internal sealed class DataFormatResolver
         var extension = Normalize(Path.GetExtension(path));
         if (extension is null) return null;
         string? compression = null;
-        if (extension is "gz" or "gzip")
+        if (extension is "gz" or "gzip" or "br")
         {
-            compression = "gzip";
+            compression = extension == "br" ? "brotli" : "gzip";
             extension = Normalize(Path.GetExtension(Path.GetFileNameWithoutExtension(path)));
         }
         return extension is null ? null : new PathDataFormat(
