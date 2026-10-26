@@ -21,6 +21,19 @@
   color: #293c42;
   border-bottom: 2px solid #d5e3df;
 }
+.main-content table thead th { border-top: 2px solid #d99536; }
+.main-content h2 {
+  border-inline-start: 3px solid #d99536;
+  padding-inline-start: .65rem;
+}
+.main-content a:focus-visible,
+.site-nav a:focus-visible,
+.main-header a:focus-visible,
+.search-input:focus-visible {
+  outline: 2px solid #d99536;
+  outline-offset: 3px;
+}
+.main-content .btn-primary { border-bottom: 3px solid #d99536; }
 
 // Dark blocks are distinct from the quieter inline-code treatment.
 .main-content div.highlighter-rouge,
