@@ -129,13 +129,23 @@ internal sealed class SatisfactionAnalysis(SatisfactionInput producer, Satisfact
     {
         if (!CompatibilityRules.KnownType(field.LogicalType))
             SourceFinding(role, path.Append("type").Value, "SAT027", SatisfactionStatus.Unknown, "Custom or unspecified type semantics are unresolved.");
-        if (field.QualityRules.Count > 0 || SatisfactionExtensionCoverage.HasUnresolved(field.Extensions) || field.PhysicalType is not null || field.Format is not null)
-            SourceFinding(role, path.Value, "SAT028", SatisfactionStatus.Unknown, "Quality, physical capacity, format, or field extension semantics are unresolved.");
+        InspectFieldMetadata(field, role, path);
         foreach (var constraint in field.Constraints)
-            if (!CompatibilityRules.SupportedConstraintValue(constraint) && constraint.Kind is not ("precision" or "scale"))
-                SourceFinding(role, path.Append("constraints").Append(constraint.Kind).Value, "SAT029", SatisfactionStatus.Unknown, "Unsupported constraint semantics remain unresolved.");
+            InspectConstraint(constraint, role, path);
         foreach (var child in field.Children) InspectField(child, role, path.Append("properties").Append(child.Name));
         if (field.Items is { } items) InspectField(items, role, path.Append("items"));
+    }
+
+    private void InspectFieldMetadata(DataField field, string role, ContractPath path)
+    {
+        if (field.QualityRules.Count > 0 || SatisfactionExtensionCoverage.HasUnresolved(field.Extensions) || field.PhysicalType is not null || field.Format is not null)
+            SourceFinding(role, path.Value, "SAT028", SatisfactionStatus.Unknown, "Quality, physical capacity, format, or field extension semantics are unresolved.");
+    }
+
+    private void InspectConstraint(DataConstraint constraint, string role, ContractPath path)
+    {
+        if (!CompatibilityRules.SupportedConstraintValue(constraint) && constraint.Kind is not ("precision" or "scale"))
+            SourceFinding(role, path.Append("constraints").Append(constraint.Kind).Value, "SAT029", SatisfactionStatus.Unknown, "Unsupported constraint semantics remain unresolved.");
     }
 
     private void SourceFinding(string role, string path, string code, SatisfactionStatus status, string message)
@@ -189,10 +199,10 @@ internal sealed class SatisfactionAnalysis(SatisfactionInput producer, Satisfact
             return;
         }
         if (mode == FieldMatching.ByName) return;
-        var guaranteesSet = offered.FieldMatching is FieldMatching.OrderedExact or FieldMatching.Exact
-            || mode == FieldMatching.ClosedOptional && offered.FieldMatching == FieldMatching.ClosedOptional;
-        var orderFits = mode != FieldMatching.OrderedExact || offered.FieldMatching == FieldMatching.OrderedExact
-            && offered.Fields.Select(x => x.Name).SequenceEqual(accepted.Fields.Select(x => x.Name), StringComparer.Ordinal);
+        var guaranteesSet = (offered.FieldMatching is FieldMatching.OrderedExact or FieldMatching.Exact)
+            || (mode == FieldMatching.ClosedOptional && offered.FieldMatching == FieldMatching.ClosedOptional);
+        var orderFits = mode != FieldMatching.OrderedExact || (offered.FieldMatching == FieldMatching.OrderedExact
+            && offered.Fields.Select(x => x.Name).SequenceEqual(accepted.Fields.Select(x => x.Name), StringComparer.Ordinal));
         Add("SAT103", guaranteesSet && orderFits ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied,
             path.Append("fieldMatching"), offered.FieldMatching, mode, "Native closed-schema and ordered-field guarantees must fit the consumer's matching mode.");
     }

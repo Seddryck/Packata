@@ -21,6 +21,7 @@ The existing `packata infer` command remains available.
 | `contract inspect` | [Inspect](#inspect-the-canonical-contract) |
 | `contract diff` | [Factual differences](#compare-two-contract-versions) |
 | `contract compare` | [Consumer compatibility](#assess-consumer-compatibility) |
+| `contract satisfies` | [Producer/consumer satisfaction](#evaluate-producer-and-consumer-contracts) |
 | `schema export`, alias `export` | [JSON Schema](#export-a-dataset-schema) |
 | `schema infer`, alias `infer` | [Schema inference]({{ '/cli-inference/' | relative_url }}) |
 | `data preview` | [Read data](#preview-bound-data) |
@@ -35,6 +36,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 | Commands | Codes |
 | --- | --- |
 | validate, inspect, diff, schema export/export, dialect export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
+| contract satisfies | 0 gate passes; 1 Unsatisfied or default Unknown; 2 input/invocation/I/O/cancellation/analysis error or Unknown under error policy |
 | contract compare | Same base codes, plus 4 for a completed report failing the selected gate and 5 for incomplete analysis; see [details](#assess-consumer-compatibility) |
 | schema infer/infer | 0 success; 1 operation failure; 2 caught cancellation or invocation error; framework cancellation can return 130 |
 | config and connector discovery | 0 success; 1 operation/file failure; 2 invocation error |
@@ -665,3 +667,108 @@ continues to parse only metadata after acquisition.
 Cancellation is passed to opening and asynchronous reads, and checked between synchronous
 reads. A synchronous driver call cannot always be interrupted while it is running. Readers
 and the resources they own are disposed after completion, failure, cancellation or early stopping.
+
+<!-- cli:contract satisfies -->
+## Evaluate producer and consumer contracts
+
+`packata contract satisfies <PRODUCER> --consumer <SOURCE> [OPTIONS]`
+
+Both sources are ordinary, complete ODCS documents or Data Package v2 descriptors. Supported
+serializations are YAML and JSON. Same-standard pairs only; their IDs and versions may differ.
+Sources use the shared loader: local files, HTTP(S) descriptors, and supported ZIP/TAR archives.
+The operation reads declarations, never referenced datasets, connectors, or observed SLA metrics.
+
+| Option / alias | Values / default | Meaning |
+| --- | --- | --- |
+| `--consumer <SOURCE>` | Required | Complete consumer document in the producer's native standard |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Standard for both documents |
+| `--output-format <FORMAT>` | `text`, `json`; `text` | Human-readable report or versioned structured report |
+| `--format <FORMAT>` | `text`, `json` | Alias for output representation |
+| `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+| `--unknown <POLICY>` | `unsatisfied`, `ignore`, `error`; `unsatisfied` | Gate unresolved findings without changing them |
+| `--quiet` | Off | Suppress results and diagnostics; preserve exit code |
+
+```console
+packata contract satisfies producer.odcs.yaml --consumer consumer.odcs.yaml
+packata contract satisfies producer.datapackage.json --consumer consumer.datapackage.json --format json
+packata contract satisfies producer.odcs.yaml --consumer consumer.odcs.yaml --unknown ignore
+packata contract satisfies producer.odcs.yaml --consumer consumer.odcs.yaml --unknown error --quiet
+```
+
+For example, these are two native ODCS documents. Save the first as `producer.odcs.yaml`:
+
+```yaml
+apiVersion: v3.2.0
+kind: DataContract
+id: sales-producer
+version: 2.0.0
+status: active
+schema:
+  - name: orders
+    properties:
+      - name: order_id
+        logicalType: string
+        required: true
+        nullable: false
+        logicalTypeOptions:
+          maxLength: 30
+```
+
+Save the consumer as `consumer.odcs.yaml`:
+
+```yaml
+apiVersion: v3.2.0
+kind: DataContract
+id: sales-report
+version: 1.0.0
+status: active
+schema:
+  - name: orders
+    properties:
+      - name: order_id
+        logicalType: string
+        required: true
+        nullable: false
+        logicalTypeOptions:
+          maxLength: 50
+```
+
+The producer's maximum of 30 fits the consumer's maximum of 50. Reversing the roles fails.
+Removing the producer maximum also fails: the producer's permitted domain is unbounded.
+Removing the consumer maximum accepts any supported producer length.
+
+ODCS `required` expresses field presence independently of `nullable` (default false).
+Data Package `constraints.required` controls missing/null values (default false); native
+`fieldsMatch` separately determines field presence, closed sets, and ordering. The default
+`exact` requires the same ordered fields. `equal` compares a closed set by name; `subset` is
+open by name; `superset` permits an optional subset; `partial` remains Unknown.
+Absent optional consumer fields are reported as accepted absence; required missing fields fail,
+and dependent checks remain Unknown. Names match ordinally using canonical dataset identifiers
+and field names; no physical-name matching or rename inference occurs. Extra producer elements
+are informational under the default open-record policy unless native closed-schema semantics reject them. The .NET strict policy can reject extras.
+
+Fixed-decimal containment requires producer scale <= consumer scale and producer
+(precision - scale) <= consumer (precision - scale). ODCS `number`/`decimal`
+`logicalTypeOptions.precision` and `scale` map to canonical constraints. Incomplete decimal
+parameters, custom types, unsupported constraints, quality rules, storage-type capacities,
+format-specific semantics, and SLA/lifecycle semantics remain explicit Unknown findings.
+Ownership, descriptions, identities, versions, and connection locations are informational.
+Native unknown members and mapping warnings stay visible even when documents are identical.
+
+JSON has `schemaVersion: 1`, producer/consumer identities and sources, policy, completion state,
+status, proven satisfaction, gating result, deterministic findings with codes and both semantic
+paths, offered/accepted values, explanations, and diagnostics. Failures retain `completed: false`
+and diagnostics; they never resemble an empty successful comparison. JSON stdout contains only
+the redacted JSON payload. `--output` uses the shared atomic, no-overwrite output mechanism.
+
+| Findings after completed analysis | `unsatisfied` | `ignore` | `error` |
+| --- | --- | --- | --- |
+| All applicable expectations proven | 0 | 0 | 0 |
+| Unknown only | 1 | 0 | 2 |
+| Unsatisfied only | 1 | 1 | 1 |
+| Unknown and Unsatisfied | 1 | 1 | 2 |
+
+Invalid invocation/documents, mixed standards, I/O failure, cancellation, and incomplete analysis
+always return 2. Ignoring Unknown changes only the gate: `isSatisfied` remains false and the
+Unknown findings remain in the report. A valid empty consumer schema is vacuous structurally;
+metadata, source coverage, and unsupported semantics are still reported.

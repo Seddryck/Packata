@@ -11,6 +11,9 @@ internal static class ContractCommands
         configuration.AddBranch(BranchName, contract =>
         {
             contract.SetDescription("Validate, inspect, and compare contract documents.");
+            contract.AddCommand<SatisfiesCommand>("satisfies")
+                .WithDescription("Evaluate producer guarantees against a complete consumer contract.")
+                .WithExample(BranchName, "satisfies", "producer.odcs.yaml", "--consumer", "consumer.odcs.yaml", "--format", "json");
             contract.AddCommand<CompareCommand>("compare")
                 .WithDescription("Assess whether candidate data remains safe for consumers built against the baseline.")
                 .WithExample(BranchName, "compare", "sales-v1.odcs.yaml", "sales-v2.odcs.yaml", "--output-format", "json");

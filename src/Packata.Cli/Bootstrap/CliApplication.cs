@@ -5,6 +5,16 @@ namespace Packata.Cli;
 
 internal static class CliApplication
 {
+    private static int HandleInvocation(string[] args, Exception exception)
+    {
+        if (args.Take(2).SequenceEqual(new[] { "contract", "satisfies" }))
+        {
+            if (args.Contains("--quiet")) return 2;
+            CliErrorHandler.Invocation(exception, detail => SatisfiesInvocationFailure.Write(args, detail));
+            return 2;
+        }
+        return CliErrorHandler.Invocation(exception, detail => CompareInvocationFailure.Write(args, detail));
+    }
     internal static int Run(string[] args, CancellationToken cancellationToken)
     {
         if (args.Length == 1 && args[0] is "contract" or "data" or "schema" or "config" or "connector" or "dialect") args = [args[0], "--help"];
@@ -18,9 +28,8 @@ internal static class CliApplication
                 Ansi = Console.IsOutputRedirected ? AnsiSupport.No : AnsiSupport.Detect,
                 Enrichment = new ProfileEnrichment { UseDefaultEnrichers = !Console.IsOutputRedirected }
             }));
-            configuration.CancellationExitCode(ExitCodes.Cancelled);
-            configuration.SetExceptionHandler((exception, _) => CliErrorHandler.Invocation(exception,
-                detail => CompareInvocationFailure.Write(args, detail)));
+            configuration.CancellationExitCode(args.Take(2).SequenceEqual(new[] { "contract", "satisfies" }) ? 2 : ExitCodes.Cancelled);
+            configuration.SetExceptionHandler((exception, _) => HandleInvocation(args, exception));
             ContractCommands.Configure(configuration);
             DialectCommands.Configure(configuration);
             DataCommands.Configure(configuration);

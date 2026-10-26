@@ -227,14 +227,10 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                     integer.ExclusiveMaximum, constraints);
                 break;
             case ArrayLogicalType array:
-                if (array.MinItems is not null) constraints.Add(new("minItems", array.MinItems));
-                if (array.MaxItems is not null) constraints.Add(new("maxItems", array.MaxItems));
-                if (array.UniqueItems) constraints.Add(new("uniqueItems", true));
+                AddArrayConstraints(array, constraints);
                 break;
             case ObjectLogicalType obj:
-                if (obj.MinProperties is not null) constraints.Add(new("minProperties", obj.MinProperties));
-                if (obj.MaxProperties is not null) constraints.Add(new("maxProperties", obj.MaxProperties));
-                if (obj.Required.Length > 0) constraints.Add(new("required", obj.Required));
+                AddObjectConstraints(obj, constraints);
                 break;
             case DateLogicalType date:
                 AddNumberConstraints(date.Minimum, date.Maximum, date.ExclusiveMinimum,
@@ -256,6 +252,20 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         if (text.MinLength is not null) constraints.Add(new("minLength", text.MinLength));
         if (text.MaxLength is not null) constraints.Add(new("maxLength", text.MaxLength));
         if (!string.IsNullOrWhiteSpace(text.Pattern)) constraints.Add(new("pattern", text.Pattern));
+    }
+
+    private static void AddArrayConstraints(ArrayLogicalType array, ICollection<DataConstraint> constraints)
+    {
+        if (array.MinItems is not null) constraints.Add(new("minItems", array.MinItems));
+        if (array.MaxItems is not null) constraints.Add(new("maxItems", array.MaxItems));
+        if (array.UniqueItems) constraints.Add(new("uniqueItems", true));
+    }
+
+    private static void AddObjectConstraints(ObjectLogicalType obj, ICollection<DataConstraint> constraints)
+    {
+        if (obj.MinProperties is not null) constraints.Add(new("minProperties", obj.MinProperties));
+        if (obj.MaxProperties is not null) constraints.Add(new("maxProperties", obj.MaxProperties));
+        if (obj.Required.Length > 0) constraints.Add(new("required", obj.Required));
     }
 
     private static void AddNumberConstraints(object? minimum, object? maximum, bool exclusiveMinimum,

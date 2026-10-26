@@ -392,3 +392,49 @@ with `NotSupportedException` rather than retaining mutable references. Neither i
 ## License
 
 Packata is licensed under the [Apache License 2.0](LICENSE).
+
+## Producer and consumer satisfaction
+
+Use two ordinary ODCS contracts or two ordinary Data Package v2 descriptors. The positional
+input is the producer; `--consumer` supplies the consumer's accepted declaration. Identifiers
+and versions may differ. No separate consumer document kind or schema is required.
+
+```console
+packata contract satisfies producer.odcs.yaml --consumer consumer.odcs.yaml
+packata contract satisfies producer.datapackage.json --consumer consumer.datapackage.json --format json
+packata contract satisfies producer.odcs.yaml --consumer consumer.odcs.yaml --unknown ignore --quiet
+```
+
+The backend compares declared domains directionally: producer values must fit consumer
+expectations. It compares dataset and nested field identity, field presence, native nullability,
+logical types, supported constraints, and fixed-decimal parameters. Optional fields and nullable
+values are distinct. Native defaults apply; an omitted maximum length is unbounded, not missing
+evidence. Extra producer elements are reported and allowed unless native closed-schema semantics or a strict policy reject them.
+
+Use the same canonical model for both roles in .NET:
+
+```csharp
+using Packata.Core.Contracts;
+
+ContractSatisfaction result = ContractSatisfactionEvaluator.EvaluateSatisfaction(
+    producer: producerContract,
+    consumer: consumerContract,
+    policy: SatisfactionPolicy.Default);
+```
+
+For native provenance and full source coverage, supply `SatisfactionInput` with the canonical
+contract, standard, original parsed descriptor, source, and mapping diagnostics. Both roles use
+the same type. Unsupported custom semantics, quality rules, physical capacities, SLA/lifecycle
+rules, and lost mapping information remain visible as `Unknown` even in identical documents.
+Descriptive metadata, independent identities, ownership, and connection locations are informational.
+No referenced datasets or endpoints are opened and neither document is modified.
+
+Exit codes are `0` for successful gating, `1` for unsatisfied expectations (including Unknown by
+default), and `2` for invalid input, unsupported input pairs, failed analysis, I/O errors, or
+cancellation. `--unknown unsatisfied|ignore|error` controls gating only. `ignore` never turns
+Unknown into Satisfied, and `error` returns 2 for any Unknown, even alongside Unsatisfied findings.
+`--quiet` suppresses all output. `--output-format json` and its `--format json` alias emit a
+versioned, redacted report; `--output` writes through the shared protected output mechanism.
+
+See the [CLI reference](https://seddryck.github.io/Packata/cli/#evaluate-producer-and-consumer-contracts)
+for native examples, policies, and output details.
