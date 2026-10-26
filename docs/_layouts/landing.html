@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'en' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% seo %}
+  <link rel="icon" href="{{ '/uploads/favicon.ico' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/landing.css' | relative_url }}">
+  <script src="{{ '/assets/js/landing.js' | relative_url }}" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="container navigation" aria-label="Main navigation">
+      <a class="brand" href="{{ '/' | relative_url }}" aria-label="Packata home"><span aria-hidden="true"></span>packata.</a>
+      <div class="nav-links">
+        <a href="{{ '/docs/why-packata/' | relative_url }}">Documentation</a>
+        <a href="https://github.com/Seddryck/Packata">GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+    </nav>
+  </header>
+  <main id="main">
+    {{ content }}
+  </main>
+  <footer class="container footer">
+    <a class="footer-brand" href="https://github.com/Seddryck/Packata">Packata · Open source, Apache 2.0</a>
+    <div><a href="{{ '/contact/' | relative_url }}">Contact</a><a href="https://github.com/Seddryck/Packata/discussions">Join the discussion <span aria-hidden="true">↗</span></a></div>
+  </footer>
+</body>
+</html>

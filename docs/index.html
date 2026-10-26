@@ -1,0 +1,109 @@
+---
+layout: landing
+title: Home
+description: Explore, validate and provision datasets described by Frictionless Data Package v2 and ODCS contracts with Packata, a .NET library and CLI.
+nav_order: 1
+nav_exclude: false
+permalink: /
+---
+<section class="hero" aria-labelledby="hero-title">
+  <svg class="hero-lines" viewBox="0 0 700 400" fill="none" aria-hidden="true">
+    <g stroke="currentColor"><path d="M0 380C150 380 100 20 350 80S500 350 700 100"/><path d="M0 350C150 350 120 0 350 50S500 320 700 70"/><path d="M0 320C150 320 140 -20 350 20S500 290 700 40"/><path d="M0 290C150 290 160 -40 350 -10S500 260 700 10"/><path d="M0 410C150 410 80 40 350 110S500 380 700 130"/></g>
+    <circle cx="350" cy="80" r="7"/><circle cx="584" cy="235" r="4"/>
+  </svg>
+  <div class="container hero-content">
+    <p class="eyebrow">Open-source data toolkit for .NET</p>
+    <h1 id="hero-title">From data contracts<br>to actual data.</h1>
+    <p class="hero-description">Packata is a .NET library and CLI for exploring, validating and provisioning datasets described by Frictionless Data Package v2 and ODCS contracts.</p>
+    <div class="hero-actions">
+      <a class="button button-primary" href="#get-started">Get started <span aria-hidden="true">↗</span></a>
+      <a class="hero-docs" href="{{ '/docs/why-packata/' | relative_url }}">Explore documentation <span aria-hidden="true">→</span></a>
+    </div>
+    <p class="hero-note">Inspect and preview with the CLI. Provision with the .NET library.</p>
+  </div>
+</section>
+
+<section class="workflow-section" aria-labelledby="workflow-title">
+  <div class="container">
+    <div class="section-heading"><div><p class="eyebrow">One contract. A practical path to data.</p><h2 id="workflow-title">The asset workflow</h2></div><span class="step-range" aria-hidden="true">01 — 05</span></div>
+    <p class="section-intro">Follow a customers asset from its contract to a destination. Select a stage to explore an example.</p>
+    <div class="workflow-steps" aria-label="Asset workflow stages">
+      <a id="step-load" href="#example-load"><span class="step-number">01</span><span class="step-name">Load contract</span><span class="step-description">Start with a standard</span></a>
+      <a id="step-discover" href="#example-discover"><span class="step-number">02</span><span class="step-name">Discover assets</span><span class="step-description">Explore what is declared</span></a>
+      <a id="step-preview" href="#example-preview"><span class="step-number">03</span><span class="step-name">Preview data</span><span class="step-description">See the first records</span></a>
+      <a id="step-validate" href="#example-validate"><span class="step-number">04</span><span class="step-name">Validate</span><span class="step-description">Check the contract</span></a>
+      <a id="step-provision" href="#example-provision"><span class="step-number">05</span><span class="step-name">Provision</span><span class="step-description">Deliver through .NET</span></a>
+    </div>
+    <div class="workflow-output">
+      <div class="terminal-bar"><span><span class="terminal-dot" aria-hidden="true"></span>Packata / customers</span><span>Illustrative examples</span></div>
+      <section id="example-load" class="example" aria-labelledby="step-load" tabindex="0">
+        <h3>Load a contract</h3>
+        <p>Read a Data Package v2 or ODCS document into a shared model. Inspection reads metadata without opening the dataset.</p>
+        <pre><code><span class="prompt">$</span> packata contract inspect contract.yaml --output-format json</code></pre>
+        <pre class="sample-output"><code>// Excerpt of the JSON result
+"identity": { "name": "customer-directory" },
+"assets": [ { "id": "customers", … } ]</code></pre>
+        <a href="{{ '/cli/#inspect-the-canonical-contract' | relative_url }}">Read about contract inspection <span aria-hidden="true">→</span></a>
+      </section>
+      <section id="example-discover" class="example" aria-labelledby="step-discover" tabindex="0">
+        <h3>Discover assets and schema</h3>
+        <p>Inspect an asset's fields, constraints, metadata and endpoint bindings using its exact identifier.</p>
+        <pre><code><span class="prompt">$</span> packata contract inspect contract.yaml --asset customers</code></pre>
+        <pre class="sample-output"><code>Contract: customer-directory
+└── Assets
+    └── customers
+        └── schema
+            └── fields
+                ├── id
+                ├── name
+                └── country
+… (tree excerpt)</code></pre>
+        <a href="{{ '/cli/#inspect-the-canonical-contract' | relative_url }}">Explore the inspection command <span aria-hidden="true">→</span></a>
+      </section>
+      <section id="example-preview" class="example" aria-labelledby="step-preview" tabindex="0">
+        <h3>Preview data</h3>
+        <p>Read a bounded sample from the asset's endpoint. Inspect its declared schema in the Discover stage.</p>
+        <pre><code><span class="prompt">$</span> packata data preview contract.yaml --asset customers --limit 20</code></pre>
+        <div class="table-scroll"><table><caption class="sr-only">Illustrative customers preview</caption><thead><tr><th scope="col">id</th><th scope="col">name</th><th scope="col">country</th></tr></thead><tbody><tr><td>101</td><td>Alice</td><td>BE</td></tr><tr><td>102</td><td>Bob</td><td>FR</td></tr><tr><td>103</td><td>Charlie</td><td>NL</td></tr></tbody></table></div>
+        <p class="output-note">3 row(s). Sample data only; this page does not execute commands.</p>
+        <a href="{{ '/cli/#preview-bound-data' | relative_url }}">Explore data preview <span aria-hidden="true">→</span></a>
+      </section>
+      <section id="example-validate" class="example" aria-labelledby="step-validate" tabindex="0">
+        <h3>Validate the contract</h3>
+        <p>Check descriptor structure and supported semantic rules. Diagnostics identify invalid contract values; this command does not validate dataset records.</p>
+        <pre><code><span class="prompt">$</span> packata contract validate contract.yaml --output-format json</code></pre>
+        <pre class="sample-output"><code>{
+  "schemaVersion": 1,
+  "source": "contract.yaml",
+  "valid": true,
+  "diagnostics": []
+}</code></pre>
+        <a href="{{ '/cli/#validate-a-contract' | relative_url }}">See validation scope and diagnostics <span aria-hidden="true">→</span></a>
+      </section>
+      <section id="example-provision" class="example" aria-labelledby="step-provision" tabindex="0">
+        <h3>Provision through the .NET library</h3>
+        <p>Deploy schema and load data into supported relational destinations. For example, use a configured DuckDB provider to build an in-memory destination.</p>
+        <pre><code><span class="prompt">// C# · with a mapped contract and configured connections/readers</span>
+using Packata.Provisioners.Database;
+
+var provisioner = new DubUrlProvisionerBuilder(connections, readers)
+    .Using("duck").InMemory().WithDatabase("mydb").Build();
+await provisioner.ExecuteAsync(contract);</code></pre>
+        <p class="output-note">Requires a compatible provider and driver. Schema deployment and bulk loading depend on destination capabilities. There is currently no provisioning CLI command.</p>
+        <a href="{{ '/database-integration/#provisioning-operation-preflight' | relative_url }}">Set up provisioning and check support <span aria-hidden="true">→</span></a>
+      </section>
+    </div>
+    <noscript><p>All five examples are shown with JavaScript disabled. Use the stage links to jump between them.</p></noscript>
+  </div>
+</section>
+
+<section id="get-started" class="tools-section" aria-labelledby="tools-title">
+  <div class="container tools-layout">
+    <div><p class="eyebrow">Build with Packata</p><h2 id="tools-title">Your tools.<br>Your workflow.</h2><p>Explore from your terminal or bring contracts into your application. Start with the interface that fits your work.</p></div>
+    <article class="tool-card"><span class="tool-icon" aria-hidden="true">&gt;_</span><h3>Command-line interface</h3><p>Inspect contracts, preview records and get validation diagnostics.</p><pre><code>dotnet tool install --global Packata-cli</code></pre><a href="{{ '/cli/' | relative_url }}">Get started with the CLI <span aria-hidden="true">→</span></a></article>
+    <article class="tool-card"><span class="tool-icon" aria-hidden="true">{ }</span><h3>.NET library</h3><p>Map either standard to a shared model. Add readers and provisioners as needed.</p><pre><code>dotnet add package Packata.DataPackage
+<span class="code-comment"># Or, for ODCS:</span>
+dotnet add package Packata.OpenDataContract</code></pre><a href="{{ '/docs/why-packata/' | relative_url }}">Get started with .NET <span aria-hidden="true">→</span></a></article>
+  </div>
+</section>
+<div class="container standards" aria-label="Supported standards and frameworks"><span>Open standards. Shared model.</span><a href="{{ '/cli/#validate-a-contract' | relative_url }}">Frictionless Data Package v2</a><a href="{{ '/cli/#validate-a-contract' | relative_url }}">ODCS 3.2.0</a><span>.NET 8 · 9 · 10</span></div>
