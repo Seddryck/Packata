@@ -3,12 +3,44 @@ using DubUrl.Discovery;
 using Packata.Core.Contracts;
 using Packata.ResourceReaders;
 using Packata.ResourceReaders.Database;
+using Packata.ResourceReaders.Parquet;
 using PocketCsvReader;
 
 namespace Packata.Cli;
 
 internal static class InferenceService
 {
+    internal static async Task<InferenceSelection> InferFileAsync(ContractDocument document, DataAsset asset,
+        DataEndpoint endpoint, InferSettings settings, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    {
+        if (endpoint.Location is not PathLocation { Paths.Count: 1 } paths)
+            throw new NotSupportedException("File inference requires exactly one bound path.");
+        var format = new DataFormatResolver().Resolve(endpoint);
+        if (format.Name is not ("parquet" or "pqt"))
+            return await InferCsvAsync(document, asset, endpoint, settings).ConfigureAwait(false);
+        RejectOptions(arguments, ["--maximum-records", "--maximum-bytes", "--culture", "--header", "--no-dialect-inference"]);
+        if (format.Compression is not null)
+            throw new NotSupportedException("Externally compressed Parquet files are unsupported for inference.");
+        await using var stream = await document.OpenAssetStreamAsync(asset, endpoint).ConfigureAwait(false);
+        var options = new ParquetDataContractInferenceOptions
+        {
+            ContractIdentity = document.Contract.Identity, ContractMetadata = document.Contract.Metadata,
+            AssetId = asset.Id, AssetName = asset.Name, AssetPhysicalName = asset.PhysicalName,
+            AssetDescription = asset.Description, EndpointId = endpoint.Id, EndpointName = endpoint.Name
+        };
+        var result = await new ParquetDataContractInference(options).InferAsync(stream, paths.Paths[0], cancellationToken)
+            .ConfigureAwait(false);
+        return new(result, result.Contract.Assets.Single(), result.Contract.Endpoints.Single());
+    }
+
+    internal static void RejectOptions(IReadOnlyList<string> arguments, IReadOnlyList<string> unsupported)
+    {
+        var invalid = unsupported.Where(option => arguments.Any(argument => argument == option
+            || argument.StartsWith(option + "=", StringComparison.Ordinal))).ToArray();
+        if (invalid.Length > 0)
+            throw new NotSupportedException($"Options {string.Join(", ", invalid)} do not apply to this resource format.");
+    }
+
     internal static async Task<InferenceSelection> InferCsvAsync(
         ContractDocument document, DataAsset asset, DataEndpoint endpoint, InferSettings settings)
     {
