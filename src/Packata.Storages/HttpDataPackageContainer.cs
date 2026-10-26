@@ -12,8 +12,8 @@ public class HttpDataPackageContainer : HttpStorageHandler, IDocumentContainer
 {
     public Uri BaseUri { get; }
 
-    public HttpDataPackageContainer(Uri baseUri, HttpClient? httpClient = null)
-        : base(httpClient)
+    public HttpDataPackageContainer(Uri baseUri, HttpClient? httpClient = null, CancellationToken cancellationToken = default)
+        : base(httpClient, cancellationToken)
     {
         BaseUri = baseUri.ToString().EndsWith('/')
             ? baseUri

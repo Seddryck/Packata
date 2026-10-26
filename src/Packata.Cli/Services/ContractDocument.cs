@@ -1,16 +1,11 @@
 using Packata.Core.Contracts;
+using Packata.Storages;
 using CanonicalContract = Packata.Core.Contracts.DataContract;
-using DataPackageDocument = Packata.DataPackage.DataPackage;
 using OdcsDocument = Packata.OpenDataContract.DataContract;
 
 namespace Packata.Cli;
 
-internal enum ContractDocumentKind
-{
-    DataPackageJson,
-    DataPackageYaml,
-    OpenDataContractYaml
-}
+internal enum ContractDocumentKind { DataPackageJson, DataPackageYaml, OpenDataContractYaml }
 
 internal sealed record ContractDocument(
     string SourcePath,
@@ -18,61 +13,39 @@ internal sealed record ContractDocument(
     ContractDocumentKind Kind,
     object NativeDocument,
     CanonicalContract Contract,
-    IReadOnlyList<MappingDiagnostic> MappingDiagnostics)
+    IReadOnlyList<MappingDiagnostic> MappingDiagnostics) : IDisposable
 {
-    public static ContractDocument Load(string sourcePath, string inputFormat = "auto")
+    internal ContractSource? Source { get; init; }
+    public void Dispose() => Source?.Dispose();
+
+    public static ContractDocument Load(string sourcePath, string inputFormat = "auto") =>
+        LoadAsync(sourcePath, inputFormat, CancellationToken.None).GetAwaiter().GetResult();
+
+    public static async Task<ContractDocument> LoadAsync(string sourcePath, string inputFormat, CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
-        if (ContractSource.IsArchive(sourcePath))
-            throw new NotSupportedException("Schema inference requires an unpacked local contract document.");
-        var fullPath = Path.GetFullPath(sourcePath);
-        var text = File.ReadAllText(fullPath);
-        var source = ContractSource.Parse(sourcePath, new Uri(Path.GetDirectoryName(fullPath)! + Path.DirectorySeparatorChar),
-            fullPath, text, inputFormat);
-        var mapped = source.Map();
-        var kind = source.NativeDocument is OdcsDocument ? ContractDocumentKind.OpenDataContractYaml
-            : text.TrimStart().StartsWith('{') ? ContractDocumentKind.DataPackageJson : ContractDocumentKind.DataPackageYaml;
-        return new(fullPath, text, kind, source.NativeDocument, mapped.RequireValue(), mapped.Diagnostics);
+        var source = await ContractSource.LoadAsync(sourcePath, inputFormat, cancellationToken, retainArchive: true).ConfigureAwait(false);
+        try
+        {
+            var mapped = source.Map();
+            var kind = source.NativeDocument is OdcsDocument ? ContractDocumentKind.OpenDataContractYaml
+                : source.OriginalText.TrimStart().StartsWith('{') ? ContractDocumentKind.DataPackageJson : ContractDocumentKind.DataPackageYaml;
+            var uri = Uri.TryCreate(sourcePath, UriKind.Absolute, out var absolute) ? absolute : new Uri(Path.GetFullPath(sourcePath));
+            return new(uri.IsFile ? uri.LocalPath : uri.AbsoluteUri, source.OriginalText, kind,
+                source.NativeDocument, mapped.RequireValue(), mapped.Diagnostics) { Source = source };
+        }
+        catch { source.Dispose(); throw; }
     }
 
-    public async ValueTask<Stream> OpenAssetStreamAsync(DataAsset asset, DataEndpoint endpoint)
+    public async ValueTask<Stream> OpenAssetStreamAsync(DataAsset asset, DataEndpoint endpoint,
+        CancellationToken cancellationToken = default)
     {
-        if (NativeDocument is DataPackageDocument package)
-        {
-            var resources = package.Resources.Where(resource =>
-                string.Equals(resource.Name, asset.Id, StringComparison.Ordinal)).ToArray();
-            if (resources.Length != 1)
-                throw new InvalidOperationException(
-                    $"Asset '{asset.Id}' does not identify exactly one Data Package resource.");
-            if (resources[0].Paths.Count != 1)
-                throw new InvalidOperationException(
-                    $"Asset '{asset.Id}' must bind exactly one file path for inference.");
-            var resourcePath = resources[0].Paths[0];
-            return resourcePath.IsFullyQualified
-                ? await resourcePath.OpenAsync().ConfigureAwait(false)
-                : File.OpenRead(Path.GetFullPath(resourcePath.Value, Path.GetDirectoryName(SourcePath)!));
-        }
-
-        if (NativeDocument is OdcsDocument)
-        {
-            if (endpoint.Location is not PathLocation { Paths.Count: 1 } location)
-                throw new InvalidOperationException(
-                    $"Asset '{asset.Id}' must bind exactly one local file path for inference.");
-            var path = location.Paths[0];
-            if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
-            {
-                if (!uri.IsFile)
-                    throw new NotSupportedException("ODCS inference currently supports local file endpoints only.");
-                path = uri.LocalPath;
-            }
-            else if (!Path.IsPathRooted(path))
-            {
-                path = Path.Combine(Path.GetDirectoryName(SourcePath)!, path);
-            }
-            return File.OpenRead(path);
-        }
-
-        throw new NotSupportedException("Unsupported contract document type.");
+        if (endpoint.Location is not PathLocation { Paths.Count: 1 } location)
+            throw new InvalidOperationException($"Asset '{asset.Id}' must bind exactly one file path for inference.");
+        var source = Source ?? throw new InvalidOperationException("The descriptor source is unavailable.");
+        var resolver = source.Archive is null
+            ? (Packata.Core.Reading.IEndpointStreamResolver)new PreviewService.RelativeStreamResolver(source.BaseUri)
+            : new PreviewService.ArchiveStreamResolver(source.Archive, source.ArchiveDescriptor!);
+        var stream = await resolver.OpenAsync(location.Paths[0], cancellationToken).ConfigureAwait(false);
+        return stream.CanSeek ? stream : new BoundedReadStream(stream, SeekableStaging.DefaultMaximumBytes, cancellationToken);
     }
-
 }

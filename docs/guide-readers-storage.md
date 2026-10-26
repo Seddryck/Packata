@@ -30,7 +30,7 @@ restrict the dataset to files:
 | --- | --- |
 | Validate, inspect, diff, assess compatibility, or export metadata | Local files, HTTP(S) URLs, or local and remote ZIP, TAR, TAR.GZ and TAR.BR archives |
 | Preview records | Local or HTTP(S) descriptors, or local and remote ZIP, TAR, TAR.GZ and TAR.BR packages containing a descriptor and CSV resources |
-| Infer a schema | A local descriptor, including a file without an extension |
+| Infer a schema | Local or HTTP(S) descriptors, including extensionless files, or local and remote ZIP, TAR, TAR.GZ and TAR.BR archives |
 
 Packata normally detects the contract standard from its contents. If you need to
 select it explicitly, use `--input-format auto`, `odcs` or `datapackage`. Selecting
@@ -57,7 +57,7 @@ you are loading a contract or reading the data it describes:
 | --- | --- | --- |
 | Local files | Yes | Yes, for supported formats |
 | HTTP(S) | Yes | Yes, for supported formats at accessible HTTP(S) URLs |
-| Local or HTTP(S) ZIP, TAR, TAR.GZ and TAR.BR archives | Yes, for validation, inspection, diff, compatibility analysis, metadata export and preview | Yes, for CSV resources inside the package |
+| Local or HTTP(S) ZIP, TAR, TAR.GZ and TAR.BR archives | Yes, for validation, inspection, diff, compatibility analysis, metadata export, preview and inference | Yes, for CSV resources inside the package |
 | Native S3 storage | No | No |
 | Native Azure storage | No | No |
 
@@ -65,13 +65,15 @@ All archive formats use the same descriptor selection: exactly one
 `datapackage.json`, `datapackage.yaml`, `datapackage.yml`, `contract.yaml` or
 `contract.yml`, optionally in a subdirectory. TAR containers materialize bundled
 entries under the default limits described below. Metadata commands do not parse
-the datasets or fetch their referenced locations. Schema inference requires an
-unpacked local descriptor.
+the datasets or fetch their referenced locations. Schema inference reads selected
+local, HTTP(S), or archive-relative CSV-family, Excel and Parquet resources in both standards.
 
 Preview resolves relative data paths against the contract's location. A contract
 served over HTTP(S) can therefore refer to data files alongside it. A local
-contract can also refer to an absolute HTTP(S) data URL. Schema inference has
-its own restriction: the contract file must be local.
+contract can also refer to an absolute HTTP(S) data URL. Schema inference uses the same
+resource resolution. Non-seekable Excel/Parquet streams use bounded temporary-file staging;
+see [inference transport and output policy]({{ '/cli-inference/' | relative_url }}) for
+limits, HTTP authentication/error behavior and standalone-output restrictions.
 
 For ZIP, TAR, TAR.GZ and TAR.BR packages, preview reads CSV entries without requiring
 manual extraction. The archive must contain exactly one descriptor named `datapackage.json`, `datapackage.yaml`,

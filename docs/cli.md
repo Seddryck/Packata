@@ -151,8 +151,10 @@ contract.yml
 Archive suffixes are matched case-insensitively from the URL path; query strings
 and fragments do not affect detection. All four formats have the same command
 coverage: validation, inspection, diff, compatibility comparison, JSON Schema export
-and dialect export. Preview also reads bundled CSV resources from all four formats;
-schema inference requires an unpacked local descriptor.
+and dialect export. Preview also reads bundled CSV resources from all four formats.
+Schema inference accepts these same descriptor transports and reads local, HTTP/HTTPS
+or archive-relative CSV-family, Excel and Parquet resources. See [inference limits and
+output restrictions]({{ '/cli-inference/' | relative_url }}).
 TAR archives use the storage layer's default materialization limits described in
 the [storage guide]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net).
 

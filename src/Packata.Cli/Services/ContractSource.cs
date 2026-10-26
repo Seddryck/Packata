@@ -14,6 +14,7 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
 {
     internal IDocumentContainerListable? Archive { get; init; }
     internal string? ArchiveDescriptor { get; init; }
+    internal string OriginalText { get; init; } = string.Empty;
     public void Dispose() => Archive?.Dispose();
 
     internal static bool IsArchive(string source)
@@ -58,18 +59,18 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         string format, CancellationToken cancellationToken)
     {
         var baseUri = new Uri(uri, ".");
-        using var httpContainer = uri.IsFile ? null : new HttpDataPackageContainer(baseUri, http);
+        using var httpContainer = uri.IsFile ? null : new HttpDataPackageContainer(baseUri, http, cancellationToken);
         await using var stream = uri.IsFile ? File.OpenRead(uri.LocalPath)
             : await httpContainer!.OpenAsync(uri.Segments[^1] + uri.Query).ConfigureAwait(false);
         var text = await ReadTextAsync(stream, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
-        return Parse(source, baseUri, uri.AbsolutePath, text, format);
+        return Parse(source, new Uri(httpContainer?.ResponseUri ?? uri, "."), uri.AbsolutePath, text, format);
     }
 
     private static async Task<ContractSource> LoadArchiveAsync(string source, Uri uri, HttpClient? http,
         string format, CancellationToken cancellationToken, bool retainArchive)
     {
-        var archive = await OpenArchiveAsync(uri, http).ConfigureAwait(false);
+        var archive = await OpenArchiveAsync(uri, http, cancellationToken).ConfigureAwait(false);
         var retained = false;
         try
         {
@@ -90,15 +91,15 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
             if (!retained) archive.Dispose();
         }
     }
-    private static async Task<IDocumentContainerListable> OpenArchiveAsync(Uri uri, HttpClient? http)
+    private static async Task<IDocumentContainerListable> OpenArchiveAsync(Uri uri, HttpClient? http, CancellationToken cancellationToken)
     {
         var locator = new DataPackageLocatorBuilder()
             .Register("file", b => b.UseLocalFileSystem())
-            .Register(new[] { "http", "https" }, b => b.UseHttp(http))
-            .Register("zip", b => b.UseZipArchive())
-            .Register("tar", b => b.UseTarArchive())
-            .Register("tar.gz", b => b.UseTarArchive(ArchiveCompression.Gzip))
-            .Register("tar.br", b => b.UseTarArchive(ArchiveCompression.Brotli)).Build();
+            .Register(new[] { "http", "https" }, b => b.UseHttp(http, cancellationToken))
+            .Register("zip", b => b.UseZipArchive(cancellationToken))
+            .Register("tar", b => b.UseTarArchive(cancellationToken: cancellationToken))
+            .Register("tar.gz", b => b.UseTarArchive(ArchiveCompression.Gzip, cancellationToken: cancellationToken))
+            .Register("tar.br", b => b.UseTarArchive(ArchiveCompression.Brotli, cancellationToken: cancellationToken)).Build();
         try
         {
             var handle = await locator.LocateAsync(uri).ConfigureAwait(false);
@@ -143,7 +144,7 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
             ? new Packata.OpenDataContract.DataContractFactory().LoadFromStream(content)
             : new Packata.DataPackage.DataPackageFactory().LoadFromStream(content,
                 text.TrimStart().StartsWith('{') ? SerializationFormat.Json : SerializationFormat.Yaml);
-        return new(source, baseUri, native) { DescriptorRoot = root };
+        return new(source, baseUri, native) { DescriptorRoot = root, OriginalText = text };
     }
 
     // Transport-only projection; source coverage and all compatibility rules live in Core.

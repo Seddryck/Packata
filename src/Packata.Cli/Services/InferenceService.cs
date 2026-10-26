@@ -6,6 +6,7 @@ using Packata.ResourceReaders.Database;
 using Packata.ResourceReaders.Parquet;
 using Packata.ResourceReaders.Excel;
 using PocketCsvReader;
+using Packata.Storages;
 
 namespace Packata.Cli;
 
@@ -17,6 +18,8 @@ internal static class InferenceService
         if (endpoint.Location is not PathLocation { Paths.Count: 1 } paths)
             throw new NotSupportedException("File inference requires exactly one bound path.");
         var format = new DataFormatResolver().Resolve(endpoint);
+        endpoint = endpoint with { Format = (endpoint.Format ?? new DataFormat(format.Name)) with
+            { Name = format.Name, Compression = format.Compression } };
         if (format.Name is "xls" or "xlsx")
         {
             RejectOptions(arguments, ["--culture", "--no-dialect-inference"]);
@@ -25,10 +28,12 @@ internal static class InferenceService
         }
         RejectOptions(arguments, ["--sheet-name", "--sheet-number"]);
         if (format.Name is not ("parquet" or "pqt"))
-            return await InferCsvAsync(document, asset, endpoint, settings).ConfigureAwait(false);
+            return await InferCsvAsync(document, asset, endpoint, settings, cancellationToken).ConfigureAwait(false);
         RejectOptions(arguments, ["--maximum-records", "--maximum-bytes", "--culture", "--header", "--no-dialect-inference"]);
         RejectExternalCompression(format);
-        await using var stream = await document.OpenAssetStreamAsync(asset, endpoint).ConfigureAwait(false);
+        await using var input = await document.OpenAssetStreamAsync(asset, endpoint, cancellationToken).ConfigureAwait(false);
+        await using var staged = input.CanSeek ? null : await SeekableStaging.CopyAsync(input, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var stream = staged ?? input;
         var options = new ParquetDataContractInferenceOptions
         {
             ContractIdentity = document.Contract.Identity, ContractMetadata = document.Contract.Metadata,
@@ -49,7 +54,10 @@ internal static class InferenceService
     private static async Task<InferenceSelection> InferExcelAsync(ContractDocument document, DataAsset asset,
         DataEndpoint endpoint, InferSettings settings, string path, string formatName, CancellationToken cancellationToken)
     {
-        await using var stream = await document.OpenAssetStreamAsync(asset, endpoint).ConfigureAwait(false);
+        await using var input = await document.OpenAssetStreamAsync(asset, endpoint, cancellationToken).ConfigureAwait(false);
+        await using var staged = input.CanSeek ? null : await SeekableStaging.CopyAsync(input,
+            Math.Min(settings.MaximumBytes ?? 64 * 1024 * 1024, SeekableStaging.DefaultMaximumBytes), cancellationToken).ConfigureAwait(false);
+        var stream = staged ?? input;
         var options = new ExcelDataContractInferenceOptions
         {
             ContractIdentity = document.Contract.Identity, ContractMetadata = document.Contract.Metadata,
@@ -95,10 +103,10 @@ internal static class InferenceService
     }
 
     internal static async Task<InferenceSelection> InferCsvAsync(
-        ContractDocument document, DataAsset asset, DataEndpoint endpoint, InferSettings settings)
+        ContractDocument document, DataAsset asset, DataEndpoint endpoint, InferSettings settings, CancellationToken cancellationToken = default)
     {
         ValidateCsvEndpoint(asset, endpoint);
-        await using var stream = await document.OpenAssetStreamAsync(asset, endpoint).ConfigureAwait(false);
+        await using var stream = await document.OpenAssetStreamAsync(asset, endpoint, cancellationToken).ConfigureAwait(false);
         var options = new CsvDataContractInferenceOptions
         {
             InferenceOptions = CreateOptions(settings, endpoint),
@@ -113,6 +121,7 @@ internal static class InferenceService
         };
         var sourcePath = ((PathLocation)endpoint.Location).Paths.Single();
         var result = new CsvDataContractInference(options).Infer(stream, sourcePath);
+        cancellationToken.ThrowIfCancellationRequested();
         return new(result, result.Contract.Assets.Single(), result.Contract.Endpoints.Single());
     }
 
@@ -226,10 +235,7 @@ internal static class InferenceService
             throw new NotSupportedException(
                 $"Asset '{asset.Id}' must bind exactly one file endpoint for CSV inference.");
 
-        var name = endpoint.Format?.Name?.Trim().TrimStart('.').ToLowerInvariant();
-        var pathExtension = Path.GetExtension(((PathLocation)endpoint.Location).Paths[0])
-            .TrimStart('.').ToLowerInvariant();
-        var effectiveFormat = name ?? pathExtension;
+        var effectiveFormat = new DataFormatResolver().Resolve(endpoint).Name;
         if (!SupportedFormats.Contains(effectiveFormat, StringComparer.Ordinal))
             throw new NotSupportedException($"Asset '{asset.Id}' is not bound to a supported CSV resource.");
     }

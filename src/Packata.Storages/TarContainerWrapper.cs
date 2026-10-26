@@ -3,7 +3,7 @@ using Packata.Core.Storage;
 
 namespace Packata.Storages;
 
-internal sealed class TarContainerWrapper(ArchiveCompression compression, TarArchiveOptions options) : IContainerWrapper
+internal sealed class TarContainerWrapper(ArchiveCompression compression, TarArchiveOptions options, CancellationToken cancellationToken = default) : IContainerWrapper
 {
     public async Task<IDocumentContainer> WrapAsync(IDocumentContainer baseContainer, Uri uri)
     {
@@ -17,7 +17,7 @@ internal sealed class TarContainerWrapper(ArchiveCompression compression, TarArc
         };
         try
         {
-            return await TarDataPackageContainer.CreateAsync(uri, decoded, options).ConfigureAwait(false);
+            return await TarDataPackageContainer.CreateAsync(uri, decoded, options, cancellationToken).ConfigureAwait(false);
         }
         catch (InvalidOperationException ex) when (compression == ArchiveCompression.Brotli)
         {

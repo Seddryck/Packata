@@ -149,17 +149,13 @@ public sealed class ArchiveCommandTests
     [TestCase("tar")]
     [TestCase("tar.gz")]
     [TestCase("tar.br")]
-    public async Task Inference_requires_unpacked_documents_for_every_archive(string suffix)
+    public async Task Inference_reports_missing_archives(string suffix)
     {
         using var workspace = new CliWorkspace();
         var local = Path.Combine(workspace.Path, $"missing.{suffix}");
-        var remote = $"https://unavailable.invalid/package.{suffix.ToUpperInvariant()}?download=1#ignored";
-        foreach (var source in new[] { local, remote })
-        {
-            var inference = await CliWorkspace.Run("schema", "infer", source, "--asset", "customers");
-            Assert.That(inference.ExitCode, Is.EqualTo(1));
-            Assert.That(inference.Output + inference.Error, Does.Contain("unpacked local contract"));
-        }
+        var inference = await CliWorkspace.Run("schema", "infer", local, "--asset", "customers");
+        Assert.That(inference.ExitCode, Is.EqualTo(1));
+        Assert.That(inference.Output + inference.Error, Does.Contain("not found"));
     }
 
     private static byte[] Archive(string suffix, params (string Name, string Content)[] entries)

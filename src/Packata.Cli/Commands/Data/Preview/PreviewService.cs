@@ -85,6 +85,18 @@ internal static class PreviewService
             cancellationToken.ThrowIfCancellationRequested();
             if (Uri.TryCreate(path, UriKind.Absolute, out _))
                 return await _inner.OpenAsync(path, cancellationToken).ConfigureAwait(false);
+            var decoded = Uri.UnescapeDataString(path).Replace('\\', '/');
+            var depth = _descriptor.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries).Length - 1;
+            if (decoded.StartsWith('/') || decoded.Contains(':') || decoded.Contains('\0'))
+                throw new InvalidDataException("Invalid archive-relative resource path.");
+            foreach (var part in decoded.Split('/', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (part == "..")
+                {
+                    if (--depth < 0) throw new InvalidDataException("Resource path escapes the archive root.");
+                }
+                else if (part != ".") depth++;
+            }
             var entry = Uri.UnescapeDataString(new Uri(_descriptor, path).AbsolutePath).TrimStart('/');
             if (!await archive.ExistsAsync(entry).ConfigureAwait(false))
                 throw new ContractOperationException("CLI023", "$.resources.path", $"Resource entry '{entry}' was not found in the archive package.");
@@ -92,7 +104,7 @@ internal static class PreviewService
         }
     }
 
-    private sealed class RelativeStreamResolver(Uri baseUri) : IEndpointStreamResolver
+    internal sealed class RelativeStreamResolver(Uri baseUri) : IEndpointStreamResolver
     {
         private readonly DefaultEndpointStreamResolver _inner = new();
         public ValueTask<Stream> OpenAsync(string path, CancellationToken cancellationToken = default)

@@ -32,7 +32,9 @@ types return error diagnostics with field paths; do not persist an unsuccessful 
 No keys, relationships, ownership or quality rules are invented.
 
 Caller streams must be readable and seekable. They remain open and their position is
-restored even on failure. Non-seekable input is rejected, never buffered automatically.
+restored even on failure. The library rejects non-seekable input. The CLI provides
+bounded temporary-file staging for HTTP/archive inputs before calling these APIs;
+see [CLI inference]({{ '/cli-inference/' | relative_url }}) for transfer limits and ownership.
 Cancellation is passed to metadata I/O. Defaults limit serialized footers to 16 MiB,
 schema fields to 10,000 and nesting to 32 levels. These are not a bound on every
 allocation made by the underlying metadata decoder. Encrypted footers are unsupported.

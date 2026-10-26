@@ -15,7 +15,7 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
 
     /// <summary>Consumes and closes <paramref name="tarStream"/>, including on failure.</summary>
     public static async Task<TarDataPackageContainer> CreateAsync(Uri uri, Stream tarStream,
-        TarArchiveOptions? options = null)
+        TarArchiveOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tarStream);
         await using (tarStream)
@@ -26,7 +26,7 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
             var container = new TarDataPackageContainer(uri);
             try
             {
-                await container.InitializeAsync(tarStream, options).ConfigureAwait(false);
+                await container.InitializeAsync(tarStream, options, cancellationToken).ConfigureAwait(false);
                 return container;
             }
             catch
@@ -37,25 +37,25 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
         }
     }
 
-    private async Task InitializeAsync(Stream source, TarArchiveOptions options)
+    private async Task InitializeAsync(Stream source, TarArchiveOptions options, CancellationToken cancellationToken)
     {
         await using var bounded = new BoundedArchiveStream(source, options.MaxArchiveBytes);
         await using var reader = new TarReader(bounded, leaveOpen: true);
         long total = 0, memory = 0;
         var count = 0;
-        while (await reader.GetNextEntryAsync(copyData: false).ConfigureAwait(false) is { } entry)
+        while (await reader.GetNextEntryAsync(copyData: false, cancellationToken).ConfigureAwait(false) is { } entry)
         {
             if (++count > options.MaxEntries) throw new InvalidDataException("TAR entry count limit exceeded.");
             var name = NormalizePath(entry.Name);
             if (entry.EntryType == TarEntryType.Directory) continue;
             ValidateFileEntry(entry, name, options, total);
-            var stored = await StoreEntryAsync(entry, options, options.MemoryThresholdBytes - memory).ConfigureAwait(false);
+            var stored = await StoreEntryAsync(entry, options, options.MemoryThresholdBytes - memory, cancellationToken).ConfigureAwait(false);
             _entries.Add(name, stored);
             total += entry.Length;
             memory += stored.Bytes?.Length ?? 0;
         }
         // Finish decoding, including the compression footer, and enforce the full stream limit.
-        await bounded.CopyToAsync(Stream.Null).ConfigureAwait(false);
+        await bounded.CopyToAsync(Stream.Null, cancellationToken).ConfigureAwait(false);
         if (bounded.BytesRead < 1024) throw new InvalidDataException("The TAR archive is truncated.");
     }
 
@@ -69,17 +69,17 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
             throw new InvalidDataException($"TAR size limit exceeded by '{name}'.");
     }
 
-    private async Task<StoredEntry> StoreEntryAsync(TarEntry entry, TarArchiveOptions options, long availableMemory)
+    private async Task<StoredEntry> StoreEntryAsync(TarEntry entry, TarArchiveOptions options, long availableMemory, CancellationToken cancellationToken)
     {
         if (entry.Length > availableMemory || entry.Length > int.MaxValue)
-            return await StoreFileAsync(entry, options).ConfigureAwait(false);
+            return await StoreFileAsync(entry, options, cancellationToken).ConfigureAwait(false);
         var bytes = new byte[(int)entry.Length];
         if (entry.DataStream is not null)
-            await entry.DataStream.ReadExactlyAsync(bytes).ConfigureAwait(false);
+            await entry.DataStream.ReadExactlyAsync(bytes, cancellationToken).ConfigureAwait(false);
         return new StoredEntry(bytes, null);
     }
 
-    private async Task<StoredEntry> StoreFileAsync(TarEntry entry, TarArchiveOptions options)
+    private async Task<StoredEntry> StoreFileAsync(TarEntry entry, TarArchiveOptions options, CancellationToken cancellationToken)
     {
         _temporaryDirectory ??= TarTemporaryDirectory.Resolve(options.TemporaryDirectory);
         var path = Path.Combine(_temporaryDirectory, $"packata-tar-{Guid.NewGuid():N}.tmp");
@@ -88,9 +88,9 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
         try
         {
             if (entry.DataStream is not null)
-                await entry.DataStream.CopyToAsync(file).ConfigureAwait(false);
+                await entry.DataStream.CopyToAsync(file, cancellationToken).ConfigureAwait(false);
             if (file.Length != entry.Length) throw new InvalidDataException($"Truncated TAR entry '{entry.Name}'.");
-            await file.FlushAsync().ConfigureAwait(false);
+            await file.FlushAsync(cancellationToken).ConfigureAwait(false);
             return new StoredEntry(null, file);
         }
         catch
