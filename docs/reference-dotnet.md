@@ -20,7 +20,7 @@ provide their signatures. Exhaustive generated API documentation is deferred.
 | `Packata.OpenDataContract` | Native ODCS models, `DataContractFactory`, YAML serializer/validation, `ToCanonicalContract` |
 | `Packata.ResourceReaders` | `ResourceReaderFactory`, `CsvDataContractInference`, formats, custom providers and delimited dialect resolution |
 | Reader extensions | [Format/package/registration table]({{ '/guides/readers-storage/' | relative_url }}); database extension also exposes `DatabaseDataContractInference` |
-| `Packata.Storages` | `DataPackageLocatorBuilder`, `StorageProviderBuilder`, document containers, local/HTTP(S)/ZIP/cloud storage |
+| `Packata.Storages` | `DataPackageLocatorBuilder`, `StorageProviderBuilder`, document containers, local/HTTP(S)/ZIP/TAR/cloud storage; `UseTarArchive`, `ArchiveCompression`, `TarArchiveOptions` configure `.tar`, `.tar.gz`, and `.tar.br` bundles |
 | `Packata.Database` | `DubUrlConnectionService`, runtime configuration, connector availability/acquisition and connection sessions |
 | `Packata.Provisioners` | `DubUrlProvisionerBuilder`, `DubUrlProvisioner`, schema plans and diagnostics, operation capabilities |
 

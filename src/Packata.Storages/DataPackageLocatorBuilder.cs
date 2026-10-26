@@ -135,5 +135,15 @@ public class DataPackageLocatorBuilder
         public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseZipArchive()
             => new(_extension.StartsWith('.') ? _extension : '.' + _extension,
                 uri => new ZipContainerWrapper());
+
+        public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseTarArchive(
+            ArchiveCompression compression = ArchiveCompression.None, TarArchiveOptions? options = null)
+        {
+            if (!Enum.IsDefined(compression)) throw new ArgumentOutOfRangeException(nameof(compression));
+            options ??= new TarArchiveOptions();
+            options.Validate();
+            return new(_extension.StartsWith('.') ? _extension : '.' + _extension,
+                uri => new TarContainerWrapper(compression, options));
+        }
     }
 }

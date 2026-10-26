@@ -9,6 +9,10 @@
 	<PropertyGroup>
         <LangVersion>14.0</LangVersion>
         <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <!-- Brotli decoder security update (CVE-2026-111497). -->
+        <RuntimeFrameworkVersion Condition="'$(TargetFramework)' == 'net8.0'">8.0.33</RuntimeFrameworkVersion>
+        <RuntimeFrameworkVersion Condition="'$(TargetFramework)' == 'net9.0'">9.0.22</RuntimeFrameworkVersion>
+        <RuntimeFrameworkVersion Condition="'$(TargetFramework)' == 'net10.0'">10.0.14</RuntimeFrameworkVersion>
         <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
 		<CliToolRuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64</CliToolRuntimeIdentifiers>
 		<RuntimeIdentifiers Condition="'$(BuildCliToolPackage)' == 'true'">$(CliToolRuntimeIdentifiers)</RuntimeIdentifiers>

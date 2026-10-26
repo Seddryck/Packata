@@ -142,7 +142,7 @@ contract can stop working when you launch the program elsewhere. The
 [.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}) includes this path
 resolution before it opens the reader.
 
-For local directories, HTTP(S), ZIP archives, S3 or Azure storage, use
+For local directories, HTTP(S), ZIP and TAR archives, S3 or Azure storage, use
 `Packata.Storages`. Register location schemes and archive wrappers with
 `DataPackageLocatorBuilder`, and register resource handlers with
 `StorageProviderBuilder`. Your application supplies cloud credentials.
@@ -150,6 +150,93 @@ For local directories, HTTP(S), ZIP archives, S3 or Azure storage, use
 These are library configuration points. Adding a storage backend to an application
 does not make its URLs available to every CLI command. If you need custom stream
 access through the shared contract model, implement `IEndpointStreamResolver`.
+
+## Read a TAR package in .NET
+
+Register the archive suffixes your application accepts. TAR bundles files without
+compression; `.tar.gz` and `.tar.br` apply Gzip or Brotli to the whole TAR stream.
+All three use the same container implementation. This library configuration does
+not add TAR support to the CLI commands described above.
+
+```csharp
+using Packata.Storages;
+
+var limits = new TarArchiveOptions
+{
+    MemoryThresholdBytes = 8L << 20,
+    MaxEntryBytes = 1L << 30,
+    MaxTotalBytes = 4L << 30,
+    MaxArchiveBytes = 5L << 30,
+    MaxEntries = 10_000
+};
+
+var locator = new DataPackageLocatorBuilder()
+    .Register("file", b => b.UseLocalFileSystem())
+    .Register(new[] { "http", "https" }, b => b.UseHttp())
+    .Register("tar", b => b.UseTarArchive(options: limits))
+    .Register("tar.gz", b => b.UseTarArchive(ArchiveCompression.Gzip, limits))
+    .Register("tar.br", b => b.UseTarArchive(ArchiveCompression.Brotli, limits))
+    .Build();
+
+var handle = await locator.LocateAsync(new Uri(Path.GetFullPath("package.tar.gz")));
+using var container = handle.Container;
+await handle.ValidateAsync();
+using var descriptor = await container.OpenAsync(handle.DescriptorPath);
+using var customers = await container.OpenAsync("data/customers.csv");
+```
+
+A minimal bundle has this layout:
+
+```text
+datapackage.json
+data/customers.csv
+```
+
+Its descriptor can be:
+
+```json
+{"resources":[{"name":"customers","path":"data/customers.csv"}]}
+```
+
+For example, create the uncompressed bundle with
+`tar -cf package.tar datapackage.json data/customers.csv`, or a Gzip bundle with
+`tar -czf package.tar.gz datapackage.json data/customers.csv`. Packata reads these
+archives; it does not provide archive creation APIs.
+
+Suffix matching is case-insensitive and selects the longest registered suffix
+from the URI path. URL queries and fragments do not affect detection, and HTTP
+queries are retained when downloading the archive. Standalone `.gz` and `.br`
+files are not TAR packages. HTTP content decoding and compression of individual
+resources inside an archive are separate from this outer compression layer.
+
+TAR input is consumed once during `LocateAsync`, including for non-seekable HTTP
+streams. Entry order does not matter. Small entry contents share the configured
+memory budget; larger entries spill to randomly named temporary files under
+`TarArchiveOptions.TemporaryDirectory` (the system temporary directory by default).
+That directory must already exist and be writable. Resource streams are independent,
+so a resource can be opened repeatedly or alongside another resource. Entry paths
+are case-sensitive, normalize `.` and separators, and reject parent traversal,
+absolute paths and duplicates. Directories are skipped; links and other special
+entry types are rejected.
+
+The options shown above are the defaults. `MaxTotalBytes` counts file contents;
+`MaxArchiveBytes` bounds the complete decoded TAR stream, including headers,
+metadata and padding. Initialization closes the input stream and cleans up stored
+entries if reading fails. Dispose the returned container to release storage; close
+its resource streams before disposal to ensure temporary files are removed promptly.
+ZIP wrappers also run through `LocateAsync` when registered with `UseZipArchive()`.
+
+### Patched Brotli runtimes
+
+Brotli decoding uses .NET's built-in `BrotliStream`, rather than a separate Brotli
+NuGet package or PocketCsvReader. Use **.NET 8.0.33, 9.0.22, 10.0.14 or later
+patched releases**. These updates fix the Brotli decoder vulnerability
+[CVE-2026-111497](https://github.com/dotnet/announcements/issues/494).
+Packata's build runtime versions and CI SDKs select these patched releases.
+Applications consuming the library must also deploy a patched runtime:
+update and restart framework-dependent applications; rebuild and republish
+self-contained applications and container images. Installing the library alone
+does not patch the runtime of a consuming application.
 
 ## Configure how values are parsed
 

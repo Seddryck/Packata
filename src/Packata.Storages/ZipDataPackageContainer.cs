@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Packata.Core.Storage;
 
 namespace Packata.Storages;
-public class ZipDataPackageContainer : IDocumentContainer
+public class ZipDataPackageContainer : IDocumentContainer, IDocumentContainerListable
 {
     private readonly Dictionary<string, ZipArchiveEntry> _entries;
     private readonly ZipArchive _archive;
@@ -42,6 +42,8 @@ public class ZipDataPackageContainer : IDocumentContainer
 
     public Task<IEnumerable<string>> ListFilesAsync()
         => Task.FromResult(_entries.Keys.AsEnumerable().Select(x => NormalizePath(x)));
+
+    public Task<IEnumerable<string>> ListAsync() => ListFilesAsync();
 
     private static string NormalizePath(string path)
         => path.Replace('\\', '/').TrimStart('/');

@@ -66,9 +66,9 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
-            8.0.416
-            9.0.308
-            10.0.401
+            8.0.427
+            9.0.320
+            10.0.403
 
       - name: Restore libraries
         run: dotnet restore Packata.Libraries.slnf
@@ -197,9 +197,9 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
-            8.0.416
-            9.0.308
-            10.0.401
+            8.0.427
+            9.0.320
+            10.0.403
 
       - name: Restore library package dependencies
         run: dotnet restore Packata.Libraries.slnf
@@ -293,9 +293,9 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
-            8.0.416
-            9.0.308
-            10.0.401
+            8.0.427
+            9.0.320
+            10.0.403
 
       - name: Restore CLI tests
         run: dotnet restore src/Packata.Cli.Testing/Packata.Cli.Testing.csproj
@@ -338,7 +338,7 @@ jobs:
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.0.401
+          dotnet-version: 10.0.403
 
       - name: Restore CLI package dependencies
         run: dotnet restore src/Packata.Cli/Packata.Cli.csproj -p:BuildCliToolPackage=true
@@ -427,9 +427,9 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
-            8.0.416
-            9.0.308
-            10.0.401
+            8.0.427
+            9.0.320
+            10.0.403
 
       - name: Restore framework-dependent CLI runtime
         run: >-
@@ -592,7 +592,7 @@ jobs:
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.0.401
+          dotnet-version: 10.0.403
 
       - name: Restore self-contained CLI runtime
         run: >-
@@ -843,7 +843,7 @@ jobs:
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.0.401
+          dotnet-version: 10.0.403
 
       - name: Download validated library NuGet artifacts
         uses: actions/download-artifact@v7
