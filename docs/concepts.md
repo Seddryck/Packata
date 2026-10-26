@@ -86,7 +86,6 @@ provide the API and output details.
 - [Service commitments and dates]({{ '/concepts/commitments/' | relative_url }}): understand delivery promises, lifecycle milestones and the difference between local times and instants.
 - [Value domains]({{ '/value-domains/' | relative_url }}): distinguish a catalog of named categories from the values a field actually allows.
 - [Contract compatibility]({{ '/compatibility/' | relative_url }}): understand how a change affects consumers, and why comparison has a direction.
-- [Why Packata?]({{ '/docs/why-packata/' | relative_url }}): see how shared operations reduce the work of supporting several standards.
 
 [Data Package categories]({{ '/datapackage-categories/' | relative_url }}) gives
 the standard-specific syntax for inline categories and references to category tables.

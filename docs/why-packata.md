@@ -1,9 +1,8 @@
 ---
-title: Why did we create Packata?
-subtitle: Transform data. Transform possibilities.
-nav_order: 4
+title: Why Packata?
+nav_order: 0
 permalink: /docs/why-packata/
-parent: Concepts
+parent: Getting started
 nav_exclude: false
 ---
 
@@ -15,12 +14,14 @@ create database tables.
 Packata reads each standard into its own document model, then maps it to a shared
 contract model. Readers and other operations can work with that shared model
 instead of implementing each standard's document structure again. You can use
-the CLI for supported tasks or embed the .NET libraries in an application.
+the CLI to inspect contracts, read data, infer schemas, review differences and
+assess consumer compatibility, or embed the .NET libraries in an application.
 
 For example, the same `contract inspect` command can show the datasets and fields
 in a Data Package or ODCS document. `data preview` can then read a selected asset
 through its binding, provided its format and storage are supported. In .NET,
-provisioners can generate a database schema from the mapped contract.
+provisioners can generate a database schema from the mapped contract. Database
+provisioning is available through .NET; its CLI command is planned.
 
 The source standard still matters. Use its native document model for edits to
 standard-specific fields, and review mapping diagnostics before relying on the

@@ -6,7 +6,12 @@ has_children: true
 permalink: /getting-started/
 ---
 
-Choose the interface that fits your work. All interfaces use the same contract concepts.
+New to the project? [Why Packata?]({{ '/docs/why-packata/' | relative_url }}) explains
+the problem it solves and the workflows it supports. To try it now, start with
+the CLI Quickstart; no application code is needed.
+
+Choose the interface that fits your work. The CLI and .NET library use the same
+shared contract model.
 
 | Interface | Start here | Status |
 | --- | --- | --- |
