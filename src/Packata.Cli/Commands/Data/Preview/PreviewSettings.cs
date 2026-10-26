@@ -4,7 +4,7 @@ using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal sealed class PreviewSettings : DatabaseCommandSettings
+internal sealed class PreviewSettings : StagingCommandSettings
 {
     [CommandOption("--decode-categories")]
     [Description("Decode inline category codes to labels (PocketCsvReader CSV/TSV/PSV only; default: disabled).")]

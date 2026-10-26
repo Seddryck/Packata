@@ -15,9 +15,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (settings.Write && (ContractSource.IsArchive(settings.Source)
-                || (Uri.TryCreate(settings.Source, UriKind.Absolute, out var sourceUri) && !sourceUri.IsFile)))
-                throw new NotSupportedException("--write requires an ordinary local descriptor; remote descriptors and archives cannot be replaced.");
+            ValidateWriteSource(settings);
             using var document = await ContractDocument.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
             var outputDocument = settings.Output is null ? document : StandaloneInferenceOutput.Prepare(document);
             CliDatabase.ResolveOverrides(document.Contract.Endpoints, settings.ConnectionEnvironment);
@@ -40,18 +38,7 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
 
             if (!inference.Result.IsSuccessful) return 1;
 
-            if (settings.Write || settings.Output is not null)
-            {
-                var update = ContractDocumentUpdater.Update(
-                    outputDocument, asset, endpoint, inference.Asset, inference.Endpoint);
-                foreach (var warning in update.Warnings)
-                    AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
-                var target = settings.Write ? document.SourcePath : Path.GetFullPath(settings.Output!);
-                cancellationToken.ThrowIfCancellationRequested();
-                ContractDocumentWriter.Write(target, update.Content, overwrite: settings.Write);
-                AnsiConsole.MarkupLine($"[green]Written:[/] {Markup.Escape(target)}");
-            }
-
+            WriteOutput(outputDocument, asset, endpoint, inference, settings, cancellationToken);
             return 0;
         }
         catch (OperationCanceledException)
@@ -65,5 +52,26 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
             AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(InferencePresenter.SafeText(exception.Message))}");
             return 1;
         }
+    }
+
+    private static void ValidateWriteSource(InferSettings settings)
+    {
+        if (!settings.Write) return;
+        var remote = Uri.TryCreate(settings.Source, UriKind.Absolute, out var uri) && !uri.IsFile;
+        if (ContractSource.IsArchive(settings.Source) || remote)
+            throw new NotSupportedException("--write requires an ordinary local descriptor; remote descriptors and archives cannot be replaced.");
+    }
+
+    private static void WriteOutput(ContractDocument document, DataAsset asset, DataEndpoint endpoint,
+        InferenceService.InferenceSelection inference, InferSettings settings, CancellationToken cancellationToken)
+    {
+        if (!settings.Write && settings.Output is null) return;
+        var update = ContractDocumentUpdater.Update(document, asset, endpoint, inference.Asset, inference.Endpoint);
+        foreach (var warning in update.Warnings)
+            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
+        var target = settings.Write ? document.SourcePath : Path.GetFullPath(settings.Output ?? throw new InvalidOperationException("Output is required."));
+        cancellationToken.ThrowIfCancellationRequested();
+        ContractDocumentWriter.Write(target, update.Content, overwrite: settings.Write);
+        AnsiConsole.MarkupLine($"[green]Written:[/] {Markup.Escape(target)}");
     }
 }

@@ -29,7 +29,7 @@ restrict the dataset to files:
 | Task | Accepted descriptor locations |
 | --- | --- |
 | Validate, inspect, diff, assess compatibility, or export metadata | Local files, HTTP(S) URLs, or local and remote ZIP, TAR, TAR.GZ and TAR.BR archives |
-| Preview records | Local or HTTP(S) descriptors, or local and remote ZIP, TAR, TAR.GZ and TAR.BR packages containing a descriptor and CSV resources |
+| Preview records | Local or HTTP(S) descriptors, or local and remote ZIP, TAR, TAR.GZ and TAR.BR packages containing CSV-family, Excel or Parquet resources |
 | Infer a schema | Local or HTTP(S) descriptors, including extensionless files, or local and remote ZIP, TAR, TAR.GZ and TAR.BR archives |
 
 Packata normally detects the contract standard from its contents. If you need to
@@ -57,7 +57,7 @@ you are loading a contract or reading the data it describes:
 | --- | --- | --- |
 | Local files | Yes | Yes, for supported formats |
 | HTTP(S) | Yes | Yes, for supported formats at accessible HTTP(S) URLs |
-| Local or HTTP(S) ZIP, TAR, TAR.GZ and TAR.BR archives | Yes, for validation, inspection, diff, compatibility analysis, metadata export, preview and inference | Yes, for CSV resources inside the package |
+| Local or HTTP(S) ZIP, TAR, TAR.GZ and TAR.BR archives | Yes, for validation, inspection, diff, compatibility analysis, metadata export, preview and inference | Yes, for CSV-family, Excel and Parquet resources inside the package |
 | Native S3 storage | No | No |
 | Native Azure storage | No | No |
 
@@ -75,12 +75,12 @@ resource resolution. Non-seekable Excel/Parquet streams use bounded temporary-fi
 see [inference transport and output policy]({{ '/cli-inference/' | relative_url }}) for
 limits, HTTP authentication/error behavior and standalone-output restrictions.
 
-For ZIP, TAR, TAR.GZ and TAR.BR packages, preview reads CSV entries without requiring
+For ZIP, TAR, TAR.GZ and TAR.BR packages, preview reads CSV-family, Excel and Parquet entries without requiring
 manual extraction. The archive must contain exactly one descriptor named `datapackage.json`, `datapackage.yaml`,
 `datapackage.yml`, `contract.yaml` or `contract.yml`. Resource paths resolve relative
 to that descriptor inside the archive, so a descriptor in `package/` can reference
 `data/customers.csv` at `package/data/customers.csv`. Select a resource with
-`--asset`; a package can contain several CSV resources. See the
+`--asset`; a package can contain several file resources. See the
 [data guide]({{ '/guides/data/' | relative_url }}#preview-an-archived-data-package)
 for an example.
 
@@ -88,6 +88,67 @@ An S3 or Azure object exposed at an accessible HTTP(S) URL can be read through
 that URL, for a supported data format. That uses HTTP access, not an S3 or Azure
 backend. The CLI has no options to register those backends or configure their
 cloud credentials. Use the .NET storage APIs below when you need that integration.
+
+## Stage Excel and Parquet resources
+
+Both `data preview` and `schema infer` (including its `infer` alias) use the same
+transport-independent staging adapter for ODCS and Data Package bindings. It passes
+readable seekable inputs through without reading or copying them. Non-seekable Excel
+and Parquet inputs are copied to unique temporary files before the existing parser runs.
+CSV-family readers remain streaming. No new format parser or cloud authentication is added.
+
+| Limit | Default | Scope and precedence |
+| --- | --- | --- |
+| `--staging-maximum-bytes` | 268435456 bytes (256 MiB) | Each non-seekable Excel/Parquet data resource; the invocation value replaces the default |
+| Inference `--maximum-bytes` for Excel | 67108864 bytes (64 MiB) | Complete workbook, including seekable files; the smaller workbook/staging limit applies during copying |
+| Parquet inference footer limit | 16777216 bytes (16 MiB) | Serialized footer metadata, independent of total transfer size; field/depth limits also remain unchanged |
+| HTTP descriptor/archive transfer and non-seekable CSV reads | 256 MiB | Existing fixed transport/read limit; unaffected by the staging option |
+| TAR materialization | Separate limits below | TAR entries may already be seekable; staging does not replace archive limits |
+
+Known oversized content is rejected before copying when a length is available. Every
+copy also counts actual bytes, so missing or understated length metadata cannot bypass
+the cap. A staging-limit error identifies the staging byte limit (`CLI132` in preview);
+an Excel workbook-limit failure identifies `MaximumBytes`. Neither changes Parquet's
+footer limit. Seekable local Parquet files can exceed the staging cap because they do
+not need a full copy. Externally compressed Excel/Parquet resources remain unsupported.
+
+```console
+packata data preview contract.yaml --asset measurements --limit 5 --staging-maximum-bytes 134217728
+packata schema infer contract.yaml --asset measurements --staging-maximum-bytes 134217728
+```
+
+Ordinary non-seekable HTTP access may download the entire file before the parser starts,
+even for metadata-only Parquet inference. Inference still reads only footer/schema metadata
+after staging and does not materialize rows. Preview uses its normal reader; the current
+Parquet reader eagerly materializes all row groups. A preview row limit therefore bounds
+output rows, not staging transfer or provider memory. HTTP range access is not implemented.
+
+Temporary files use the system temporary directory and unique create-new names. Provide
+enough free disk space for all concurrent copies plus any archive materialization. Files
+are opened with delete-on-close, with user-only Unix permissions or inherited Windows
+temporary-directory permissions. Data, signed query strings and temporary filenames are
+not included in staging diagnostics. Requests and saved contracts retain original resource
+identifiers; relative paths are resolved before acquisition.
+
+The CLI owns acquired streams. A staged input closes its upstream stream after copying;
+the reader/inferrer owns the resulting temporary stream. A seekable input has one owner
+and is closed once. Success, parser/transfer/limit failure, cancellation and early stopping
+all release acquired resources. Cleanup failures during acquisition or parser construction
+do not replace the original failure. Delete-on-close follows platform handle semantics;
+deletion can be delayed while a handle remains open, and abrupt termination or storage
+failure can require operating-system cleanup.
+
+In .NET, `Packata.Storages.SeekableStaging.AcquireAsync` returns a `SeekableInput` lease.
+Its default `leaveOpen: true` borrows caller-owned input. Disposing that lease closes only
+a staged copy; a seekable original remains open at its original position. With
+`leaveOpen: false`, ownership transfers even if acquisition fails. `OpenOwnedAsync` returns
+one owned seekable stream for factory integrations; `CopyAsync` always copies and leaves
+its input open. These adapters do not assign resource identities or select formats.
+
+Cancellation is checked before and throughout copying and passed into asynchronous I/O.
+Parquet preview and inference pass it into supported parser operations. Excel and CSV
+have synchronous parser calls, so cancellation is checked between supported operations
+and cannot always interrupt a parser already running on staged/local input.
 
 ## Choose how to read the dataset
 

@@ -38,12 +38,17 @@ including URLs with query parameters or no extension. Unsupported formats remain
 
 Excel and Parquet require seekable streams. The CLI stages non-seekable HTTP/ZIP
 inputs into temporary files, deleted on success, failure or cancellation. Staging is
-limited to 256 MiB; Excel additionally enforces its workbook limit (64 MiB by default,
-or `--maximum-bytes`). Limits are checked while copying, even without Content-Length.
-HTTP descriptor/archive transfers and non-seekable resource reads also have a 256 MiB
-limit. TAR materialization retains its separate [storage limits]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net).
+limited to 256 MiB by default, configurable per invocation with `--staging-maximum-bytes`.
+Excel additionally enforces its workbook limit (64 MiB by default, or `--maximum-bytes`);
+the smaller limit applies while staging, with a distinct workbook-limit diagnostic.
+Limits are checked while copying, even without a trustworthy Content-Length.
+HTTP descriptor/archive transfers and non-seekable CSV reads retain a separate fixed
+256 MiB limit. TAR materialization retains its separate [storage limits]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net).
 Parquet still reads only footer metadata after staging; staging may transfer the entire
 file, without materializing rows. Existing footer/field/depth and sampling limits apply.
+Seekable inputs pass through without staging or a complete-file staging cap. See the
+[shared staging policy]({{ '/guides/readers-storage/' | relative_url }}#stage-excel-and-parquet-resources)
+for stream ownership, temporary disk requirements and cancellation limitations.
 
 HTTP uses the existing GET transport and .NET redirect behavior. Public and pre-signed
 HTTPS object URLs work without native cloud-provider configuration. No CLI HTTP header,
@@ -59,6 +64,7 @@ queries, fragments and user information. Native `s3://` and Azure schemes are un
 | `--write` | Off | Atomically replace an ordinary local descriptor; rejected for remote/archive sources; mutually exclusive with `--output` |
 | `--maximum-records <COUNT>` | Positive integer; `1000` | Maximum sampled CSV/Excel data records; ignored for databases, rejected for Parquet |
 | `--maximum-bytes <COUNT>` | Positive integer; CSV unlimited, Excel 64 MiB when omitted | CSV sample byte limit or complete Excel workbook byte limit; ignored for databases, rejected for Parquet |
+| `--staging-maximum-bytes <COUNT>` | Positive integer; `268435456` (256 MiB) | Per-resource copy limit for non-seekable Excel/Parquet input; independent of footer/sample limits; ignored for CSV/database inference |
 | `--culture <NAME>` | Invariant culture when omitted/empty | Culture for inferred CSV values, e.g. `fr-FR`; ignored for databases |
 | `--header <MODE>` | `auto`, `present`, `absent`; `auto` | CSV/Excel header mode; auto honors a declared header hint; ignored for databases, rejected for Parquet |
 | `--sheet-name <NAME>` | Omitted | Excel worksheet name, overriding endpoint selection; mutually exclusive with sheet number |

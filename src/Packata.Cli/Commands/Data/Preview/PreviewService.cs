@@ -3,9 +3,6 @@ using System.Data.Common;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
 using Packata.ResourceReaders;
-using Packata.ResourceReaders.Database;
-using Packata.ResourceReaders.Excel;
-using Packata.ResourceReaders.Parquet;
 using Packata.Database;
 
 namespace Packata.Cli;
@@ -14,14 +11,10 @@ internal sealed record PreviewSample(string[] Columns, IReadOnlyList<object?[]> 
 
 internal static class PreviewService
 {
-    public static IDataEndpointReaderFactory CreateFactory(Uri baseUri, IDatabaseConnectionService? connections = null, IEndpointStreamResolver? streams = null, bool decodeCategories = false) =>
-        ResourceReaderFactory.Create(options =>
-        {
-            options.DecodeCategories = decodeCategories;
-            options.AddExcel().AddParquet();
-            if (connections is null) options.AddDatabase(baseUri.IsFile ? baseUri.LocalPath : string.Empty);
-            else options.AddDatabase(connections);
-        }, streams ?? new RelativeStreamResolver(baseUri));
+    public static IDataEndpointReaderFactory CreateFactory(Uri baseUri, IDatabaseConnectionService? connections = null,
+        IEndpointStreamResolver? streams = null, bool decodeCategories = false,
+        long stagingMaximumBytes = Packata.Storages.SeekableStaging.DefaultMaximumBytes) =>
+        new PreviewReaderFactory(baseUri, connections, streams ?? new RelativeStreamResolver(baseUri), decodeCategories, stagingMaximumBytes);
 
     public static DataEndpointReadRequest Request(DataContract contract, DataAsset asset)
     {

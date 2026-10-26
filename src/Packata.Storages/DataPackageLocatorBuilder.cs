@@ -82,7 +82,9 @@ public class DataPackageLocatorBuilder
                     return new StowageDataPackageContainer(uri, store);
                 });
 
-        public KeyValuePair<string, Func<Uri, IDocumentContainer>> UseHttp(HttpClient? client = null, CancellationToken cancellationToken = default)
+        public KeyValuePair<string, Func<Uri, IDocumentContainer>> UseHttp(HttpClient? client = null) => UseHttp(client, CancellationToken.None);
+
+        public KeyValuePair<string, Func<Uri, IDocumentContainer>> UseHttp(HttpClient? client, CancellationToken cancellationToken)
             => new(_scheme,
                 (uri) => new HttpDataPackageContainer(uri, client, cancellationToken));
 
@@ -132,12 +134,18 @@ public class DataPackageLocatorBuilder
         internal WrapperBuilder(string extension)
             => _extension = extension;
 
-        public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseZipArchive(CancellationToken cancellationToken = default)
+        public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseZipArchive() => UseZipArchive(CancellationToken.None);
+
+        public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseZipArchive(CancellationToken cancellationToken)
             => new(_extension.StartsWith('.') ? _extension : '.' + _extension,
                 uri => new ZipContainerWrapper(cancellationToken));
 
         public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseTarArchive(
-            ArchiveCompression compression = ArchiveCompression.None, TarArchiveOptions? options = null, CancellationToken cancellationToken = default)
+            ArchiveCompression compression = ArchiveCompression.None, TarArchiveOptions? options = null) =>
+            UseTarArchive(compression, options, CancellationToken.None);
+
+        public KeyValuePair<string, Func<Uri, IContainerWrapper>> UseTarArchive(
+            ArchiveCompression compression, TarArchiveOptions? options, CancellationToken cancellationToken)
         {
             if (!Enum.IsDefined(compression)) throw new ArgumentOutOfRangeException(nameof(compression));
             options ??= new TarArchiveOptions();

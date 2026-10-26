@@ -16,7 +16,9 @@ public class HttpStorageHandler : IStorageHandler
     /// <summary>The final response location after the client's redirect policy has been applied.</summary>
     public Uri? ResponseUri { get; private set; }
 
-    public HttpStorageHandler(HttpClient? httpClient = null, CancellationToken cancellationToken = default)
+    public HttpStorageHandler(HttpClient? httpClient = null) : this(httpClient, CancellationToken.None) { }
+
+    public HttpStorageHandler(HttpClient? httpClient, CancellationToken cancellationToken)
     {
         _disposeClient = httpClient is null;
         _client = httpClient ?? new HttpClient();
@@ -53,8 +55,8 @@ public class HttpStorageHandler : IStorageHandler
     protected async Task<bool> ExistsAsync(Uri uri)
     {
         ThrowIfDisposed();
-        var request = new HttpRequestMessage(HttpMethod.Head, uri);
-        using var response = await _client.SendAsync(request);
+        using var request = new HttpRequestMessage(HttpMethod.Head, uri);
+        using var response = await _client.SendAsync(request, _cancellationToken).ConfigureAwait(false);
         return response.IsSuccessStatusCode;
     }
 

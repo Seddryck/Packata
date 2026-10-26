@@ -97,9 +97,9 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
             .Register("file", b => b.UseLocalFileSystem())
             .Register(new[] { "http", "https" }, b => b.UseHttp(http, cancellationToken))
             .Register("zip", b => b.UseZipArchive(cancellationToken))
-            .Register("tar", b => b.UseTarArchive(cancellationToken: cancellationToken))
-            .Register("tar.gz", b => b.UseTarArchive(ArchiveCompression.Gzip, cancellationToken: cancellationToken))
-            .Register("tar.br", b => b.UseTarArchive(ArchiveCompression.Brotli, cancellationToken: cancellationToken)).Build();
+            .Register("tar", b => b.UseTarArchive(ArchiveCompression.None, null, cancellationToken))
+            .Register("tar.gz", b => b.UseTarArchive(ArchiveCompression.Gzip, null, cancellationToken))
+            .Register("tar.br", b => b.UseTarArchive(ArchiveCompression.Brotli, null, cancellationToken)).Build();
         try
         {
             var handle = await locator.LocateAsync(uri).ConfigureAwait(false);
