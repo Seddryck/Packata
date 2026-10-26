@@ -93,7 +93,7 @@ tr:last-child td { border-bottom: 0; }
 .terminal-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 7px; color: var(--mint); font-size: 12px; }
 .terminal-footer button { font: inherit; font-size: 14px; font-weight: 700; color: color-mix(in srgb, var(--amber) 80%, white); border: 0; padding: 0; background: none; cursor: pointer; }
 .terminal-footer button span { display: inline-block; font-size: 24px; line-height: 1; margin-left: 8px; vertical-align: -2px; }
-[hidden] { display: none !important; }
+[hidden] { display: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .tools-section { padding-block: 26px 22px; background: radial-gradient(ellipse at 25% 0, color-mix(in srgb, var(--amber) 6%, var(--canvas)), transparent 80%); scroll-margin-top: 24px; }
 .tools-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }

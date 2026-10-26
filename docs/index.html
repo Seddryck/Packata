@@ -32,7 +32,7 @@ permalink: /
     </div>
     <div class="workflow-output">
       <div class="terminal-bar" aria-hidden="true"><span><svg class="icon" aria-hidden="true"><use href="#icon-preview"/></svg><span id="terminal-title">Preview customers</span></span><span id="terminal-badge" class="terminal-badge">CLI demo</span></div>
-      <section id="example-load" class="example" aria-labelledby="step-load" tabindex="0">
+      <section id="example-load" class="example" aria-labelledby="step-load">
         <h3>Load a contract</h3>
         <p>Read a Data Package v2 or ODCS document into a shared model. Inspection reads metadata without opening the dataset.</p>
         <pre><code><span class="prompt">$</span> packata contract inspect contract.yaml --output-format json</code></pre>
@@ -41,7 +41,7 @@ permalink: /
 "assets": [ { "id": "customers", … } ]</code></pre>
         <a href="{{ '/cli/#inspect-the-canonical-contract' | relative_url }}">Read about contract inspection <span aria-hidden="true">→</span></a>
       </section>
-      <section id="example-discover" class="example" aria-labelledby="step-discover" tabindex="0">
+      <section id="example-discover" class="example" aria-labelledby="step-discover">
         <h3>Discover assets and schema</h3>
         <p>Inspect an asset's fields, constraints, metadata and endpoint bindings using its exact identifier.</p>
         <pre><code><span class="prompt">$</span> packata contract inspect contract.yaml --asset customers</code></pre>
@@ -56,13 +56,13 @@ permalink: /
 … (tree excerpt)</code></pre>
         <a href="{{ '/cli/#inspect-the-canonical-contract' | relative_url }}">Explore the inspection command <span aria-hidden="true">→</span></a>
       </section>
-      <section id="example-preview" class="example" aria-labelledby="step-preview" tabindex="0">
+      <section id="example-preview" class="example" aria-labelledby="step-preview">
         <h3 class="sr-only">Preview customers</h3>
         <pre class="preview-command"><code><span class="prompt">$</span> packata data preview contract.yaml
   --asset customers --limit 20</code></pre>
         <div class="table-scroll"><table><caption class="sr-only">Illustrative customers preview</caption><thead><tr><th scope="col">id</th><th scope="col">name</th><th scope="col">country</th></tr></thead><tbody><tr><td>101</td><td>Alice</td><td>BE</td></tr><tr><td>102</td><td>Bob</td><td>FR</td></tr><tr><td>103</td><td>Clara</td><td>DE</td></tr></tbody></table></div>
       </section>
-      <section id="example-validate" class="example" aria-labelledby="step-validate" tabindex="0">
+      <section id="example-validate" class="example" aria-labelledby="step-validate">
         <h3>Validate the contract</h3>
         <p>Check descriptor structure and supported semantic rules. Diagnostics identify invalid contract values; this command does not validate dataset records.</p>
         <pre><code><span class="prompt">$</span> packata contract validate contract.yaml --output-format json</code></pre>
@@ -74,7 +74,7 @@ permalink: /
 }</code></pre>
         <a href="{{ '/cli/#validate-a-contract' | relative_url }}">See validation scope and diagnostics <span aria-hidden="true">→</span></a>
       </section>
-      <section id="example-provision" class="example" aria-labelledby="step-provision" tabindex="0">
+      <section id="example-provision" class="example" aria-labelledby="step-provision">
         <h3>Provision through the .NET library</h3>
         <p>Deploy schema and load data into supported relational destinations. For example, use a configured DuckDB provider to build an in-memory destination.</p>
         <pre><code><span class="prompt">// C# · with a mapped contract and configured connections/readers</span>

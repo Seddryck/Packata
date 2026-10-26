@@ -33,6 +33,7 @@
     tab.setAttribute('role', 'tab');
     tab.setAttribute('aria-controls', panels[index].id);
     panels[index].setAttribute('role', 'tabpanel');
+    panels[index].tabIndex = 0;
     tab.addEventListener('click', event => {
       event.preventDefault();
       select(index);
