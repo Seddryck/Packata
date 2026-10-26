@@ -107,24 +107,7 @@ public static class ContractCompatibility
                 "This canonical facet changed but is not covered by the factual differ or compatibility policy.", null));
     }
 
-    private static DataContract Prepare(CompatibilityInput input)
-    {
-        var contract = input.Contract!;
-        if (input.Standard != ContractStandard.DataPackage) return contract;
-        // DP required rejects null/missing values. ODCS required and nullable are independent.
-        return contract with
-        {
-            Assets = contract.Assets.Select(asset => asset with
-            {
-                Schema = asset.Schema is { } schema ? schema with { Fields = schema.Fields.Select(Field).ToArray() } : null
-            }).ToArray()
-        };
-
-        static DataField Field(DataField field) => field with
-        {
-            Nullable = !field.Required,
-            Children = field.Children.Select(Field).ToArray(),
-            Items = field.Items is { } items ? Field(items) : null
-        };
-    }
+    // Native presence and nullability defaults are normalized by the adapters.
+    // Re-deriving Nullable from Required would conflate field presence with value nullability.
+    private static DataContract Prepare(CompatibilityInput input) => input.Contract!;
 }

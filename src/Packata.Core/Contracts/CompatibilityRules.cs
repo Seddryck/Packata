@@ -5,6 +5,23 @@ namespace Packata.Core.Contracts;
 
 internal static class CompatibilityRules
 {
+    // Shared domain containment primitives: accepted baseline versus offered candidate.
+    internal static CompatibilityClassification CompareTypes(string? accepted, string? offered)
+        => KnownType(accepted) && accepted == offered ? CompatibilityClassification.NonBreaking
+            : ChangeClassifier.Type(accepted, offered);
+
+    internal static CompatibilityClassification CompareConstraint(string kind, object? accepted, object? offered)
+        => ChangeClassifier.Constraint(kind, accepted, offered);
+
+    internal static CompatibilityClassification CompareCapacity(int? accepted, int? offered)
+        => accepted is null || offered is null ? CompatibilityClassification.Unknown
+            : offered <= accepted ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking;
+
+    internal static CompatibilityClassification CompareBounds(IReadOnlyList<DataConstraint> accepted,
+        IReadOnlyList<DataConstraint> offered, bool lower)
+        => ChangeClassifier.ClassifyBounds(accepted.ToDictionary(x => x.Kind, x => x.Value, StringComparer.Ordinal),
+            offered.ToDictionary(x => x.Kind, x => x.Value, StringComparer.Ordinal),
+            lower ? Minimum : Maximum, lower ? ExclusiveMinimum : ExclusiveMaximum, lower);
     private const string Minimum = "minimum";
     private const string Maximum = "maximum";
     private const string ExclusiveMinimum = "exclusiveMinimum";
@@ -71,6 +88,8 @@ internal static class CompatibilityRules
 
         private void Dataset(DatasetModified dataset)
         {
+            if (dataset.Previous.Schema?.FieldMatching != dataset.Current.Schema?.FieldMatching)
+                Add("field-matching", CompatibilityClassification.Unknown, "Native field matching mode changed; safe containment requires set/order policy.");
             if (dataset.Previous.Name != dataset.Current.Name || dataset.Previous.PhysicalName != dataset.Current.PhysicalName
                 || dataset.Previous.Kind != dataset.Current.Kind || !Equal(dataset.Previous.EndpointBindings, dataset.Current.EndpointBindings))
                 Add("dataset-access", CompatibilityClassification.PotentiallyBreaking, "Dataset naming, representation, or endpoint bindings changed; consumer access assumptions may be affected.");
@@ -151,7 +170,7 @@ internal static class CompatibilityRules
                 _ => "Numeric bound implication cannot be established."
             }, "constraints", inclusive);
         }
-        private static CompatibilityClassification ClassifyBounds(Dictionary<string, object?> before, Dictionary<string, object?> after,
+        internal static CompatibilityClassification ClassifyBounds(Dictionary<string, object?> before, Dictionary<string, object?> after,
             string inclusive, string exclusive, bool lower)
         {
             if (!Bound(before, inclusive, exclusive, lower, out var left, out var leftExclusive)
@@ -174,7 +193,7 @@ internal static class CompatibilityRules
             return kind;
         }
 
-        private static CompatibilityClassification Type(string? previous, string? current)
+        internal static CompatibilityClassification Type(string? previous, string? current)
         {
             if (!KnownType(previous) || !KnownType(current)) return CompatibilityClassification.Unknown;
             if (previous == "number" && current == "integer") return CompatibilityClassification.NonBreaking;
@@ -190,7 +209,7 @@ internal static class CompatibilityRules
             _ => "The logical type implication is unspecified or unsupported."
         };
 
-        private static CompatibilityClassification Constraint(string kind, object? previous, object? current)
+        internal static CompatibilityClassification Constraint(string kind, object? previous, object? current)
         {
             if (!KnownConstraint(kind)) return CompatibilityClassification.Unknown;
             if (kind is "pattern" or Required) return CompatibilityClassification.Unknown;
