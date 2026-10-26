@@ -7,17 +7,24 @@ permalink: /guides/readers-storage/
 ---
 
 To read a dataset, Packata needs to find the data and choose a reader for its
-format. A contract supplies the location and format settings; your application
-supplies the readers and, where needed, access credentials.
+format. Both the CLI and .NET library can read database tables as well as files.
+A contract supplies the location and format settings; a database read also needs
+a compatible connector or provider and connection credentials where required.
 
 An endpoint describes a file location or database connection. An asset's binding
 identifies the path or table that holds that dataset. If an asset has several
 bindings, choose the one you intend to read rather than relying on a default.
 Loading the contract alone does not open any of its data.
 
-## Choose a source the CLI can open
+## Choose where to load the contract file
 
-The source forms available to a command depend on what it needs to do:
+The contract file and the data it describes can live in different places. For
+example, a local `contract.yaml` can describe a table in a remote PostgreSQL
+database. Packata loads that file to find the table and connection settings, then
+connects to the database when you preview its records.
+
+The table below lists where the CLI can load the **contract file**. It does not
+restrict the dataset to files:
 
 | Task | Accepted descriptor locations |
 | --- | --- |
@@ -40,11 +47,13 @@ This opens the CSV referenced by the `customers` asset and displays up to two ro
 The [data guide]({{ '/guides/data/' | relative_url }}) explains the output and the
 additional preview options.
 
-## Choose a reader for the data format
+## Choose how to read the dataset
 
 CLI preview includes readers for delimited files, inline data, Excel, Parquet and
-databases. For database preview or inference, follow the
-[database connection guide]({{ '/database-integration/' | relative_url }}).
+databases. With a database-bound asset, `data preview` reads table records and
+`schema infer` discovers table metadata. Follow the
+[database connection guide]({{ '/database-integration/' | relative_url }}) for
+connector setup, runtime credentials and examples of both commands.
 
 In .NET, CSV, TSV, PSV and inline-data readers are built in. Other formats require
 an additional package and registration. Fixed-width, NDJSON, key-value and web-log
@@ -60,6 +69,10 @@ readers are available in .NET but are not currently registered for CLI preview.
 | LTSV / logfmt | `Packata.ResourceReaders.KeyValue` | `AddKeyValueReaders()` |
 | Common / W3C logs | `Packata.ResourceReaders.WebLogs` | `AddWebLogs()` |
 | Database | `Packata.ResourceReaders.Database` | `AddDatabase()`; also configure the driver or connector |
+
+This table describes .NET package registration. The CLI already configures its
+database reader; you do not need to write .NET registration code to preview a
+database table from the command line.
 
 Install the packages for the formats your application reads, then add those
 providers to a reader factory. For example, an application that reads Excel and
