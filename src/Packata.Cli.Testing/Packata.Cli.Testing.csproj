@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Packata.Cli\Packata.Cli.csproj" />
+    <Compile Include="..\Packata.ResourceReaders.Testing\ExcelWorkbookFixture.cs" Link="ExcelWorkbookFixture.cs" />
     <None Include="..\Packata.ResourceReaders.Testing\Resources\my-book.xlsx" Link="Resources\my-book.xlsx" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Packata.ResourceReaders.Testing\Resources\iris.parquet" Link="Resources\iris.parquet" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

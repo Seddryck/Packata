@@ -1,0 +1,4 @@
+typed-cells.xls is NumDoubleDateBoolString.xls from ExcelDataReader/ExcelDataReader.
+https://github.com/ExcelDataReader/ExcelDataReader/blob/develop/src/TestData/NumDoubleDateBoolString.xls
+Git blob: c6dae81bdc5929bc84d56e3a3d6f62fd70443c21
+Distributed under the included ExcelDataReader-LICENSE.txt (MIT).

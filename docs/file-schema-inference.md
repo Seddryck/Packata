@@ -57,3 +57,77 @@ document updater persists scalar logical types/nullability; physical Parquet fac
 remain available in the library result and produce a persistence warning. Nested
 schemas can be inferred in the library but document persistence fails explicitly
 before writing, because the updater cannot yet serialize them faithfully.
+
+## Excel worksheets
+
+Install `Packata.ResourceReaders.Excel` for `.xls`/`.xlsx` inference:
+
+```csharp
+using Packata.ResourceReaders.Excel;
+
+var inference = new ExcelDataContractInference(new()
+{
+    SheetName = "Measurements",
+    Header = ExcelHeaderMode.Present,
+    MaximumRecords = 1000
+});
+var result = inference.Infer("measurements.xlsx");
+```
+
+The same contract/asset/endpoint identity overrides as Parquet are available.
+Inference needs no provider registration; register `AddExcel()` for row reading.
+Pass the inferred schema when reading to retain generated names and trimmed width.
+
+```console
+packata schema infer contract.yaml --asset measurements --sheet-name Measurements --header present
+packata schema infer contract.yaml --asset measurements --sheet-number 2 --maximum-records 500 --write
+```
+
+Sheet name/number are mutually exclusive, use one-based numbers and override endpoint
+hints. Otherwise endpoint selection applies, defaulting to the first worksheet.
+Explicit header present/absent overrides endpoint hints; auto uses a hint when supplied.
+Without hints, distinct text labels followed by typed cells suggest a header. Other
+cases retain the first row as data with an ambiguity warning. No arbitrary confidence
+score is attached. Generated blank/duplicate names are stable (`column1`, `name_2`).
+
+Profiling assumes one rectangular table in one worksheet. Leading blank rows are
+skipped (up to 1,000 by default); internal blank rows remain observations. Trailing
+empty columns are trimmed, including formatted cells without values; entirely blank
+internal columns remain unknown. Empty and header-only sheets return warnings and
+unknown types where names are available. Sampling includes at most MaximumRecords
+data rows, plus up to two lookahead/header rows, and reports truncation. Rows beyond
+the limit cannot establish types or additional data columns.
+
+Strings keep their original semantics, including numeric-looking identifiers. Native
+cell booleans, numbers, DateTime and TimeSpan map to canonical types. Numeric int/double
+mixes promote to number; other mixed columns fall back to string with warnings, without
+converting workbook cells. No decimal precision, displayed zero mask, enum, primary key
+or timezone is inferred. Date recognition and workbook 1900/1904 handling are delegated
+to ExcelDataReader. Numbers with formatting remain numbers unless the decoder returns
+a temporal value; diagnostics explain that display formats are not contractual types.
+
+All newly inferred fields are optional: no blanks in a sample proves requiredness.
+Library field extensions record observed blanks and sample row counts. CLI merging
+preserves authored requiredness, and keeps an existing type when the sample has no
+type evidence. Updates are refused if authored fields were not observed, including
+an empty worksheet, to avoid deleting their metadata. Formula results use stored caches: formulas are not evaluated, links
+are not refreshed, and cache freshness or formula/error identity is not established.
+Diagnostics always disclose those decoder limitations. Merged cells produce warnings
+and are never filled forward.
+
+Defaults limit workbook bytes to 64 MiB, sheet width to 1,024 columns (including
+formatted empty columns), and sampled data rows to 1,000. The byte limit applies to
+the complete input, unlike CSV's sampled-byte limit; it does not bound ZIP expansion
+or all allocations inside the workbook decoder. Cancellation is checked between
+rows; synchronous workbook opening itself is not interruptible. Streams must be
+readable/seekable and remain open with their position restored. Invalid, encrypted,
+password-protected or unsupported workbooks fail without updating the contract.
+
+Named tables, arbitrary ranges, multiple tables, multi-row headers, and noncontiguous
+comment rows are unsupported and configured selections fail explicitly. Leading
+comment rows and a single header row are supported. Selected sheet/header/leading-row
+decisions persist as spreadsheet dialect options in Data Package and Packata custom
+properties in ODCS; reloading and preview use those same decisions. Existing numeric
+sheet selection is replaced by the resolved name to prevent conflicting hints.
+CSV culture and dialect-inference switches are rejected for Excel. The same display,
+output, atomic write and compatibility-alias behavior applies to all inference paths.

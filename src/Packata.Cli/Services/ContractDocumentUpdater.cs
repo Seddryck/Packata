@@ -10,6 +10,8 @@ internal sealed record ContractDocumentUpdate(string Content, IReadOnlyList<stri
 
 internal static class ContractDocumentUpdater
 {
+    private const string SheetNameOption = "sheetName";
+    private const string SheetNumberOption = "sheetNumber";
     public static ContractDocumentUpdate Update(
         ContractDocument document,
         DataAsset originalAsset,
@@ -18,6 +20,7 @@ internal static class ContractDocumentUpdater
         DataEndpoint inferredEndpoint)
     {
         var warnings = new List<string>();
+        EnsureExcelFieldsPreserved(originalAsset, inferredAsset, inferredEndpoint);
         if (inferredAsset.Schema?.Fields.Any(field => field.Children.Count > 0 || field.Items is not null) == true)
             throw new NotSupportedException("Nested inferred fields are display-only; this document update path cannot persist them faithfully.");
         if (inferredEndpoint.Format?.Name is "parquet" or "pqt")
@@ -42,8 +45,19 @@ internal static class ContractDocumentUpdater
         return new(content, warnings);
     }
 
-    private static bool IsDelimited(DataEndpoint endpoint) =>
-        endpoint.Kind == EndpointKind.File && endpoint.Format?.Name is "csv" or "tsv" or "psv";
+    private static bool HasDialect(DataEndpoint endpoint) =>
+        endpoint.Kind == EndpointKind.File && endpoint.Format?.Name is "csv" or "tsv" or "psv" or "xls" or "xlsx";
+
+    private static bool IsExcel(DataEndpoint endpoint) => endpoint.Format?.Name is "xls" or "xlsx";
+
+    private static void EnsureExcelFieldsPreserved(DataAsset original, DataAsset inferred, DataEndpoint endpoint)
+    {
+        if (!IsExcel(endpoint)) return;
+        var names = (inferred.Schema?.Fields ?? []).Select(field => field.Name).ToHashSet(StringComparer.Ordinal);
+        var missing = (original.Schema?.Fields ?? []).Where(field => !names.Contains(field.Name)).Select(field => field.Name).ToArray();
+        if (missing.Length > 0)
+            throw new InvalidOperationException($"Excel inference did not observe authored fields {string.Join(", ", missing)}. Update refused to preserve their metadata; inspect the worksheet/header selection.");
+    }
 
     private static string UpdateDataPackageJson(
         string content,
@@ -67,7 +81,7 @@ internal static class ContractDocumentUpdater
         schema["fields"] = MergeJsonFields(schema["fields"] as JArray, inferredAsset.Schema!.Fields, warnings);
         if (inferredEndpoint.Kind == EndpointKind.Database)
             ApplyJsonPrimaryKey(schema, inferredAsset.Schema.PrimaryKey);
-        if (IsDelimited(inferredEndpoint))
+        if (HasDialect(inferredEndpoint))
         {
             var dialect = resource["dialect"] as JObject;
             if (dialect is null)
@@ -75,7 +89,8 @@ internal static class ContractDocumentUpdater
                 dialect = new JObject();
                 resource["dialect"] = dialect;
             }
-            dialect["type"] = "delimited";
+            dialect["type"] = IsExcel(inferredEndpoint) ? "spreadsheet" : "delimited";
+            if (IsExcel(inferredEndpoint)) dialect.Remove(SheetNumberOption);
             ApplyJsonDialect(dialect, inferredEndpoint.Format!.Options);
         }
         return root.ToString(Formatting.Indented) + Environment.NewLine;
@@ -142,10 +157,11 @@ internal static class ContractDocumentUpdater
             else Set(schema, "primaryKey", new YamlSequenceNode(
                 inferredAsset.Schema.PrimaryKey.Select(key => new YamlScalarNode(key))));
         }
-        if (IsDelimited(inferredEndpoint))
+        if (HasDialect(inferredEndpoint))
         {
             var dialect = Mapping(resource, "dialect", create: true)!;
-            SetScalar(dialect, "type", "delimited");
+            SetScalar(dialect, "type", IsExcel(inferredEndpoint) ? "spreadsheet" : "delimited");
+            if (IsExcel(inferredEndpoint)) Remove(dialect, SheetNumberOption);
             ApplyYamlDialect(dialect, inferredEndpoint.Format!.Options, DataPackageDialectOptions);
         }
         return SaveYaml(yaml);
@@ -168,7 +184,7 @@ internal static class ContractDocumentUpdater
             inferredAsset.Schema!.Fields, inferredAsset.Schema.PrimaryKey,
             inferredEndpoint.Kind == EndpointKind.Database, warnings));
 
-        if (IsDelimited(inferredEndpoint))
+        if (HasDialect(inferredEndpoint))
         {
             var servers = Sequence(root, "servers");
             var server = FindByScalar(servers, "server", endpointId)
@@ -275,6 +291,7 @@ internal static class ContractDocumentUpdater
         ICollection<string> warnings)
     {
         var properties = Sequence(server, "customProperties", create: true);
+        if (options.ContainsKey(SheetNameOption)) RemoveOldSheetNumber(properties);
         foreach (var (option, property) in OdcsDialectOptions)
         {
             if (!options.TryGetValue(option, out var value)) continue;
@@ -285,7 +302,7 @@ internal static class ContractDocumentUpdater
             if (matches.Length == 0) properties.Add(target);
             SetScalar(target, "vendor", "packata");
             SetScalar(target, "property", property);
-            SetScalar(target, "value", ScalarValue(value));
+            SetScalar(target, "value", value is IEnumerable<int> rows ? string.Join(",", rows) : ScalarValue(value));
         }
 
         var unsupported = new[] { "escapeChar", "nullSequence", "commentChar" }
@@ -294,6 +311,14 @@ internal static class ContractDocumentUpdater
             unsupported = [.. unsupported, "skipInitialSpace"];
         if (unsupported.Length > 0)
             warnings.Add($"ODCS cannot represent inferred CSV options {string.Join(", ", unsupported)} directly; they were not written.");
+    }
+
+    private static void RemoveOldSheetNumber(YamlSequenceNode properties)
+    {
+        var oldNumbers = properties.Children.OfType<YamlMappingNode>().Where(node =>
+            string.Equals(Scalar(node, "vendor"), "packata", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(Scalar(node, "property"), SheetNumberOption, StringComparison.OrdinalIgnoreCase)).ToArray();
+        foreach (var old in oldNumbers) properties.Children.Remove(old);
     }
 
     private static string ToDataPackageType(string? logicalType, ICollection<string> warnings)
@@ -402,12 +427,13 @@ internal static class ContractDocumentUpdater
     [
         "header", "headerRows", "headerJoin", "headerRepeat", "commentRows", "commentChar",
         "delimiter", "lineTerminator", "quoteChar", "doubleQuote", "escapeChar", "nullSequence",
-        "skipInitialSpace"
+        "skipInitialSpace", SheetNameOption, SheetNumberOption
     ];
 
     private static readonly (string Option, string Property)[] OdcsDialectOptions =
     [
         ("delimiter", "delimiter"), ("quoteChar", "quoteChar"),
-        ("lineTerminator", "lineTerminator"), ("header", "header")
+        ("lineTerminator", "lineTerminator"), ("header", "header"),
+        (SheetNameOption, SheetNameOption), ("headerRows", "headerRows"), ("commentRows", "commentRows")
     ];
 }

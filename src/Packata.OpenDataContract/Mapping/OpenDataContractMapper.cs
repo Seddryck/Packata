@@ -319,7 +319,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     private static IReadOnlyDictionary<string, object?> MapFormatOptions(BaseServer server, string? formatName)
     {
         var options = new Dictionary<string, object?>(StringComparer.Ordinal);
-        if (!IsDelimitedFormat(formatName)) return options;
+        if (!IsDelimitedFormat(formatName) && formatName?.Trim().TrimStart('.').ToLowerInvariant() is not ("xls" or "xlsx")) return options;
 
         if (server is CustomServer { Delimiter: not null } custom)
             options["delimiter"] = custom.Delimiter;
@@ -333,6 +333,10 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                 "quotechar" => "quoteChar",
                 "lineterminator" => "lineTerminator",
                 "header" => "header",
+                "sheetname" => "sheetName",
+                "sheetnumber" => "sheetNumber",
+                "headerrows" => "headerRows",
+                "commentrows" => "commentRows",
                 _ => null
             };
             if (optionName is not null) options[optionName] = property.Value;

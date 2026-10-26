@@ -1,6 +1,6 @@
 # Packata
 
-See [file schema inference](docs/file-schema-inference.md) for Parquet metadata extraction and CLI usage.
+See [file schema inference](docs/file-schema-inference.md) for Parquet metadata extraction, Excel profiling, and CLI usage.
 
 ![Logo](https://raw.githubusercontent.com/Seddryck/Packata/main/assets/packata-icon-256.png)
 
