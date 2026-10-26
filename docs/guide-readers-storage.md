@@ -141,12 +141,12 @@ If the format is recognized but the provider is missing, Packata throws
 `ReaderProviderUnavailableException`. Its message names the package and
 registration method to add.
 
-### Read Brotli-compressed delimited resources
+### Read compressed delimited resources
 
-The built-in delimited reader recognizes `.csv.br`, `.tsv.br` and `.psv.br`
-paths, including HTTP(S) URLs with query strings. It preserves the underlying
-format and delegates Brotli decompression to PocketCsvReader. Gzip paths ending
-in `.gz` or `.gzip` remain supported.
+The built-in delimited reader supports CSV, TSV and PSV resources compressed with
+Brotli (`.br`) or Gzip (`.gz` and `.gzip`), including HTTP(S) URLs with query
+strings. It preserves the underlying format and delegates decompression to
+PocketCsvReader.
 
 For paths without a compression suffix, set canonical format metadata explicitly:
 
