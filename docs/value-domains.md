@@ -1,19 +1,108 @@
 ---
-title: Shared value domains
+title: Value domains
 parent: Concepts
 nav_order: 2
 nav_exclude: false
 permalink: /value-domains/
 ---
 
-# Shared value domains
+# Value domains
 
-`DataField.ValueDomain` exposes a common, typed API for ODCS enums and Data Package
-inline categories/enums. `DataAsset.CategoryTable` exposes category-table metadata
-when supplied by the Data Package Category Tables recipe. These types live in
-`Packata.Core.Contracts` and do not reference either native format assembly.
+A field sometimes draws its values from a known set. For example, an order's
+`status` might use `new`, `paid` and `cancelled`. The contract can give those codes
+labels and descriptions so people understand them, and can restrict which codes
+are allowed in the data. Packata calls this information a **value domain**.
+
+ODCS enums and Data Package enums/categories express this information differently.
+Packata maps them to a shared representation so applications can inspect the
+codes, their descriptions and any allowed-value restriction in the same way.
 
 ## Catalog and effective membership
+
+A catalog describes values; a restriction determines which values are allowed.
+These need not contain the same set.
+
+Suppose a category catalog contains `A`, `B` and `C`, each with a label, but a
+particular field's explicit enum allows only `C` and `A`. Packata keeps all three
+catalog entries for description, while retaining only `C` and `A` as the allowed
+values, in that order.
+
+| Information | Shared model property | Result in this example |
+| --- | --- | --- |
+| Descriptive catalog | `Entries` | `A`, `B`, `C`, with their labels and descriptions |
+| Allowed values | `AllowedValues` | `C`, `A` |
+
+ODCS enum entries provide both the catalog and its allowed values. A Data Package
+enum without categories also supplies entries, but Packata does not invent labels
+or descriptions for them.
+
+A label and a description are independently optional. Either can be missing,
+and an explicitly empty string stays empty. Additional ODCS enum information,
+such as IDs, tags, authoritative definitions and custom properties, is retained
+in each option's `Extensions["odcs"]`.
+
+### Distinguish unknown values from an empty set
+
+A contract can refer to a separate category table instead of listing every value
+inline. For example, `country_code` could refer to a `countries` resource.
+Packata preserves that reference without reading the table's rows.
+
+For a reference, `Entries` is null because no inline catalog was supplied.
+`AllowedValues` is also null unless the source separately provides a local enum
+that establishes the allowed values. Null here means **unknown membership**;
+it does not mean every value is allowed.
+
+An explicitly empty set that is valid in its source standard stays an empty
+collection. It is different from an unknown set and is not converted to null.
+
+## Ordering and table references
+
+A list's source order is always preserved, but that does not necessarily mean
+the values have a natural order. For instance, a severity catalog may deliberately
+run from low to high, while a country catalog may simply be listed alphabetically.
+
+`ValueDomain.Ordered` preserves Data Package's `categoriesOrdered`: true declares
+natural order, false explicitly declares no natural order, and null means it was
+not specified. An ODCS enum's sequence alone does not declare natural order, so
+its flag remains null.
+
+### Understand a reference to a category table
+
+A reference records which resource supplies the categories and how the field uses
+it. It can point to another resource in the same package or to an external package.
+
+| Property | Meaning |
+| --- | --- |
+| `ResourceName` | The resource name as written in the source |
+| `Package` | Null for this package; otherwise a `PackageLocator` retaining a descriptor URI or registry name and its locator text |
+| `EncodedAs` | Whether the field contains category values or labels, when explicitly declared |
+| `EffectiveEncoding` | Uses value encoding when `EncodedAs` was omitted |
+| `BoundAssetId` | The shared-model asset ID when a same-package reference can be matched to a category-table descriptor |
+
+A matched `BoundAssetId` means Packata found the table's description. It does not
+mean it opened the table or established its complete set of values. External and
+unresolved references have no local bound asset ID.
+
+`DataAsset.CategoryTable` describes the table itself: its `ValueField`, optional
+`LabelField` and nullable `Ordered` flag. A field path uses logical field names
+inside that asset, stored in `FieldPath.Segments`, rather than physical database
+column names. Original mapping names remain in source extensions.
+
+The field and the category table can each declare ordering. Packata retains both
+without choosing which takes precedence. Mapping does not fetch external
+packages, read category rows, guess label/description columns from their names,
+or create placeholder assets for external tables. An unresolved reference stays
+unresolved rather than becoming an empty allowed set.
+
+## Use the shared model in .NET
+
+`DataField.ValueDomain` exposes the domain. `DataAsset.CategoryTable` exposes
+category-table metadata when a Data Package Category Tables recipe supplies it.
+Both live in `Packata.Core.Contracts`, without dependencies on either native
+format assembly.
+
+For a field whose domain is already mapped, you can inspect its catalog and
+restriction separately:
 
 ```csharp
 foreach (var option in field.ValueDomain?.Entries ?? [])
@@ -22,108 +111,69 @@ foreach (var option in field.ValueDomain?.Entries ?? [])
 var allowed = field.ValueDomain?.AllowedValues;
 ```
 
-A domain separates its descriptive catalog from the values that are allowed. `Entries`
-keeps the catalog in source order, while `AllowedValues` carries the effective finite
-membership restriction in its own order.
+The loop prints each catalog entry's typed value, label and description. `allowed`
+contains the known restriction or is null when membership is unknown. The mapped
+values and descriptive metadata are detached snapshots: later edits to the
+native document do not change them.
 
-For example, DPv2 categories A/B/C with an explicit enum C/A retain all three catalog entries
-and their labels, but allow only C/A in that sequence. ODCS enum entries supply both lists.
-A scalar DPv2 enum without categories supplies entries without inventing labels or descriptions.
+### Keep value types distinct
 
-An inline domain provides entries and known allowed values. A reference domain instead
-provides `Reference` and leaves `Entries` null. Its `AllowedValues` also remains null until
-finite membership is known, unless the source supplies a local enum.
+`ScalarValue.Kind` identifies strings, integers, numbers, booleans and null.
+Integer `1`, number `1.0`, string `"1"` and Boolean `true` remain different values;
+labels do not change those types.
 
-Here, null means that membership is unknown, not that any value is allowed. An explicit empty
-set that is valid in its source standard remains an empty entries/allowed-values collection;
-it is not collapsed into null.
+CLR integer widths normalize to signed 64-bit integers. Number values retain
+finite decimal, double or float representations. Equivalent finite numeric text
+compares equally within the number kind without converting doubles to decimals.
+Unsupported range or precision is rejected rather than rounded.
 
-Each value can have a label, a description, both or neither. `ValueOption.Label` and
-`Description` are independently optional, and an empty string remains an empty string.
-ODCS enum IDs, tags, authoritative definitions and custom properties are retained in the
-option's `Extensions["odcs"]`.
-
-Both the value and its descriptive metadata are detached snapshots. Changing the native
-document later cannot change the mapped result.
-
-`ScalarValue.Kind` distinguishes strings, integers, numbers, booleans and null. Integer
-values are normalized from CLR integer widths to signed 64-bit integers. Number values retain
-finite decimal, double or float representations.
-
-Equality keeps those kinds distinct: integer 1, number 1.0, string `"1"` and boolean true
-are different values. Equivalent finite numeric text compares equally within the number kind,
-without converting doubles to decimals. Parsing rejects unsupported range or precision rather
-than rounding to a convenient type.
-
-Temporal scalars remain strings, with native CLR temporal values formatted invariantly.
-The owning field still declares the logical type. Null is available only where source
-constraints permit it; ODCS enum entries and DPv2 categories do not permit null.
-
-## Ordering and table references
-
-`ValueDomain.Ordered` retains field-level `categoriesOrdered`. Null is unspecified,
-false is explicitly unordered, and true declares natural order. Source sequence
-is preserved regardless of this flag. ODCS enum sequence does not imply natural
-ordering: its flag remains null.
-
-A reference exposes:
-
-- `ResourceName`: the original resource name.
-- `Package`: null for the current package, or a `PackageLocator` distinguishing
-  `DescriptorUri` from `RegistryName` and retaining the locator text.
-- `EncodedAs`: explicit value/label encoding or null when omitted.
-  `EffectiveEncoding` returns value for an omitted encoding.
-- `BoundAssetId`: the canonical same-package asset ID when its category-table
-  descriptor and reference mapping can be bound. This never implies that its rows
-  were loaded. External and unresolved references have no local bound asset ID.
-
-For a category table, `DataAsset.CategoryTable` identifies the `ValueField`, an optional
-`LabelField` and the table's own nullable `Ordered` flag. Paths in `FieldPath.Segments`
-use logical canonical field names within that asset, not physical database column names.
-The original mapping names remain in source extensions.
-
-Field ordering and table ordering are retained independently. The shared model does not choose
-one as taking precedence over the other.
-
-Mapping opens no category data files and fetches no external packages. It does not
-infer label or description columns by naming convention, create fake assets for
-external tables, or turn unresolved references into empty membership checks.
+Temporal values remain strings, with CLR temporal values formatted invariantly;
+the owning field still declares the logical type. Null is included only where
+the source permits it. ODCS enum entries and Data Package categories do not
+permit null.
 
 ## Compatibility and diagnostics
 
-Readers, provisioners and exports continue to obtain membership constraints through
-`field.Constraints`. When a domain has known membership, the scalar `enum` payload is
-derived from `AllowedValues` rather than kept as a separately editable copy.
+Existing readers, provisioners and exports obtain enum restrictions through
+`field.Constraints`. When a domain has known allowed values, Packata derives the
+scalar `enum` constraint from `AllowedValues`. Labels and descriptions are not
+part of that constraint, and there is no second independently editable copy.
+Consume the payload as an enumerable collection of scalar values rather than
+assuming a mutable array implementation.
 
-Labels and descriptions do not enter that payload. Consume it as an enumerable collection
-of scalar values, without depending on a particular mutable array implementation.
+If application code supplies a conflicting enum through the public `DataField`
+API, reading `Constraints` throws `InvalidOperationException`. A reference with
+unknown membership must also represent any explicitly supplied scalar enum in
+`AllowedValues`. Fields without value domains keep their existing constraints.
 
-Supplying an explicit conflicting enum via the public `DataField` API raises an
-`InvalidOperationException` when `Constraints` is read. A reference with unknown
-membership must also include any explicitly supplied scalar enum in its
-`AllowedValues`. Existing fields without value domains keep their constraints.
+### Review mapping warnings
 
-Native mapping reports `ODCS004` or `DP006` warnings when it cannot create a valid scalar
-projection. Causes include incompatible field types, invalid subsets or table descriptors,
-and local references that cannot be bound.
+Native mapping reports `ODCS004` or `DP006` when it cannot create a valid scalar
+domain. Causes include incompatible field types, invalid subsets, invalid table
+descriptors and local references that cannot be bound.
 
-Structured enum constraints that are not supported as scalar domains retain their meaning
-and metadata. They are not converted to strings or replaced with an invented scalar domain.
-These warnings do not make an existing native mapping fail, but you should inspect
-`MappingResult.Diagnostics` before provisioning. A valid unresolved reference remains visible
-with unknown membership.
+Structured enum constraints that cannot be represented as scalar domains retain
+their original meaning and metadata. Packata does not convert them to strings
+or invent a replacement domain. These warnings do not make the native mapping
+fail, but review `MappingResult.Diagnostics` before using the result to provision
+a database. A valid reference can also remain visible with unknown membership.
 
-You can still read ODCS enum snapshots at `field.Extensions["odcs"]["enum"]`,
-Data Package categories at `field.Extensions["datapackage"]["categories"]`, and the resource
-field map at `asset.Extensions["datapackage"]["categoryFieldMap"]`.
+### Read preserved source metadata when needed
 
-These snapshots contain read-only dictionaries, lists and primitive values. The canonical
-diff can snapshot them without depending on native format classes. If existing code casts
-Data Package extension values to native category or reference objects, use `field.ValueDomain`
-and `asset.CategoryTable` instead, or read the preserved property names as dictionary keys.
-Prefer the common API for new code that handles both formats.
+The common API is the preferred entry point for new code supporting both formats.
+Source snapshots are still available at:
 
-DataField and DataAsset constructors append optional model arguments, preserving
-existing source call sites. Consumers upgrading the assembly should rebuild.
-See [Data Package categories]({{ '/datapackage-categories/' | relative_url }}) for standard versus recipe
-syntax and the supported upstream recipe revision.
+- `field.Extensions["odcs"]["enum"]` for ODCS enum metadata.
+- `field.Extensions["datapackage"]["categories"]` for Data Package categories.
+- `asset.Extensions["datapackage"]["categoryFieldMap"]` for the resource field map.
+
+These contain read-only dictionaries, lists and primitive values, so diff can
+snapshot them without native format classes. Code that previously cast those
+Data Package extension values to native category/reference objects should use
+`field.ValueDomain` and `asset.CategoryTable` instead, or read preserved property
+names as dictionary keys.
+
+The `DataField` and `DataAsset` constructors add optional arguments at the end,
+preserving existing source call sites; rebuild consumers when upgrading the
+assembly. See [Data Package categories]({{ '/datapackage-categories/' | relative_url }})
+for standard and recipe syntax and the supported recipe revision.

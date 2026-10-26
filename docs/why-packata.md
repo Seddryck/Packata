@@ -6,8 +6,29 @@ permalink: /docs/why-packata/
 parent: Concepts
 nav_exclude: false
 ---
-Packata lets applications and command-line workflows work with Data Package v2 and ODCS documents through one canonical model. Load and inspect metadata, read bound data, infer schemas, compare versions, or provision a database without tying every integration to one source standard.
 
-Use native document models when you need standard-specific fields, and canonical contracts when sharing readers and provisioners. Review [standards support and limitations]({{ '/standards/' | relative_url }}) rather than assuming every preserved declaration is executable behavior.
+Working with a data contract should not mean rebuilding the same tools for every
+standard. A customer dataset described in Data Package and one described in ODCS
+may both need to be inspected, read, compared with an earlier version, or used to
+create database tables.
 
-Start with the [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) or [.NET Library Quickstart]({{ '/quickstart/dotnet/' | relative_url }}).
+Packata reads each standard into its own document model, then maps it to a shared
+contract model. Readers and other operations can work with that shared model
+instead of implementing each standard's document structure again. You can use
+the CLI for supported tasks or embed the .NET libraries in an application.
+
+For example, the same `contract inspect` command can show the datasets and fields
+in a Data Package or ODCS document. `data preview` can then read a selected asset
+through its binding, provided its format and storage are supported. In .NET,
+provisioners can generate a database schema from the mapped contract.
+
+The source standard still matters. Use its native document model for edits to
+standard-specific fields, and review mapping diagnostics before relying on the
+shared representation. A declaration preserved as metadata is not necessarily
+an executable rule. The [standards and limitations]({{ '/standards/' | relative_url }})
+page explains what is supported.
+
+Start with the [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) or the
+[.NET Library Quickstart]({{ '/quickstart/dotnet/' | relative_url }}). The
+[concepts overview]({{ '/concepts/' | relative_url }}) explains assets, endpoints
+and the other terms used throughout the documentation.
