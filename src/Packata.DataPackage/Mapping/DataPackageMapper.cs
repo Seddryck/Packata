@@ -123,7 +123,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
     {
         if (schema is null) return null;
         var fields = schema.Fields.Select((field, index) =>
-            MapField(field, index, package, categoryTables, sourcePath, diagnostics)).ToArray();
+            MapField(field, index, package, categoryTables, sourcePath, diagnostics) with
+            { Required = schema.FieldsMatch is Native.FieldsMatching.Exact or Native.FieldsMatching.Equal or Native.FieldsMatching.Subset }).ToArray();
         var relationships = (schema.ForeignKeys ?? []).Select(foreignKey =>
             MapRelationship(foreignKey, assetId, package, sourcePath, diagnostics)).ToArray();
 
@@ -135,7 +136,14 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 ["uniqueKeys"] = schema.UniqueKeys,
                 ["missingValues"] = schema.MissingValues,
                 ["metrics"] = schema.Metrics
-            }));
+            }), FieldMatching: schema.FieldsMatch switch
+            {
+                Native.FieldsMatching.Exact => FieldMatching.OrderedExact,
+                Native.FieldsMatching.Equal => FieldMatching.Exact,
+                Native.FieldsMatching.Subset => FieldMatching.ByName,
+                Native.FieldsMatching.Superset => FieldMatching.ClosedOptional,
+                _ => FieldMatching.Partial
+            });
     }
 
     private static DataField MapField(Native.Field field, int index, Native.DataPackage package,
@@ -155,6 +163,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             constraints = constraints.Where(value => value.Kind != "enum").ToArray();
         return new DataField(name, field.Type, PhysicalType: field.PhysicalType, Format: field.Format,
             Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
+            Nullable: field.Constraints?.Get<Native.RequiredConstraint>()?.Value != true,
             Constraints: constraints,
             Extensions: ExtensionMetadata.For(SourceNamespace, FieldExtensions(field)),
             PhysicalName: field.PhysicalName ?? name,

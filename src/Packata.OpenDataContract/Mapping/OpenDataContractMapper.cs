@@ -217,6 +217,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                 AddStringConstraints(text, constraints);
                 break;
             case NumberLogicalType number:
+                if (number.Precision is { } precision) constraints.Add(new("precision", precision));
+                if (number.Scale is { } scale) constraints.Add(new("scale", scale));
                 AddNumberConstraints(number.Minimum, number.Maximum, number.ExclusiveMinimum,
                     number.ExclusiveMaximum, constraints);
                 break;

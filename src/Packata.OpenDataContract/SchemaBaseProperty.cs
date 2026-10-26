@@ -38,6 +38,9 @@ public abstract class SchemaBaseProperty : SchemaElement
     {
         if (string.IsNullOrEmpty(discriminator))
             return new UnspecifiedLogicalType();
+        if (discriminator is "string" or "boolean" or "integer" or "array" or "object"
+            && dict is not null && (dict.ContainsKey("precision") || dict.ContainsKey("scale")))
+            throw new YamlDotNet.Core.YamlException("Precision and scale require a decimal logical type.");
         return discriminator switch
         {
             "string" => new StringLogicalType(dict),
