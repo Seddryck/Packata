@@ -293,6 +293,9 @@ Linux distributions using glibc must use a `linux-*` archive; Alpine and other m
 
 ## Quickstart
 
+Start with the [CLI Quickstart](https://seddryck.github.io/Packata/quickstart/cli/) or the distinct [.NET Library Quickstart](https://seddryck.github.io/Packata/quickstart/dotnet/). The [VS Code extension](https://seddryck.github.io/Packata/quickstart/vscode/) is **planned, not implemented**. See [all CLI commands and options](https://seddryck.github.io/Packata/cli/) and [shared task guides](https://seddryck.github.io/Packata/guides/).
+
+
 Load a Data Package descriptor and map it to the standards-neutral model:
 
 ```csharp
@@ -311,7 +314,7 @@ foreach (var asset in contract.Assets)
     Console.WriteLine(asset.Name);
 ```
 
-ODCS documents map to the same canonical model through the `Packata.OpenDataContract.Mapping` namespace. See [MIGRATION.md](MIGRATION.md) for side-by-side mapping examples and guidance for upgrading from earlier Packata versions.
+ODCS documents map to the same canonical model through the `Packata.OpenDataContract.Mapping` namespace.
 
 Canonical contracts expose optional `Sla` and `Lifecycle` commitments. SLA durations are grouped into
 `Freshness`, `Latency`, `Frequency`, and `Retention` lists, preserving separate commitments for different

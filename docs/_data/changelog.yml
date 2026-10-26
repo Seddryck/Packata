@@ -7,3 +7,18 @@
   - Create repository on GitHub
   - Initial README with first ideas and references
   - selection of license Apache 2.0
+
+- title: From contracts to databases
+  date: Mar 25, 2025
+  list:
+  - Create database tables and load data from a Data Package with the first database provisioner.
+
+- title: Open Data Contract support
+  date: Jun 8, 2025
+  list:
+  - Read ODCS documents, including dataset descriptions, schemas and server definitions, alongside Data Package support.
+
+- title: One shared contract model
+  date: Oct 4, 2026
+  list:
+  - Map Data Package and ODCS into a common model, allowing readers and provisioners to work across both standards.

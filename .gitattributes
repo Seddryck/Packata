@@ -8,3 +8,6 @@
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
 * text=auto
+
+# The sample descriptor explicitly declares LF as its CSV record terminator.
+docs/samples/quickstart/customers.csv text eol=lf

@@ -2,31 +2,43 @@
 layout: page
 width: small
 title: Contact
-nav_order: 8
+nav_order: 3
 nav_exclude: false
 permalink: /contact/
+parent: Project
 ---
 
 ### Some questions to ask?
 
-We encourage you to ask your questions in the [Q&A category](https://github.com/Seddryck/Packata/discussions/categories/q-a) of the discussions feature on the the GitHub repository. Please don't use Twitter or LinkedIn for this.
+Ask questions in the repository's [Q&A category](https://github.com/Seddryck/Packata/discussions/categories/q-a).
+Please use that shared discussion space rather than Twitter or LinkedIn for support.
 
 ### Ideas for new features?
 
 New ideas are welcome! Feel free to share them in the [Ideas category](https://github.com/Seddryck/Packata/discussions/categories/ideas) of the discussions feature on the the GitHub repository.
 
-You already have a good idea how to describe your new idea? Go ahead and write down your user-story in the [Issues](https://github.com/Seddryck/Packata/issues) tab. No specific format is needed.
+If your idea is ready to describe as a user story, open an
+[issue](https://github.com/Seddryck/Packata/issues). No particular format is required.
 
 ### Facing a bug?
 
-Please report the discovered bug in the [Issues](https://github.com/Seddryck/Packata/issues) section. No specific format of report is needed but we need to know the connection url that you're using (feel free to change a few chars but we need something very close) and also the version of the provider (and of the database). If you're receiving an error message, please include it!
+Report bugs through [Issues](https://github.com/Seddryck/Packata/issues). Include the provider
+and database versions, the error message, and a sanitized connection URL that retains the
+relevant structure. Remove credentials and other secrets before posting. No particular
+report format is required.
 
 ### Willing to contribute?
 
-The best is always to first open an [idea](https://github.com/Seddryck/Packata/discussions/categories/ideas) or an [issue](https://github.com/Seddryck/Packata/issues). Always better to discuss the purpose before going too far on the development. 
+Before starting an implementation, open an
+[idea](https://github.com/Seddryck/Packata/discussions/categories/ideas) or
+[issue](https://github.com/Seddryck/Packata/issues) so we can discuss its purpose and scope.
 
-Then, when implemented, you can  submit [Pull Requests](https://github.com/Seddryck/Packata/pulls). Don't forget to include the corresponding tests and documentation, we won't accept any pull request that is not coming with tests and/or documentation. Your pull requests will be manually reviewed and accepted.
+When the change is ready, submit a [pull request](https://github.com/Seddryck/Packata/pulls)
+with the corresponding tests and documentation. Contributions are reviewed manually;
+changes need the relevant tests and/or documentation before they can be accepted.
 
 ### Other kind of contact needed?
 
-The best is to shout me (in English or French) on [@Seddryck](https://twitter.com/Seddryck) on twitter. Naturally, answering questions or providing support is not possible through this medium, use the means provided above for this kind of questions.
+For other enquiries, contact [@Seddryck](https://twitter.com/Seddryck) on Twitter in English
+or French. Please keep support questions in the repository's Q&A category so others can
+find the answers.

@@ -1,9 +1,64 @@
 .site-title { gap: .75rem; }
 .site-logo { flex: 0 0 3rem; width: 3rem; height: 3rem; }
-.site-title::after { content: "Packata"; color: #293c42; font-size: 1.5rem; font-weight: 600; }
+.site-title::after { content: "Packata"; color: #247580; font-size: 1.5rem; font-weight: 600; }
 .site-nav .nav-list-link { color: #293c42; }
-.site-nav .nav-list-link.active,
-.site-nav .nav-list-link:hover { background: #e4f2ef; }
-.site-nav .nav-list-expander { color: #23616a; }
+.site-nav .nav-list .nav-list-item .nav-list-link:hover { background: #cfe5de; color: #247580; }
+.site-nav .nav-list .nav-list-item .nav-list-link.active,
+.site-nav .nav-list .nav-list-item .nav-list-link.active:hover {
+  background: #247580;
+  color: #ffffff;
+  box-shadow: inset 3px 0 0 #d99536;
+}
+.site-nav .nav-list-item .nav-list-expander { color: #247580; }
+.site-nav .nav-list-item:has(> .nav-list-link.active) > .nav-list-expander { color: #ffffff; }
+.side-bar + .main .main-header { background: #ffffff; border-bottom: 3px solid #247580; }
+.main-header a { color: #247580; }
+.site-header { border-bottom-color: #d5e3df; }
 .site-footer { color: #293c42; }
 .main-content img { max-width: 100%; }
+.main-content table th {
+  background: #ddeee9;
+  color: #293c42;
+  border-bottom: 2px solid #d5e3df;
+}
+.main-content table thead th { border-top: 2px solid #d99536; }
+.main-content h2 {
+  border-inline-start: 3px solid #d99536;
+  padding-inline-start: .65rem;
+}
+.main-content a:focus-visible,
+.site-nav a:focus-visible,
+.main-header a:focus-visible,
+.search-input:focus-visible {
+  outline: 2px solid #d99536;
+  outline-offset: 3px;
+}
+.main-content .btn-primary { border-bottom: 3px solid #d99536; }
+
+// Dark blocks are distinct from the quieter inline-code treatment.
+.main-content div.highlighter-rouge,
+.main-content div.highlighter-rouge .highlight,
+.main-content pre,
+.main-content pre code {
+  background: #293c42;
+  color: #edf4f1;
+  border-color: #d5e3df;
+}
+.main-content .highlight span { color: inherit; }
+.main-content .highlight {
+  .c, .c1, .cm, .cp, .cs, .ch, .cpf { color: #b5c8c3; }
+  .k, .kc, .kd, .kn, .kp, .kr, .kt, .nt { color: #efbb6c; }
+  .s, .s1, .s2, .sb, .sc, .sd, .se, .sh, .si, .sr, .ss, .sx { color: #a9decf; }
+  .m, .mb, .mf, .mh, .mi, .mo, .il { color: #dfbae7; }
+  .na, .nb, .nc, .nf, .nl, .nn, .nv { color: #8ed0d7; }
+  .err, .gd, .gr { color: #ffb4b4; }
+  .gi { color: #a9decf; }
+  .hll { background: #3a5359; }
+}
+.main-content div.highlighter-rouge > button {
+  color: #edf4f1;
+  background: #293c42;
+  border: 1px solid #8ed0d7;
+}
+.main-content div.highlighter-rouge > button:hover,
+.main-content div.highlighter-rouge > button:focus { color: #293c42; background: #a9decf; }

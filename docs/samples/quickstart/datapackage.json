@@ -1,0 +1,17 @@
+{
+  "name": "packata-quickstart",
+  "resources": [
+    {
+      "name": "customers",
+      "path": "customers.csv",
+      "format": "csv",
+      "dialect": { "delimiter": ",", "header": true, "lineTerminator": "\n" },
+      "schema": {
+        "fields": [
+          { "name": "id", "type": "integer" },
+          { "name": "name", "type": "string" }
+        ]
+      }
+    }
+  ]
+}

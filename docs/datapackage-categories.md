@@ -1,3 +1,11 @@
+---
+title: Data Package categories
+parent: Contracts and standards
+nav_order: 1
+nav_exclude: false
+permalink: /datapackage-categories/
+---
+
 # Data Package categories
 
 ## Standard DPv2 inline categories
@@ -14,11 +22,13 @@ or objects with a required `value` and an optional string `label`:
 {"name":"rating","type":"integer","categories":[{"value":1,"label":"Low"},{"value":2}],"categoriesOrdered":true}
 ```
 
-Packata's JSON and YAML readers preserve values and their logical types. Integers
-use the signed 64-bit range; values outside that range fail explicitly. Quote YAML
-string codes that look numeric, boolean, or null, such as `"001"` or `"true"`.
-Category values and present labels must be unique. An explicit `constraints.enum`
-must be a type-compatible subset of categories.
+Packata preserves category values and their logical types when reading JSON or YAML.
+Integer values must fit the signed 64-bit range; larger values fail explicitly. In YAML,
+quote string codes such as `"001"` or `"true"` so they are not interpreted as numbers,
+booleans or null.
+
+Category values and any supplied labels must be unique. When a field also declares
+`constraints.enum`, that enum must be a type-compatible subset of the categories.
 
 An absent `categoriesOrdered` remains null and makes no ordering assumption;
 `false` and `true` remain distinct. Category sequence is preserved. Canonical mapping
@@ -62,31 +72,39 @@ resource references are part of the published DPv2.0 standard.
 }
 ```
 
-A reference requires `resource`. Omitted `package` means the current package.
-`package` may instead be an HTTP(S) URL to a JSON package descriptor or a registry
-package name. `encodedAs` may be `value` (the default when omitted) or `label`.
-Omission is preserved when writing rather than replaced with an explicit default.
+A category reference must name its `resource`. If `package` is omitted, Packata treats the
+resource as belonging to the current package. An external package can instead be identified
+by an HTTP(S) URL to a JSON descriptor or by a registry package name.
 
-A category table requires `categoryFieldMap.value`; `label` and `ordered` are
-optional. As with inline ordering, absent `ordered` differs from explicit `false`.
-Descriptor validation checks local resource existence, tabular shape, mapped field
-names, value/label types, and the required uniqueness/required declarations. Using
-`encodedAs: label` requires a mapped label. The referencing field must match the
-mapped **value** field's type even with `encodedAs: label`, following the merged
-recipe's explicit type rule. Resource-level `ordered` and field-level
-`categoriesOrdered` are retained independently; neither overwrites the other.
+The reference can select value or label encoding with `encodedAs`. Value encoding is the
+default when it is omitted. Writing preserves that omission rather than inserting an
+explicit default.
 
-Validation checks descriptors only: it does not open category CSVs, inspect rows,
-or fetch external packages. External references are retained as metadata and are
-never mistaken for local resources. Registry resolution, automatic downloading,
-value expansion, and generating DDL enum constraints from category table rows are
-not implemented. Explicit enum constraints remain available as declared.
+A category table must declare `categoryFieldMap.value`. Its label field and ordering flag
+are optional; an omitted `ordered` remains distinct from explicit false.
 
-The [shared value-domain model](value-domains.md) exposes inline values and optional
-labels via `DataField.ValueDomain`, and table mappings via `DataAsset.CategoryTable`.
-Canonical field extensions also retain a detached copy of the reference object under
-`extensions["datapackage"]["categories"]`; resource extensions retain
-`categoryFieldMap`. References are not converted into empty inline categories.
+Descriptor validation checks that a local resource exists, is tabular, and declares the mapped
+fields with suitable types and the required uniqueness/required constraints. Label encoding
+requires a mapped label field.
+
+The referencing field must match the mapped **value** field's type even with `encodedAs: label`.
+This follows the merged recipe's type rule. Resource-level `ordered` and field-level
+`categoriesOrdered` remain independent; neither overwrites the other.
+
+These checks examine descriptors only. They do not open category CSVs, inspect rows or fetch
+external packages. External references remain metadata and are not mistaken for local resources.
+
+Registry resolution, automatic downloading, value expansion and generation of DDL enum
+constraints from table rows are not implemented. Explicit enum constraints remain available
+as declared.
+
+The [shared value-domain model]({{ '/value-domains/' | relative_url }}) exposes inline values
+and optional labels through `DataField.ValueDomain`, and table mappings through
+`DataAsset.CategoryTable`.
+
+The field's `extensions["datapackage"]["categories"]` also retains a detached reference
+object, while resource extensions retain `categoryFieldMap`. A reference is not converted
+into an empty inline category list.
 
 ## Native model and converter round trips
 
@@ -95,12 +113,12 @@ Canonical field extensions also retain a detached copy of the reference object u
 collection expressions and assignment from `List<ICategory>`. Adding inline entries
 to a reference collection is rejected.
 
-`ICategory.Value` is a string or `long`, independently of its optional `Label`.
-`Category` represents object-form entries, `CategoryLabel` scalar strings, and
-`CategoryInteger` scalar integers. Existing `CategoryLabel.Label` access remains
-available. Code that previously assumed `Category.Value` was `int`, or that
-`Field.Categories` was a mutable `List<ICategory>`, must use the typed value or
-collection API instead.
+Read the typed value from `ICategory.Value`, which is a string or `long`, independently of
+the optional `Label`. Object-form entries use `Category`, scalar strings use `CategoryLabel`,
+and scalar integers use `CategoryInteger`. Existing `CategoryLabel.Label` access remains available.
+
+Code that assumed `Category.Value` was an `int`, or `Field.Categories` was a mutable
+`List<ICategory>`, must use the typed value or collection API instead.
 
 The JSON/YAML category and metadata converters support read/write/read round trips
 for inline categories, references, and field maps, including absent optional
