@@ -23,7 +23,8 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
             databaseOperation = endpoint.Kind == EndpointKind.Database;
             var inference = endpoint.Kind switch
             {
-                EndpointKind.File => await InferenceService.InferCsvAsync(document, asset, endpoint, settings).ConfigureAwait(false),
+                EndpointKind.File => await InferenceService.InferFileAsync(document, asset, endpoint, settings,
+                    context.Arguments, cancellationToken).ConfigureAwait(false),
                 EndpointKind.Database => await InferenceService.InferDatabaseAsync(
                     document, asset, endpoint, settings, cancellationToken).ConfigureAwait(false),
                 _ => throw new NotSupportedException(
@@ -32,6 +33,8 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
 
             InferencePresenter.Write(document.MappingDiagnostics, inference.Result,
                 inference.Asset, inference.Endpoint);
+
+            if (!inference.Result.IsSuccessful) return 1;
 
             if (settings.Write || settings.Output is not null)
             {

@@ -18,6 +18,10 @@ internal static class ContractDocumentUpdater
         DataEndpoint inferredEndpoint)
     {
         var warnings = new List<string>();
+        if (inferredAsset.Schema?.Fields.Any(field => field.Children.Count > 0 || field.Items is not null) == true)
+            throw new NotSupportedException("Nested inferred fields are display-only; this document update path cannot persist them faithfully.");
+        if (inferredEndpoint.Format?.Name is "parquet" or "pqt")
+            warnings.Add("Parquet physical types and decimal/temporal facets are display-only in this update path; inspect the library result for full metadata.");
         if (inferredEndpoint.Kind == EndpointKind.Database
             && (inferredAsset.Schema?.Relationships.Count > 0
                 || inferredAsset.Schema?.Fields.Any(field => field.Constraints.Count > 0) == true))
@@ -37,6 +41,9 @@ internal static class ContractDocumentUpdater
         };
         return new(content, warnings);
     }
+
+    private static bool IsDelimited(DataEndpoint endpoint) =>
+        endpoint.Kind == EndpointKind.File && endpoint.Format?.Name is "csv" or "tsv" or "psv";
 
     private static string UpdateDataPackageJson(
         string content,
@@ -60,7 +67,7 @@ internal static class ContractDocumentUpdater
         schema["fields"] = MergeJsonFields(schema["fields"] as JArray, inferredAsset.Schema!.Fields, warnings);
         if (inferredEndpoint.Kind == EndpointKind.Database)
             ApplyJsonPrimaryKey(schema, inferredAsset.Schema.PrimaryKey);
-        if (inferredEndpoint.Kind == EndpointKind.File)
+        if (IsDelimited(inferredEndpoint))
         {
             var dialect = resource["dialect"] as JObject;
             if (dialect is null)
@@ -135,7 +142,7 @@ internal static class ContractDocumentUpdater
             else Set(schema, "primaryKey", new YamlSequenceNode(
                 inferredAsset.Schema.PrimaryKey.Select(key => new YamlScalarNode(key))));
         }
-        if (inferredEndpoint.Kind == EndpointKind.File)
+        if (IsDelimited(inferredEndpoint))
         {
             var dialect = Mapping(resource, "dialect", create: true)!;
             SetScalar(dialect, "type", "delimited");
@@ -161,7 +168,7 @@ internal static class ContractDocumentUpdater
             inferredAsset.Schema!.Fields, inferredAsset.Schema.PrimaryKey,
             inferredEndpoint.Kind == EndpointKind.Database, warnings));
 
-        if (inferredEndpoint.Kind == EndpointKind.File)
+        if (IsDelimited(inferredEndpoint))
         {
             var servers = Sequence(root, "servers");
             var server = FindByScalar(servers, "server", endpointId)

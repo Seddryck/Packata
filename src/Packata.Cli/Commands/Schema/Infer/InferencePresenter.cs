@@ -18,21 +18,22 @@ internal static class InferencePresenter
             .AddColumn("Field")
             .AddColumn("Logical type")
             .AddColumn("Format")
+            .AddColumn("Physical type")
             .AddColumn("Nullable");
         foreach (var field in asset.Schema?.Fields ?? [])
-            fields.AddRow(
-                Markup.Escape(field.Name),
-                Markup.Escape(field.LogicalType ?? "unknown"),
-                Markup.Escape(field.Format ?? string.Empty),
-                field.Required ? "no" : "yes");
+            AddField(fields, field, field.Name);
         AnsiConsole.Write(fields);
 
-        if (endpoint.Kind == EndpointKind.File && endpoint.Format is { } format)
+        if (endpoint.Kind == EndpointKind.File && endpoint.Format is { Name: "csv" or "tsv" or "psv" } format)
         {
             AnsiConsole.MarkupLine(
                 $"[bold]CSV dialect:[/] delimiter={Display(format.Options, "delimiter")}, " +
                 $"header={Display(format.Options, "header")}, quote={Display(format.Options, "quoteChar")}, " +
                 $"line terminator={Display(format.Options, "lineTerminator")}");
+        }
+        else if (endpoint.Kind == EndpointKind.File)
+        {
+            AnsiConsole.MarkupLine($"[bold]File format:[/] {Markup.Escape(endpoint.Format?.Name ?? "unknown")}");
         }
         else if (endpoint.Kind == EndpointKind.Database)
         {
@@ -54,6 +55,15 @@ internal static class InferencePresenter
             WriteDiagnostic(diagnostic.Severity.ToString(), diagnostic.Code, diagnostic.Message, null);
         foreach (var diagnostic in result.Diagnostics)
             WriteDiagnostic(diagnostic.Severity.ToString(), diagnostic.Code, diagnostic.Message, diagnostic.Confidence);
+    }
+
+    private static void AddField(Table table, DataField field, string path)
+    {
+        table.AddRow(Markup.Escape(path), Markup.Escape(field.LogicalType ?? "unknown"),
+            Markup.Escape(field.Format ?? string.Empty), Markup.Escape(field.PhysicalType ?? string.Empty),
+            field.Required ? "no" : "yes");
+        foreach (var child in field.Children) AddField(table, child, $"{path}.{child.Name}");
+        if (field.Items is { } item) AddField(table, item, $"{path}[]");
     }
 
     private static string Display(DataLocation location) => location switch

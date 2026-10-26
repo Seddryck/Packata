@@ -28,7 +28,7 @@ internal static class CliApplication
                 .WithDescription("Export an asset as JSON Schema; compatibility alias for schema export.")
                 .WithExample(["export", "sales.odcs.yaml", "--output-format", "json-schema", "--asset", "orders"]);
             configuration.AddCommand<InferCommand>("infer")
-                .WithDescription("Infer a bound CSV or database schema; compatibility alias for schema infer.")
+                .WithDescription("Infer a bound CSV, Parquet, or database schema; compatibility alias for schema infer.")
                 .WithExample(["infer", "datapackage.json", "--asset", "customers"]);
             SchemaCommands.Configure(configuration);
             ConfigCommands.Configure(configuration);

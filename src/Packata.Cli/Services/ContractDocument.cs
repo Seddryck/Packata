@@ -46,7 +46,7 @@ internal sealed record ContractDocument(
                     $"Asset '{asset.Id}' does not identify exactly one Data Package resource.");
             if (resources[0].Paths.Count != 1)
                 throw new InvalidOperationException(
-                    $"Asset '{asset.Id}' must bind exactly one CSV path for inference.");
+                    $"Asset '{asset.Id}' must bind exactly one file path for inference.");
             var resourcePath = resources[0].Paths[0];
             return resourcePath.IsFullyQualified
                 ? await resourcePath.OpenAsync().ConfigureAwait(false)
@@ -57,7 +57,7 @@ internal sealed record ContractDocument(
         {
             if (endpoint.Location is not PathLocation { Paths.Count: 1 } location)
                 throw new InvalidOperationException(
-                    $"Asset '{asset.Id}' must bind exactly one local CSV path for inference.");
+                    $"Asset '{asset.Id}' must bind exactly one local file path for inference.");
             var path = location.Paths[0];
             if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
             {
