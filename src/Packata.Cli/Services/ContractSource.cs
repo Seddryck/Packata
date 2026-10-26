@@ -15,6 +15,12 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
     internal string? ArchiveDescriptor { get; init; }
     public void Dispose() => Archive?.Dispose();
 
+    internal static bool IsArchive(string source)
+    {
+        var path = Uri.TryCreate(source, UriKind.Absolute, out var uri) ? uri.AbsolutePath : source;
+        return new[] { ".zip", ".tar", ".tar.gz", ".tar.br" }
+            .Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+    }
     internal YamlMappingNode? DescriptorRoot { get; init; }
 
     internal CompatibilityInput CompatibilityInput()
@@ -42,6 +48,8 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         // The operation owns its HTTP client so cancellation also aborts opening through the storage abstraction.
         using var http = uri.IsFile ? null : new HttpClient();
         using var cancellation = cancellationToken.Register(() => http?.CancelPendingRequests());
+        if (IsArchive(source) && !uri.AbsolutePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            return await LoadTarDescriptorAsync(source, uri, format, http, cancellationToken).ConfigureAwait(false);
         using var httpContainer = uri.IsFile ? null : new HttpDataPackageContainer(new Uri(uri, "."), http);
         var stream = uri.IsFile
             ? File.OpenRead(uri.LocalPath)
@@ -49,6 +57,27 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         return await LoadStreamAsync(source, uri, stream, format, cancellationToken, retainArchive).ConfigureAwait(false);
     }
 
+    private static async Task<ContractSource> LoadTarDescriptorAsync(string source, Uri uri, string format,
+        HttpClient? http, CancellationToken cancellationToken)
+    {
+        var locator = new DataPackageLocatorBuilder()
+            .Register("file", b => b.UseLocalFileSystem())
+            .Register(new[] { "http", "https" }, b => b.UseHttp(http))
+            .Register("tar", b => b.UseTarArchive())
+            .Register("tar.gz", b => b.UseTarArchive(ArchiveCompression.Gzip))
+            .Register("tar.br", b => b.UseTarArchive(ArchiveCompression.Brotli)).Build();
+        Packata.Core.Storage.DocumentHandle handle;
+        try { handle = await locator.LocateAsync(uri).ConfigureAwait(false); }
+        catch (EndOfStreamException ex) { throw new InvalidDataException("The descriptor archive is truncated.", ex); }
+        using var container = handle.Container;
+        var candidates = (await ((Packata.Core.Storage.IDocumentContainerListable)container).ListAsync().ConfigureAwait(false))
+            .Where(IsSupportedDescriptor).ToArray();
+        if (candidates.Length != 1) throw new InvalidDataException("Archive must contain exactly one supported contract descriptor.");
+        await using var entry = await container.OpenAsync(candidates[0]).ConfigureAwait(false);
+        var text = await ReadTextAsync(entry, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Parse(source, new Uri(uri, "."), candidates[0], text, format);
+    }
     private static async Task<ContractSource> LoadStreamAsync(string source, Uri uri, Stream stream,
         string format, CancellationToken cancellationToken, bool retainArchive)
     {

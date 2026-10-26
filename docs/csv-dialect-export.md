@@ -64,7 +64,7 @@ packata dialect export datapackage.json --endpoint customers-endpoint --output c
 The source contract can never be the output destination. A failed export leaves
 existing output files untouched.
 
-The command accepts local files, HTTP(S) descriptors, and local or remote ZIP
+The command accepts local files, HTTP(S) descriptors, and local or remote ZIP, TAR, TAR.GZ and TAR.BR
 packages. It opens only the descriptor, not the CSV or a database connection.
 See the [dialect export reference]({{ '/cli/' | relative_url }}#export-a-csv-dialect)
 for all options.

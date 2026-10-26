@@ -134,10 +134,10 @@ contents. If you want to select the standard yourself, use the `--input-format` 
 shown in the table above.
 
 You can read the descriptor from a local file or an HTTP(S) address, either directly
-or inside a ZIP archive. Validation checks the contract document only; it does not
+or inside a ZIP, TAR, TAR.GZ or TAR.BR archive. Validation checks the contract document only; it does not
 open the datasets referenced by that contract.
 
-For a ZIP archive, include exactly one descriptor with one of the following filenames.
+For any supported archive, include exactly one descriptor with one of the following filenames.
 The descriptor can be in a subdirectory.
 
 ```text
@@ -146,6 +146,19 @@ datapackage.yaml
 datapackage.yml
 contract.yaml
 contract.yml
+```
+
+Archive suffixes are matched case-insensitively from the URL path; query strings
+and fragments do not affect detection. All four formats have the same command
+coverage: validation, inspection, diff, compatibility comparison, JSON Schema export
+and dialect export. Preview and inference require an unpacked descriptor.
+TAR archives use the storage layer's default materialization limits described in
+the [storage guide]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net).
+
+```console
+packata contract validate package.tar.gz --output-format json
+packata contract inspect https://example.test/package.tar.br --output-format json
+packata contract diff baseline.zip candidate.tar --output-format json
 ```
 
 Packata checks Data Package descriptors against the library's descriptor rules.
@@ -230,7 +243,7 @@ baseline-to-candidate values. Differences are factual data; this command does no
 apply a compatibility policy or decide whether a change is breaking.
 
 The command loads, detects, validates and maps each input independently. You can supply local
-files, HTTP(S) addresses, or local and remote ZIP archives, using the same descriptor loader
+files, HTTP(S) addresses, or local and remote ZIP, TAR, TAR.GZ and TAR.BR archives, using the same descriptor loader
 as inspection.
 
 Comparison reads the descriptors only. It does not open referenced datasets, connect to
@@ -357,7 +370,7 @@ as you would for `contract diff`. The analysis asks whether consumers built agai
 baseline can safely consume candidate data.
 
 Only same-standard ODCS 3.2.0 or Data Package v2 comparisons are supported. The loader accepts
-local, HTTP(S) and ZIP descriptors, but does not open referenced data, databases or connectors.
+local and HTTP(S) descriptors, including ZIP, TAR, TAR.GZ and TAR.BR packages, but does not open referenced data, databases or connectors.
 It detects each input's standard independently unless you select a shared input format or
 override one input's format.
 
@@ -489,7 +502,7 @@ packata schema export sales.odcs.yaml -f json-schema --asset orders -o orders.sc
 ```
 
 Export one asset from an ODCS or Data Package v2 descriptor. You can use the same local,
-HTTP(S) and ZIP sources as inspection. Select the asset by its exact canonical identifier;
+HTTP(S) and ZIP, TAR, TAR.GZ and TAR.BR sources as inspection. Select the asset by its exact canonical identifier;
 a missing or ambiguous identifier fails.
 
 The required output format is JSON Schema. Select it with `--output-format` or its short

@@ -23,6 +23,8 @@ internal sealed record ContractDocument(
     public static ContractDocument Load(string sourcePath, string inputFormat = "auto")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        if (ContractSource.IsArchive(sourcePath))
+            throw new NotSupportedException("Schema inference requires an unpacked local contract document.");
         var fullPath = Path.GetFullPath(sourcePath);
         var text = File.ReadAllText(fullPath);
         var source = ContractSource.Parse(sourcePath, new Uri(Path.GetDirectoryName(fullPath)! + Path.DirectorySeparatorChar),

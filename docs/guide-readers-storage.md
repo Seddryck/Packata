@@ -28,7 +28,7 @@ restrict the dataset to files:
 
 | Task | Accepted descriptor locations |
 | --- | --- |
-| Validate, inspect, diff, assess compatibility, or export metadata | Local files, HTTP(S) URLs, or local and remote ZIP archives |
+| Validate, inspect, diff, assess compatibility, or export metadata | Local files, HTTP(S) URLs, or local and remote ZIP, TAR, TAR.GZ and TAR.BR archives |
 | Preview records | Local or HTTP(S) descriptors, or local and remote ZIP packages containing a descriptor and CSV resources |
 | Infer a schema | A local descriptor, including a file without an extension |
 
@@ -58,8 +58,16 @@ you are loading a contract or reading the data it describes:
 | Local files | Yes | Yes, for supported formats |
 | HTTP(S) | Yes | Yes, for supported formats at accessible HTTP(S) URLs |
 | Local or HTTP(S) ZIP archives | Yes, for validation, inspection, diff, compatibility analysis, metadata export and preview | Yes, for CSV resources inside the package |
+| Local or HTTP(S) TAR, TAR.GZ and TAR.BR archives | Yes, for validation, inspection, diff, compatibility analysis and metadata export | No; unpack the package first |
 | Native S3 storage | No | No |
 | Native Azure storage | No | No |
+
+All archive formats use the same descriptor selection: exactly one
+`datapackage.json`, `datapackage.yaml`, `datapackage.yml`, `contract.yaml` or
+`contract.yml`, optionally in a subdirectory. TAR containers materialize bundled
+entries under the default limits described below. Metadata commands do not parse
+the datasets or fetch their referenced locations. TAR preview and schema inference
+require unpacked descriptors.
 
 Preview resolves relative data paths against the contract's location. A contract
 served over HTTP(S) can therefore refer to data files alongside it. A local
@@ -155,8 +163,9 @@ access through the shared contract model, implement `IEndpointStreamResolver`.
 
 Register the archive suffixes your application accepts. TAR bundles files without
 compression; `.tar.gz` and `.tar.br` apply Gzip or Brotli to the whole TAR stream.
-All three use the same container implementation. This library configuration does
-not add TAR support to the CLI commands described above.
+All three use the same container implementation. The CLI registers all three TAR
+variants alongside ZIP for the metadata commands described above; .NET applications
+can configure their own registrations and limits.
 
 ```csharp
 using Packata.Storages;

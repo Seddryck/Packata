@@ -65,7 +65,7 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
                 return Write(null, AnalysisFailure);
             }
             var diagnostic = exception is InvalidDataException
-                ? new MappingDiagnostic("CLI021", MappingSeverity.Error, "$", "Invalid or unsupported ZIP descriptor package.")
+                ? new MappingDiagnostic("CLI021", MappingSeverity.Error, "$", "Invalid or unsupported archive descriptor package.")
                 : CommandOutput.Failure(exception);
             diagnostics.Add(new(input, source, diagnostic.Code, diagnostic.Severity, diagnostic.SourcePath, diagnostic.Message));
             return Write(null, exception is InvalidDataException ? ExitCodes.InvalidDocument : CommandOutput.FailureExitCode(exception));

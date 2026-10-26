@@ -19,7 +19,7 @@ packata infer <SOURCE> --asset <ID> [OPTIONS]
 The `infer` entry point is an alias for schema inference, with the same options and behavior.
 Supply a local ODCS YAML or Data Package v2 JSON/YAML descriptor. Packata detects its standard
 from the contents unless you set `--input-format`, and accepts extensionless descriptors.
-This loader does not accept remote descriptors or ZIP archives.
+This loader does not accept remote descriptors or ZIP, TAR, TAR.GZ or TAR.BR archives.
 
 Select one exact asset with exactly one endpoint binding. For CSV inference, that binding
 must provide a single CSV, TSV or PSV path; an ODCS CSV endpoint must be a local file.
