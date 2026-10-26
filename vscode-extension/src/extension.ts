@@ -1,0 +1,194 @@
+import * as vscode from 'vscode';
+import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node';
+import { ContractNode, ContractState, Discovery, Inspection, Validation, requireCapabilities, requireDiscovery, requireSchema } from './protocol';
+import { resolveServer } from './serverPath';
+import { ContractTree, TreeEntry } from './tree';
+
+let client: LanguageClient | undefined;
+
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  const state = new ContractState();
+  const tree = new ContractTree(state);
+  const view = vscode.window.createTreeView('packata.contracts', { treeDataProvider: tree, showCollapseAll: true });
+  const output = vscode.window.createOutputChannel('Packata', { log: true });
+  context.subscriptions.push(tree, view, output);
+  const config = () => vscode.workspace.getConfiguration('packata');
+  const executable = resolveServer(context.extensionPath, config().get<string>('languageServer.path', ''));
+  const watcher = vscode.workspace.createFileSystemWatcher('**/*.{json,yaml,yml}');
+  context.subscriptions.push(watcher);
+  const pendingOpenNotifications = new Set<Promise<void>>();
+  client = new LanguageClient('packataLanguageServer', 'Packata Language Server', {
+    command: executable, transport: TransportKind.stdio, options: { shell: false }
+  }, {
+    documentSelector: [{ scheme: 'file', pattern: '**/*.{json,yaml,yml}' }],
+    outputChannel: output,
+    synchronize: { fileEvents: watcher },
+    middleware: {
+      didOpen(document, next) {
+        const pending = next(document);
+        pendingOpenNotifications.add(pending);
+        void pending.finally(() => pendingOpenNotifications.delete(pending)).catch(() => undefined);
+        return pending;
+      },
+      async executeCommand(command, args, next) {
+        await Promise.all(pendingOpenNotifications);
+        return next(command, args);
+      }
+    },
+    initializationOptions: { packata: { schemaVersions: [1] } }
+  });
+  const connection = client;
+  // Negotiate the fixed Packata operations during initialize, before UI commands can run.
+  connection.registerFeature({
+    fillClientCapabilities(capabilities) {
+      if (capabilities.workspace?.executeCommand) capabilities.workspace.executeCommand.dynamicRegistration = false;
+      if (capabilities.textDocument?.synchronization) capabilities.textDocument.synchronization.dynamicRegistration = false;
+    },
+    initialize() {}, clear() {}, getState: () => ({ kind: 'static' })
+  });
+  context.subscriptions.push(connection);
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let refreshCancellation: vscode.CancellationTokenSource | undefined;
+  let generation = 0;
+  let documentEpoch = 0;
+  const reportedDiagnostics = new Map<string, string>();
+  const versions = () => new Map(vscode.workspace.textDocuments.map(document => [document.uri.toString(), document.version]));
+  const compatible = () => requireCapabilities(connection.initializeResult?.capabilities.executeCommandProvider?.commands);
+
+  async function request<T>(command: string, args: object, outer?: vscode.CancellationToken): Promise<T> {
+    compatible();
+    // Initial visible-buffer notifications are asynchronous in vscode-languageclient. Await
+    // them before custom workspace operations, especially immediately after reconnecting.
+    await Promise.all(pendingOpenNotifications);
+    const cancellation = new vscode.CancellationTokenSource();
+    const subscription = outer?.onCancellationRequested(() => cancellation.cancel());
+    if (outer?.isCancellationRequested) cancellation.cancel();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        connection.sendRequest<T>('workspace/executeCommand', { command, arguments: [{ ...args, schemaVersion: 1 }] }, cancellation.token),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => { cancellation.cancel(); reject(new Error('Packata request timed out.')); }, config().get<number>('requestTimeout', 30000));
+        })
+      ]);
+      // Canonicalize .NET file URI spelling (notably Windows drive colons) to VS Code's spelling.
+      return JSON.parse(JSON.stringify(result), (key, value) =>
+        (key === 'uri' || key === 'baseUri') && typeof value === 'string' ? vscode.Uri.parse(value).toString() : value) as T;
+    } finally { clearTimeout(timeout); subscription?.dispose(); cancellation.dispose(); }
+  }
+  const failure = (message: string) => {
+    // Transport errors can contain payloads; never print raw error objects.
+    view.message = message;
+    output.appendLine(message);
+  };
+  async function refresh(): Promise<void> {
+    if (stopped || connection.state !== State.Running) return;
+    refreshCancellation?.cancel(); refreshCancellation?.dispose();
+    refreshCancellation = new vscode.CancellationTokenSource();
+    const cancellation = refreshCancellation;
+    const epoch = state.begin();
+    const currentGeneration = ++generation;
+    try {
+      const response = await request<Discovery>('packata.workspace.discover', {
+        workspaceFolders: vscode.workspace.workspaceFolders?.map(folder => folder.uri.toString()) ?? []
+      }, cancellation.token);
+      requireDiscovery(response);
+      if (cancellation.token.isCancellationRequested || !state.apply(epoch, response, versions())) return;
+      tree.refresh();
+      for (const contract of state.contracts) {
+        const signature = JSON.stringify(contract.diagnostics);
+        if (reportedDiagnostics.get(contract.uri) !== signature) {
+          for (const diagnostic of contract.diagnostics) output.appendLine(`Packata ${diagnostic.code ?? ''} ${diagnostic.severity} ${diagnostic.sourcePath ?? '$'}: ${diagnostic.message}`);
+          reportedDiagnostics.set(contract.uri, signature);
+        }
+      }
+      view.message = state.contracts.length ? undefined : 'No supported contracts found. Add an ODCS or Data Package v2 descriptor, then refresh.';
+    } catch {
+      if (!cancellation.token.isCancellationRequested && currentGeneration === generation) {
+        state.clear(); tree.refresh();
+        failure('Unable to refresh contracts. Check the server installation/version, then run Packata: Restart Language Server.');
+      }
+    }
+  }
+  function schedule(): void {
+    ++documentEpoch;
+    state.begin(); // Invalidate in-flight replies immediately, before the debounce finishes.
+    refreshCancellation?.cancel();
+    clearTimeout(timer);
+    timer = setTimeout(() => void refresh(), 250);
+  }
+  function uri(entry?: TreeEntry): string {
+    const target = entry?.contract.uri ?? vscode.window.activeTextEditor?.document.uri.toString();
+    if (!target) throw new Error('Open or select a contract first.');
+    return target;
+  }
+  function current(result: { uri: string; version: number | null }): boolean {
+    const version = versions().get(result.uri);
+    return version === undefined ? result.version == null : version === result.version;
+  }
+  const command = (name: string, handler: (entry?: TreeEntry) => unknown) => context.subscriptions.push(
+    vscode.commands.registerCommand(name, async (entry?: TreeEntry) => {
+      try { return await handler(entry); }
+      catch { void vscode.window.showErrorMessage('Packata operation failed. Check the selected contract and server compatibility, or restart the language server.'); }
+    })
+  );
+  command('packata.refresh', refresh);
+  command('packata.restart', async () => { state.clear(); tree.validation.clear(); tree.refresh(); await connection.restart(); await Promise.all(pendingOpenNotifications); compatible(); schedule(); });
+  command('packata.copyPath', entry => entry && vscode.env.clipboard.writeText(entry.node.logicalPath));
+  command('packata.openSource', async entry => vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.parse(uri(entry)))));
+  command('packata.revealSource', async entry => {
+    if (!entry?.node.location) return;
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(entry.node.location.uri));
+    const epoch = documentEpoch;
+    // Opening a disk-only document creates a buffer version. Reinspect after didOpen so the
+    // revealed range belongs to that buffer, including changes made since the tree loaded.
+    const result = await request<Inspection>('packata.contract.inspect', { uri: document.uri.toString() });
+    requireSchema(result);
+    if (epoch !== documentEpoch || !current(result)) { schedule(); return; }
+    const find = (node: ContractNode): ContractNode | undefined => node.id === entry.node.id ? node : node.children.map(find).find(Boolean);
+    const location = result.tree && find(result.tree)?.location;
+    if (!location) { schedule(); return; }
+    const range = new vscode.Range(location.range.start.line, location.range.start.character, location.range.end.line, location.range.end.character);
+    const editor = await vscode.window.showTextDocument(document, { selection: range });
+    editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+  });
+  command('packata.inspect', async entry => {
+    const epoch = documentEpoch;
+    const result = await request<Inspection>('packata.contract.inspect', { uri: uri(entry) });
+    requireSchema(result);
+    if (epoch !== documentEpoch || !current(result)) { schedule(); return; }
+    await vscode.window.showTextDocument(await vscode.workspace.openTextDocument({ language: 'json', content: JSON.stringify(result, null, 2) }));
+  });
+  command('packata.validate', async entry => {
+    const epoch = documentEpoch;
+    const result = await request<Validation>('packata.contract.validate', { uri: uri(entry) });
+    requireSchema(result);
+    if (epoch !== documentEpoch || !current(result)) { schedule(); return; }
+    tree.validation.set(result.uri, { version: result.version, valid: result.valid }); tree.refresh();
+    void vscode.window.showInformationMessage(result.valid ? 'Packata: contract validation passed.' : 'Packata: contract validation failed. See Problems.');
+  });
+  const invalidate = (document: vscode.TextDocument) => { tree.validation.delete(document.uri.toString()); schedule(); };
+  context.subscriptions.push(
+    watcher.onDidCreate(schedule), watcher.onDidDelete(() => { tree.validation.clear(); schedule(); }),
+    watcher.onDidChange(() => { tree.validation.clear(); schedule(); }),
+    vscode.workspace.onDidChangeWorkspaceFolders(schedule),
+    vscode.workspace.onDidOpenTextDocument(schedule), vscode.workspace.onDidCloseTextDocument(schedule),
+    vscode.workspace.onDidChangeTextDocument(event => invalidate(event.document)),
+    vscode.workspace.onDidSaveTextDocument(invalidate),
+    vscode.window.onDidChangeActiveTextEditor(editor => {
+      const entry = editor && tree.root(editor.document.uri.toString());
+      if (entry) void view.reveal(entry, { select: true, focus: false, expand: false }).then(undefined, () => undefined);
+    }),
+    connection.onDidChangeState(event => {
+      if (event.newState === State.Running) { tree.validation.clear(); schedule(); }
+      else { state.clear(); tree.refresh(); failure('Packata language server is disconnected. Restart it to refresh contracts.'); }
+    }),
+    { dispose: () => { stopped = true; clearTimeout(timer); refreshCancellation?.cancel(); refreshCancellation?.dispose(); } }
+  );
+  view.message = 'Starting Packata language server…';
+  try { await connection.start(); compatible(); schedule(); }
+  catch { failure('Cannot start a compatible Packata language server. Install the correct VSIX or check packata.languageServer.path.'); }
+}
+
+export async function deactivate(): Promise<void> { await client?.stop(); client = undefined; }

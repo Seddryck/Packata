@@ -64,6 +64,10 @@ Use the format-specific models when you need direct access to Data Package or OD
 
 Packata libraries and the CLI target .NET 8, .NET 9, and .NET 10.
 
+## Visual Studio Code
+
+[Packata Language Support](vscode-extension/README.md) provides a native contract tree, source navigation, and validation for ODCS and Data Package descriptors. Its thin client communicates with a persistent .NET language server over LSP/stdio, including unsaved editor contents. Platform-specific VSIX packages bundle the server and runtime.
+
 ## Installing
 
 Install the package for the document format you use:

@@ -24,7 +24,7 @@ public sealed class DataContractFactory
     public DataContract LoadFromStream(Stream stream)
         => LoadFromStream(stream, new FactoryDocumentContainer(Directory.GetCurrentDirectory()));
 
-    private DataContract LoadFromStream(Stream stream, IDocumentContainer container)
+    public DataContract LoadFromStream(Stream stream, IDocumentContainer container)
     {
         ArgumentNullException.ThrowIfNull(stream);
         using var reader = new StreamReader(stream);
