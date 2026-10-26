@@ -4,6 +4,7 @@ using Packata.Core.Contracts;
 using Packata.ResourceReaders;
 using Packata.ResourceReaders.Database;
 using Packata.ResourceReaders.Parquet;
+using Packata.ResourceReaders.Excel;
 using PocketCsvReader;
 
 namespace Packata.Cli;
@@ -16,11 +17,17 @@ internal static class InferenceService
         if (endpoint.Location is not PathLocation { Paths.Count: 1 } paths)
             throw new NotSupportedException("File inference requires exactly one bound path.");
         var format = new DataFormatResolver().Resolve(endpoint);
+        if (format.Name is "xls" or "xlsx")
+        {
+            RejectOptions(arguments, ["--culture", "--no-dialect-inference"]);
+            RejectExternalCompression(format);
+            return await InferExcelAsync(document, asset, endpoint, settings, paths.Paths[0], format.Name, cancellationToken).ConfigureAwait(false);
+        }
+        RejectOptions(arguments, ["--sheet-name", "--sheet-number"]);
         if (format.Name is not ("parquet" or "pqt"))
             return await InferCsvAsync(document, asset, endpoint, settings).ConfigureAwait(false);
         RejectOptions(arguments, ["--maximum-records", "--maximum-bytes", "--culture", "--header", "--no-dialect-inference"]);
-        if (format.Compression is not null)
-            throw new NotSupportedException("Externally compressed Parquet files are unsupported for inference.");
+        RejectExternalCompression(format);
         await using var stream = await document.OpenAssetStreamAsync(asset, endpoint).ConfigureAwait(false);
         var options = new ParquetDataContractInferenceOptions
         {
@@ -31,6 +38,52 @@ internal static class InferenceService
         var result = await new ParquetDataContractInference(options).InferAsync(stream, paths.Paths[0], cancellationToken)
             .ConfigureAwait(false);
         return new(result, result.Contract.Assets.Single(), result.Contract.Endpoints.Single());
+    }
+
+    private static void RejectExternalCompression(ResolvedDataFormat format)
+    {
+        if (format.Compression is not null)
+            throw new NotSupportedException("Externally compressed binary files are unsupported for inference.");
+    }
+
+    private static async Task<InferenceSelection> InferExcelAsync(ContractDocument document, DataAsset asset,
+        DataEndpoint endpoint, InferSettings settings, string path, string formatName, CancellationToken cancellationToken)
+    {
+        await using var stream = await document.OpenAssetStreamAsync(asset, endpoint).ConfigureAwait(false);
+        var options = new ExcelDataContractInferenceOptions
+        {
+            ContractIdentity = document.Contract.Identity, ContractMetadata = document.Contract.Metadata,
+            AssetId = asset.Id, AssetName = asset.Name, AssetPhysicalName = asset.PhysicalName,
+            AssetDescription = asset.Description, EndpointId = endpoint.Id, EndpointName = endpoint.Name,
+            SheetName = settings.SheetName, SheetNumber = settings.SheetNumber,
+            MaximumRecords = settings.MaximumRecords, MaximumBytes = settings.MaximumBytes ?? 64 * 1024 * 1024,
+            SourceFormat = (endpoint.Format ?? new DataFormat(formatName)) with { Name = formatName },
+            Header = settings.Header.ToLowerInvariant() switch
+            {
+                "present" => ExcelHeaderMode.Present, "absent" => ExcelHeaderMode.Absent, _ => ExcelHeaderMode.Auto
+            }
+        };
+        var result = new ExcelDataContractInference(options).Infer(stream, path, cancellationToken);
+        var inferred = result.Contract.Assets.Single();
+        // Sampling cannot weaken or strengthen an authored requiredness constraint.
+        var originalFields = asset.Schema?.Fields.ToDictionary(field => field.Name, StringComparer.Ordinal);
+        var schema = inferred.Schema ?? throw new InvalidOperationException("Excel inference did not return a schema.");
+        inferred = inferred with { Schema = schema with
+        {
+            Fields = schema.Fields.Select(field => PreserveAuthoredField(field, originalFields)).ToArray()
+        } };
+        return new(result, inferred, result.Contract.Endpoints.Single());
+    }
+
+    private static DataField PreserveAuthoredField(DataField field, IReadOnlyDictionary<string, DataField>? originals)
+    {
+        if (originals is null || !originals.TryGetValue(field.Name, out var original)) return field;
+        return field with
+        {
+            Required = original.Required, Nullable = original.Nullable,
+            LogicalType = field.LogicalType ?? original.LogicalType,
+            Format = field.LogicalType is null ? original.Format : field.Format
+        };
     }
 
     internal static void RejectOptions(IReadOnlyList<string> arguments, IReadOnlyList<string> unsupported)

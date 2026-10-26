@@ -45,7 +45,7 @@ public sealed class CommandLineTests
             Assert.That(result.ExitCode, Is.Zero);
             Assert.That(result.StandardOutput, Does.Contain("datapackage.json").And.Contain("--asset"));
             Assert.That(result.StandardOutput, Does.Contain("--output").And.Contain("--write"));
-            Assert.That(result.StandardOutput, Does.Contain("CSV, Parquet, or database"));
+            Assert.That(result.StandardOutput, Does.Contain("CSV, Excel, Parquet, or database"));
             Assert.That(result.StandardError, Is.Empty);
         });
     }

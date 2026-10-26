@@ -6,6 +6,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\iris.parquet" />
     <EmbeddedResource Include="Resources\my-book.xlsx" />
+    <EmbeddedResource Include="Resources\typed-cells.xls" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Chrononuensis" Version="0.28.0" />

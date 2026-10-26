@@ -19,12 +19,12 @@ internal sealed class InferSettings : DatabaseCommandSettings
     public bool Write { get; init; }
 
     [CommandOption("--maximum-records <COUNT>")]
-    [Description("Maximum number of CSV records to sample; ignored for databases.")]
+    [Description("Maximum number of CSV/Excel records to sample; ignored for databases.")]
     [DefaultValue(1000)]
     public int MaximumRecords { get; init; } = 1000;
 
     [CommandOption("--maximum-bytes <COUNT>")]
-    [Description("Optional maximum CSV bytes to sample; ignored for databases.")]
+    [Description("CSV sample byte limit or Excel workbook byte limit; ignored for databases.")]
     public long? MaximumBytes { get; init; }
 
     [CommandOption("--culture <NAME>")]
@@ -33,7 +33,7 @@ internal sealed class InferSettings : DatabaseCommandSettings
     public string Culture { get; init; } = string.Empty;
 
     [CommandOption("--header <MODE>")]
-    [Description("CSV header mode: auto, present, or absent; ignored for databases.")]
+    [Description("CSV/Excel header mode: auto, present, or absent; ignored for databases.")]
     [DefaultValue("auto")]
     public string Header { get; init; } = "auto";
 
@@ -41,12 +41,24 @@ internal sealed class InferSettings : DatabaseCommandSettings
     [Description("Use contract dialect hints without inferring the CSV dialect.")]
     public bool NoDialectInference { get; init; }
 
+    [CommandOption("--sheet-name <NAME>")]
+    [Description("Excel worksheet name; mutually exclusive with --sheet-number.")]
+    public string? SheetName { get; init; }
+
+    [CommandOption("--sheet-number <NUMBER>")]
+    [Description("Excel worksheet number, starting at one.")]
+    public int? SheetNumber { get; init; }
+
     public override ValidationResult Validate()
     {
         var source = base.Validate();
         if (!source.Successful) return source;
         if (Write && Output is not null)
             return ValidationResult.Error("--output and --write cannot be combined.");
+        if (SheetName is not null && SheetNumber is not null)
+            return ValidationResult.Error("--sheet-name and --sheet-number cannot be combined.");
+        if (SheetNumber <= 0 || (SheetName is not null && string.IsNullOrWhiteSpace(SheetName)))
+            return ValidationResult.Error("Excel worksheet selection must be a nonempty name or a positive number.");
         if (MaximumRecords <= 0)
             return ValidationResult.Error("--maximum-records must be positive.");
         if (MaximumBytes <= 0)

@@ -13,7 +13,7 @@ internal static class SchemaCommands
                 .WithDescription("Export an asset as JSON Schema Draft 2020-12.")
                 .WithExample(["schema", "export", "sales.odcs.yaml", "--output-format", "json-schema", "--asset", "orders"]);
             schema.AddCommand<InferCommand>("infer")
-                .WithDescription("Infer the schema of a bound CSV, Parquet, or database asset.")
+                .WithDescription("Infer the schema of a bound CSV, Excel, Parquet, or database asset.")
                 .WithExample(["schema", "infer", "datapackage.json", "--asset", "customers"]);
         });
     }

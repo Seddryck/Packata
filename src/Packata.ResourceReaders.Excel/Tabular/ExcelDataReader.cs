@@ -10,7 +10,7 @@ internal sealed class ExcelDataReader(IExcelDataReader reader, string[] fieldNam
     public int Depth => 0;
     public bool IsClosed => _isClosed;
     public int RecordsAffected => -1;
-    public int FieldCount => reader.FieldCount;
+    public int FieldCount => fieldNames.Length;
     public object this[string name] => reader[GetOrdinal(name)];
     public object this[int i] => reader[i];
     public void Close() { reader.Close(); _isClosed = true; }
