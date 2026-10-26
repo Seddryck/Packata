@@ -39,6 +39,7 @@ internal class DataContractSerializer : IDataContractSerializer
 
         var dataContract = deserializer.Deserialize<DataContract>(yaml)
                           ?? throw new YamlDotNet.Core.YamlException("The YAML data is not valid.");
+        CategoryPropertyValues.Normalize(dataContract, yaml);
         DataContractValidator.Validate(dataContract);
         return dataContract;
     }

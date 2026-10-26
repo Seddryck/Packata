@@ -123,6 +123,10 @@ as a compatibility gate.
 Use `DataField.ValueDomain` to read typed scalar entries, optional labels and descriptions,
 effective `AllowedValues`, ordering and references. For a category table,
 `DataAsset.CategoryTable` identifies the logical value and label field paths.
+ODCS Packata custom-property declarations map to these same types and use the
+same resolver, without a dependency on Data Package models. Pass the containing
+contract when reading referenced categories; see the
+[ODCS declaration and binding example]({{ '/guides/data/' | relative_url }}#referenced-category-tables-in-odcs).
 Its `LabelFields` collection declares alternate labels, while `DataField.Language`
 identifies textual languages. Configure `ResourceReaderFactoryOptions.DecodeCategoriesLanguage`
 (for example `"fr"`) or `DecodeCategoriesLabel` (for example `"short_label"`) to
