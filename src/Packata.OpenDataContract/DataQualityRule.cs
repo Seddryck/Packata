@@ -40,14 +40,24 @@ public class DataQualityRule
     [Label("Unit")]
     public string? Unit { get; set; }
 
-    public object? MustBe { get; set; }
-    public object? MustNotBe { get; set; }
-    public object? MustBeGreaterThan { get; set; }
-    public object? MustBeGreaterOrEqualTo { get; set; }
-    public object? MustBeLessThan { get; set; }
-    public object? MustBeLessOrEqualTo { get; set; }
-    public List<object> MustBeBetween { get; set; } = [];
-    public List<object> MustNotBeBetween { get; set; } = [];
+    private readonly Dictionary<string, object?> _expectations = [];
+
+    [YamlDotNet.Serialization.YamlIgnore]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyDictionary<string, object?> DeclaredExpectations => _expectations;
+
+    public object? MustBe { get => Get(nameof(MustBe)); set => _expectations[nameof(MustBe)] = value; }
+    public object? MustNotBe { get => Get(nameof(MustNotBe)); set => _expectations[nameof(MustNotBe)] = value; }
+    public object? MustBeGreaterThan { get => Get(nameof(MustBeGreaterThan)); set => _expectations[nameof(MustBeGreaterThan)] = value; }
+    public object? MustBeGreaterOrEqualTo { get => Get(nameof(MustBeGreaterOrEqualTo)); set => _expectations[nameof(MustBeGreaterOrEqualTo)] = value; }
+    public object? MustBeLessThan { get => Get(nameof(MustBeLessThan)); set => _expectations[nameof(MustBeLessThan)] = value; }
+    public object? MustBeLessOrEqualTo { get => Get(nameof(MustBeLessOrEqualTo)); set => _expectations[nameof(MustBeLessOrEqualTo)] = value; }
+    private List<object> _MustBeBetween = [];
+    public List<object> MustBeBetween { get => _MustBeBetween; set { _MustBeBetween = value; _expectations[nameof(MustBeBetween)] = value; } }
+    private List<object> _MustNotBeBetween = [];
+    public List<object> MustNotBeBetween { get => _MustNotBeBetween; set { _MustNotBeBetween = value; _expectations[nameof(MustNotBeBetween)] = value; } }
+
+    private object? Get(string name) => _expectations.GetValueOrDefault(name);
 
     [Label("SQL Query")]
     public string? Query { get; set; }

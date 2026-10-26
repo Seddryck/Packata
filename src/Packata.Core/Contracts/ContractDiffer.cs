@@ -87,7 +87,7 @@ public static class ContractDiffer
     private static string RelationshipId(DataRelationship value)
         => value.Name is { Length: > 0 } name ? "name:" + name
             : "definition:" + Key([value.Kind, value.TargetAsset, Key(value.Fields), Key(value.TargetFields)]);
-    private static string RuleId(DataQualityRule value) => Key([value.Kind, value.Expression]);
+    private static string RuleId(DataQualityRule value) => value.SourceId ?? value.SourcePath ?? Key([value.Kind, value.Expression]);
     private static string Key(IEnumerable<string?> parts)
         => string.Concat(parts.Select(part => part is null ? "-1:" : $"{part.Length}:{part}"));
 
