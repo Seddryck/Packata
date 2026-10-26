@@ -47,6 +47,30 @@ This opens the CSV referenced by the `customers` asset and displays up to two ro
 The [data guide]({{ '/guides/data/' | relative_url }}) explains the output and the
 additional preview options.
 
+## Access remote files and archives from the CLI
+
+The CLI uses some `Packata.Storages` components internally, but it does not expose
+the library's full storage configuration. Available access depends on whether
+you are loading a contract or reading the data it describes:
+
+| Storage | Load a contract in the CLI | Read dataset records with CLI preview |
+| --- | --- | --- |
+| Local files | Yes | Yes, for supported formats |
+| HTTP(S) | Yes | Yes, for supported formats at accessible HTTP(S) URLs |
+| Local or HTTP(S) ZIP archives | Yes, for validation, inspection, diff, compatibility analysis and metadata export | No; unpack the package first |
+| Native S3 storage | No | No |
+| Native Azure storage | No | No |
+
+Preview resolves relative data paths against the contract's location. A contract
+served over HTTP(S) can therefore refer to data files alongside it. A local
+contract can also refer to an absolute HTTP(S) data URL. Schema inference has
+its own restriction: the contract file must be local.
+
+An S3 or Azure object exposed at an accessible HTTP(S) URL can be read through
+that URL, for a supported data format. That uses HTTP access, not an S3 or Azure
+backend. The CLI has no options to register those backends or configure their
+cloud credentials. Use the .NET storage APIs below when you need that integration.
+
 ## Choose how to read the dataset
 
 CLI preview includes readers for delimited files, inline data, Excel, Parquet and
