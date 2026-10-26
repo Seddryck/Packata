@@ -44,6 +44,132 @@ all rows satisfy every contract rule. The
 [preview reference]({{ '/cli/' | relative_url }}#preview-bound-data) lists all
 options and supported sources.
 
+## Preview category labels
+
+Both ODCS enums and DPv2 inline categories can give stored codes human-readable
+labels. Save this CSV as `directions.csv` beside either descriptor below:
+
+```csv
+direction,rating
+S,1
+N,2
+X,3
+```
+
+The last row deliberately demonstrates unmatched-code fallback; preview does
+not certify that rows satisfy the contract's allowed values.
+
+### Data Package categories
+
+Save this complete descriptor as `datapackage.json`:
+
+```json
+{
+  "resources": [{
+    "name": "directions",
+    "path": "directions.csv",
+    "format": "csv",
+    "dialect": {"header": true},
+    "schema": {"fields": [
+      {"name": "direction", "type": "string", "categories": [
+        {"value": "S", "label": "South"}, {"value": "N"}
+      ]},
+      {"name": "rating", "type": "integer", "categories": [
+        {"value": 1, "label": "Low"}, {"value": 2}
+      ]}
+    ]}
+  }]
+}
+```
+
+Run both commands:
+
+```console
+packata data preview datapackage.json --asset directions --output-format json
+packata data preview datapackage.json --asset directions --output-format json --decode-categories
+```
+
+Default output:
+
+```json
+{"schemaVersion":1,"columns":["direction","rating"],"rows":[["S",1],["N",2],["X",3]]}
+```
+
+With decoding enabled:
+
+```json
+{"schemaVersion":1,"columns":["direction","rating"],"rows":[["South","Low"],["N","2"],["X","3"]]}
+```
+
+### ODCS enumerations
+
+Save this equivalent complete descriptor as `contract.yaml`:
+
+```yaml
+apiVersion: v3.2.0
+kind: DataContract
+id: directions
+version: 1.0.0
+status: draft
+schema:
+  - name: directions
+    physicalType: file
+    properties:
+      - name: direction
+        logicalType: string
+        enum:
+          - value: S
+            label: South
+          - value: N
+      - name: rating
+        logicalType: integer
+        enum:
+          - value: 1
+            label: Low
+          - value: 2
+servers:
+  - server: local
+    type: local
+    path: directions.csv
+    format: csv
+```
+
+```console
+packata data preview contract.yaml --asset directions --output-format json
+packata data preview contract.yaml --asset directions --output-format json --decode-categories
+```
+
+The first command returns `[["S",1],["N",2],["X",3]]` in `rows`, and the second
+returns `[["South","Low"],["N","2"],["X","3"]]`, exactly as in the DPv2 example.
+Whitespace in JSON output can differ.
+
+### Native matching and returned types
+
+Decoding is disabled by default and uses PocketCsvReader's native `WithSequence`
+support for CSV/TSV/PSV. Other engines, including Excel, Parquet, databases and
+inline data, return an explicit unsupported-engine diagnostic. Category table
+references are not expanded.
+
+**Cells to decode must contain unquoted, unescaped code text.** PocketCsvReader
+skips native sequence replacement for fields it marks as quoted or escaped,
+even when their parsed text matches a code. Codes requiring CSV quoting or
+escaping therefore cannot be decoded. This concerns CSV cells, not the normal
+JSON/YAML quoting used in descriptors.
+
+Matching is exact and case-sensitive. Write `S` to obtain `South`; quoted `"S"` remains `S`,
+and integer spelling `01` remains `01`, rather than matching the sequence for `1`.
+Entries without labels and unmatched codes keep their text. Empty labels stay
+empty, nulls stay null, and decoding does not add any new null markers.
+
+Any column with at least one label returns strings for both labels and fallback
+codes. Its .NET `GetFieldType` is `typeof(string)` and `GetDataTypeName` is `string`.
+Columns without labels retain their usual types. PocketCsvReader does not implement
+`GetSchemaTable()`. The canonical field type and allowed codes remain unchanged;
+use a default reader for row validation. No descriptor or CSV is edited.
+
+The [.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}#read-category-labels-from-either-standard)
+shows canonical mapping and reader configuration for both descriptors.
+
 <a id="preview-a-zipped-data-package"></a>
 
 ## Preview an archived data package

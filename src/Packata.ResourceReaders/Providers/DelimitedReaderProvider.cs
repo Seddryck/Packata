@@ -9,6 +9,7 @@ namespace Packata.ResourceReaders.Providers;
 internal sealed class DelimitedReaderProvider : IDataEndpointReaderProvider
 {
     private readonly IReadOnlyList<IDelimitedDialectResolver> _dialectResolvers;
+    internal bool DecodeCategories { get; set; }
 
     public DelimitedReaderProvider(IEnumerable<IDelimitedDialectResolver>? dialectResolvers = null)
     {
@@ -27,7 +28,7 @@ internal sealed class DelimitedReaderProvider : IDataEndpointReaderProvider
         var dialect = await ResolveDialectAsync(context, cancellationToken).ConfigureAwait(false);
         var resource = CreateResource(context.Endpoint.Format, context.Format.Compression);
         var builder = new CsvReaderBuilder().WithDialect(dialect).WithResource(resource);
-        var schemaBuilder = CreateSchema(context.Schema);
+        var schemaBuilder = CreateSchema(context.Schema, DecodeCategories);
         if (schemaBuilder is not null) builder.WithSchema(schemaBuilder);
         var reader = builder.Build();
         IDataReader dataReader = context.Streams.Count == 1
@@ -74,14 +75,14 @@ internal sealed class DelimitedReaderProvider : IDataEndpointReaderProvider
         throw new ArgumentException($"Format option '{name}' must contain exactly one character.", nameof(format));
     }
 
-    private static ISchemaDescriptorBuilder? CreateSchema(DataSchema? schema)
+    private static ISchemaDescriptorBuilder? CreateSchema(DataSchema? schema, bool decodeCategories)
     {
         if (schema is not { Fields.Count: > 0 }) return null;
 
         var schemaBuilder = new SchemaDescriptorBuilder().Indexed();
         var mapper = new RuntimeTypeMapper();
         foreach (var field in schema.Fields)
-            PocketCsvReaderProviderDefaults.AddField(schemaBuilder, mapper, field);
+            PocketCsvReaderProviderDefaults.AddField(schemaBuilder, mapper, field, decodeCategories);
         return schemaBuilder;
     }
 

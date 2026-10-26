@@ -553,6 +553,7 @@ schema.Serialize(stream);
 | `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
 | `--limit <COUNT>` | Positive 32-bit integer; `20` | Maximum data rows, excluding headers |
 | `--columns <NAMES>` | All fields | Unique exact names, comma-separated, in output order |
+| `--decode-categories` | Disabled | Replace inline category/enum codes with labels; PocketCsvReader delimited engine (CSV/TSV/PSV) only |
 | `--output-format <FORMAT>` | `table`, `json`, `csv`; `table` | Result representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
 | `--connector <SCHEME=ID>` | Repeatable; persisted preference otherwise | Invocation connector preference |
@@ -598,6 +599,36 @@ positive 32-bit integer to change that bound. Reading stops at the limit or the 
 
 To select or reorder columns, pass their exact names as a comma-separated `--columns` value.
 Omit it to return all columns. Invalid, duplicate or ambiguous names fail.
+
+Pass `--decode-categories` to display optional labels from ODCS enums or DPv2 inline
+categories. For example, `S` with label `South` displays as `South`; integer `1` with
+label `Low` displays as `Low`. Entries without labels and unmatched codes retain
+their original text; nulls stay null. An explicitly empty label displays as an empty string.
+Decoding is disabled by default. Excel, Parquet, database, inline and other reader
+engines reject the flag with an explicit diagnostic. Category table references
+are not loaded or expanded.
+
+```console
+packata data preview datapackage.json --asset directions --output-format json
+packata data preview datapackage.json --asset directions --output-format json --decode-categories
+packata data preview contract.yaml --asset directions --output-format json --decode-categories
+```
+
+The [complete two-format examples]({{ '/guides/data/' | relative_url }}#preview-category-labels)
+show the descriptors and output. Packata uses PocketCsvReader's native sequence
+mapping, which matches exact, case-sensitive, unquoted CSV text. Integer `1`
+matches, while quoted `"1"` and alternate spelling `01` remain unchanged.
+**Write cells to decode as unquoted, unescaped CSV text.** Native sequence
+replacement skips fields marked as quoted or escaped by PocketCsvReader, even
+when the parsed code matches. Codes requiring CSV quoting or escaping cannot be
+decoded. Descriptor strings still follow normal JSON/YAML quoting rules.
+Columns with labels return strings, including fallback codes, so JSON contains
+`"2"` rather than `2` in such an integer column. The .NET reader reports
+`typeof(string)` through `GetFieldType` and `string` through `GetDataTypeName`.
+PocketCsvReader does not implement `GetSchemaTable()`. Columns without labels
+keep their original type. This is a
+presentation option: it does not edit the descriptor, persist labels into the CSV,
+or replace the allowed codes used by validation.
 
 Preview displays a table by default. Use `--output-format` to choose JSON or CSV, and
 `--output` or `-o` to save the result to a new file instead of stdout.

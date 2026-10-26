@@ -81,6 +81,12 @@ to inspect or pass to another program. You should see:
 Whitespace can differ. Unlike validation and inspection, preview opens the CSV.
 None of these commands changes either sample file.
 
+For ODCS enum labels and DPv2 category labels, add `--decode-categories` to
+`data preview`. The [category walkthrough]({{ '/guides/data/' | relative_url }}#preview-category-labels)
+provides complete descriptors for both standards, CSV data, and output with and
+without decoding. It also explains native PocketCsvReader matching and why
+labeled columns return strings, including integer fallback codes.
+
 If you receive the descriptor and CSV together in `dataset.zip`, you can also run
 `packata data preview dataset.zip --asset customers --limit 2 --output-format json`
 without extracting it. See the [zipped package example]({{ '/guides/data/' | relative_url }}#preview-a-zipped-data-package)

@@ -25,8 +25,8 @@ internal sealed class PreviewCommand : AsyncCommand<PreviewSettings>
                     mapped.Value!.Endpoints, settings.Connectors, settings.ConnectionEnvironment) : null;
             var streams = source.Archive is null ? null
                 : new PreviewService.ArchiveStreamResolver(source.Archive, source.ArchiveDescriptor!);
-            var factory = database?.CreateReaders(source.BaseUri)
-                ?? PreviewService.CreateFactory(source.BaseUri, streams: streams);
+            var factory = database?.CreateReaders(source.BaseUri, settings.DecodeCategories)
+                ?? PreviewService.CreateFactory(source.BaseUri, streams: streams, decodeCategories: settings.DecodeCategories);
             var sample = await PreviewService.ReadAsync(factory, request,
                 settings.Limit, settings.Columns, cancellationToken).ConfigureAwait(false);
             using var output = new OutputDestination(settings.Output);
@@ -48,6 +48,7 @@ internal sealed class PreviewCommand : AsyncCommand<PreviewSettings>
             diagnostic = diagnostic with { Message = $"Unable to preview asset '{assetId}' at endpoint '{endpoint.Id}' (format '{endpoint.Format?.Name ?? "auto"}'). Check the reader provider, format, binding, and resource access." };
         return exception switch
         {
+            CategoryDecodingNotSupportedException unsupported => diagnostic with { Message = unsupported.Message },
             ReaderProviderUnavailableException unavailable => diagnostic with
             { Message = $"{diagnostic.Message} Required package: {unavailable.SuggestedPackage}; registration: {unavailable.RegistrationMethod}." },
             Packata.Database.DatabaseConnectionException connector => diagnostic with

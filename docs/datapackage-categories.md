@@ -35,6 +35,49 @@ An absent `categoriesOrdered` remains null and makes no ordering assumption;
 retains category metadata and creates an enum constraint from nonempty inline
 categories when no explicit enum constraint exists.
 
+## Values, labels and opt-in decoding
+
+The value is the code stored in a row; its optional label is display text. Mapping
+does not replace that code or change the field's declared logical type. Read the
+shared catalog through `DataField.ValueDomain.Entries`: each `ValueOption` has a
+typed `ScalarValue` in `Value` and an optional `Label`. `AllowedValues` keeps the
+effective restriction independently, including an explicit `constraints.enum`
+subset. `ValueDomain.Ordered` preserves true, false and unspecified ordering.
+
+The same API represents ODCS enum values, including strings, integers, numbers
+and booleans. ODCS descriptions appear in `ValueOption.Description`; IDs, tags,
+custom properties and authoritative definitions remain in `Extensions["odcs"]`.
+See the [canonical API examples]({{ '/quickstart/dotnet/' | relative_url }}#read-category-labels-from-either-standard).
+
+To display labels, enable `ResourceReaderFactoryOptions.DecodeCategories` in .NET
+or pass `--decode-categories` to `packata data preview`. This option is disabled
+by default and supports only the PocketCsvReader delimited engine (CSV/TSV/PSV).
+Other engines return an explicit unsupported-engine diagnostic. Referenced
+category tables remain metadata and are not fetched or expanded.
+
+A matching code with a label returns that string. Unlabeled entries, unmatched
+code text and nulls remain unchanged; an empty label remains an empty string.
+Packata registers native PocketCsvReader `WithSequence` mappings. Matching is
+case-sensitive against exact unquoted CSV text, using invariant code text
+(`1`, `1.5`, `true`). Quoted or escaped codes and alternate spellings such as
+`01` remain unchanged. Columns with any labels return `string` for both labels
+and fallback codes; columns without labels retain their original type.
+`GetFieldType` reports `typeof(string)` and `GetDataTypeName` reports `string`
+for labeled columns. PocketCsvReader does not implement `GetSchemaTable()`.
+
+**Write category-code cells that should be decoded as unquoted, unescaped CSV
+text.** PocketCsvReader skips sequence replacement for fields it marks as quoted
+or escaped, even if their parsed text matches a category code. For example, write
+`S`, not `"S"`, to decode it to `South`. Codes that require CSV quoting or escaping
+cannot be decoded by this native feature. This requirement concerns cells in the
+CSV data; string values in JSON/YAML descriptors still use their normal syntax.
+
+Decoding does not edit source descriptors or data, change the canonical logical
+type, or cause validation to compare labels against code restrictions. Use a
+default reader when validating original row values. The
+[data guide]({{ '/guides/data/' | relative_url }}#preview-category-labels) contains
+complete ODCS and DPv2 descriptors, commands and output with and without decoding.
+
 ## Category Tables recipe
 
 The resource-reference form is supported separately from the standard DPv2.0

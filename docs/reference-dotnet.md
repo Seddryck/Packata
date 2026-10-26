@@ -47,6 +47,27 @@ To extend reading, provide a host stream resolver or register an `IDataEndpointR
 To customize parsing, use a delimited dialect or fixed-width layout resolver.
 See the [reader and storage guide]({{ '/guides/readers-storage/' | relative_url }}) for configuration.
 
+## Category label decoding
+
+Configure `ResourceReaderFactory.Create(options => options.DecodeCategories = true)`
+to register canonical `ValueDomain.Entries` labels as native PocketCsvReader
+sequences for CSV/TSV/PSV. The default is false. Both ODCS enums and DPv2 inline
+categories use this API; category table references are not expanded. Other engines
+throw `CategoryDecodingNotSupportedException` before opening resources.
+
+Columns with labels return `string`, including unmatched and unlabeled fallback
+code text; columns without labels retain their original types. `GetFieldType`
+and `GetDataTypeName` report this presentation type. `GetSchemaTable` remains
+unimplemented by PocketCsvReader. Matching is exact and case-sensitive against
+unquoted CSV text; quoted/escaped codes and alternate numeric spellings stay as
+text. Null handling is unchanged. The source contract, logical types and allowed
+codes are not modified. See the [two-format .NET examples]({{ '/quickstart/dotnet/' | relative_url }}#read-category-labels-from-either-standard).
+
+**CSV cells to decode must be unquoted and unescaped.** PocketCsvReader skips
+sequence replacement for fields it marks as quoted or escaped, regardless of
+their parsed text. Codes requiring CSV quoting or escaping cannot be decoded
+through this native feature. JSON/YAML descriptor quoting is unaffected.
+
 ## Comparison
 
 Call `previous.Diff(candidate)` to obtain typed additions, removals and modifications,

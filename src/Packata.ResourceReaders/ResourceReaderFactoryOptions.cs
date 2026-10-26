@@ -3,6 +3,11 @@ namespace Packata.ResourceReaders;
 /// <summary>Configures providers evaluated before the built-in resource readers.</summary>
 public sealed class ResourceReaderFactoryOptions
 {
+    /// <summary>Decode inline category values to labels for the PocketCsvReader delimited engine only.
+    /// Disabled by default. Columns with labels return strings, including fallback code text.
+    /// Native sequences match exact unquoted CSV text; quoted codes remain unchanged.</summary>
+    public bool DecodeCategories { get; set; }
+
     private readonly List<IDataEndpointReaderProvider> _providers = [];
 
     /// <summary>Configures format-name and path-extension mappings used before provider dispatch.</summary>
