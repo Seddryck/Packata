@@ -149,6 +149,117 @@ The first command returns `[["S",1],["N",2],["X",3]]` in `rows`, and the second
 returns `[["South","Low"],["N","2"],["X","3"]]`, exactly as in the DPv2 example.
 Whitespace in JSON output can differ.
 
+### Referenced category tables in ODCS
+
+ODCS can use the same category-table reader through explicit Packata custom
+properties. This is a **Packata convention**, not standard ODCS category-table
+functionality. A foreign key alone never identifies display labels.
+
+Save this complete descriptor as `members.odcs.yaml`:
+
+```yaml
+apiVersion: v3.2.0
+kind: DataContract
+id: members
+version: 1.0.0
+status: draft
+servers:
+  - server: files
+    type: local
+    path: ./
+    format: csv
+schema:
+  - name: members
+    logicalType: object
+    physicalType: table
+    physicalName: members.csv
+    properties:
+      - name: category_code
+        logicalType: string
+        customProperties:
+          - vendor: packata
+            property: categories
+            value:
+              resource: categories
+              encodedAs: value
+  - name: categories
+    logicalType: object
+    physicalType: table
+    physicalName: categories.csv
+    customProperties:
+      - vendor: packata
+        property: categoryFieldMap
+        value:
+          value: key
+          label: title
+          ordered: false
+    properties:
+      - name: key
+        logicalType: string
+        required: true
+        unique: true
+      - name: title
+        logicalType: string
+        unique: true
+```
+
+The local server's trailing `/` explicitly denotes a directory. Each object's
+`physicalName` supplies its file path relative to that directory; both are resolved
+relative to the descriptor. Mapping creates one canonical file endpoint and binding
+per object (`files/members` and `files/categories`). Directory mode requires an
+explicit `physicalName` for every object. A server path without a trailing separator
+continues to identify a single file. Multiple servers still require explicit
+canonical bindings; Packata does not guess which object belongs to which server.
+
+Place `members.csv` alongside the descriptor:
+
+```csv
+category_code
+REG
+STU
+X
+```
+
+Place `categories.csv` in the same directory:
+
+```csv
+key,title
+REG,Regular
+STU,Student
+```
+
+```console
+packata data preview members.odcs.yaml --asset members --output-format json
+packata data preview members.odcs.yaml --asset members --output-format json --decode-categories
+```
+
+The raw command returns `[["REG"],["STU"],["X"]]` in `rows`; decoding returns
+`[["Regular"],["Student"],["X"]]`. Neither descriptor nor CSV is changed. Raw reads
+do not open the lookup solely for decoding. Multiple fields can share one lookup,
+which is loaded once per reader opening.
+
+`resource` is the exact logical name of a schema object in the same contract.
+The table must explicitly map a string or integer value column with
+`required: true` and `unique: true`. A label is optional; when declared, it must be a string
+column with `unique: true`. Referencing properties match the value column's type,
+including when label-encoded. Omitted `encodedAs` means value; `encodedAs: label`
+bypasses lookup loading and replacement. Omitted `ordered` remains distinct from
+false. Inline enum and reference declarations cannot coexist on a property.
+
+Only exact `vendor: packata` / `property: categories` and `categoryFieldMap`
+declarations are interpreted. Original custom metadata and other vendors are
+retained. Invalid shapes, duplicate recognized properties, missing targets or
+columns, and incompatible types/constraints produce mapping errors, also reported
+by `packata contract validate`. Mapping itself never reads lookup rows.
+
+The shared loader currently supports local, uncompressed delimited lookup assets
+in the same contract. External-package references remain metadata and fail
+explicitly when decoding needs them. Loading limits, cancellation, cleanup,
+duplicate-row checks, code fallback and native matching restrictions are the same
+as for [Data Package category tables]({{ '/datapackage-categories/' | relative_url }}).
+This ODCS convention currently exposes one optional default label; alternate-label
+and language metadata remain the Data Package extensions described in that guide.
+
 ### Native matching and returned types
 
 Decoding is disabled by default and uses PocketCsvReader's native `WithSequence`

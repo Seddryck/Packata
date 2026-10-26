@@ -12,7 +12,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         ArgumentNullException.ThrowIfNull(document);
 
         var diagnostics = new List<MappingDiagnostic>();
-        var endpoints = document.Servers.Select(MapEndpoint).ToArray();
+        var directory = DirectoryServer(document);
+        var endpoints = MapEndpoints(document, directory, diagnostics);
         var canBindEndpoints = document.Servers.Count <= 1;
         if (!canBindEndpoints && document.Schema.Count > 0)
         {
@@ -24,8 +25,9 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         }
 
         var assets = document.Schema
-            .Select(schema => MapAsset(schema, canBindEndpoints ? endpoints : [], diagnostics))
+            .Select(schema => MapAsset(schema, AssetEndpoints(schema, endpoints, directory, canBindEndpoints), diagnostics))
             .ToArray();
+        assets = CategoryTableMapper.Map(document, assets, diagnostics);
 
         var extensions = MapCustomProperties(document.Description?.CustomProperties);
         var commitments = ServiceCommitmentMapper.Map(document, diagnostics);
@@ -61,6 +63,31 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         return new MappingResult<CoreContract>(contract, diagnostics);
     }
 
+    private static LocalFilesServer? DirectoryServer(DataContract document)
+    {
+        if (document.Servers.Count != 1 || document.Servers[0] is not LocalFilesServer local) return null;
+        return local.Path.EndsWith('/') || local.Path.EndsWith('\\') ? local : null;
+    }
+
+    private static DataEndpoint[] MapEndpoints(DataContract document, LocalFilesServer? directory, ICollection<MappingDiagnostic> diagnostics)
+    {
+        if (directory is null) return document.Servers.Select(MapEndpoint).ToArray();
+        foreach (var schema in document.Schema.Where(schema => string.IsNullOrWhiteSpace(schema.PhysicalName)))
+            diagnostics.Add(new("ODCS006", MappingSeverity.Error, $"schema/{schema.Name}/physicalName",
+                "A local directory server requires an explicit physicalName for each schema object."));
+        return document.Schema.Where(schema => !string.IsNullOrWhiteSpace(schema.PhysicalName)).Select(schema =>
+            MapEndpoint(directory) with { Id = $"{directory.Server}/{schema.Name}",
+                Location = new PathLocation([Path.Combine(directory.Path, schema.PhysicalName!)]) }).ToArray();
+    }
+
+    private static IReadOnlyList<DataEndpoint> AssetEndpoints(SchemaObject schema, DataEndpoint[] endpoints,
+        LocalFilesServer? directory, bool canBind)
+    {
+        if (directory is not null)
+            return endpoints.Where(endpoint => endpoint.Id == $"{directory.Server}/{schema.Name}").ToArray();
+        return canBind ? endpoints : [];
+    }
+
     private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints,
         ICollection<MappingDiagnostic> diagnostics)
     {
@@ -84,7 +111,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             schema.Description,
             MapAssetKind(schema.PhysicalType),
             new DataSchema(fields, primaryKey, relationships),
-            endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray());
+            endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray(),
+            Extensions: MapCustomProperties(schema.CustomProperties));
     }
 
     private static DataRelationship? MapRelationship(Relationship relationship, string sourceAsset,
@@ -375,7 +403,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         {
             ["id"] = x.Id,
             ["property"] = x.Property,
-            ["value"] = x.Value,
+            ["value"] = MetadataSnapshot.CopyValue(x.Value),
             ["description"] = x.Description,
             ["vendor"] = x.Vendor
         }).ToArray();

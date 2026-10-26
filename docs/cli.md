@@ -619,6 +619,8 @@ their original text; nulls stay null. An explicitly empty label displays as an e
 Decoding is disabled by default. Excel, Parquet, database, inline and other reader
 engines reject decoding with an explicit diagnostic. Local category-table
 references resolve their mapped lookup columns when decoding is enabled.
+ODCS can declare lookup references using Packata custom properties; see the
+[complete ODCS descriptor, bindings and raw/decoded output]({{ '/guides/data/' | relative_url }}#referenced-category-tables-in-odcs).
 
 For tables with alternate labels, use `--decode-categories-language fr` to select
 by field language, or `--decode-categories-label short_label` to select an exact

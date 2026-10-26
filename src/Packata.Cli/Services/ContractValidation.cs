@@ -20,6 +20,8 @@ internal static class ContractValidation
             diagnostics.Add(new("ODCSV002", MappingSeverity.Error, "$.kind", "kind must be DataContract."));
         if (odcs.ApiVersion != "v3.2.0")
             diagnostics.Add(new("ODCSV003", MappingSeverity.Error, "$.apiVersion", "Supported ODCS apiVersion is v3.2.0."));
+        diagnostics.AddRange(new Packata.OpenDataContract.Mapping.OpenDataContractMapper().Map(odcs).Diagnostics
+            .Where(diagnostic => diagnostic.Code is "ODCS006" or "ODCS007"));
         return diagnostics;
     }
 }

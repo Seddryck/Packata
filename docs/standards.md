@@ -31,6 +31,11 @@ The ODCS model retains context blocks, schema and server variants, nested logica
 temporal options and relationships. It also retains teams, roles, pricing, support channels,
 custom properties and SLA metadata.
 
+Packata recognizes explicit `vendor: packata` category-table declarations in custom
+properties and maps them to shared category references and lookup metadata. This
+convention extends ODCS; it does not infer labels from foreign keys. See the
+[ODCS category-table example and binding rules]({{ '/guides/data/' | relative_url }}#referenced-category-tables-in-odcs).
+
 Quality definitions can be textual, library-based, SQL-based or custom, and can include
 schedules. Reading or preserving them does not execute the rules or schedules. The current
 canonical mapping does not populate native ODCS quality rules, so their presence in YAML

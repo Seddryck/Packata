@@ -102,6 +102,11 @@ unresolved rather than becoming an empty allowed set.
 
 `DataField.ValueDomain` exposes the domain. `DataAsset.CategoryTable` exposes
 category-table metadata when a Data Package Category Tables recipe supplies it.
+ODCS can populate the same model with Packata's explicit `vendor: packata`
+`categories` and `categoryFieldMap` custom properties. This is a Packata convention,
+not standard ODCS functionality. Targets use schema objects' logical names; the
+reader uses ordinary canonical endpoint bindings. See the
+[complete ODCS lookup example]({{ '/guides/data/' | relative_url }}#referenced-category-tables-in-odcs).
 Both live in `Packata.Core.Contracts`, without dependencies on either native
 format assembly.
 
