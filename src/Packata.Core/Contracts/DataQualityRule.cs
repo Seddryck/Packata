@@ -66,7 +66,12 @@ public sealed record LibraryQuality : IQualityDefinition
 }
 public sealed record SqlQuality(string Query, string? Unit = null) : IQualityDefinition;
 public sealed record ExpressifQuality(string Program, QualityProgramKind ProgramKind, QualityInputScope Scope,
-    string PayloadVersion = "1", string? OriginalPayload = null) : IQualityDefinition;
+    string PayloadVersion = "1", string? OriginalPayload = null,
+    IReadOnlyDictionary<string, QualityValue>? Bindings = null) : IQualityDefinition
+{
+    public IReadOnlyDictionary<string, QualityValue> Bindings { get; init; } =
+        new ReadOnlyDictionary<string, QualityValue>((Bindings ?? new Dictionary<string, QualityValue>()).ToDictionary(p => p.Key, p => p.Value));
+}
 public sealed record TextQuality(string? Text) : IQualityDefinition;
 public sealed record CustomQuality(string? Engine, string? Implementation) : IQualityDefinition;
 

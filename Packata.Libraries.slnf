@@ -21,7 +21,9 @@
       "src\\Packata.ResourceReaders.WebLogs\\Packata.ResourceReaders.WebLogs.csproj",
       "src\\Packata.ResourceReaders\\Packata.ResourceReaders.csproj",
       "src\\Packata.Storages.Testing\\Packata.Storages.Testing.csproj",
-      "src\\Packata.Storages\\Packata.Storages.csproj"
+      "src\\Packata.Storages\\Packata.Storages.csproj",
+      "src\\Packata.Rules.Expressif\\Packata.Rules.Expressif.csproj",
+      "src\\Packata.Rules.Expressif.Testing\\Packata.Rules.Expressif.Testing.csproj"
     ]
   }
 }

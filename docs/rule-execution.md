@@ -97,3 +97,47 @@ value-domain membership keeps `ScalarValue`'s typed distinction. String equality
 ordinal, while ordering strings, booleans or null is invalid. Offset timestamps compare
 instants. Calendar and elapsed durations with different components are not ordered
 without a reference date. Between is exclusive; every declared expectation must hold.
+
+## Expressif adapter
+
+`Packata.Rules.Expressif` pins Expressif **2.93.1**. It uses the verified
+`Expression.Create`, `Predication.Create` and `WithContext(EvaluationContext)` APIs.
+Prepared programs are immutable; each run binds an independent runtime context.
+Typed declaration arguments and run bindings never become expression text.
+`@observationTime` is reserved and receives the run's fixed timestamp.
+
+An ODCS custom rule uses `type: custom`, `engine: expressif`, and a JSON string in
+`implementation`, for example:
+
+```json
+{"version":"1","kind":"predicate","scope":"value","program":"positive"}
+```
+
+`kind` is `expression` or `predicate`; `scope` is `value`, `row`, `dataset` or
+`observation`. This payload is a Packata extension, not an ODCS program grammar.
+The original payload remains available. Value targets require a logical field path.
+Value/row programs apply expectations per item and reduce to an all-items verdict,
+with violation and population counts. Empty item populations are Inconclusive.
+Predicates default to expected true; explicit boolean equality expectations override
+that convenience. Expressions require explicit expectations. Dataset programs receive
+a single-use lazy row sequence and must consume it completely before they can pass.
+They return one scalar measurement. Observation programs require explicit input.
+
+The adapter permits a bounded set of arithmetic, text, null, Boolean and aggregation
+operations listed in `PreparedQualityProgram`. IO, dynamic evaluation and arbitrary
+host functions are unavailable. Unsupported operations become compilation findings.
+Row records use logical names resolved from physical columns; nested record values
+can be addressed by logical path segments. Array-item flattening is not implicit.
+Reader budgets and cancellation are checked between rows; a synchronous Expressif
+call cannot be interrupted midway. Scalar result/type errors remain execution errors.
+
+### Package delivery decisions
+
+| Dimension | Evidence and decision |
+|---|---|
+| Frameworks | Inherit net8.0, net9.0, net10.0 from repository properties; compile and test all three. |
+| Deliverables | Portable managed adapter libraries; one NuGet identity per adapter with all three framework assemblies. |
+| OS and RIDs | Reuse existing Windows library tests; no native adapter dependency or additional distribution RID. |
+| Versions | Reuse the repository's single calculated release version and release-only publication boundary. |
+| Prerequisites | Existing tracked icon/README; no additional generator or external tool. |
+| Packaging | Include projects in library solution filter, compiled-output transfer, package list and artifact validator. |

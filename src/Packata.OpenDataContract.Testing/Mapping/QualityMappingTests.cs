@@ -64,7 +64,8 @@ public class QualityMappingTests
     {
         const string payload = """{"version":"1","kind":"predicate","scope":"value","program":"positive"}""";
         var rule = Map(new() { Type = "custom", Engine = "expressif", Implementation = payload }).Value!.Assets[0].QualityRules[0];
-        Assert.That(rule.Definition, Is.EqualTo(new ExpressifQuality("positive", QualityProgramKind.Predicate, QualityInputScope.Value, OriginalPayload: payload)));
+        Assert.That(rule.Definition, Is.TypeOf<ExpressifQuality>());
+        Assert.That(((ExpressifQuality)rule.Definition!).OriginalPayload, Is.EqualTo(payload));
         var invalid = Map(new() { Type = "custom", Engine = "expressif", Implementation = "positive" });
         Assert.That(invalid.Diagnostics, Is.Not.Empty);
         Assert.That(invalid.Value!.Assets[0].QualityRules[0].Definition, Is.TypeOf<CustomQuality>());

@@ -26,7 +26,8 @@ $packageIds = @(
     'Packata.ResourceReaders.WebLogs',
     'Packata.Provisioners',
     'Packata.Storages',
-    'Packata.OpenDataContract'
+    'Packata.OpenDataContract',
+    'Packata.Rules.Expressif'
 )
 $frameworks = @('net8.0', 'net9.0', 'net10.0')
 
