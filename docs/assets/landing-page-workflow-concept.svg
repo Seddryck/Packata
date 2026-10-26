@@ -5,7 +5,8 @@
 <text x="99" y="49" fill="white" font-family="Arial,sans-serif" font-size="32" font-weight="bold">packata.</text>
 <text x="1090" y="44" fill="white" font-family="Arial,sans-serif" font-size="16">Overview</text>
 <text x="1210" y="44" fill="white" font-family="Arial,sans-serif" font-size="16">Documentation</text>
-<rect y="75" width="1440" height="667" fill="#293C42"/>
+<rect y="75" width="1440" height="367" fill="#146877"/>
+<rect y="442" width="1440" height="300" fill="#F2F8F7"/>
 <rect x="83" y="118" width="29" height="4" fill="#D99536"/>
 <text x="126" y="126" fill="#D99536" font-family="Arial,sans-serif" font-size="16" font-weight="bold" letter-spacing="2">OPEN-SOURCE DATA TOOLKIT FOR .NET</text>
 <text x="83" y="206" fill="#FFFFFF" font-family="Arial,sans-serif" font-weight="bold" font-size="56">From data contracts</text>
@@ -15,16 +16,16 @@
 <rect x="83" y="368" width="167" height="45" rx="5" fill="#D99536"/>
 <text x="108" y="397" fill="#293C42" font-family="Arial,sans-serif" font-size="17" font-weight="bold">Get started ↗</text>
 <text x="280" y="397" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="17">Explore documentation  →</text>
-<rect x="80" y="447" width="1280" height="265" rx="12" fill="#1F343A" stroke="#537078" stroke-width="2"/>
+<rect x="80" y="447" width="1280" height="265" rx="12" fill="#F2F8F7" stroke="#C4DAD9" stroke-width="2"/>
 <text x="107" y="485" fill="#D99536" font-family="Arial,sans-serif" font-size="24">◇</text>
-<text x="143" y="485" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="22" font-weight="bold">The asset workflow</text>
-<text x="1249" y="485" fill="#DDEEE9" font-family="Arial,sans-serif" font-size="15">01 — 05</text>
+<text x="143" y="485" fill="#293C42" font-family="Arial,sans-serif" font-size="22" font-weight="bold">The asset workflow</text>
+<text x="1249" y="485" fill="#293C42" font-family="Arial,sans-serif" font-size="15">01 — 05</text>
 <g font-family="Arial,sans-serif" font-size="15">
-<rect x="107" y="505" width="240" height="67" rx="5" fill="#355861"/><text x="122" y="528" fill="#B5DCD5">01</text><text x="122" y="552" fill="white" font-size="20" font-weight="bold">Load</text>
-<rect x="354" y="505" width="240" height="67" rx="5" fill="#355861"/><text x="369" y="528" fill="#B5DCD5">02</text><text x="369" y="552" fill="white" font-size="20" font-weight="bold">Discover</text>
+<rect x="107" y="505" width="240" height="67" rx="5" fill="#E1EEEE"/><text x="122" y="528" fill="#247580">01</text><text x="122" y="552" fill="#293C42" font-size="20" font-weight="bold">Load</text>
+<rect x="354" y="505" width="240" height="67" rx="5" fill="#E1EEEE"/><text x="369" y="528" fill="#247580">02</text><text x="369" y="552" fill="#293C42" font-size="20" font-weight="bold">Discover</text>
 <rect x="601" y="505" width="240" height="67" rx="5" fill="#D99536"/><text x="616" y="528" fill="#293C42">03</text><text x="616" y="552" fill="#293C42" font-size="20" font-weight="bold">Preview</text>
-<rect x="848" y="505" width="240" height="67" rx="5" fill="#355861"/><text x="863" y="528" fill="#B5DCD5">04</text><text x="863" y="552" fill="white" font-size="20" font-weight="bold">Validate</text>
-<rect x="1095" y="505" width="240" height="67" rx="5" fill="#355861"/><text x="1110" y="528" fill="#B5DCD5">05</text><text x="1110" y="552" fill="white" font-size="20" font-weight="bold">Provision</text>
+<rect x="848" y="505" width="240" height="67" rx="5" fill="#E1EEEE"/><text x="863" y="528" fill="#247580">04</text><text x="863" y="552" fill="#293C42" font-size="20" font-weight="bold">Validate</text>
+<rect x="1095" y="505" width="240" height="67" rx="5" fill="#E1EEEE"/><text x="1110" y="528" fill="#247580">05</text><text x="1110" y="552" fill="#293C42" font-size="20" font-weight="bold">Provision</text>
 </g>
 <rect x="107" y="587" width="1228" height="105" rx="5" fill="#293C42" stroke="#537078"/>
 <text x="127" y="610" fill="#D99536" font-family="Consolas,'Courier New',monospace" font-size="17">$</text>
