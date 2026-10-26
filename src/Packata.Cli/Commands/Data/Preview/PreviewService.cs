@@ -74,10 +74,10 @@ internal static class PreviewService
         return result;
     }
 
-    internal sealed class ArchiveStreamResolver(Packata.Storages.ZipDataPackageContainer archive, string descriptor) : IEndpointStreamResolver
+    internal sealed class ArchiveStreamResolver(Packata.Core.Storage.IDocumentContainer archive, string descriptor) : IEndpointStreamResolver
     {
         private readonly DefaultEndpointStreamResolver _inner = new();
-        private readonly Uri _descriptor = new(new Uri("zip:///"), descriptor);
+        private readonly Uri _descriptor = new(new Uri("archive:///"), descriptor);
 
         public async ValueTask<Stream> OpenAsync(string path, CancellationToken cancellationToken = default)
         {
@@ -86,7 +86,7 @@ internal static class PreviewService
                 return await _inner.OpenAsync(path, cancellationToken).ConfigureAwait(false);
             var entry = Uri.UnescapeDataString(new Uri(_descriptor, path).AbsolutePath).TrimStart('/');
             if (!await archive.ExistsAsync(entry).ConfigureAwait(false))
-                throw new ContractOperationException("CLI023", "$.resources.path", $"Resource entry '{entry}' was not found in the ZIP package.");
+                throw new ContractOperationException("CLI023", "$.resources.path", $"Resource entry '{entry}' was not found in the archive package.");
             return await archive.OpenAsync(entry).ConfigureAwait(false);
         }
     }

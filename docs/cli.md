@@ -151,7 +151,8 @@ contract.yml
 Archive suffixes are matched case-insensitively from the URL path; query strings
 and fragments do not affect detection. All four formats have the same command
 coverage: validation, inspection, diff, compatibility comparison, JSON Schema export
-and dialect export. Preview and inference require an unpacked descriptor.
+and dialect export. Preview also reads bundled CSV resources from all four formats;
+schema inference requires an unpacked local descriptor.
 TAR archives use the storage layer's default materialization limits described in
 the [storage guide]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net).
 
@@ -566,20 +567,25 @@ packata data preview contract.yaml --asset customers --output-format json > cust
 ```
 
 Preview reads an asset from an ODCS YAML or Data Package v2 JSON/YAML descriptor,
-or a local/HTTP(S) ZIP containing exactly one supported descriptor. CSV resources
-inside a ZIP are read directly from archive entries without extracting the package.
+or a local/HTTP(S) ZIP, TAR, TAR.GZ or TAR.BR containing exactly one supported descriptor.
+CSV resources are read from the archive container without requiring manual extraction.
 Their paths resolve relative to the descriptor inside the archive, including when
 that descriptor is in a subdirectory:
 
 ```console
 packata data preview dataset.zip --asset customers
+packata data preview dataset.tar --asset customers
+packata data preview dataset.tar.gz --asset customers --limit 5 --output-format json
+packata data preview https://example.test/dataset.tar.br --asset customers --columns name,id
 ```
 
-For example, `datapackage.json` can reference `data/customers.csv` in the same ZIP.
+For example, `datapackage.json` can reference `data/customers.csv` in the same archive.
 Select the asset explicitly with `--asset`. Its canonical binding supplies the file paths,
 physical table names, schema and format or dialect settings. Missing or ambiguous assets and
 bindings fail rather than being selected automatically. Row limits, column selection and
-all output formats also apply to ZIP previews.
+all output formats apply equally to ZIP and TAR previews. TAR containers materialize
+entries under the default storage limits and retain them until preview finishes;
+streams and temporary storage are released after success, failure or cancellation.
 
 
 Relative file paths and database files resolve against the descriptor's directory, so the

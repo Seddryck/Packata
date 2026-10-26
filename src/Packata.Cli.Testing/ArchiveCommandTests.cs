@@ -149,16 +149,13 @@ public sealed class ArchiveCommandTests
     [TestCase("tar")]
     [TestCase("tar.gz")]
     [TestCase("tar.br")]
-    public async Task Preview_and_inference_require_unpacked_documents_for_every_archive(string suffix)
+    public async Task Inference_requires_unpacked_documents_for_every_archive(string suffix)
     {
         using var workspace = new CliWorkspace();
         var local = Path.Combine(workspace.Path, $"missing.{suffix}");
         var remote = $"https://unavailable.invalid/package.{suffix.ToUpperInvariant()}?download=1#ignored";
         foreach (var source in new[] { local, remote })
         {
-            var preview = await CliWorkspace.Run("data", "preview", source, "--asset", "customers");
-            Assert.That(preview.ExitCode, Is.EqualTo(1), preview.Error);
-            Assert.That(preview.Error, Does.Contain("CLI023").And.Contain("unpacked"));
             var inference = await CliWorkspace.Run("schema", "infer", source, "--asset", "customers");
             Assert.That(inference.ExitCode, Is.EqualTo(1));
             Assert.That(inference.Output + inference.Error, Does.Contain("unpacked local contract"));

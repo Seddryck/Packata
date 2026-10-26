@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Formats.Tar;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -8,8 +9,11 @@ using Packata.Core.Reading;
 
 namespace Packata.Cli.Testing;
 
-[TestFixture]
-public sealed class ZipPreviewTests
+[TestFixture("zip")]
+[TestFixture("tar")]
+[TestFixture("tar.gz")]
+[TestFixture("tar.br")]
+public sealed class ArchivePreviewTests(string suffix)
 {
     [TestCase("datapackage.json", "data/customers.csv", "data/customers.csv")]
     [TestCase("package/datapackage.json", "data/customer names.csv", "package/data/customer names.csv")]
@@ -17,7 +21,7 @@ public sealed class ZipPreviewTests
     public async Task Preview_ResolvesEntriesRelativeToDescriptorAndSelectsAsset(string descriptor, string resource, string entry)
     {
         using var workspace = new CliWorkspace();
-        var path = CreateZip(workspace, descriptor, resource, entry);
+        var path = CreateArchive(workspace, descriptor, resource, entry);
         var result = await CliWorkspace.Run("data", "preview", path, "--asset", "customers", "--limit", "1", "--columns", "name,id", "--output-format", "json");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         var json = JObject.Parse(result.Output);
@@ -32,7 +36,7 @@ public sealed class ZipPreviewTests
     public async Task Preview_PreservesOutputFormats(string format)
     {
         using var workspace = new CliWorkspace();
-        var path = CreateZip(workspace);
+        var path = CreateArchive(workspace);
         var result = await CliWorkspace.Run("data", "preview", path, "--asset", "customers", "--output-format", format);
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(result.Output, Does.Contain("Alice"));
@@ -44,7 +48,7 @@ public sealed class ZipPreviewTests
     public async Task Preview_ReportsMissingDescriptorOrResourceAndReleasesArchive(bool descriptor, string message)
     {
         using var workspace = new CliWorkspace();
-        var path = CreateZip(workspace, descriptor ? "datapackage.json" : "other.json", entry: "other.csv");
+        var path = CreateArchive(workspace, descriptor ? "datapackage.json" : "other.json", entry: "other.csv");
         var result = await CliWorkspace.Run("data", "preview", path, "--asset", "customers");
         Assert.That(result.ExitCode, Is.Not.Zero);
         Assert.That(result.Error, Does.Contain(message));
@@ -58,7 +62,7 @@ public sealed class ZipPreviewTests
     public async Task Preview_ReleasesEntryAndArchive(string outcome)
     {
         using var workspace = new CliWorkspace();
-        var path = CreateZip(workspace);
+        var path = CreateArchive(workspace);
         var source = await ContractSource.LoadAsync(path, "auto", CancellationToken.None, retainArchive: true);
         var archive = source.Archive!;
         try
@@ -83,10 +87,10 @@ public sealed class ZipPreviewTests
     }
 
     [Test]
-    public async Task Preview_HttpZipWithQueryReadsArchiveEntries()
+    public async Task Preview_HttpArchiveWithQueryReadsArchiveEntries()
     {
         using var workspace = new CliWorkspace();
-        var body = File.ReadAllBytes(CreateZip(workspace));
+        var body = File.ReadAllBytes(CreateArchive(workspace));
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -100,7 +104,7 @@ public sealed class ZipPreviewTests
             await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n"), timeout.Token);
             await stream.WriteAsync(body, timeout.Token);
         });
-        var result = await CliWorkspace.Run("data", "preview", $"http://127.0.0.1:{port}/dataset.zip?download=1", "--asset", "customers", "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "preview", $"http://127.0.0.1:{port}/dataset.{suffix.ToUpperInvariant()}?download=1#ignored", "--asset", "customers", "--output-format", "json");
         await serve;
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That((string?)JObject.Parse(result.Output)["rows"]![0]![1], Is.EqualTo("Alice"));
@@ -117,16 +121,35 @@ public sealed class ZipPreviewTests
         }
     }
 
-    private static string CreateZip(CliWorkspace workspace, string descriptor = "datapackage.json", string resource = "data/customers.csv", string entry = "data/customers.csv")
+    private string CreateArchive(CliWorkspace workspace, string descriptor = "datapackage.json", string resource = "data/customers.csv", string entry = "data/customers.csv")
     {
-        var path = System.IO.Path.Combine(workspace.Path, "dataset.zip");
-        using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
-        using (var writer = new StreamWriter(archive.CreateEntry(descriptor).Open()))
-            writer.Write(new JObject { ["name"] = "sample", ["resources"] = new JArray(
-                new JObject { ["name"] = "orders", ["path"] = "not-opened.csv", ["format"] = "csv" },
-                new JObject { ["name"] = "customers", ["path"] = resource, ["format"] = "csv", ["dialect"] = new JObject { ["header"] = true } }) }.ToString());
-        using (var writer = new StreamWriter(archive.CreateEntry(entry).Open()))
-            writer.Write("id,name\r\n1,Alice\r\n2,Bob\r\n");
+        var path = System.IO.Path.Combine(workspace.Path, $"dataset.{suffix}");
+        var document = new JObject { ["name"] = "sample", ["resources"] = new JArray(
+            new JObject { ["name"] = "orders", ["path"] = "not-opened.csv", ["format"] = "csv" },
+            new JObject { ["name"] = "customers", ["path"] = resource, ["format"] = "csv", ["dialect"] = new JObject { ["header"] = true } }) }.ToString();
+        const string csv = "id,name\r\n1,Alice\r\n2,Bob\r\n";
+        if (suffix == "zip")
+        {
+            using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+            using (var writer = new StreamWriter(archive.CreateEntry(descriptor).Open())) writer.Write(document);
+            using (var writer = new StreamWriter(archive.CreateEntry(entry).Open())) writer.Write(csv);
+        }
+        else
+        {
+            using var file = File.Create(path);
+            using Stream output = suffix switch
+            {
+                "tar.gz" => new GZipStream(file, CompressionLevel.SmallestSize, leaveOpen: true),
+                "tar.br" => new BrotliStream(file, CompressionLevel.SmallestSize, leaveOpen: true),
+                _ => file
+            };
+            using var archive = new TarWriter(output, leaveOpen: true);
+            // Resources can precede the descriptor in a sequential TAR archive.
+            using var data = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+            archive.WriteEntry(new UstarTarEntry(TarEntryType.RegularFile, entry) { DataStream = data });
+            using var metadata = new MemoryStream(Encoding.UTF8.GetBytes(document));
+            archive.WriteEntry(new UstarTarEntry(TarEntryType.RegularFile, descriptor) { DataStream = metadata });
+        }
         return path;
     }
 }
