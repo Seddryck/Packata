@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Rule execution
-parent: .NET reference
+parent: Reference
+permalink: /reference/dotnet/rule-execution/
 ---
 
 # Rule execution
@@ -186,3 +187,89 @@ Counting scans in constant space. Duplicate grouping and membership sets are bou
 by `MaxStateEntries`; row scans are bounded by `MaxRows`. Exhaustion is Inconclusive,
 never an approximate pass. Readers are disposed on every exit. No scheduler, category
 label decoding, implicit array flattening or SQL fallback is provided.
+
+## SQL adapter
+
+`Packata.Rules.Sql` compiles `SqlQuality` with `SqlQualityCompiler`. Supply a canonical
+contract and select an endpoint when its asset has multiple bindings. Missing or
+ambiguous targets, fields, endpoints and dialects are compilation findings. Recognized
+endpoint schemes select SQLite, PostgreSQL, SQL Server, MySQL/MariaDB or DuckDB lexical
+rules. Other schemes require an explicit `AuthoredDialect`. The adapter executes the
+authored SQL directly: it performs no translation, transpilation, dialect conversion,
+Expressif conversion or fallback to another database.
+
+`{object}` and `{property}` bind only in SQL code, never inside literals, quoted
+identifiers, line comments, block comments or PostgreSQL dollar-quoted strings.
+Provider quoting applies to each physical identifier segment separately. Canonical
+namespace/catalog and physical table/field names are resolved from the selected asset.
+A canonical physical name is a single segment, including any literal dot; callers can
+supply explicit `ObjectPath`/`PropertyPath` segment arrays for qualified identifiers.
+MySQL lexical handling assumes its standard backslash escaping mode; callers must not
+use this adapter for SQL modes with different string-escape rules. Vendor-specific
+quoting beyond the documented forms needs an explicit adapter extension.
+
+Only explicit `SqlValueParameter` bindings create provider parameters. Native arbitrary
+quality arguments are never interpreted as SQL parameters. Values use the provider's
+parameter mechanism, while identifier substitution uses its renderer. Connection
+configuration and secrets stay in the host's connection service.
+
+`ISqlRuleConnectionSource` supplies a per-run `SqlRuleSession`, optionally reusing
+`DatabaseSqlRuleConnectionSource` and the existing `IDatabaseConnectionService`.
+The session declares connection/transaction ownership. Commands and readers are always
+disposed; borrowed connections and transactions remain open and caller-owned. Reused
+plans require independent connections or caller-provided synchronization per run.
+Command timeouts are bounded by the run time budget, cancellation is passed to async
+provider operations and registered with `Cancel` for synchronous providers. Provider
+support determines whether an in-progress call is interruptible.
+
+Read-only capability is required by default, established through provider enforcement
+or host-configured read-only credentials. A host may explicitly relax this requirement
+for a trusted execution environment. SQL text inspection alone cannot establish that
+a query is read-only. The adapter starts no transaction and provisions no constraints.
+
+A measurement must return exactly one result set, one row and one column with a
+supported finite numeric or boolean CLR value. Empty, multiple, null or incompatible
+results are Inconclusive with a specific diagnostic; provider failures are Error.
+Integers, decimals and finite floating types retain their supported precision.
+Numeric measurements require expectations. Boolean measurements without expectations
+implicitly assert true, consistent with Expressif predicates. Explicit expectations
+always take precedence. Percent units are labels on an already authored measurement;
+the adapter does not divide by a population again. Population is the scalar result-row
+count, not an inferred underlying dataset size. Normal results contain bounded summary
+evidence, never result-row data, SQL text, connection strings or provider messages.
+
+The real-provider fixture uses Microsoft.Data.Sqlite 10.0.13 with provider-enforced
+`PRAGMA query_only=ON`. The adapter itself depends on provider-neutral ADO.NET and the
+existing Packata database service, not on SQLite. Other providers must provide the
+authored dialect, identifier renderer and supported scalar CLR types; their live
+integration suites have not been run for this delivery.
+
+## Backend-independent executable example
+
+This example requires only Packata.Core. The observation is supplied explicitly; no
+scheduler or SLA monitor is implied.
+
+```csharp
+using Packata.Core.Contracts;
+using Packata.Core.Execution;
+
+var descriptor = new RuleDescriptor("count", null, "example/count", RuleCategory.Quality,
+    new QualityTarget("orders"), "example", "1");
+var rule = new MeasuredExecutableRule(descriptor,
+    new InputRequirements(QualityInputScope.Observation), new SuppliedMeasurement(),
+    new ExpectationAssertionPlan([new(ExpectationOperator.Greater, QualityValue.From(0))]));
+var report = await RuleRunner.ExecuteAsync([new CompilationResult([rule], [])],
+    new RuleExecutionContext(DateTimeOffset.Parse("2026-10-26T12:00:00Z"),
+        Observation: QualityValue.From(5)));
+// report.Passed is true. Omitting Observation produces Inconclusive.
+
+sealed class SuppliedMeasurement : IMeasurementPlan
+{
+    public ValueTask<RuleMeasurement> MeasureAsync(RuleExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(new RuleMeasurement(context.Observation, "rows"));
+    }
+}
+```

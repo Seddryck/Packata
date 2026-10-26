@@ -21,8 +21,13 @@ provide their signatures. Exhaustive generated API documentation is deferred.
 | `Packata.ResourceReaders` | `ResourceReaderFactory`, `CsvDataContractInference`, formats, custom providers and delimited dialect resolution |
 | Reader extensions | [Format/package/registration table]({{ '/guides/readers-storage/' | relative_url }}); database extension also exposes `DatabaseDataContractInference` |
 | `Packata.Storages` | `DataPackageLocatorBuilder`, `StorageProviderBuilder`, document containers, local/HTTP(S)/ZIP/TAR/cloud storage; `UseTarArchive`, `ArchiveCompression`, `TarArchiveOptions` configure `.tar`, `.tar.gz`, and `.tar.br` bundles |
+| `Packata.Rules.Expressif` | `ExpressifQualityCompiler`, `LibraryQualityCompiler`, versioned `OdcsMetricCatalog` |
+| `Packata.Rules.Sql` | `SqlQualityCompiler`, explicit connection sessions and scalar measurements |
 | `Packata.Database` | `DubUrlConnectionService`, runtime configuration, connector availability/acquisition and connection sessions |
 | `Packata.Provisioners` | `DubUrlProvisionerBuilder`, `DubUrlProvisioner`, schema plans and diagnostics, operation capabilities |
+
+For typed quality declarations, compilation, execution outcomes and backend limits, see
+[Rule execution]({{ '/reference/dotnet/rule-execution/' | relative_url }}).
 
 ## Mapping and extension points
 
@@ -79,7 +84,8 @@ including property type changes. Matching uses ordinal endpoint and asset IDs an
 A rename is therefore a removal plus an addition.
 
 Named relationships match by name; unnamed relationships use composite identities.
-Quality rules match by kind and expression. Missing or duplicate semantic identities fail.
+Quality rules match by source ID, then deterministic source path; legacy declarations
+fall back to kind and expression. Missing or duplicate semantic identities fail.
 
 Paths escape dots and backslashes. An added or removed item includes its complete subtree;
 a modification preserves both previous and current values. Results are immutable snapshots,
