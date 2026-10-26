@@ -197,3 +197,9 @@ spellings remain unchanged. Null handling stays with the native engine. Excel,
 Parquet, database and other readers reject this option with
 `CategoryDecodingNotSupportedException`; category table references are not expanded.
 Keep decoding disabled for validation against original codes.
+
+**Write CSV cells to decode as unquoted, unescaped text:** use `S`, not `"S"`.
+PocketCsvReader skips sequence replacement for fields marked as quoted or
+escaped, even if their parsed text matches a category code. Codes requiring
+CSV quoting or escaping cannot be decoded by this native feature. Strings in
+the JSON/YAML descriptor still follow that format's normal quoting rules.

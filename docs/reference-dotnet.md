@@ -63,6 +63,11 @@ unquoted CSV text; quoted/escaped codes and alternate numeric spellings stay as
 text. Null handling is unchanged. The source contract, logical types and allowed
 codes are not modified. See the [two-format .NET examples]({{ '/quickstart/dotnet/' | relative_url }}#read-category-labels-from-either-standard).
 
+**CSV cells to decode must be unquoted and unescaped.** PocketCsvReader skips
+sequence replacement for fields it marks as quoted or escaped, regardless of
+their parsed text. Codes requiring CSV quoting or escaping cannot be decoded
+through this native feature. JSON/YAML descriptor quoting is unaffected.
+
 ## Comparison
 
 Call `previous.Diff(candidate)` to obtain typed additions, removals and modifications,

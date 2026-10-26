@@ -150,7 +150,13 @@ support for CSV/TSV/PSV. Other engines, including Excel, Parquet, databases and
 inline data, return an explicit unsupported-engine diagnostic. Category table
 references are not expanded.
 
-Matching uses exact, case-sensitive, unquoted code text. Quoted `"S"` remains `S`,
+**Cells to decode must contain unquoted, unescaped code text.** PocketCsvReader
+skips native sequence replacement for fields it marks as quoted or escaped,
+even when their parsed text matches a code. Codes requiring CSV quoting or
+escaping therefore cannot be decoded. This concerns CSV cells, not the normal
+JSON/YAML quoting used in descriptors.
+
+Matching is exact and case-sensitive. Write `S` to obtain `South`; quoted `"S"` remains `S`,
 and integer spelling `01` remains `01`, rather than matching the sequence for `1`.
 Entries without labels and unmatched codes keep their text. Empty labels stay
 empty, nulls stay null, and decoding does not add any new null markers.

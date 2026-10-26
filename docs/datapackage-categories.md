@@ -65,6 +65,13 @@ and fallback codes; columns without labels retain their original type.
 `GetFieldType` reports `typeof(string)` and `GetDataTypeName` reports `string`
 for labeled columns. PocketCsvReader does not implement `GetSchemaTable()`.
 
+**Write category-code cells that should be decoded as unquoted, unescaped CSV
+text.** PocketCsvReader skips sequence replacement for fields it marks as quoted
+or escaped, even if their parsed text matches a category code. For example, write
+`S`, not `"S"`, to decode it to `South`. Codes that require CSV quoting or escaping
+cannot be decoded by this native feature. This requirement concerns cells in the
+CSV data; string values in JSON/YAML descriptors still use their normal syntax.
+
 Decoding does not edit source descriptors or data, change the canonical logical
 type, or cause validation to compare labels against code restrictions. Use a
 default reader when validating original row values. The

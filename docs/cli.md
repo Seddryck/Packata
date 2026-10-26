@@ -618,6 +618,10 @@ The [complete two-format examples]({{ '/guides/data/' | relative_url }}#preview-
 show the descriptors and output. Packata uses PocketCsvReader's native sequence
 mapping, which matches exact, case-sensitive, unquoted CSV text. Integer `1`
 matches, while quoted `"1"` and alternate spelling `01` remain unchanged.
+**Write cells to decode as unquoted, unescaped CSV text.** Native sequence
+replacement skips fields marked as quoted or escaped by PocketCsvReader, even
+when the parsed code matches. Codes requiring CSV quoting or escaping cannot be
+decoded. Descriptor strings still follow normal JSON/YAML quoting rules.
 Columns with labels return strings, including fallback codes, so JSON contains
 `"2"` rather than `2` in such an integer column. The .NET reader reports
 `typeof(string)` through `GetFieldType` and `string` through `GetDataTypeName`.
