@@ -28,8 +28,8 @@ restrict the dataset to files:
 
 | Task | Accepted descriptor locations |
 | --- | --- |
-| Validate, inspect, diff, assess compatibility, or export metadata | Local files, HTTP(S) URLs, or local and remote ZIP archives |
-| Preview records | Local or HTTP(S) descriptors, or local and remote ZIP packages containing a descriptor and CSV resources |
+| Validate, inspect, diff, assess compatibility, or export metadata | Local files, HTTP(S) URLs, or local and remote ZIP, TAR, TAR.GZ and TAR.BR archives |
+| Preview records | Local or HTTP(S) descriptors, or local and remote ZIP, TAR, TAR.GZ and TAR.BR packages containing a descriptor and CSV resources |
 | Infer a schema | A local descriptor, including a file without an extension |
 
 Packata normally detects the contract standard from its contents. If you need to
@@ -57,22 +57,29 @@ you are loading a contract or reading the data it describes:
 | --- | --- | --- |
 | Local files | Yes | Yes, for supported formats |
 | HTTP(S) | Yes | Yes, for supported formats at accessible HTTP(S) URLs |
-| Local or HTTP(S) ZIP archives | Yes, for validation, inspection, diff, compatibility analysis, metadata export and preview | Yes, for CSV resources inside the package |
+| Local or HTTP(S) ZIP, TAR, TAR.GZ and TAR.BR archives | Yes, for validation, inspection, diff, compatibility analysis, metadata export and preview | Yes, for CSV resources inside the package |
 | Native S3 storage | No | No |
 | Native Azure storage | No | No |
+
+All archive formats use the same descriptor selection: exactly one
+`datapackage.json`, `datapackage.yaml`, `datapackage.yml`, `contract.yaml` or
+`contract.yml`, optionally in a subdirectory. TAR containers materialize bundled
+entries under the default limits described below. Metadata commands do not parse
+the datasets or fetch their referenced locations. Schema inference requires an
+unpacked local descriptor.
 
 Preview resolves relative data paths against the contract's location. A contract
 served over HTTP(S) can therefore refer to data files alongside it. A local
 contract can also refer to an absolute HTTP(S) data URL. Schema inference has
 its own restriction: the contract file must be local.
 
-For a zipped data package, preview reads CSV entries without extracting them. The
-ZIP must contain exactly one descriptor named `datapackage.json`, `datapackage.yaml`,
+For ZIP, TAR, TAR.GZ and TAR.BR packages, preview reads CSV entries without requiring
+manual extraction. The archive must contain exactly one descriptor named `datapackage.json`, `datapackage.yaml`,
 `datapackage.yml`, `contract.yaml` or `contract.yml`. Resource paths resolve relative
 to that descriptor inside the archive, so a descriptor in `package/` can reference
 `data/customers.csv` at `package/data/customers.csv`. Select a resource with
 `--asset`; a package can contain several CSV resources. See the
-[data guide]({{ '/guides/data/' | relative_url }}#preview-a-zipped-data-package)
+[data guide]({{ '/guides/data/' | relative_url }}#preview-an-archived-data-package)
 for an example.
 
 An S3 or Azure object exposed at an accessible HTTP(S) URL can be read through
@@ -142,7 +149,7 @@ contract can stop working when you launch the program elsewhere. The
 [.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}) includes this path
 resolution before it opens the reader.
 
-For local directories, HTTP(S), ZIP archives, S3 or Azure storage, use
+For local directories, HTTP(S), ZIP and TAR archives, S3 or Azure storage, use
 `Packata.Storages`. Register location schemes and archive wrappers with
 `DataPackageLocatorBuilder`, and register resource handlers with
 `StorageProviderBuilder`. Your application supplies cloud credentials.
@@ -150,6 +157,101 @@ For local directories, HTTP(S), ZIP archives, S3 or Azure storage, use
 These are library configuration points. Adding a storage backend to an application
 does not make its URLs available to every CLI command. If you need custom stream
 access through the shared contract model, implement `IEndpointStreamResolver`.
+
+## Read a TAR package in .NET
+
+Register the archive suffixes your application accepts. TAR bundles files without
+compression; `.tar.gz` and `.tar.br` apply Gzip or Brotli to the whole TAR stream.
+All three use the same container implementation. The CLI registers all three TAR
+variants alongside ZIP for the metadata commands described above; .NET applications
+can configure their own registrations and limits.
+
+```csharp
+using Packata.Storages;
+
+var limits = new TarArchiveOptions
+{
+    MemoryThresholdBytes = 8L << 20,
+    MaxEntryBytes = 1L << 30,
+    MaxTotalBytes = 4L << 30,
+    MaxArchiveBytes = 5L << 30,
+    MaxEntries = 10_000
+};
+
+var locator = new DataPackageLocatorBuilder()
+    .Register("file", b => b.UseLocalFileSystem())
+    .Register(new[] { "http", "https" }, b => b.UseHttp())
+    .Register("tar", b => b.UseTarArchive(options: limits))
+    .Register("tar.gz", b => b.UseTarArchive(ArchiveCompression.Gzip, limits))
+    .Register("tar.br", b => b.UseTarArchive(ArchiveCompression.Brotli, limits))
+    .Build();
+
+var handle = await locator.LocateAsync(new Uri(Path.GetFullPath("package.tar.gz")));
+using var container = handle.Container;
+await handle.ValidateAsync();
+using var descriptor = await container.OpenAsync(handle.DescriptorPath);
+using var customers = await container.OpenAsync("data/customers.csv");
+```
+
+A minimal bundle has this layout:
+
+```text
+datapackage.json
+data/customers.csv
+```
+
+Its descriptor can be:
+
+```json
+{"resources":[{"name":"customers","path":"data/customers.csv"}]}
+```
+
+For example, create the uncompressed bundle with
+`tar -cf package.tar datapackage.json data/customers.csv`, or a Gzip bundle with
+`tar -czf package.tar.gz datapackage.json data/customers.csv`. Packata reads these
+archives; it does not provide archive creation APIs.
+
+Suffix matching is case-insensitive and selects the longest registered suffix
+from the URI path. URL queries and fragments do not affect detection, and HTTP
+queries are retained when downloading the archive. Standalone `.gz` and `.br`
+files are not TAR packages. HTTP content decoding and compression of individual
+resources inside an archive are separate from this outer compression layer.
+
+TAR input is consumed once during `LocateAsync`, including for non-seekable HTTP
+streams. Entry order does not matter. Small entry contents share the configured
+memory budget; larger entries spill to randomly named temporary files. With
+`TarArchiveOptions.TemporaryDirectory` left null, Packata creates a private
+`Packata/archives` directory under the current user's local application data.
+It uses an owner-only Windows ACL or Unix mode `0700`. Spill files are deleted
+when released; the empty application directory remains available for later reads.
+To choose another directory, set `TemporaryDirectory` to an existing private,
+writable directory. Publicly accessible directories and symbolic links/reparse
+points are rejected. On Windows, access rules may also grant access to SYSTEM
+and local Administrators. If local application data is unavailable, configure
+a private directory explicitly. Resource streams are independent,
+so a resource can be opened repeatedly or alongside another resource. Entry paths
+are case-sensitive, normalize `.` and separators, and reject parent traversal,
+absolute paths and duplicates. Directories are skipped; links and other special
+entry types are rejected.
+
+The options shown above are the defaults. `MaxTotalBytes` counts file contents;
+`MaxArchiveBytes` bounds the complete decoded TAR stream, including headers,
+metadata and padding. Initialization closes the input stream and cleans up stored
+entries if reading fails. Dispose the returned container to release storage; close
+its resource streams before disposal to ensure temporary files are removed promptly.
+ZIP wrappers also run through `LocateAsync` when registered with `UseZipArchive()`.
+
+### Patched Brotli runtimes
+
+Brotli decoding uses .NET's built-in `BrotliStream`, rather than a separate Brotli
+NuGet package or PocketCsvReader. Use **.NET 8.0.33, 9.0.22, 10.0.14 or later
+patched releases**. These updates fix the Brotli decoder vulnerability
+[CVE-2026-111497](https://github.com/dotnet/announcements/issues/494).
+Packata's build runtime versions and CI SDKs select these patched releases.
+Applications consuming the library must also deploy a patched runtime:
+update and restart framework-dependent applications; rebuild and republish
+self-contained applications and container images. Installing the library alone
+does not patch the runtime of a consuming application.
 
 ## Configure how values are parsed
 

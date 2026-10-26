@@ -134,10 +134,10 @@ contents. If you want to select the standard yourself, use the `--input-format` 
 shown in the table above.
 
 You can read the descriptor from a local file or an HTTP(S) address, either directly
-or inside a ZIP archive. Validation checks the contract document only; it does not
+or inside a ZIP, TAR, TAR.GZ or TAR.BR archive. Validation checks the contract document only; it does not
 open the datasets referenced by that contract.
 
-For a ZIP archive, include exactly one descriptor with one of the following filenames.
+For any supported archive, include exactly one descriptor with one of the following filenames.
 The descriptor can be in a subdirectory.
 
 ```text
@@ -146,6 +146,20 @@ datapackage.yaml
 datapackage.yml
 contract.yaml
 contract.yml
+```
+
+Archive suffixes are matched case-insensitively from the URL path; query strings
+and fragments do not affect detection. All four formats have the same command
+coverage: validation, inspection, diff, compatibility comparison, JSON Schema export
+and dialect export. Preview also reads bundled CSV resources from all four formats;
+schema inference requires an unpacked local descriptor.
+TAR archives use the storage layer's default materialization limits described in
+the [storage guide]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net).
+
+```console
+packata contract validate package.tar.gz --output-format json
+packata contract inspect https://example.test/package.tar.br --output-format json
+packata contract diff baseline.zip candidate.tar --output-format json
 ```
 
 Packata checks Data Package descriptors against the library's descriptor rules.
@@ -230,7 +244,7 @@ baseline-to-candidate values. Differences are factual data; this command does no
 apply a compatibility policy or decide whether a change is breaking.
 
 The command loads, detects, validates and maps each input independently. You can supply local
-files, HTTP(S) addresses, or local and remote ZIP archives, using the same descriptor loader
+files, HTTP(S) addresses, or local and remote ZIP, TAR, TAR.GZ and TAR.BR archives, using the same descriptor loader
 as inspection.
 
 Comparison reads the descriptors only. It does not open referenced datasets, connect to
@@ -357,7 +371,7 @@ as you would for `contract diff`. The analysis asks whether consumers built agai
 baseline can safely consume candidate data.
 
 Only same-standard ODCS 3.2.0 or Data Package v2 comparisons are supported. The loader accepts
-local, HTTP(S) and ZIP descriptors, but does not open referenced data, databases or connectors.
+local and HTTP(S) descriptors, including ZIP, TAR, TAR.GZ and TAR.BR packages, but does not open referenced data, databases or connectors.
 It detects each input's standard independently unless you select a shared input format or
 override one input's format.
 
@@ -489,7 +503,7 @@ packata schema export sales.odcs.yaml -f json-schema --asset orders -o orders.sc
 ```
 
 Export one asset from an ODCS or Data Package v2 descriptor. You can use the same local,
-HTTP(S) and ZIP sources as inspection. Select the asset by its exact canonical identifier;
+HTTP(S) and ZIP, TAR, TAR.GZ and TAR.BR sources as inspection. Select the asset by its exact canonical identifier;
 a missing or ambiguous identifier fails.
 
 The required output format is JSON Schema. Select it with `--output-format` or its short
@@ -553,20 +567,25 @@ packata data preview contract.yaml --asset customers --output-format json > cust
 ```
 
 Preview reads an asset from an ODCS YAML or Data Package v2 JSON/YAML descriptor,
-or a local/HTTP(S) ZIP containing exactly one supported descriptor. CSV resources
-inside a ZIP are read directly from archive entries without extracting the package.
+or a local/HTTP(S) ZIP, TAR, TAR.GZ or TAR.BR containing exactly one supported descriptor.
+CSV resources are read from the archive container without requiring manual extraction.
 Their paths resolve relative to the descriptor inside the archive, including when
 that descriptor is in a subdirectory:
 
 ```console
 packata data preview dataset.zip --asset customers
+packata data preview dataset.tar --asset customers
+packata data preview dataset.tar.gz --asset customers --limit 5 --output-format json
+packata data preview https://example.test/dataset.tar.br --asset customers --columns name,id
 ```
 
-For example, `datapackage.json` can reference `data/customers.csv` in the same ZIP.
+For example, `datapackage.json` can reference `data/customers.csv` in the same archive.
 Select the asset explicitly with `--asset`. Its canonical binding supplies the file paths,
 physical table names, schema and format or dialect settings. Missing or ambiguous assets and
 bindings fail rather than being selected automatically. Row limits, column selection and
-all output formats also apply to ZIP previews.
+all output formats apply equally to ZIP and TAR previews. TAR containers materialize
+entries under the default storage limits and retain them until preview finishes;
+streams and temporary storage are released after success, failure or cancellation.
 
 
 Relative file paths and database files resolve against the descriptor's directory, so the

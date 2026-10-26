@@ -21,10 +21,28 @@ public class DataPackageLocator : IDocumentLocator
         (_containers, _wrappers) = (containers, wrappers);
     }
 
-    public Task<DocumentHandle> LocateAsync(Uri containerUri, string descriptorName = "datapackage.json")
+    public async Task<DocumentHandle> LocateAsync(Uri containerUri, string descriptorName = "datapackage.json")
     {
-        var container = GetContainer(containerUri);
-        return Task.FromResult(new DocumentHandle(container, descriptorName));
+        ArgumentNullException.ThrowIfNull(containerUri);
+        var suffix = FindWrapperSuffix(containerUri);
+        if (suffix is null)
+        {
+            if (!CanHandle(containerUri))
+                throw new NotSupportedException($"No container found for URI: {containerUri}");
+            return new DocumentHandle(GetContainer(containerUri), descriptorName);
+        }
+
+        var source = GetContainer(new Uri(containerUri, "."));
+        try
+        {
+            var archive = await GetWrapper(containerUri).WrapAsync(source, containerUri).ConfigureAwait(false);
+            return new DocumentHandle(new OwnedArchiveContainer(archive, source), descriptorName);
+        }
+        catch
+        {
+            source.Dispose();
+            throw;
+        }
     }
 
     protected internal virtual IDocumentContainer GetContainer(Uri uri)
@@ -36,7 +54,7 @@ public class DataPackageLocator : IDocumentLocator
 
     protected internal virtual IContainerWrapper GetWrapper(Uri uri)
     {
-        if (_wrappers.TryGetValue(uri.GetExtension() ?? string.Empty, out var storage))
+        if (_wrappers.TryGetValue(FindWrapperSuffix(uri) ?? string.Empty, out var storage))
             return storage.Invoke(uri);
         throw new NotSupportedException($"No wrapper found for URI: {uri}");
     }
@@ -45,7 +63,7 @@ public class DataPackageLocator : IDocumentLocator
         => component switch
         {
             UriComponents.Scheme => _containers.TryGetValue(uri.Scheme, out _),
-            UriComponents.Path => string.IsNullOrEmpty(uri.GetExtension()) || _wrappers.TryGetValue(uri.GetExtension()!, out _),
+            UriComponents.Path => string.IsNullOrEmpty(uri.GetExtension()) || FindWrapperSuffix(uri) is not null,
             _ => throw new NotImplementedException(),
         };
 
@@ -54,4 +72,9 @@ public class DataPackageLocator : IDocumentLocator
         ArgumentNullException.ThrowIfNull(uri);
         return CanHandle(UriComponents.Scheme, uri) && CanHandle(UriComponents.Path, uri);
     }
+
+    private string? FindWrapperSuffix(Uri uri) => _wrappers.Keys
+        .Where(suffix => uri.AbsolutePath.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        .OrderByDescending(suffix => suffix.Length)
+        .FirstOrDefault();
 }

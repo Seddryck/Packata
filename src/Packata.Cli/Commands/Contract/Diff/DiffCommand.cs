@@ -43,7 +43,7 @@ internal sealed class DiffCommand : AsyncCommand<ContractComparisonSettings>
             catch (Exception exception)
             {
                 Add(exception is InvalidDataException
-                    ? new("CLI021", MappingSeverity.Error, "$", "Invalid or unsupported ZIP descriptor package.")
+                    ? new("CLI021", MappingSeverity.Error, "$", "Invalid or unsupported archive descriptor package.")
                     : CommandOutput.Failure(exception));
                 WriteDiagnostics();
                 return exception is InvalidDataException ? ExitCodes.InvalidDocument : CommandOutput.FailureExitCode(exception);

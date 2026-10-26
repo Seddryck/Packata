@@ -44,10 +44,12 @@ all rows satisfy every contract rule. The
 [preview reference]({{ '/cli/' | relative_url }}#preview-bound-data) lists all
 options and supported sources.
 
-## Preview a zipped data package
+<a id="preview-a-zipped-data-package"></a>
 
-You can distribute the descriptor and CSV files together in a ZIP and preview the
-selected resource directly, without extracting the package:
+## Preview an archived data package
+
+You can distribute the descriptor and CSV files together in a ZIP, TAR, TAR.GZ or
+TAR.BR archive and preview the selected resource without manually extracting the package:
 
 ```text
 dataset.zip
@@ -62,13 +64,22 @@ Read it with the same preview options:
 
 ```console
 packata data preview dataset.zip --asset customers --columns name,id --limit 2 --output-format csv
+packata data preview dataset.tar --asset customers --limit 2 --output-format json
+packata data preview dataset.tar.gz --asset customers --columns name,id --limit 2 --output-format csv
+packata data preview https://example.test/dataset.tar.br --asset customers --limit 2
 ```
 
-Only the selected resource is opened. The ZIP must contain exactly one supported
+Only the selected resource is parsed. The archive must contain exactly one supported
 descriptor; CSV paths resolve relative to its directory inside the archive.
-Local ZIP files and accessible HTTP(S) ZIP URLs are supported. Missing descriptors
+Local files and accessible HTTP(S) URLs are supported for all four archive formats. Missing descriptors
 or referenced entries produce an error. Preview leaves the archive unchanged.
-This ZIP support applies to preview; schema inference still requires a local,
+TAR entries are materialized once using the storage layer's memory and temporary-file
+limits, and the container remains open until preview finishes. Resource paths are
+resolved relative to the descriptor, including `../` paths that stay inside the archive.
+Streams and temporary storage are released after success, failure or cancellation.
+See the [storage guide]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net)
+for limits and patched Brotli runtime requirements.
+Archive support applies to preview; schema inference still requires a local,
 unpacked descriptor.
 
 ## Infer a schema from the data

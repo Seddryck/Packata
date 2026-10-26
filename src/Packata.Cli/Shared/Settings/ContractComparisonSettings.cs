@@ -7,7 +7,7 @@ namespace Packata.Cli;
 internal class ContractComparisonSettings : PresentationSettings
 {
     [CommandArgument(0, "<BASELINE>")]
-    [Description("Previous contract: local file, HTTP(S) descriptor, or ZIP package.")]
+    [Description("Previous contract: local file, HTTP(S) descriptor, or ZIP, TAR, TAR.GZ, TAR.BR package.")]
     public required string Baseline { get; init; }
 
     [CommandArgument(1, "<CANDIDATE>")]
