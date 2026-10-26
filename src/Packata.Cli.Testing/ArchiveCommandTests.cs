@@ -59,11 +59,17 @@ public sealed class ArchiveCommandTests
         var json = JObject.Parse(result.Output);
         if (command == "validate") Assert.That((bool?)json["valid"], Is.True);
         if (command == "diff") Assert.That((bool?)json["hasChanges"], Is.False);
-        if (command == "schema-export") Assert.That((string?)json["properties"]?["id"]?["type"], Is.EqualTo("integer"));
+        if (command == "schema-export") AssertNullableIntegerSchema(json);
         if (command == "dialect-export") Assert.That((string?)json["delimiter"], Is.EqualTo(","));
         await serve;
         // A failed or successful command must release the local archive handle.
         using var exclusive = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+    }
+
+    private static void AssertNullableIntegerSchema(JObject schema)
+    {
+        Assert.That(schema["properties"]?["id"]?["type"]?.Values<string>(), Is.EqualTo(new[] { "integer", "null" }));
+        Assert.That(schema["required"]?.Values<string>(), Does.Contain("id"));
     }
 
     [TestCase("zip")]
