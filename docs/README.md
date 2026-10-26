@@ -18,7 +18,14 @@ docker compose -f jekyll-compose.yml run --rm jekyll bash -lc "bundle install &&
 
 With Ruby 3.3 and Bundler installed, run `bundle install` and `bundle exec jekyll build --strict_front_matter` directly from `docs/`.
 
-Navigation uses ordinary Jekyll pages with `title`, `parent`, optional `grand_parent`, `has_children`, `nav_order`, and `nav_exclude` front matter. The old documentation collection is folded into this single hierarchy; `/docs/why-packata/` and all existing standalone URLs retain explicit permalinks. Use Jekyll's `relative_url` filter for local links so `/Packata` is preserved. Utility pages also set `search_exclude: true`.
+Each ordinary Jekyll page defines its place in navigation through front matter. Use `title`,
+`parent` and, for a third level, `grand_parent`. A parent declares `has_children`; `nav_order`
+and `nav_exclude` control ordering and visibility.
+
+The former documentation collection is part of this single hierarchy. Explicit permalinks
+retain `/docs/why-packata/` and the existing standalone URLs. Build local links with
+`relative_url` so they retain the `/Packata` base path. Utility pages also set
+`search_exclude: true`.
 
 ## Coverage and Quickstart checks
 
@@ -39,7 +46,13 @@ node .github/scripts/Validate-Documentation.mjs --cli src/Packata.Cli/bin/Debug/
 node .github/scripts/Test-DocumentationQuickstarts.mjs net10.0
 ```
 
-Use `net8.0` or `net9.0` consistently to test those frameworks. The Quickstart checker creates a fresh directory under ignored `artifacts/`, uses an isolated configuration directory, and compiles the actual documented C# block with source project references. It validates the upcoming source version rather than installing a released global tool or assuming a published NuGet version contains unreleased features. Report which frameworks, tests, runtime help and builds were actually checked.
+To test .NET 8 or 9, use `net8.0` or `net9.0` consistently in the commands above.
+The checker creates a fresh directory under ignored `artifacts/`, isolates configuration,
+and compiles the C# block from the Quickstart using source project references.
+
+This verifies the upcoming source version. It does not install a released global tool or
+assume that a published NuGet package contains unreleased features. Report the frameworks,
+tests, runtime help and builds you actually checked.
 
 Runtime checks use an absolute .NET executable path rather than searching PATH. Standard Windows/Linux/macOS SDK locations work by default; for a custom installation set `DOTNET_HOST_PATH` to its absolute executable path or `DOTNET_ROOT` to the SDK host directory.
 

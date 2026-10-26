@@ -8,10 +8,12 @@ parent: Guides
 
 # Export a CSV dialect descriptor
 
-`Packata.DataPackage.Export.CsvDialectExporter` exports the parsing configuration
-of one explicitly selected canonical CSV endpoint. It reuses `TableDialect` and
-`TableDelimitedDialect`; Core does not depend on Data Package types. No CSV data
-is opened or sampled, so the endpoint's settings must already describe the file.
+Use `Packata.DataPackage.Export.CsvDialectExporter` to export the parsing settings of one
+canonical CSV endpoint. Choose the endpoint explicitly; no CSV data is opened or sampled,
+so the stored settings must already describe the file.
+
+The exporter reuses `TableDialect` and `TableDelimitedDialect` from Data Package.
+Core remains independent of those native types.
 
 The standalone JSON targets the [Data Package v2 Table Dialect profile](https://datapackage.org/profiles/2.0/tabledialect.json),
 the successor to CSV Dialect. No Data Package wrapper is required. This is a
@@ -53,11 +55,12 @@ var json = result
 File.WriteAllText("customers.dialect.json", json);
 ```
 
-Contracts mapped from Data Package or ODCS documents can be passed directly to
-the exporter. `CreateDescriptor(contract, endpointId)` returns a
-`MappingResult<TableDelimitedDialect>` when the caller needs the model instead
-of JSON. Both operations return diagnostics; errors prevent output and warnings
-identify settings that cannot be represented.
+You can pass a contract mapped from either Data Package or ODCS directly to the exporter.
+If you need the descriptor model rather than JSON, call `CreateDescriptor(contract, endpointId)`
+to obtain a `MappingResult<TableDelimitedDialect>`.
+
+Both operations report diagnostics. Errors prevent output; warnings identify settings that
+cannot be represented.
 
 ## CLI
 
@@ -68,35 +71,37 @@ packata dialect export datapackage.json --endpoint customers-endpoint --output c
 packata dialect export contract.yaml --endpoint local --output local.dialect.json --overwrite
 ```
 
-Use the exact endpoint ID shown by `contract inspect`. Data Package resources
-normally map to `<resource-name>-endpoint`; ODCS servers use their server ID.
-`--endpoint` is required even when there is only one endpoint. The command accepts
-the same local, HTTP(S), and ZIP descriptors as contract inspection and does not
-open the referenced resource or acquire database connectors.
+Find the exact endpoint ID with `contract inspect`. Data Package resources normally map to
+`<resource-name>-endpoint`, while ODCS servers use their server ID. You must pass `--endpoint`
+even when the contract has only one endpoint.
 
-Without `--output`, stdout contains only descriptor JSON. Diagnostics go to
-stderr. File output uses an atomic write, requires `--overwrite` to replace an
-existing file, and refuses the source contract path. Failed exports do not
-replace output files. Exit codes are 0 for success (including warnings), 1 for
-invalid documents or endpoint/dialect errors, 2 for invocation errors, 3 for I/O
-failures, and 130 for cancellation.
+The command accepts the same local, HTTP(S) and ZIP descriptors as inspection. It reads only
+the descriptor, without opening the referenced resource or acquiring database connectors.
+
+By default, descriptor JSON goes to stdout and diagnostics go to stderr. Saving to a file
+uses an atomic write. Replacing an existing output requires `--overwrite`, and replacing the
+source contract is always refused. A failed export does not replace output files.
+
+Success, including warnings, returns 0. Invalid documents or endpoint/dialect errors return 1,
+invocation errors return 2, I/O failures return 3, and cancellation returns 130.
 
 ## Defaults, scope, and diagnostics
 
-Selection uses the exact endpoint ID and rejects absent or duplicate IDs. The
-endpoint must be a file or object-storage path endpoint. An explicit format name
-takes precedence, then media type, then path extensions: `csv`, `csv.gz`,
-`csv.gzip`, `text/csv`, and `.csv` paths (optionally gzip-compressed) are supported.
-Other explicit formats are rejected, even if the path ends in `.csv`.
+The selected ID must identify exactly one file or object-storage path endpoint. Missing and
+duplicate IDs are rejected.
 
-The exporter preserves delimiter, line terminator, quote and escape characters,
-double quoting, header flag/rows/join, comment character/rows, null sequence, and
-initial-space handling. Unspecified settings use the existing dialect model's
-defaults, including comma, CRLF, double quotes, and a first-row header. Default
-values are emitted explicitly; optional null settings are omitted. Headerless
-files export empty header rows instead of the model's implicit `[1]` default.
-Other contradictory header rows, non-positive row numbers, invalid option types,
-and conflicting escape/quote strategies produce errors.
+Format selection uses the explicit format name first, then media type, then path extension.
+Supported forms include `csv`, `csv.gz`, `csv.gzip`, `text/csv` and `.csv` paths, optionally
+gzip-compressed. An unsupported explicit format is rejected even if the path ends in `.csv`.
+
+The export retains delimiter, line terminator, quote and escape characters, double quoting,
+header flag/rows/join, comment character/rows, null sequence and initial-space handling.
+Unspecified settings use the dialect model's defaults, including comma, CRLF, double quotes
+and a first-row header. Defaults are written explicitly, while optional null settings are omitted.
+
+For headerless files, the export writes empty header rows instead of the implicit `[1]` default.
+Contradictory header rows, non-positive row numbers, invalid option types and conflicting
+escape/quote strategies produce errors.
 
 A null quote character becomes an empty string in JSON, with a warning to check
 the consumer's disabled-quoting behavior; the profile does not allow JSON null
@@ -104,9 +109,10 @@ for that property. An empty quote character is accepted when re-exporting.
 Character-valued settings accept either .NET characters or strings, row lists
 accept integer sequences, and boolean settings require actual booleans.
 
-Unknown non-null options and unsupported non-default extensions (such as
-`headerRepeat: false` or a custom dialect profile) produce warnings when omitted.
-The standard output uses `$schema` and camel-case property names. It excludes
-Packata's `type` discriminator and `headerRepeat` extension, non-CSV dialect
-properties, record schema, endpoint location, encoding, and compression. A full
-resource descriptor is needed to carry those additional resource settings.
+The exporter warns when it omits an unknown non-null option or an unsupported non-default
+extension, such as `headerRepeat: false` or a custom dialect profile.
+
+The standalone output uses `$schema` and camelCase property names. It excludes Packata's
+`type` discriminator and `headerRepeat` extension, non-CSV dialect properties, record schema,
+endpoint location, encoding and compression. Use a full resource descriptor when you need
+those additional resource settings.

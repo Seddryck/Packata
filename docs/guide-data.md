@@ -18,7 +18,16 @@ packata schema infer datapackage.json --asset customers --header present --maxim
 packata schema infer datapackage.json --asset customers --output enriched.json
 ```
 
-The first result starts with `name,id`. Inference prints its decisions and leaves the source unchanged unless `--write` is explicitly selected. `--output` creates a new enriched descriptor; it is not a representation selector here. Existing output files are protected. Review warnings about lost comments/formatting or unsupported source metadata before replacing a contract. Schema inference also accepts bound database assets and uses database metadata rather than CSV sampling settings.
+The preview example writes the columns in the requested order, so its first line is `name,id`.
+The inference examples report the structure found in the data. They leave the source descriptor
+unchanged unless you explicitly choose `--write`.
+
+Use `--output` to save an enriched descriptor to a new file. Existing files are protected.
+Before replacing a contract, review warnings about comments, formatting or source metadata
+that the update cannot preserve.
+
+For an asset bound to a database, inference reads database metadata instead of sampling CSV
+records. CSV sampling settings do not change that discovery process.
 
 See the [complete inference options]({{ '/cli-inference/' | relative_url }}), [preview reference]({{ '/cli/' | relative_url }}#preview-bound-data), and [database configuration]({{ '/cli-database/' | relative_url }}).
 
@@ -36,7 +45,14 @@ foreach (var diagnostic in result.Diagnostics)
 var inferred = result.RequireContract();
 ```
 
-`CsvDataContractInferenceOptions` controls sampling/culture/header/dialect and generated identity/asset/endpoint metadata. Database inference uses `DatabaseDataContractInference` with `DatabaseDataContractInferenceOptions`; discovery can return partial metadata with diagnostics. The caller configures database connectivity. Inference produces a canonical result; source-document updating is a separate CLI responsibility.
+Configure CSV sampling, culture, header detection and dialect inference through
+`CsvDataContractInferenceOptions`. The same options object lets you override the generated
+contract identity and asset or endpoint metadata.
+
+For databases, use `DatabaseDataContractInference` with `DatabaseDataContractInferenceOptions`
+and configure connectivity in your application. Discovery can return partial metadata, so
+review its diagnostics before accepting the result. Library inference returns a canonical
+contract; updating the original source document is a separate CLI operation.
 
 ## Limits
 

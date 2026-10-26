@@ -22,9 +22,22 @@ foreach (var diagnostic in plan.Diagnostics)
 provisioner.DeploySchema(plan);
 ```
 
-`PlanSchema` renders without deploying; `DeploySchema(plan)` executes that exact script without rendering it again. Use `DeploySchema(contract, options)` for direct schema deployment, `LoadDataAsync` for loading, or `ExecuteAsync` for deployment plus loading. Operation preflight checks known capabilities before DDL/source reads; it does not guarantee server permissions or transactional rollback.
+Start with `PlanSchema` when you want to review the generated script before changing a database.
+It renders the plan without deploying it. After review, `DeploySchema(plan)` executes that exact
+script without rendering it again.
 
-Mapping includes physical table/column names and supported types, schema qualification, composite primary keys, foreign keys, range/length/pattern/enum constraints, and comments. Read diagnostics for unresolved identities, unsupported types/constraints and dialect limitations. Non-foreign-key relationships can be preserved without generating foreign-key DDL.
+You can also deploy directly with `DeploySchema(contract, options)`, load data with
+`LoadDataAsync`, or combine deployment and loading with `ExecuteAsync`. The operation preflight
+checks known capabilities before running DDL or reading source data. It does not guarantee
+server permissions, a successful deployment or transactional rollback.
+
+The provisioner uses mapped physical table and column names, supported physical types and
+schema qualification. It can generate composite primary keys, foreign keys, supported range,
+length, pattern and enum constraints, and comments.
+
+Review the diagnostics for names that could not be resolved and for unsupported types,
+constraints or dialect features. A relationship that is not a foreign key can remain in the
+model without producing foreign-key DDL.
 
 See [database integration]({{ '/database-integration/' | relative_url }}) for supported dialects, shared connections, credentials and bulk adapters, and [.NET reference]({{ '/reference/dotnet/' | relative_url }}) for entry points.
 

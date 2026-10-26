@@ -15,7 +15,14 @@ dotnet add package Packata.DataPackage
 dotnet add package Packata.OpenDataContract
 ```
 
-Both reference `Packata.Core` transitively. Add `Packata.ResourceReaders`, optional reader providers, `Packata.Storages`, `Packata.Database`, or `Packata.Provisioners` for the capabilities you use. See the [package/API reference]({{ '/reference/dotnet/' | relative_url }}) and [reader registration table]({{ '/guides/readers-storage/' | relative_url }}).
+Both format packages already reference `Packata.Core`. To read data, add
+`Packata.ResourceReaders` and the optional providers you need. For storage, database
+connections or provisioning, add `Packata.Storages`, `Packata.Database` or
+`Packata.Provisioners` respectively.
+
+Use the [package and API reference]({{ '/reference/dotnet/' | relative_url }}) to choose entry
+points and the [reader registration table]({{ '/guides/readers-storage/' | relative_url }})
+to select format-specific packages.
 
 ## Command-line tool
 

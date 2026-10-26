@@ -22,34 +22,42 @@ foreach (var option in field.ValueDomain?.Entries ?? [])
 var allowed = field.ValueDomain?.AllowedValues;
 ```
 
-`Entries` is the descriptive catalog in source sequence. `AllowedValues` is the
-effective finite membership restriction, independently ordered. With DPv2
-categories A/B/C and an explicit enum C/A, all three catalog entries and their
-labels remain visible, while only C/A are allowed, in that sequence. ODCS enum
-entries supply both the catalog and allowed set. A scalar DPv2 enum without
-categories supplies entries without invented labels or descriptions.
+A domain separates its descriptive catalog from the values that are allowed. `Entries`
+keeps the catalog in source order, while `AllowedValues` carries the effective finite
+membership restriction in its own order.
 
-An inline domain has entries and known allowed values. A reference domain instead
-has `Reference` and null `Entries`. With a reference, `AllowedValues` is null until
-finite values are known, unless the source explicitly supplies a local enum. Null
-means unknown membership, not unrestricted data. A source-valid explicit empty set
-has empty entries/allowed values and is not collapsed into null.
+For example, DPv2 categories A/B/C with an explicit enum C/A retain all three catalog entries
+and their labels, but allow only C/A in that sequence. ODCS enum entries supply both lists.
+A scalar DPv2 enum without categories supplies entries without inventing labels or descriptions.
 
-`ValueOption.Label` and `Description` are independently optional. Empty strings
-remain empty. ODCS enum IDs, tags, authoritative definitions, and custom properties
-are retained under each option's `Extensions["odcs"]`. Values and descriptive
-metadata are detached snapshots; changing the native document cannot change them.
+An inline domain provides entries and known allowed values. A reference domain instead
+provides `Reference` and leaves `Entries` null. Its `AllowedValues` also remains null until
+finite membership is known, unless the source supplies a local enum.
 
-`ScalarValue.Kind` distinguishes string, integer, number, boolean, and null. Integer
-values normalize CLR integer widths into signed 64-bit integers; numbers preserve
-finite decimal, double, or float values. Equality distinguishes integer 1, number
-1.0, string `"1"`, and boolean true. Equivalent finite numeric text compares equally
-within the number kind without converting doubles into decimals. Number parsing
-rejects unsupported range or precision rather than rounding to a convenient type.
-Temporal scalar values are retained as strings, with native CLR temporal values
-formatted invariantly; the owning field still supplies its logical type. Null is
-available for source constraints that permit it, not for ODCS enum entries or
-DPv2 categories.
+Here, null means that membership is unknown, not that any value is allowed. An explicit empty
+set that is valid in its source standard remains an empty entries/allowed-values collection;
+it is not collapsed into null.
+
+Each value can have a label, a description, both or neither. `ValueOption.Label` and
+`Description` are independently optional, and an empty string remains an empty string.
+ODCS enum IDs, tags, authoritative definitions and custom properties are retained in the
+option's `Extensions["odcs"]`.
+
+Both the value and its descriptive metadata are detached snapshots. Changing the native
+document later cannot change the mapped result.
+
+`ScalarValue.Kind` distinguishes strings, integers, numbers, booleans and null. Integer
+values are normalized from CLR integer widths to signed 64-bit integers. Number values retain
+finite decimal, double or float representations.
+
+Equality keeps those kinds distinct: integer 1, number 1.0, string `"1"` and boolean true
+are different values. Equivalent finite numeric text compares equally within the number kind,
+without converting doubles to decimals. Parsing rejects unsupported range or precision rather
+than rounding to a convenient type.
+
+Temporal scalars remain strings, with native CLR temporal values formatted invariantly.
+The owning field still declares the logical type. Null is available only where source
+constraints permit it; ODCS enum entries and DPv2 categories do not permit null.
 
 ## Ordering and table references
 
@@ -69,11 +77,13 @@ A reference exposes:
   descriptor and reference mapping can be bound. This never implies that its rows
   were loaded. External and unresolved references have no local bound asset ID.
 
-`DataAsset.CategoryTable` contains `ValueField`, optional `LabelField`, and its own
-nullable `Ordered` flag. A `FieldPath.Segments` sequence uses canonical logical field
-names within that asset, not physical database column names. Original mapping names
-remain in its source extensions. Field-level and table-level ordering are retained
-independently; the common model does not invent a precedence rule.
+For a category table, `DataAsset.CategoryTable` identifies the `ValueField`, an optional
+`LabelField` and the table's own nullable `Ordered` flag. Paths in `FieldPath.Segments`
+use logical canonical field names within that asset, not physical database column names.
+The original mapping names remain in source extensions.
+
+Field ordering and table ordering are retained independently. The shared model does not choose
+one as taking precedence over the other.
 
 Mapping opens no category data files and fetches no external packages. It does not
 infer label or description columns by naming convention, create fake assets for
@@ -81,35 +91,37 @@ external tables, or turn unresolved references into empty membership checks.
 
 ## Compatibility and diagnostics
 
-The existing `field.Constraints` API remains the membership interface for current
-readers, provisioners, and exports. For a domain with known membership its scalar
-`enum` payload is projected from `AllowedValues`, rather than maintained as an
-independently editable duplicate. Labels and descriptions never appear in that
-payload. Treat it as an enumerable scalar collection, not a particular mutable
-array implementation.
+Readers, provisioners and exports continue to obtain membership constraints through
+`field.Constraints`. When a domain has known membership, the scalar `enum` payload is
+derived from `AllowedValues` rather than kept as a separately editable copy.
+
+Labels and descriptions do not enter that payload. Consume it as an enumerable collection
+of scalar values, without depending on a particular mutable array implementation.
 
 Supplying an explicit conflicting enum via the public `DataField` API raises an
 `InvalidOperationException` when `Constraints` is read. A reference with unknown
 membership must also include any explicitly supplied scalar enum in its
 `AllowedValues`. Existing fields without value domains keep their constraints.
 
-Native mappers report `ODCS004` / `DP006` warnings for values outside the scalar
-projection, incompatible field types, invalid subsets, invalid table descriptors,
-or unbindable local references. Unsupported structured enum constraints retain
-their original meaning and metadata without stringification; no scalar domain is
-invented for them. Warnings do not make existing native mappings fail, but consumers
-can inspect `MappingResult.Diagnostics` before provisioning. An unresolved valid
-reference remains visible with unknown membership.
+Native mapping reports `ODCS004` or `DP006` warnings when it cannot create a valid scalar
+projection. Causes include incompatible field types, invalid subsets or table descriptors,
+and local references that cannot be bound.
 
-The old metadata paths remain available: ODCS enum snapshots under
-`field.Extensions["odcs"]["enum"]`, Data Package category metadata under
-`field.Extensions["datapackage"]["categories"]`, and resource field-map metadata
-under `asset.Extensions["datapackage"]["categoryFieldMap"]`. These domain-related
-snapshots use read-only dictionaries/lists and primitive values, which the canonical
-diff API can snapshot without depending on native format classes. Code that cast
-the old Data Package extension payloads to native category/reference objects should
-use `field.ValueDomain` / `asset.CategoryTable` instead, or read the preserved source
-property names as dictionary keys. Prefer the common API for new cross-format code.
+Structured enum constraints that are not supported as scalar domains retain their meaning
+and metadata. They are not converted to strings or replaced with an invented scalar domain.
+These warnings do not make an existing native mapping fail, but you should inspect
+`MappingResult.Diagnostics` before provisioning. A valid unresolved reference remains visible
+with unknown membership.
+
+You can still read ODCS enum snapshots at `field.Extensions["odcs"]["enum"]`,
+Data Package categories at `field.Extensions["datapackage"]["categories"]`, and the resource
+field map at `asset.Extensions["datapackage"]["categoryFieldMap"]`.
+
+These snapshots contain read-only dictionaries, lists and primitive values. The canonical
+diff can snapshot them without depending on native format classes. If existing code casts
+Data Package extension values to native category or reference objects, use `field.ValueDomain`
+and `asset.CategoryTable` instead, or read the preserved property names as dictionary keys.
+Prefer the common API for new code that handles both formats.
 
 DataField and DataAsset constructors append optional model arguments, preserving
 existing source call sites. Consumers upgrading the assembly should rebuild.

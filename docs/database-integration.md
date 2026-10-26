@@ -8,16 +8,24 @@ parent: Guides
 
 # Database connections, connectors and provisioning
 
-`Packata.Database` supplies the shared DubUrl service used by database readers and provisioners.
-Core and the document-format packages have no DubUrl dependency. The completed integration uses
-published DubUrl **0.46.0**, including its application connector service. Keep the DubUrl package
-family on compatible versions: the older 1.1.0 publication does not expose these module/pack APIs.
-The initial shared-service milestone (`cbf64b6`) was separately compiled against 0.29.34 before
-upgrading to the modular API for the subsequent integration steps.
+Use `Packata.Database` to share a DubUrl connection service between database readers and
+provisioners. Core and the document-format packages remain independent of DubUrl.
+
+The integration uses published DubUrl **0.46.0**, including its application connector service.
+Keep the DubUrl package family on compatible versions: the older 1.1.0 publication lacks
+these module and pack APIs. The earlier shared-service milestone, `cbf64b6`, was compiled
+against 0.29.34 before the modular API upgrade.
 
 ## CLI
 
-Use `packata connector list` and `packata connector show ID` to inspect prerequisites, then use `schema infer` or `data preview` with the same contract endpoint. Runtime URLs can come from `--connection-env ENDPOINT=VARIABLE`; secrets belong in runtime configuration. See [all connector/config options]({{ '/cli-database/' | relative_url }}) and [schema inference]({{ '/cli-inference/' | relative_url }}). CLI provisioning is not implemented; it remains [planned](https://github.com/Seddryck/Packata/issues/476).
+Start with `packata connector list` and `packata connector show ID` to check the connector
+and its prerequisites. You can then use `schema infer` or `data preview` with the contract's endpoint.
+To supply a runtime URL, use `--connection-env ENDPOINT=VARIABLE` and keep secrets in runtime
+configuration rather than the contract.
+
+The [connector reference]({{ '/cli-database/' | relative_url }}) lists every configuration option,
+and the [inference reference]({{ '/cli-inference/' | relative_url }}) covers schema discovery.
+CLI provisioning remains [planned](https://github.com/Seddryck/Packata/issues/476).
 
 ## .NET: one service for readers and provisioners
 
@@ -35,47 +43,58 @@ var builder = new DubUrlProvisionerBuilder(connections, readers);
 // LoadRuntimeConfiguration is host code returning DatabaseRuntimeOptions from a secret store.
 ```
 
-The convenience constructor discovers application provider dependencies once, with no installed
-provider store. Add the required `DubUrl.Provider.*` family and concrete ADO.NET driver at build
-time. Existing `AddDatabase()`, `AddDatabase(rootPath)` and parameterless provisioner builders
-remain available; the no-argument entry points share `DubUrlConnectionService.Default`. Do not
-dispose that process-lifetime default. The host owns an explicitly supplied service; factories
-do not dispose it. No Packata path calls application-global provider registration.
+The convenience constructor discovers the application's provider dependencies once. It does
+not configure an installed provider store, so add the required `DubUrl.Provider.*` packages
+and concrete ADO.NET driver at build time.
 
-For explicit build-time selection, create `DatabaseConnectionServiceOptions`, leave
-`DiscoverApplicationProviders` false, and add `IDubUrlProviderModule` instances to `Modules`.
-Each module's `Register` method adds `ProviderRegistration` objects through DubUrl's public API,
-including factory delegates, aliases, dialects, parametrizers and connection compilers. The same
-selected configuration serves readers and provisioners. Duplicate aliases throw
-`ProviderRegistrationException` with both conflicting registration names. Independent services
-can use different factory delegates for the same alias without `DbProviderFactories` interference.
-A prebuilt `ISchemeRegistry` can also be passed to the service for a fixed, host-owned snapshot.
+You can still use `AddDatabase()`, `AddDatabase(rootPath)` and parameterless provisioner
+builders. The no-argument entry points share `DubUrlConnectionService.Default`, which lasts
+for the process and must not be disposed by callers.
 
-Explicit module registration bypasses assembly discovery. Attribute-based modules and application
-or installed-pack discovery use reflection; explicit registration alone does not establish
-trimming or Native AOT support for a driver, dialect or dependency closure.
+When you supply a service explicitly, your host owns it; reader factories do not dispose it.
+Packata does not register providers globally for the application.
+
+To choose providers explicitly at build time, create `DatabaseConnectionServiceOptions`,
+leave `DiscoverApplicationProviders` false, and add `IDubUrlProviderModule` instances to
+`Modules`. Each module registers its providers through DubUrl's public `Register` API,
+including factories, aliases, dialects, parametrizers and connection compilers.
+
+Readers and provisioners use that same configuration. A duplicate alias throws
+`ProviderRegistrationException` and names both conflicting registrations. Separate services
+can use different factories for the same alias without interfering through `DbProviderFactories`.
+For a fixed configuration, you can instead pass a prebuilt, host-owned `ISchemeRegistry` snapshot.
+
+Explicit module registration bypasses assembly discovery. Attribute-based registration and
+application or installed-pack discovery use reflection. Choosing explicit registration alone
+does not establish trimming or Native AOT support for the driver, dialect or its dependencies.
 
 ## Canonical endpoint and binding precedence
 
-1. A nonblank `ConnectionLocation.ConnectionUrl` is authoritative for scheme, host, port,
-   database, URL credentials and URL options. Conflicting structured connection fields are ignored.
-   `Namespace` remains independent of the URL.
-2. Without a URL, a valid `Scheme` and either a host or database are required. A database without
-   a host uses `.`. Ports must be between 1 and 65535. IPv6 hosts are bracketed. A structured database
-   name is encoded as one path component; explicit URLs preserve their existing path segmentation.
-3. The runtime callback supplies `DatabaseRuntimeOptions` for each database read. A complete
-   username/password pair replaces URL credentials; partial pairs are rejected. Runtime provider
-   options override URL options case-insensitively. Duplicate keys within either source are rejected.
-   Resolve secrets by endpoint ID without placing them in canonical documents. Provisioner builders
-   accept destination credentials through `WithCredentials`; they do not invoke the reader's
-   endpoint callback. Advanced callers can pass runtime options to `Resolve` directly.
-4. `DataEndpointReadRequest.AssetPath` overrides the `table` format option. Empty selections fail
-   before connector acquisition or connection opening. Select one binding explicitly when an asset
-   has multiple endpoint bindings. The reader does not guess a table. `ConnectionLocation.Namespace`
-   overrides the `namespace` format option. Namespace and table are rendered separately using the
-   resolved dialect, with closing delimiters escaped. Periods within either value are literal
-   identifier characters; use the namespace field for qualification. SQLite uses its supported
-   double-quoted syntax rather than the unquoted formatter supplied by DubUrl.
+When a nonblank `ConnectionLocation.ConnectionUrl` is present, it supplies the scheme, host,
+port, database, credentials and URL options. Conflicting structured fields are ignored, but
+`Namespace` remains independent of the URL.
+
+Without a URL, supply a valid `Scheme` and either a host or database. A database without a
+host uses `.`. Ports must be between 1 and 65535, and IPv6 hosts are bracketed. A structured
+database name is encoded as one path component; an explicit URL keeps its existing path segments.
+
+For each read, the runtime callback can supply `DatabaseRuntimeOptions`. A complete username
+and password replace URL credentials; a partial pair is rejected. Runtime provider options
+override URL options case-insensitively, and duplicate keys within either source are rejected.
+Resolve secrets by endpoint ID so they do not enter canonical documents.
+
+Provisioner builders accept destination credentials through `WithCredentials`. They do not
+invoke the reader's endpoint callback. Advanced callers can also supply runtime options
+directly to `Resolve`.
+
+To select a table, the reader uses `DataEndpointReadRequest.AssetPath` before the format's
+`table` option. Empty selections fail before connector acquisition or connection opening.
+If an asset has multiple endpoint bindings, choose one explicitly; the reader does not guess.
+
+For qualification, `ConnectionLocation.Namespace` takes precedence over the format's
+`namespace` option. The dialect renders namespace and table separately and escapes closing
+delimiters. A period inside either value is a literal identifier character, so use the namespace
+field to qualify a table. SQLite uses double-quoted identifiers rather than DubUrl's unquoted formatter.
 
 User info, structured database names and provider options are encoded safely. DubUrl 0.46.0 decodes
 URI components at parsing; Packata does not decode a second time. File and inline readers retain
@@ -104,12 +123,14 @@ var readers = ResourceReaderFactory.Create(o => o.AddDatabase(connections));
 // await readers.OpenAsync(new DataEndpointReadRequest(endpoint, schema, binding.AssetPath), token);
 ```
 
-Only an explicitly configured `ProviderStore` participates. `UseDefaultProviderStore = true` is a
-separate opt-in to DubUrl's default user store (including its `DUBURL_PROVIDER_STORE` override);
-do not combine both settings. Store-only configuration loads active local packs without requiring
-a catalog. Construction, mapping and `Inspect` never download connectors. Set `DownloadsEnabled`
-false to prohibit downloads while permitting already active compatible installed connectors.
-Inactive packs are not loaded; activate a compatible version before offline use.
+Installed packs participate only when you configure a store. Set `ProviderStore` to choose
+one, or opt into DubUrl's default user store with `UseDefaultProviderStore = true`. The latter
+also honors `DUBURL_PROVIDER_STORE`. Do not combine the two settings.
+
+A store can load active local packs without a catalog. Construction, mapping and `Inspect`
+do not download connectors. To work offline, activate a compatible connector first, then set
+`DownloadsEnabled` to false. This blocks downloads while allowing active compatible packs;
+inactive packs are not loaded.
 
 A database `OpenAsync` follows this order:
 
@@ -126,77 +147,96 @@ A database `OpenAsync` follows this order:
 5. Build and atomically publish a fresh registry snapshot before opening the pending connection.
    The original factory remains usable; callers do not rebuild it or restart the process.
 
-Concurrent missing-connector reads coordinate installation and publication. Existing URLs/readers
-retain their old snapshot and live connections. Already loaded assemblies are not replaced.
-Changes to an already loaded connector require a new service/catalog or process; no hot replacement
-is promised. Store inspection follows DubUrl's rules: installation verifies the archive digest,
-while later inspection checks metadata, compatibility and required assets rather than rehashing
-all installed files. Invalid binaries or missing runtime dependencies produce loading diagnostics.
-An unhealthy or unloadable pack does not hide unrelated valid packs. Collisions between explicit
-modules and installed modules fail deterministically instead of silently replacing registrations.
+When several reads need the same missing connector, they coordinate its installation and
+publication. Existing URLs and readers retain their registry snapshots and live connections.
+Loaded assemblies are not replaced, so changing a loaded connector requires a new service,
+catalog or process rather than hot replacement.
 
-Hosts may inject an `IConnectorService` through options to control the application-service boundary,
-or provide `IConnectorAvailabilityService` alongside a custom `IDatabaseConnectionService` to
-`AddDatabase`. The availability result's selected runtime scheme is passed to connection opening.
-Contract-supplied arbitrary download URLs are never accepted as connector sources. Catalog trust
-and delivery are host responsibilities. External ODBC/OLE DB vendor drivers remain prerequisites.
-Authentication, permission and connectivity failures never trigger connector reinstallation.
+Installation verifies the archive digest. Later store inspection checks metadata, compatibility
+and required assets without rehashing every installed file. Invalid binaries or missing runtime
+dependencies produce loading diagnostics, but one unhealthy pack does not hide other valid packs.
+Conflicts between explicit and installed modules fail rather than replacing registrations silently.
+
+A host can inject `IConnectorService` through the options to control installation. With a
+custom `IDatabaseConnectionService`, it can also pass `IConnectorAvailabilityService` to
+`AddDatabase`. The selected runtime scheme from the availability result is used to open
+the connection.
+
+The host is responsible for trusting and delivering its catalog. Contracts cannot provide
+arbitrary connector download URLs, and external ODBC or OLE DB vendor drivers remain separate
+prerequisites. Authentication, permission and connectivity failures do not trigger reinstallation.
 
 ## Discovery and diagnostics
 
-`connections.Inspect("postgresql")` combines catalog metadata, local store facts and the loaded
-registry without opening a connection or accessing the network. Each returned `ConnectorInfo`
-retains independent `Listed`, `Installed`, `Active`, and `Unhealthy` values per version, including
-installed versions absent from the catalog. `Loaded` describes runtime provider availability,
-not server connectivity or support for schema deployment/bulk loading. Connector IDs and aliases
-resolve through catalog metadata; a multi-database connector ID is suitable for discovery but
-needs a database scheme to select its runtime mapping.
+Call `connections.Inspect("postgresql")` to inspect catalog metadata, installed-store facts
+and the loaded registry without opening a connection or using the network. Each `ConnectorInfo`
+has independent `Listed`, `Installed`, `Active` and `Unhealthy` facts for its version, including
+versions installed locally but absent from the catalog.
 
-Stable codes include `connector-loaded`, `connector-unknown`, `connector-not-installed`,
-`connector-inactive`, `connector-unhealthy`, `connector-not-loaded`, `connector-ambiguous`,
-`connector-preference-invalid`, `connector-offline`, `connector-load-failed`, and upstream
-installation codes such as `pack-integrity`, `api-incompatible`, `tfm-incompatible`,
-`rid-incompatible` and `connector-download-failed`. Messages identify the connector and missing
-prerequisite. `DatabaseConnectionException` exposes `Code` and, where available, `EndpointId`
-and `ConnectorId`. Provider/store exception details are omitted because they can contain secrets.
-Do not log advanced `ConnectionUrl.Url` or `Parse()` values: those are connection material,
-not diagnostics. Runtime options redact their `ToString()` representation.
+The `Loaded` fact means that a runtime provider is available. It does not establish server
+connectivity, schema-deployment support or bulk-loading support. Connector IDs and aliases
+resolve through the catalog. An ID covering multiple databases is useful for discovery,
+but opening a connection still requires the actual database scheme.
+
+Availability diagnostics use stable codes such as `connector-loaded`, `connector-unknown`,
+`connector-not-installed`, `connector-inactive`, `connector-unhealthy` and
+`connector-not-loaded`. Selection and loading can also report `connector-ambiguous`,
+`connector-preference-invalid`, `connector-offline` or `connector-load-failed`.
+
+Installation can return upstream codes including `pack-integrity`, `api-incompatible`,
+`tfm-incompatible`, `rid-incompatible` and `connector-download-failed`. Messages identify
+the affected connector and missing prerequisite. `DatabaseConnectionException` exposes
+`Code` and, when available, `EndpointId` and `ConnectorId`.
+
+Provider and store exception details are omitted because they can contain secrets. Do not log
+advanced `ConnectionUrl.Url` or `Parse()` values: these contain connection material rather
+than safe diagnostics. Runtime options redact their `ToString()` representation.
 
 ## Ownership and cancellation
 
-Every operation gets a new URL, mapper and connection. Sharing configuration never shares a live
-connection. `OpenAsync` returns `DatabaseConnectionSession`; its caller owns `Connection`.
-Database readers own their reader, command and connection until `Close` or `Dispose`. Opening,
-connection-string assignment and query failures dispose operation-owned resources. Disposal
-attempts all owned resources even if another resource's disposal throws. Cancellation flows
-through installation, connection opening and asynchronous query execution. Synchronous providers
-receive cancellation checks around their blocking calls; Packata cannot interrupt an uncooperative
-synchronous driver. Cancellation remains `OperationCanceledException` (including DubUrl's derived
-connector cancellation type) with the caller token, and upstream installation preserves consistency.
+Each operation gets a new URL, mapper and connection. Sharing the service shares configuration,
+not a live connection. A caller of `OpenAsync` owns the `Connection` in the returned
+`DatabaseConnectionSession`. A database reader owns its reader, command and connection until
+you call `Close` or `Dispose`.
 
-The service owns its installed-module loaders and any HTTP client it creates internally. Dispose
-it after its readers. Supplied modules, registries, application connector services and HTTP clients
-remain host-owned. Old loader contexts are retained while the service can still have readers using
-old snapshots, then released when the service is disposed. No implicit machine-wide driver
-installation, uninstall interface or background management loop is provided.
+If opening, connection-string assignment or query execution fails, the operation releases its
+owned resources. Disposal attempts every release even if another disposal throws.
+
+Cancellation passes through installation, opening and asynchronous query execution.
+Synchronous providers check it around blocking calls; Packata cannot interrupt a driver that
+does not cooperate. Cancellation remains `OperationCanceledException`, including DubUrl's
+derived connector-cancellation type, with the caller's token. Upstream installation preserves
+store consistency when cancelled.
+
+Dispose the service after its readers. It owns its installed-module loaders and any HTTP
+client it creates internally. Modules, registries, connector services and HTTP clients supplied
+by the host remain host-owned.
+
+Old loader contexts stay available while readers may still use their snapshots, and are released
+when the service is disposed. Packata does not implicitly install machine-wide drivers or
+provide an uninstall interface or background management loop.
 
 ## Provisioning operation preflight
 
-`DubUrlProvisioner.GetOperationSupport()` reports separate `Reading`, `SchemaDeployment` and
-`BulkLoading` facts. Reading is generic database querying. Schema deployment uses an explicit
-Packata allow-list of supported dialect types (SQL Server, DuckDB, PostgreSQL, SQLite, MySQL and
-Oracle), or a `DatabaseSchemaDeploymentSupport` capability registered by the host. ANSI fallback
-and arbitrary custom dialects do not imply provisioning support. Bulk loading uses the actual
-upstream `ConnectionUrl.BulkCopyProvider` capability, not a dialect name or catalog listing.
-Native DuckDB and SQL Server connector packs include their typed bulk adapters; a build-time
-provider family without its adapter remains eligible for schema-only deployment.
+Call `DubUrlProvisioner.GetOperationSupport()` before choosing an operation. Its `Reading`,
+`SchemaDeployment` and `BulkLoading` facts are independent. Reading means generic database querying.
 
-Hosts can supply `IDatabaseOperationCapabilities` to the builder or provisioner when deliberately
-configuring other adapters. `ExecuteAsync` checks loading and deployment support, cancellation,
-and reader configuration before DDL or source reading. `DeploySchema` remains usable independently
-without bulk loading. Unsupported operations throw `DatabaseOperationNotSupportedException` with
-the exact operation and provider dialect; failed resolution uses `database-preflight-failed`.
-Preflight establishes known support, not server permissions, deployment success or transactional rollback.
+Schema deployment requires a supported dialect: SQL Server, DuckDB, PostgreSQL, SQLite, MySQL
+or Oracle, or a host-registered `DatabaseSchemaDeploymentSupport` capability. An ANSI fallback
+or arbitrary custom dialect does not establish support.
+
+Bulk loading depends on the actual `ConnectionUrl.BulkCopyProvider` capability, not a dialect
+name or catalog entry. Native DuckDB and SQL Server connector packs include typed bulk adapters.
+A build-time provider without its adapter can still be used for schema-only deployment.
+
+When configuring other adapters deliberately, a host can supply `IDatabaseOperationCapabilities`
+to the builder or provisioner. Before DDL or source reads, `ExecuteAsync` checks deployment
+and loading support, cancellation and reader configuration. You can still use `DeploySchema`
+without bulk loading.
+
+An unsupported operation throws `DatabaseOperationNotSupportedException` naming the operation
+and provider dialect. Failed resolution uses `database-preflight-failed`. Preflight establishes
+known capability; it does not guarantee permissions, deployment success or transactional rollback.
 
 ## Examples and validation scope
 

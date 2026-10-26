@@ -17,7 +17,12 @@ packata contract diff datapackage.json datapackage.json --output-format json
 packata schema export datapackage.json -f json-schema --asset customers
 ```
 
-Comparing the sample with itself using `contract diff` returns `hasChanges: false`. To compare versions, give the previous descriptor first and the candidate second. A diff with changes also exits successfully. JSON Schema export emits one record schema, not a dataset validation result. See [all CLI options and result contracts]({{ '/cli/' | relative_url }}).
+The diff example compares the sample with itself and returns `hasChanges: false`.
+For two versions, supply the previous descriptor first and the candidate second. Finding
+differences is a successful result and does not make the command fail.
+
+The export example produces a JSON Schema for one record. It does not check every row in the
+dataset. See the [CLI reference]({{ '/cli/' | relative_url }}) for the complete options and result formats.
 
 ## .NET
 
@@ -41,4 +46,14 @@ Review validation issues and mapping diagnostics before continuing in production
 
 ## Assess consumer compatibility
 
-Use `packata contract compare datapackage.json datapackage.json --output-format json --fail-on none` to request a directional report without gating on classifications. The baseline is previous and the candidate is current. In .NET, call `ContractCompatibility.Compare` with canonical models or native `CompatibilityInput` wrappers. This is implemented analysis of declared guarantees, not dataset validation. Unknown coverage remains unknown even when gating is disabled. See [compatibility policy]({{ '/compatibility/' | relative_url }}) and [all compare options]({{ '/cli/' | relative_url }}#assess-consumer-compatibility).
+Use `packata contract compare datapackage.json datapackage.json --output-format json --fail-on none`
+to get a consumer-compatibility report without gating on its classifications. As with diff,
+the baseline is the previous contract and the candidate is the current one.
+
+In a .NET application, call `ContractCompatibility.Compare` with canonical models or native
+`CompatibilityInput` wrappers. The analysis checks declared guarantees rather than actual
+dataset contents. Turning off the gate does not make unknown coverage compatible.
+
+Read the [compatibility policy]({{ '/compatibility/' | relative_url }}) for the direction and
+assumptions, and the [compare reference]({{ '/cli/' | relative_url }}#assess-consumer-compatibility)
+for every command option.

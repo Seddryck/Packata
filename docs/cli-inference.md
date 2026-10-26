@@ -16,7 +16,15 @@ packata schema infer <SOURCE> --asset <ID> [OPTIONS]
 packata infer <SOURCE> --asset <ID> [OPTIONS]
 ```
 
-`infer` is a compatibility alias with identical settings and behavior. `<SOURCE>` is a **local** Data Package v2 JSON/YAML or ODCS YAML descriptor. Its content determines the standard unless `--input-format` overrides it; an extensionless descriptor is supported. ZIP/remote descriptors are not supported by this loader. Select one exact asset with exactly one endpoint binding. CSV inference requires a single CSV/TSV/PSV file path; ODCS CSV endpoints must be local files. Database inference reads metadata for the selected physical object using the shared database service; partial discoveries produce diagnostics.
+The `infer` entry point is an alias for schema inference, with the same options and behavior.
+Supply a local ODCS YAML or Data Package v2 JSON/YAML descriptor. Packata detects its standard
+from the contents unless you set `--input-format`, and accepts extensionless descriptors.
+This loader does not accept remote descriptors or ZIP archives.
+
+Select one exact asset with exactly one endpoint binding. For CSV inference, that binding
+must provide a single CSV, TSV or PSV path; an ODCS CSV endpoint must be a local file.
+For a database, the shared service discovers the selected physical object's metadata and
+reports diagnostics when discovery is partial.
 
 | Option | Values / default | Meaning |
 | --- | --- | --- |
@@ -32,7 +40,13 @@ packata infer <SOURCE> --asset <ID> [OPTIONS]
 | `--connector <SCHEME=ID>` | Repeatable; persisted preferences otherwise | Invocation-only connector preference |
 | `--connection-env <ENDPOINT=VARIABLE>` | Repeatable; no override by default | Runtime database URL from a named environment variable; not persisted |
 
-The CSV-only options still undergo syntax/value validation on database invocations. No output-format switch or `--overwrite` is implemented for inference: enriched files retain the source representation. `-o` is the short alias for `--output`. See [database override precedence]({{ '/cli-database/' | relative_url }}#invocation-overrides).
+CSV sampling and dialect options do not affect database discovery, but their supplied values
+still have to pass syntax and value validation.
+
+Inference has no output-format switch because an enriched file keeps the source representation.
+It also has no `--overwrite` option. Use `--output` or its alias, `-o`, to create a new file.
+See [database override precedence]({{ '/cli-database/' | relative_url }}#invocation-overrides)
+for runtime connection settings.
 
 ```console
 packata schema infer datapackage.json --asset customers --header present --maximum-records 100
@@ -43,9 +57,23 @@ packata schema infer contract.yaml --asset customers --connector postgresql=post
 
 ## Output and mutation
 
-Inference prints a human-readable report of mapping/inference decisions, confidence where available, the selected schema and dialect. It has no machine-readable output contract. Without `--output` or `--write` it does not write the descriptor. `--output` refuses an existing file. `--write` is the explicit destructive choice for updating the source; there is no overwrite prompt.
+Inference prints a human-readable report of its mapping and inference decisions, the selected
+schema and dialect, and confidence where available. The report has no machine-readable
+output contract.
 
-Updating enriches the selected resource/schema and endpoint metadata rather than producing an arbitrary new standard. Review emitted preservation warnings: JSON/YAML are reserialized, comments/formatting and YAML anchors are not a round-trip guarantee, and unsupported source constructs can limit an update. Runtime connection overrides are not written into the enriched contract. Relative output paths resolve from the working directory; data paths resolve using the contract's resource context. File inference errors can include source-specific messages; redact sensitive details before sharing logs.
+Without an output option, the descriptor is left unchanged. Choose `--output` to create a
+new enriched file; an existing file is refused. Choose `--write` only when you want to replace
+the source itself. That update has no overwrite prompt.
+
+An update enriches the selected resource or schema and its endpoint metadata. It does not
+convert the document into another standard. Review preservation warnings before accepting it:
+JSON or YAML is reserialized, comments and formatting may change, YAML anchors are not
+guaranteed to round-trip, and unsupported source constructs can limit the update.
+
+Runtime connection overrides are not saved in the enriched contract. Relative output paths
+resolve from the working directory, while data paths resolve from the contract's resource
+context. File-inference errors may include source-specific text, so redact sensitive details
+before sharing logs.
 
 ## Exit codes
 

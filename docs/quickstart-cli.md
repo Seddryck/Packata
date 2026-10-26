@@ -40,4 +40,10 @@ packata schema export datapackage.json --output-format json-schema --asset custo
 packata dialect export datapackage.json --endpoint customers-endpoint
 ```
 
-The first command returns a record schema with integer `id` and string `name`; the second returns a Table Dialect JSON descriptor. Next, [infer a schema]({{ '/guides/data/' | relative_url }}), [compare contracts]({{ '/guides/contracts/' | relative_url }}), or browse the [complete CLI reference]({{ '/cli/' | relative_url }}). For embedding Packata, use the separate [.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}).
+The first command returns a record schema with an integer `id` and string `name`.
+The second returns a Table Dialect JSON descriptor.
+
+Next, [infer a schema]({{ '/guides/data/' | relative_url }}),
+[compare contracts]({{ '/guides/contracts/' | relative_url }}) or browse the
+[complete CLI reference]({{ '/cli/' | relative_url }}). To embed Packata in an application,
+continue with the separate [.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}).

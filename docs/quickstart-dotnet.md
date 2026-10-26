@@ -55,4 +55,9 @@ Run `dotnet run` from the project directory. Expected output:
 2: Bob
 ```
 
-The reader owns the streams it opens; dispose it after reading, including early termination. ODCS uses its own native loader and `Packata.OpenDataContract.Mapping` adapter into the same reader model. Continue with [shared data tasks]({{ '/guides/data/' | relative_url }}) or [.NET reference]({{ '/reference/dotnet/' | relative_url }}).
+Dispose the reader when you finish, including when you stop early, because it owns the
+streams it opens.
+
+For ODCS, use its native loader and the `Packata.OpenDataContract.Mapping` adapter to reach
+the same shared reader model. Continue with the [data guide]({{ '/guides/data/' | relative_url }})
+or [.NET reference]({{ '/reference/dotnet/' | relative_url }}).

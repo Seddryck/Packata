@@ -6,13 +6,30 @@ nav_exclude: false
 permalink: /guides/readers-storage/
 ---
 
-Locate the descriptor separately from its data. Canonical endpoints contain locations and format metadata; bindings select asset-specific paths/tables. Resolve relative file paths against the descriptor's directory, not an arbitrary working directory. Choose a binding explicitly when several exist.
+A contract describes where its data lives, but loading the contract does not open that data.
+Its endpoints provide the locations and format settings, while each asset's binding selects a
+particular path or table. When an asset has several bindings, choose the one you want explicitly.
+
+Resolve relative file paths against the directory containing the descriptor. This keeps the
+same contract working when you launch your application from a different directory.
 
 ## CLI
 
-Validation, inspection, diff, compatibility comparison and metadata exports accept local and HTTP(S) descriptors and ZIP packages. Preview accepts unpacked local/HTTP(S) descriptors; inference requires a local descriptor, including an extensionless file. Every contract-reading command supports `--input-format auto|odcs|datapackage`. Do not assume library storage backends are available in every command. See [source and output contracts]({{ '/cli/' | relative_url }}).
+The commands for validation, inspection, comparison and metadata export can read local files,
+HTTP(S) addresses and ZIP archives. Preview needs an unpacked descriptor, either local or remote.
+Inference needs a local descriptor, which can be extensionless.
 
-The CLI preview registers delimited/inline, Excel, Parquet and database readers. Fixed-width, NDJSON, key-value and web-log providers are library options, not currently registered CLI preview formats. Database configuration is shared by preview and inference; see [connector reference]({{ '/cli-database/' | relative_url }}).
+Use the input-format option to select the source standard when automatic detection is not enough.
+The accepted values are listed in the [CLI reference]({{ '/cli/' | relative_url }}). Library storage
+backends are configured separately, so their availability does not imply that every CLI command
+can use them.
+
+CLI preview can read delimited files, inline data, Excel, Parquet and databases.
+The fixed-width, NDJSON, key-value and web-log readers are available to .NET applications,
+but are not currently registered for CLI preview.
+
+Database preview and inference share the same connection configuration. See the
+[connector reference]({{ '/cli-database/' | relative_url }}) to configure it.
 
 ## .NET
 
@@ -44,14 +61,44 @@ var readers = ResourceReaderFactory.Create(options => options
 | Common / W3C logs | `Packata.ResourceReaders.WebLogs` / `AddWebLogs()` |
 | Database | `Packata.ResourceReaders.Database` / `AddDatabase()` and driver/connectors |
 
-Format resolution considers explicit format, media type and path extension. An unknown explicit format fails instead of being treated as CSV. An explicit delimiter can identify extensionless delimited data. `ReaderProviderUnavailableException` distinguishes a recognized format with a missing provider and suggests the package/registration.
+Packata chooses a reader using the explicit format, media type and file extension.
+If a contract declares an unknown format, reading fails rather than falling back to CSV.
+For an extensionless delimited file, an explicit delimiter can identify the format.
 
-`Packata.Storages` supplies locator/container builders for local directories, HTTP(S), ZIP, S3 and Azure. Register schemes/wrappers explicitly with `DataPackageLocatorBuilder` and resource handlers with `StorageProviderBuilder`; supply cloud credentials through host configuration. Use `IEndpointStreamResolver` for custom canonical stream resolution. Cloud storage support does not mean the CLI accepts cloud descriptor URLs.
+If Packata recognizes the format but its reader has not been registered, it throws
+`ReaderProviderUnavailableException`. The exception suggests the package and registration
+method you need.
+
+Use `Packata.Storages` to configure access to local directories, HTTP(S), ZIP archives,
+S3 or Azure. Register the schemes and archive wrappers with `DataPackageLocatorBuilder`,
+and register resource handlers with `StorageProviderBuilder`. Your host application supplies
+the cloud credentials.
+
+For custom canonical stream access, implement `IEndpointStreamResolver`. These library extension
+points do not add cloud descriptor URLs to CLI commands.
 
 ## Configuration and ownership
 
-Custom `IDataEndpointReaderProvider` instances registered by `AddProvider` run in registration order before built-ins; duplicate provider types are rejected. `IDelimitedDialectResolver` can resolve a catalog/sidecar dialect, and fixed-width layout resolution supplies column widths. Use the corresponding provider package's public options rather than guessing format-specific parameters. See [.NET source/API links]({{ '/reference/dotnet/' | relative_url }}).
+To add a reader, register an `IDataEndpointReaderProvider` with `AddProvider`.
+Custom providers run before the built-ins, in the order you register them. Registering the
+same provider type twice is rejected.
 
-Delimited settings include delimiter, quote, line terminator and header. Encoding/compression and multi-path/header behavior depend on the provider. Logical/runtime type mapping, field matching, missing values, numeric conventions and temporal formats must be checked for that provider; metadata preservation alone does not prove it applies every parser option. Declared offset-bearing strptime formats preserve offsets; offset-free values remain offset-free. See [temporal concepts]({{ '/concepts/commitments/' | relative_url }}).
+Parsing can also be configured independently of reader selection. An `IDelimitedDialectResolver`
+can obtain a dialect from a catalog or sidecar file, while a fixed-width layout resolver supplies
+column widths. Use the public options in the corresponding provider package; the
+[.NET reference]({{ '/reference/dotnet/' | relative_url }}) links to those APIs.
 
-Dispose owned streams, readers and containers, including on failure or early termination. Database services own configuration, not a shared live connection; [database integration]({{ '/database-integration/' | relative_url }}) defines callback precedence, cancellation and disposal.
+For delimited data, the dialect controls the delimiter, quote character, line terminator and
+header. Other behavior, such as encoding, compression and repeated headers across multiple
+paths, depends on the reader provider.
+
+Check your provider's support for field matching, missing values, numeric conventions and
+logical-to-runtime type mapping. Preserving a setting in a contract does not guarantee that
+every reader applies it. Temporal parsing follows declared formats: an offset-bearing strptime
+format preserves the offset, while an offset-free value remains offset-free. See
+[temporal concepts]({{ '/concepts/commitments/' | relative_url }}) for details.
+
+Dispose the streams, readers and containers your application owns, including when a read fails
+or stops early. A shared database service shares configuration, not a live connection.
+[Database integration]({{ '/database-integration/' | relative_url }}) explains the ownership,
+callback precedence and cancellation rules.

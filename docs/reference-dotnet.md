@@ -6,7 +6,12 @@ nav_exclude: false
 permalink: /reference/dotnet/
 ---
 
-Libraries target .NET 8, 9 and 10. Install only needed packages; standard-specific packages reference Core transitively. Start with the [runnable Quickstart]({{ '/quickstart/dotnet/' | relative_url }}). Public source links below provide API signatures; generated exhaustive API documentation is deferred.
+The libraries target .NET 8, 9 and 10. Start with the
+[runnable Quickstart]({{ '/quickstart/dotnet/' | relative_url }}), then add the packages your
+application needs. The format-specific packages already reference Core.
+
+The table below identifies the main entry points, and the source links later on this page
+provide their signatures. Exhaustive generated API documentation is deferred.
 
 | Package | Purpose / public entry points |
 | --- | --- |
@@ -21,19 +26,49 @@ Libraries target .NET 8, 9 and 10. Install only needed packages; standard-specif
 
 ## Mapping and extension points
 
-`ToCanonicalContract()` returns a `MappingResult<DataContract>`; inspect `Diagnostics`, `IsSuccessful` and `Value`, or use `ReportDiagnostics(...).RequireValue()`. `IDataContractMapper<T>` is the lower-level adapter contract for dependency injection/third-party formats. Namespaced `ExtensionMetadata` preserves source-specific values; consumers must check mapping limitations.
+Call `ToCanonicalContract()` to map a native document into the shared model. The returned
+`MappingResult<DataContract>` includes `Diagnostics`, `IsSuccessful` and `Value`. You can
+also report diagnostics and require a value in one chain with `ReportDiagnostics(...).RequireValue()`.
 
-`DataContractInferenceResult` exposes `Value`, `Diagnostics`, `IsSuccessful`, `HasWarnings` and `RequireContract()`. Configure CSV sampling via `CsvDataContractInferenceOptions.InferenceOptions`; database discovery via `DatabaseDataContractInferenceOptions.DiscoveryOptions`, with metadata overrides for generated assets/endpoints. See [data tasks]({{ '/guides/data/' | relative_url }}).
+Use `IDataContractMapper<T>` for lower-level adapters, dependency injection or third-party
+formats. Namespaced `ExtensionMetadata` retains source-specific values, but you still need
+to check which parts of the document the mapping supports.
 
-Canonical reader requests carry endpoint, optional schema and asset path. Host stream resolvers and registered `IDataEndpointReaderProvider` instances extend reading; delimited dialect and fixed-width layout resolvers extend parsing. See [readers/storage]({{ '/guides/readers-storage/' | relative_url }}).
+Inference returns a `DataContractInferenceResult`. Inspect its `Value` and `Diagnostics`,
+check `IsSuccessful` or `HasWarnings`, or use `RequireContract()` when a result is required.
+
+Configure CSV sampling through `CsvDataContractInferenceOptions.InferenceOptions` and database
+discovery through `DatabaseDataContractInferenceOptions.DiscoveryOptions`. Both allow metadata
+overrides for generated assets and endpoints. The [data guide]({{ '/guides/data/' | relative_url }})
+shows how inference fits into a workflow.
+
+A canonical read request identifies the endpoint and can supply a schema and asset path.
+To extend reading, provide a host stream resolver or register an `IDataEndpointReaderProvider`.
+To customize parsing, use a delimited dialect or fixed-width layout resolver.
+See the [reader and storage guide]({{ '/guides/readers-storage/' | relative_url }}) for configuration.
 
 ## Comparison
 
-`previous.Diff(candidate)` returns typed additions/removals/modifications, including property type changes. Matching uses ordinal endpoint/asset IDs and field names; renames become remove/add pairs. Named relationships use names, unnamed ones use composite identities; quality-rule identities use kind/expression. Missing/duplicate semantic identities fail.
+Call `previous.Diff(candidate)` to obtain typed additions, removals and modifications,
+including property type changes. Matching uses ordinal endpoint and asset IDs and field names.
+A rename is therefore a removal plus an addition.
 
-Paths escape dots/backslashes. Added/removed subtrees are complete, modifications preserve previous/current values, and results are immutable snapshots sorted by ordinal path then kind. Supported extension snapshots include canonical records, scalars, string-keyed dictionaries, sequences and JSON; unsupported custom mutable objects fail. No compatibility policy is applied. See the [CLI payload-kind table]({{ '/cli/' | relative_url }}#compare-two-contract-versions) for the shared change vocabulary.
+Named relationships match by name; unnamed relationships use composite identities.
+Quality rules match by kind and expression. Missing or duplicate semantic identities fail.
 
-`asset.ToJsonSchema()` and `schema.Serialize(stream)` export one record schema. `new CsvDialectExporter().Export(contract, endpointId)` returns a diagnostic result for a selected CSV endpoint. See the [export guide]({{ '/csv-dialect-export/' | relative_url }}).
+Paths escape dots and backslashes. An added or removed item includes its complete subtree;
+a modification preserves both previous and current values. Results are immutable snapshots,
+ordered by ordinal path and then change kind.
+
+Extension snapshots support canonical records, scalars, string-keyed dictionaries, sequences
+and JSON. Unsupported custom mutable objects fail. The diff itself applies no compatibility
+policy. See the [CLI change-kind table]({{ '/cli/' | relative_url }}#compare-two-contract-versions)
+for the shared change vocabulary.
+
+For a record-schema export, call `asset.ToJsonSchema()` and write it with
+`schema.Serialize(stream)`. To export a selected CSV endpoint's dialect, use
+`new CsvDialectExporter().Export(contract, endpointId)` and inspect its diagnostic result.
+The [dialect export guide]({{ '/csv-dialect-export/' | relative_url }}) shows that workflow.
 
 ## Public source and runnable examples
 
@@ -50,6 +85,20 @@ See [database integration]({{ '/database-integration/' | relative_url }}) for ex
 
 ## Consumer compatibility and value domains
 
-`ContractCompatibility.Compare(previous, current)` assesses candidate guarantees for baseline consumers under `baseline-consumers-v1`. For native standards supply `CompatibilityInput` wrappers with the matching canonical model, source standard, mapping diagnostics and original descriptor tree. Same-standard ODCS/Data Package comparisons are supported; cross-standard comparisons fail. Results distinguish completion, classifications and unknown coverage; see [policy and API details]({{ '/compatibility/' | relative_url }}).
+Use `ContractCompatibility.Compare(previous, current)` to assess candidate guarantees for
+baseline consumers under `baseline-consumers-v1`. When working with native documents,
+supply `CompatibilityInput` wrappers containing the matching canonical model, source standard,
+mapping diagnostics and original descriptor tree.
 
-`DataField.ValueDomain` exposes typed scalar entries, optional labels/descriptions, effective `AllowedValues`, ordering and references. `DataAsset.CategoryTable` exposes logical value/label field paths. Unknown membership is null, distinct from a finite empty set. Scalar enum constraints are projected from known allowed values; metadata remains detached. See [the shared domain API]({{ '/value-domains/' | relative_url }}).
+Native comparisons support two ODCS inputs or two Data Package inputs; cross-standard analysis
+fails. Results distinguish completed analysis, finding classifications and unknown coverage.
+See the [policy and API details]({{ '/compatibility/' | relative_url }}) before using the result
+as a compatibility gate.
+
+Use `DataField.ValueDomain` to read typed scalar entries, optional labels and descriptions,
+effective `AllowedValues`, ordering and references. For a category table,
+`DataAsset.CategoryTable` identifies the logical value and label field paths.
+
+Null membership means unknown membership, which differs from an explicit finite empty set.
+Known allowed values supply the scalar enum constraint, while descriptive metadata remains
+detached. See the [shared domain API]({{ '/value-domains/' | relative_url }}) for examples and limits.

@@ -44,32 +44,34 @@ guarantees can break baseline consumers. No dataset/database connection is opene
 | Relationship, quality, SLA, governance, extension semantics changed | unknown |
 | Unsupported type/constraint, unmapped source member, mapping warning, missing schema | explicit unknown finding, even for identical inputs |
 
-Supported logical types are string, integer, number, boolean, date, time,
-timestamp/datetime, object, and array. Decimal precision/scale, temporal bound
-implications, maps, vectors, arbitrary pattern implications, JSON Schema
-implications, and custom semantics are not inferred. Numeric bounds use finite
-decimal values; unsupported values produce unknown. Constraint interactions are
-assessed conservatively: a weaker bound can be breaking even if another
-constraint would restrict the same values.
+The policy supports strings, integers, numbers, booleans, dates, times, timestamps and datetimes,
+objects and arrays. It does not infer implications for decimal precision or scale, temporal
+bounds, maps, vectors, arbitrary patterns, JSON Schema or custom semantics.
 
-ODCS uses existing mapper defaults: omitted `required` and `nullable` are false,
-and those are independent guarantees. Data Package `required` also rejects
-null/missing values: comparison derives nullability from requiredness rather
-than using the canonical mapper's default false.
+Numeric bounds must be finite decimal values; unsupported values produce unknown findings.
+Interactions between constraints are assessed conservatively. A weaker bound can therefore
+be breaking even when another constraint would restrict the same values.
 
-Matching reuses `ContractDiffer`: dataset IDs and field names are case-sensitive.
-Identifier changes remain removal/addition pairs, including ambiguous renames.
-There is no rename inference. Array item definition additions/removals are unknown.
-One `PropertyModified` can produce several findings for independent facets,
-each retaining the original typed change and its own path/rule/explanation.
+For ODCS, omitted `required` and `nullable` values both default to false. They describe
+independent guarantees: whether a field must be present and whether its value may be null.
 
-Original descriptor members are checked against a conservative coverage
-allowlist in Core. Unknown members ignored by native deserializers produce
-`CMP020` findings, including nested members. Their presence in both inputs does
-not establish compatibility. Some native extension objects cannot be snapshotted
-by the existing factual differ; these yield failed analysis instead of an empty
-compatible result. Normalized SLA/lifecycle changes absent from the factual
-differ are explicitly reported as unknown.
+Data Package requiredness also rejects null or missing values. For that standard, comparison
+derives nullability from requiredness instead of using the canonical mapper's default of false.
+
+Matching follows `ContractDiffer` and treats dataset IDs and field names as case-sensitive.
+Changing an identifier produces a removal and an addition, even when it could be a rename;
+the policy does not infer renames. Adding or removing an array item definition is unknown.
+
+A single `PropertyModified` change can affect several guarantees and produce several findings.
+Each finding keeps the original typed change along with its own path, rule and explanation.
+
+Core checks the original descriptor against a conservative list of covered members.
+Unrecognized members, including nested ones ignored by native deserializers, produce `CMP020`
+findings. Their presence in both inputs does not establish compatibility.
+
+Some native extension objects cannot be snapshotted by the factual differ. These cause failed
+analysis rather than an empty compatible result. Changes to normalized SLA or lifecycle values
+that are absent from the factual diff are explicitly reported as unknown.
 
 The highest-severity finding determines the outcome: breaking, then
 potentiallyBreaking, then unknown, otherwise compatible. All findings remain
@@ -95,21 +97,25 @@ var candidate = new CompatibilityInput(currentMapping.Value, ContractStandard.Od
 CompatibilityResult result = ContractCompatibility.Compare(baseline, candidate, cancellationToken);
 ```
 
-Descriptors are trees of `IReadOnlyDictionary<string, object?>`, object lists,
-and scalars. The canonical mapping and descriptor must come from the same input.
-The CLI projects its already-parsed JSON/YAML tree without implementing policy;
-other adapters can make the same transport projection. Omitting the descriptor
-for native standards yields unknown coverage. Cross-standard comparisons fail.
-Mapping errors, missing models, duplicate semantic identifiers/constraint kinds,
-and unsupported canonical snapshots produce `Completed = false` and diagnostics.
-Cancellation yields `CMP130` and failed completion. Null API input wrappers are
-programmer errors and throw `ArgumentNullException`.
+Supply a descriptor as a tree of `IReadOnlyDictionary<string, object?>` values, object lists
+and scalars. The descriptor and canonical mapping must come from the same input. The CLI
+projects its already-parsed JSON or YAML tree into this form without implementing policy;
+other adapters can use the same approach.
 
-Results expose direction, policy, completion, outcome, typed evidence, paths,
-classifications, explanations, and input-attributed diagnostics. Findings sort
-by ordinal path, rule, and typed change name; diagnostics sort by input, path,
-and code. Result collections are read-only; typed values use the differ's
-immutable snapshots. Source-coverage findings have no fabricated typed change.
+For native standards, omitting the descriptor leaves source coverage unknown. Cross-standard
+comparisons fail. Mapping errors, missing models, duplicate semantic identifiers or constraint
+kinds, and unsupported canonical snapshots return `Completed = false` with diagnostics.
+
+Cancellation returns `CMP130` with failed completion. A null API input wrapper is a programmer
+error and throws `ArgumentNullException`.
+
+Read both completion and outcome before treating a result as compatible. The result also
+contains the direction, policy, typed evidence and findings, with paths, classifications and
+explanations. Diagnostics identify the affected input.
+
+Findings sort by ordinal path, rule and typed change name. Diagnostics sort by input, path
+and code. Collections are read-only, and typed values use the differ's immutable snapshots.
+A source-coverage finding does not invent a typed change where none exists.
 
 These coverage checks protect comparison. They do not complete the broader
 inspection/source-location work tracked in #525.
