@@ -11,15 +11,23 @@
   const setOrientation = () => steps.setAttribute('aria-orientation', narrowScreen.matches ? 'vertical' : 'horizontal');
   setOrientation();
   narrowScreen.addEventListener('change', setOrientation);
+  const titles = ['Load a contract', 'Discover customers', 'Preview customers', 'Validate the contract', 'Provision with .NET'];
+  let selectedIndex = 2;
   const select = (index, focus = false) => {
+    selectedIndex = index;
     tabs.forEach((tab, position) => {
       const selected = position === index;
       tab.setAttribute('aria-selected', String(selected));
       tab.tabIndex = selected ? 0 : -1;
       panels[position].hidden = !selected;
     });
+    document.querySelector('#terminal-title').textContent = titles[index];
+    document.querySelector('#terminal-badge').textContent = index === 4 ? '.NET demo' : 'CLI demo';
     if (focus) tabs[index].focus();
   };
+  const nextStep = document.querySelector('#next-step');
+  nextStep.hidden = false;
+  nextStep.addEventListener('click', () => select((selectedIndex + 1) % tabs.length, true));
 
   tabs.forEach((tab, index) => {
     tab.setAttribute('role', 'tab');
