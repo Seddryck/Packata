@@ -6,27 +6,21 @@ nav_exclude: false
 permalink: /installation/
 ---
 
-## .NET libraries
-
-Use a .NET 8, 9 or 10 SDK and add the native format package your application needs:
-
-```console
-dotnet add package Packata.DataPackage
-dotnet add package Packata.OpenDataContract
-```
-
-Both format packages already reference `Packata.Core`. To read data, add
-`Packata.ResourceReaders` and the optional providers you need. For storage, database
-connections or provisioning, add `Packata.Storages`, `Packata.Database` or
-`Packata.Provisioners` respectively.
-
-Use the [package and API reference]({{ '/reference/dotnet/' | relative_url }}) to choose entry
-points and the [reader registration table]({{ '/guides/readers-storage/' | relative_url }})
-to select format-specific packages.
+Choose the CLI if you want to work in a terminal, or the .NET libraries if you
+want to call Packata from application code. You do not need to install both.
+The [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) is the default path
+for trying Packata with a small sample.
 
 ## Command-line tool
 
-A compatible .NET 8, 9 or 10 runtime is required for the framework-dependent tool. The .NET CLI selects the host RID and a compatible target framework.
+Use a .NET 8, 9 or 10 SDK for the `dotnet tool` commands below. The installed tool
+runs on a compatible .NET runtime; the .NET CLI chooses the host platform and a
+compatible target framework. If you want an executable that includes its runtime,
+use a self-contained [standalone archive](#standalone-archives) instead.
+
+### Install for your user account
+
+A global tool installation makes `packata` available from any working directory:
 
 ```console
 dotnet tool install --global Packata-cli
@@ -34,9 +28,16 @@ packata --help
 packata --version
 ```
 
-Update an existing global installation with `dotnet tool update --global Packata-cli`. If the executable is not found, follow the tool installer's PATH instructions for your shell.
+Help lists the command groups, and the version command confirms which build is
+installed. To update an existing global installation, run
+`dotnet tool update --global Packata-cli`. If your terminal cannot find `packata`,
+follow the tool installer's PATH instructions for your shell.
 
-For a repository-local installation, run in its directory:
+### Install for a repository
+
+A local tool manifest lets a repository record the tool it needs. In that
+repository's directory, create a manifest if one does not already exist, then
+install Packata:
 
 ```console
 dotnet new tool-manifest
@@ -44,14 +45,29 @@ dotnet tool install Packata-cli
 dotnet tool run packata -- --help
 ```
 
-Create the manifest only if one does not exist. Restore a checked-in manifest with `dotnet tool restore`. Follow the [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) after installation. Every [command and option]({{ '/cli/' | relative_url }}) is documented separately from this installation page.
+Skip `dotnet new tool-manifest` when the repository already has one. If Packata
+is already recorded in a checked-in manifest, use `dotnet tool restore` instead
+of installing it again. Run local-tool commands from the manifest's directory
+or one of its descendants.
+
+After either installation, follow the
+[CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) to check a contract and
+read sample records. The [CLI reference]({{ '/cli/' | relative_url }}) contains
+the complete command and option descriptions.
 
 ## Standalone archives
 
-[GitHub releases](https://github.com/Seddryck/Packata/releases/latest) provide two archive families:
+Use an archive when you want to run an executable directly rather than install
+a .NET tool. [GitHub releases](https://github.com/Seddryck/Packata/releases/latest)
+provide two archive families:
 
-- Framework-dependent `Packata-cli-<version>-<framework>-<rid>` archives target `net8.0`, `net9.0`, or `net10.0` and require that runtime.
-- Self-contained .NET 10 `Packata-cli-<version>-<rid>` archives include the runtime.
+| Archive name | What you need |
+| --- | --- |
+| `Packata-cli-<version>-<framework>-<rid>` | The corresponding .NET runtime: `net8.0`, `net9.0` or `net10.0` |
+| `Packata-cli-<version>-<rid>` | No separate .NET installation; the self-contained archive includes .NET 10 |
+
+Here, `<rid>` identifies the operating system and processor architecture. Choose
+it from the table below; `<version>` is the release version you are downloading.
 
 | Platform | RID | Executable |
 | --- | --- | --- |
@@ -64,10 +80,54 @@ Create the manifest only if one does not exist. Restore a checked-in manifest wi
 | macOS Intel | `osx-x64` | `packata` |
 | macOS Apple Silicon | `osx-arm64` | `packata` |
 
-Extract the ZIP archive on Windows or the `tar.gz` archive on Linux/macOS, then invoke the executable directly. Choose `linux-musl-*` for musl-based distributions and `linux-*` for glibc. Packata does not publish a 32-bit Windows CLI.
+Extract the ZIP on Windows or the `tar.gz` on Linux/macOS. From the extracted
+directory, invoke `packata.exe` or `packata` using your shell's syntax for a local
+executable, with `--version` to check it starts.
 
-A self-contained executable bundles .NET, but database connector/native vendor drivers can still have separate prerequisites. See [connector configuration]({{ '/cli-database/' | relative_url }}).
+Choose `linux-musl-*` for musl-based distributions such as Alpine, and `linux-*`
+for glibc-based distributions. There is no 32-bit Windows CLI archive.
+
+A self-contained archive includes .NET, but a database connector or native vendor
+driver may still have its own prerequisites. The
+[database guide]({{ '/database-integration/' | relative_url }}) explains how
+connectors are selected and acquired.
+
+## .NET libraries
+
+Use a .NET 8, 9 or 10 SDK and open a terminal in your application project's
+directory. Add the package for the contract standard you need:
+
+```console
+dotnet add package Packata.DataPackage
+```
+
+For ODCS documents, add `Packata.OpenDataContract` instead. Add both if your
+application handles both standards. Each format package brings in `Packata.Core`,
+which contains the shared contract model; it does not need a separate package
+command for this setup.
+
+To read dataset records, also add the base reader package:
+
+```console
+dotnet add package Packata.ResourceReaders
+```
+
+This includes delimited-file and inline-data readers. The
+[reader registration table]({{ '/guides/readers-storage/' | relative_url }}#choose-how-to-read-the-dataset)
+lists optional packages for Excel, Parquet, databases and other formats, together
+with the registration each one needs.
+
+Add `Packata.Storages` for library storage backends, `Packata.Database` for shared
+database connection configuration, or `Packata.Provisioners` for database
+provisioning. Install these when your application needs those operations; they
+are not required for the basic CSV walkthrough.
+
+Continue with the [.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }})
+for a complete application, or the [.NET reference]({{ '/reference/dotnet/' | relative_url }})
+for package and API entry points.
 
 ## VS Code status
 
-**Planned — not implemented.** There is no extension to install yet. See the [planned Quickstart and roadmap]({{ '/quickstart/vscode/' | relative_url }}).
+The extension is **planned, not implemented**. There is no extension to install
+yet. The [VS Code status page]({{ '/quickstart/vscode/' | relative_url }}) links
+to the proposals and to the CLI and .NET walkthroughs you can use today.

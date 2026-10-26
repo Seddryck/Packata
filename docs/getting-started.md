@@ -6,17 +6,35 @@ has_children: true
 permalink: /getting-started/
 ---
 
-New to the project? [Why Packata?]({{ '/docs/why-packata/' | relative_url }}) explains
-the problem it solves and the workflows it supports. To try it now, start with
-the CLI Quickstart; no application code is needed.
+Start with the [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) to try
+Packata without writing application code. You will download a small customer
+dataset, check its contract and read its first records. Each step shows the
+result you should expect.
 
-Choose the interface that fits your work. The CLI and .NET library use the same
-shared contract model.
+If you are still deciding whether Packata fits your work,
+[Why Packata?]({{ '/docs/why-packata/' | relative_url }}) explains its purpose and
+the tasks it supports.
 
-| Interface | Start here | Status |
+## Choose how you want to use Packata
+
+| You want to… | Start here | What you will do |
 | --- | --- | --- |
-| Command line | [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) | Default path; no application code needed |
-| .NET application | [.NET Library Quickstart]({{ '/quickstart/dotnet/' | relative_url }}) | Available |
-| VS Code extension | [VS Code Quickstart — planned]({{ '/quickstart/vscode/' | relative_url }}) | **Planned — not implemented** |
+| Work in a terminal | [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) | Validate and inspect a contract, preview records, and export metadata |
+| Add contract-based data access to a .NET application | [.NET Library Quickstart]({{ '/quickstart/dotnet/' | relative_url }}) | Load the same sample contract and read its CSV from C# |
+| Work inside VS Code | [VS Code status]({{ '/quickstart/vscode/' | relative_url }}) | Review the proposed extension; it is **planned, not implemented** |
 
-See [installation]({{ '/installation/' | relative_url }}) for tools, packages, and standalone archives.
+The CLI and .NET library share the same contract model. Choose the terminal for
+supported commands or the library when your application needs to call the APIs
+directly. You do not need to complete both Quickstarts.
+
+## Get the tools you need
+
+Each Quickstart includes the installation steps for its example. The
+[installation page]({{ '/installation/' | relative_url }}) covers the alternatives:
+a global or repository-local CLI tool, standalone executables, and optional .NET
+packages for additional readers, storage and database operations.
+
+After your first working example, use the [guides]({{ '/guides/' | relative_url }})
+to explore a task in more detail. The [CLI reference]({{ '/cli/' | relative_url }})
+lists every command and option, while [Concepts]({{ '/concepts/' | relative_url }})
+explains the terms used in contracts.
