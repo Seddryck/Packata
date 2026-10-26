@@ -553,7 +553,7 @@ schema.Serialize(stream);
 | `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
 | `--limit <COUNT>` | Positive 32-bit integer; `20` | Maximum data rows, excluding headers |
 | `--columns <NAMES>` | All fields | Unique exact names, comma-separated, in output order |
-| `--decode-categories` | Disabled | Replace inline category/enum codes with labels; PocketCsvReader delimited engine (CSV/TSV/PSV) only |
+| `--decode-categories` | Disabled | Replace inline category/enum and local Category Tables recipe codes with labels; PocketCsvReader delimited engine (CSV/TSV/PSV) only |
 | `--output-format <FORMAT>` | `table`, `json`, `csv`; `table` | Result representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
 | `--connector <SCHEME=ID>` | Repeatable; persisted preference otherwise | Invocation connector preference |

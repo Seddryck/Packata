@@ -3,10 +3,16 @@ namespace Packata.ResourceReaders;
 /// <summary>Configures providers evaluated before the built-in resource readers.</summary>
 public sealed class ResourceReaderFactoryOptions
 {
-    /// <summary>Decode inline category values to labels for the PocketCsvReader delimited engine only.
+    /// <summary>Decode inline and local category-table values to labels for the PocketCsvReader delimited engine only.
     /// Disabled by default. Columns with labels return strings, including fallback code text.
     /// Native sequences match exact unquoted CSV text; quoted codes remain unchanged.</summary>
     public bool DecodeCategories { get; set; }
+
+    /// <summary>Maximum total category-table rows loaded per reader opening. Defaults to 100,000.</summary>
+    public int CategoryTableRowLimit { get; set; } = 100_000;
+
+    /// <summary>Maximum total uncompressed lookup bytes read per reader opening. Defaults to 16 MiB.</summary>
+    public long CategoryTableByteLimit { get; set; } = 16 * 1024 * 1024;
 
     private readonly List<IDataEndpointReaderProvider> _providers = [];
 

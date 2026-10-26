@@ -79,7 +79,7 @@ public class CategoryDecodingTests
             Field("boolean", "boolean", true, "Yes"),
             Field("empty", "string", "A", ""),
             Field("raw", "integer", 1, null),
-            new DataField("reference", "string", ValueDomain: new(reference: new("codes")))
+            new DataField("reference", "string", ValueDomain: new(reference: new("codes", encodedAs: ValueEncoding.Label)))
         ]);
         var streams = new CsvStreams("number,boolean,empty,raw,reference\r\n1.5,true,A,1,S\r\n2.5,false,X,2,N\r\n");
         using var reader = await ResourceReaderFactory.Create(options => options.DecodeCategories = true, streams)
@@ -92,7 +92,7 @@ public class CategoryDecodingTests
         Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(string)));
         Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(string)));
         Assert.That(reader.GetFieldType(3), Is.EqualTo(typeof(int)));
-        Assert.That(reader.GetValue(4), Is.EqualTo("S")); // References are not fetched/expanded.
+        Assert.That(reader.GetValue(4), Is.EqualTo("S")); // Label encoding requires no lookup or replacement.
         Assert.That(reader.Read(), Is.True);
         Assert.That(reader.GetString(0), Is.EqualTo("2.5"));
         Assert.That(reader.GetString(1), Is.EqualTo("false"));

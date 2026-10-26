@@ -32,7 +32,7 @@ internal static class PreviewService
         var endpoints = contract.Endpoints.Where(endpoint => endpoint.Id == binding.EndpointId).ToArray();
         if (endpoints.Length != 1)
             throw new ContractOperationException("CLI021", "$.endpoints", $"Endpoint '{binding.EndpointId}' for asset '{asset.Id}' could not be resolved uniquely.");
-        return new(endpoints[0], asset.Schema, binding.AssetPath ?? asset.PhysicalName ?? asset.Name);
+        return new(endpoints[0], asset.Schema, binding.AssetPath ?? asset.PhysicalName ?? asset.Name, contract);
     }
 
     public static async Task<PreviewSample> ReadAsync(IDataEndpointReaderFactory factory, DataEndpointReadRequest request,
