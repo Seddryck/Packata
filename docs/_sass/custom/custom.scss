@@ -16,6 +16,11 @@
 .site-header { border-bottom-color: #d5e3df; }
 .site-footer { color: #293c42; }
 .main-content img { max-width: 100%; }
+.main-content table th {
+  background: #ddeee9;
+  color: #293c42;
+  border-bottom: 2px solid #d5e3df;
+}
 
 // Dark blocks are distinct from the quieter inline-code treatment.
 .main-content div.highlighter-rouge,
