@@ -208,7 +208,7 @@ public class ContractCompatibilityTests
     }
 
     [Test]
-    public void DataPackageRequiredness_NormalizesNullabilityRecursively()
+    public void NativeNormalizedNullability_IsNotOverwrittenByFieldPresence()
     {
         var field = new DataField("details", "object", Required: true, Nullable: false, Children:
             [new("values", "array", Required: true, Nullable: false, Items: new("element", "integer", Required: true, Nullable: false))]);
@@ -223,8 +223,8 @@ public class ContractCompatibilityTests
         var result = ContractCompatibility.Compare(new CompatibilityInput(baseline, ContractStandard.DataPackage, Descriptor: descriptor),
             new CompatibilityInput(candidate, ContractStandard.DataPackage, Descriptor: descriptor));
 
-        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.Compatible));
-        Assert.That(result.Findings, Is.Empty);
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.Breaking));
+        Assert.That(result.Findings.Count(x => x.Rule == "nullability"), Is.EqualTo(3));
         var odcs = ContractCompatibility.Compare(new CompatibilityInput(baseline, ContractStandard.Odcs, Descriptor: descriptor),
             new CompatibilityInput(candidate, ContractStandard.Odcs, Descriptor: descriptor));
         Assert.That(odcs.Outcome, Is.EqualTo(CompatibilityOutcome.Breaking));

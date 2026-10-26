@@ -15,14 +15,15 @@ internal static class CompatibilityCoverage
     private const string Description = "description";
     private const string Format = "format";
 
-    internal static IEnumerable<string> Unsupported(IReadOnlyDictionary<string, object?> descriptor, ContractStandard standard)
+    internal static IEnumerable<string> Unsupported(IReadOnlyDictionary<string, object?> descriptor, ContractStandard standard,
+        bool satisfactionFacets = false)
     {
-        var visitor = new DescriptorVisitor();
+        var visitor = new DescriptorVisitor(satisfactionFacets);
         visitor.Visit(descriptor, standard == ContractStandard.Odcs ? "odcs" : "package", "$", null);
         return visitor.Paths.Order(StringComparer.Ordinal);
     }
 
-    private sealed class DescriptorVisitor
+    private sealed class DescriptorVisitor(bool satisfactionFacets)
     {
         internal List<string> Paths { get; } = [];
 
@@ -86,18 +87,19 @@ internal static class CompatibilityCoverage
                 && (context != OdcsOptions || decimal.TryParse(text, out var mapped) && mapped == invariant);
         }
 
-        private static string? Rule(string context, string key, string? type) => context switch
+        private string? Rule(string context, string key, string? type) => context switch
         {
             "odcs" => OdcsRule(key),
             "odcs-description" => key is "purpose" or "usage" or "limitations" ? "leaf" : null,
             "odcs-dataset" => OdcsDatasetRule(key),
             OdcsField => OdcsFieldRule(key),
             "odcs-enum" => key == "value" ? "leaf" : null,
-            OdcsOptions => OdcsOptionsRule(type, key),
+            OdcsOptions => satisfactionFacets && type is "number" or "decimal" && key is "precision" or "scale"
+                ? "leaf" : OdcsOptionsRule(type, key),
             "server" => ServerRule(key),
             "package" => PackageRule(key),
             "resource" => ResourceRule(key),
-            "dp-schema" => DataPackageSchemaRule(key),
+            "dp-schema" => satisfactionFacets && key == "fieldsMatch" ? "leaf" : DataPackageSchemaRule(key),
             "dp-field" => DataPackageFieldRule(key),
             DataPackageConstraints => DataPackageConstraintRule(key),
             "dialect" => DialectRule(key),

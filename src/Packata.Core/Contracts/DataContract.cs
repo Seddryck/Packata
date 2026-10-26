@@ -62,12 +62,16 @@ public sealed record DataSchema(
     IReadOnlyList<DataField> Fields,
     IReadOnlyList<string>? PrimaryKey = null,
     IReadOnlyList<DataRelationship>? Relationships = null,
-    ExtensionMetadata? Extensions = null)
+    ExtensionMetadata? Extensions = null,
+    FieldMatching FieldMatching = FieldMatching.ByName)
 {
     public IReadOnlyList<string> PrimaryKey { get; init; } = PrimaryKey ?? [];
     public IReadOnlyList<DataRelationship> Relationships { get; init; } = Relationships ?? [];
     public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
 }
+
+/// <summary>Native guarantees about the set and ordering of fields, separate from value nullability.</summary>
+public enum FieldMatching { ByName, OrderedExact, Exact, ClosedOptional, Partial }
 
 public sealed record DataField(
     string Name,
