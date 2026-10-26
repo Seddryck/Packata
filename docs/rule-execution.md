@@ -57,3 +57,43 @@ Multiple expectations are conjunctive. Between/not-between use exclusive endpoin
 as specified by [ODCS 3.2](https://bitol-io.github.io/open-data-contract-standard/v3.2.0/data-quality/).
 Malformed ranges and conflicting comparisons are diagnosed rather than dropped.
 Scheduling metadata is descriptive only.
+
+## Shared execution API
+
+`IRuleCompiler<TDeclaration>.Compile` returns plans and structured findings. Text
+quality and unimplemented custom engines use `UnsupportedQualityCompiler`. Consumers
+must pass both plans and findings to `RuleRunner.ExecuteAsync`; a compilation finding
+makes the aggregate incomplete. Error, Skipped and Inconclusive are not violations and
+cannot produce a pass. Caller cancellation propagates; elapsed time budget exhaustion
+returns Inconclusive. Numeric measurements without expectations are Inconclusive.
+Boolean convenience is opt-in on `ExpectationAssertionPlan`, used consistently by the
+Expressif predicate and SQL adapters. Explicit expectations always take precedence.
+
+`MeasuredExecutableRule` combines `IMeasurementPlan` and `IAssertionPlan` and preserves
+Constraint/Quality/Sla categories independently of backend. For example, a measurement
+implementation can return `new RuleMeasurement(QualityValue.From(5), "rows", 5)` and
+compose with `new ExpectationAssertionPlan([new(ExpectationOperator.Greater,
+QualityValue.From(0))])` without any database or expression dependency.
+
+Every execution takes a fixed `ObservationTime`, typed bindings and `RuleLimits`.
+Plans execute serially in ordinal identity order; duplicate IDs are invalid. Row and
+state limits are enforced at reader boundaries by adapters. The timeout is cooperative:
+synchronous calls cannot be forcibly interrupted, but results are checked before they
+are accepted. Evidence is truncated to the requested bound; adapters only emit summary
+counts. Unexpected exception messages are omitted from normal diagnostics.
+
+`ReaderRuleDataSource` bridges the existing endpoint reader factory. It owns no live
+reader; each plan opens and disposes its own reader. The caller selects the asset,
+endpoint request and snapshot ID and guarantees replay observes that same snapshot.
+One-shot sources are marked `IsReplayable = false`; the runner skips subsequent scans.
+`IsComplete = false` prevents an aggregate pass. No full dataset buffering is implicit.
+Plans are reusable across concurrent runs, but each run needs separate data sources,
+connections and mutable backend contexts. User-supplied measurement/assertion plans
+must honor this contract and sanitize any diagnostics they explicitly return.
+
+Numeric ordering compares exact decimal representations with arbitrary precision,
+including large integers and finite floating values. Numeric equality is mathematical;
+value-domain membership keeps `ScalarValue`'s typed distinction. String equality is
+ordinal, while ordering strings, booleans or null is invalid. Offset timestamps compare
+instants. Calendar and elapsed durations with different components are not ordered
+without a reference date. Between is exclusive; every declared expectation must hold.
