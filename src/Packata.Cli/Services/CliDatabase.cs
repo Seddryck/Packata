@@ -84,9 +84,17 @@ internal sealed class CliDatabase : IDisposable
         return Connections.Resolve(location);
     }
 
-    public Packata.Core.Reading.IDataEndpointReaderFactory CreateReaders(Uri? baseUri = null, bool decodeCategories = false) => baseUri is not null
-        ? PreviewService.CreateFactory(baseUri, new RuntimeConnections(this), decodeCategories: decodeCategories)
-        : ResourceReaderFactory.Create(options => { options.DecodeCategories = decodeCategories; options.AddDatabase(new RuntimeConnections(this)); });
+    public Packata.Core.Reading.IDataEndpointReaderFactory CreateReaders(Uri? baseUri = null, bool decodeCategories = false,
+        string? decodeCategoriesLanguage = null, string? decodeCategoriesLabel = null) => baseUri is not null
+        ? PreviewService.CreateFactory(baseUri, new RuntimeConnections(this), decodeCategories: decodeCategories,
+            decodeCategoriesLanguage: decodeCategoriesLanguage, decodeCategoriesLabel: decodeCategoriesLabel)
+        : ResourceReaderFactory.Create(options =>
+        {
+            options.DecodeCategories = decodeCategories;
+            options.DecodeCategoriesLanguage = decodeCategoriesLanguage;
+            options.DecodeCategoriesLabel = decodeCategoriesLabel;
+            options.AddDatabase(new RuntimeConnections(this));
+        });
 
     private sealed class RuntimeConnections(CliDatabase owner) : IDatabaseConnectionService
     {

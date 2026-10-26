@@ -108,11 +108,14 @@ public sealed record CategoryTableDefinition
 {
     public FieldPath ValueField { get; }
     public FieldPath? LabelField { get; }
+    public IReadOnlyList<FieldPath> LabelFields { get; }
     public bool? Ordered { get; }
     public ExtensionMetadata Extensions { get; }
-    public CategoryTableDefinition(FieldPath valueField, FieldPath? labelField = null, bool? ordered = null, ExtensionMetadata? extensions = null)
+    public CategoryTableDefinition(FieldPath valueField, FieldPath? labelField = null, bool? ordered = null, ExtensionMetadata? extensions = null,
+        IEnumerable<FieldPath>? labelFields = null)
     {
         ArgumentNullException.ThrowIfNull(valueField);
         (ValueField, LabelField, Ordered, Extensions) = (valueField, labelField, ordered, MetadataSnapshot.CopyExtensions(extensions));
+        LabelFields = Array.AsReadOnly((labelFields ?? []).ToArray());
     }
 }

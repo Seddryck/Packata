@@ -10,6 +10,15 @@ internal static class CategoryTableValidator
         path += ".categoryFieldMap";
         if (!string.Equals(resource.Type, "table", StringComparison.OrdinalIgnoreCase) || resource.Schema is null)
             Add(issues, path, "A category table must be a tabular resource with a schema.");
+        ValidateValue(resource, map, path, issues);
+        ValidateLabels(resource, map, path, issues);
+        foreach (var field in (resource.Schema?.Fields ?? []).Where(field =>
+            field.Language is not null && !Packata.Core.Contracts.LanguageTag.IsValid(field.Language)))
+            Add(issues, path, $"Field '{field.Name}' has an invalid language tag '{field.Language}'.");
+    }
+
+    private static void ValidateValue(Resource resource, CategoryFieldMap map, string path, ICollection<DataPackageValidationIssue> issues)
+    {
         var value = FindField(resource, map.Value, path + ".value", issues);
         if (value is not null)
         {
@@ -18,8 +27,26 @@ internal static class CategoryTableValidator
             if (value.Constraints?.Get<RequiredConstraint>()?.Value != true || value.Constraints?.Get<UniqueConstraint>()?.Value != true)
                 Add(issues, path + ".value", "The category value field must declare required: true and unique: true.");
         }
-        if (map.Label is null) return;
-        var label = FindField(resource, map.Label, path + ".label", issues);
+    }
+
+    private static void ValidateLabels(Resource resource, CategoryFieldMap map, string path, ICollection<DataPackageValidationIssue> issues)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var name in map.Labels ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(name) || !names.Add(name))
+                Add(issues, path + ".labels", "Label field names must be non-empty and unique.");
+            var alternate = FindField(resource, name, path + ".labels", issues);
+            if (alternate is not null && FieldTypeNames.Get(alternate) != FieldTypeNames.String)
+                Add(issues, path + ".labels", "Category label fields must have type string.");
+        }
+        ValidateDefaultLabel(resource, map.Label, path, issues);
+    }
+
+    private static void ValidateDefaultLabel(Resource resource, string? name, string path, ICollection<DataPackageValidationIssue> issues)
+    {
+        if (name is null) return;
+        var label = FindField(resource, name, path + ".label", issues);
         if (label is not null && (FieldTypeNames.Get(label) != FieldTypeNames.String || label.Constraints?.Get<UniqueConstraint>()?.Value != true))
             Add(issues, path + ".label", "The category label field must have type string and declare unique: true.");
     }

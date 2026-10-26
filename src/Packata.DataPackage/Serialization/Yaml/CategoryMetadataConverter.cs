@@ -21,6 +21,7 @@ internal sealed class CategoryMetadataConverter : IYamlTypeConverter
         {
             Value = (string?)values.GetValueOrDefault("value"),
             Label = (string?)values.GetValueOrDefault("label"),
+            Labels = (List<string>?)values.GetValueOrDefault("labels"),
             Ordered = (bool?)values.GetValueOrDefault("ordered")
         };
     }
@@ -36,6 +37,13 @@ internal sealed class CategoryMetadataConverter : IYamlTypeConverter
             if (!keys.Add(key)) throw new YamlException($"Duplicate category metadata property {key}.");
             if (IsStringProperty(key, reference)) values.Add(key, ReadString(parser, key, reference));
             else if (!reference && key == "ordered") values.Add(key, ReadOrdered(parser));
+            else if (!reference && key == "labels")
+            {
+                var labels = new List<string>();
+                parser.Consume<SequenceStart>();
+                while (!parser.TryConsume<SequenceEnd>(out _)) labels.Add(ReadString(parser, key, false));
+                values.Add(key, labels);
+            }
             else parser.SkipThisAndNestedEvents();
         }
         return values;
@@ -68,6 +76,14 @@ internal sealed class CategoryMetadataConverter : IYamlTypeConverter
         else if (value is CategoryFieldMap map)
         {
             Write(emitter, "value", map.Value); Write(emitter, "label", map.Label);
+            if (map.Labels is not null)
+            {
+                emitter.Emit(new Scalar("labels"));
+                emitter.Emit(new SequenceStart(null, null, false, SequenceStyle.Block));
+                foreach (var label in map.Labels)
+                    emitter.Emit(new Scalar(null, null, label, ScalarStyle.DoubleQuoted, true, false));
+                emitter.Emit(new SequenceEnd());
+            }
             if (map.Ordered is not null)
             { emitter.Emit(new Scalar("ordered")); emitter.Emit(new Scalar(map.Ordered.Value ? "true" : "false")); }
         }

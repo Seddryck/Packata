@@ -17,6 +17,66 @@ namespace Packata.DataPackage.Testing;
 
 public class CategoryTableTests
 {
+    [Test]
+    public void Localized_metadata_round_trips_in_both_formats_and_maps_detached_snapshots()
+    {
+        var package = Load(Descriptor, SerializationFormat.Json);
+        var resource = package.Resources[1];
+        resource.CategoryFieldMap!.Labels = ["name", "libelle"];
+        resource.Schema!.Fields[1].Language = "en";
+        resource.Schema.Fields.Add(new StringField { Name = "libelle", Type = "string", Language = "fr" });
+        // Constraint writers are not implemented; serialize those existing declarations as dictionaries.
+        var descriptor = new { resources = new[] { new { name = "fruit-codes", type = "table", path = "fruit-codes.csv",
+            categoryFieldMap = resource.CategoryFieldMap, schema = new { fields = resource.Schema.Fields.Select(field => new
+            {
+                field.Name, field.Type, field.Language,
+                constraints = field.Name == "code" ? new Dictionary<string, bool> { ["required"] = true, ["unique"] = true }
+                    : field.Name == "name" ? new Dictionary<string, bool> { ["unique"] = true } : null
+            }) } } } };
+        var json = JsonConvert.SerializeObject(descriptor, new JsonSerializerSettings
+        {
+            ContractResolver = JsonSettings.ContractResolver,
+            Converters = JsonSettings.Converters,
+            NullValueHandling = NullValueHandling.Ignore
+        });
+        var yaml = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+            .WithTypeConverter(new YamlCategories()).WithTypeConverter(new YamlMetadata()).Build().Serialize(descriptor);
+        foreach (var copy in new[] { Load(json, SerializationFormat.Json), Load(yaml, SerializationFormat.Yaml) })
+        {
+            Assert.That(DataPackageValidator.Validate(copy).Issues, Is.Empty);
+            Assert.That(copy.Resources[0].CategoryFieldMap!.Labels, Is.EqualTo(new[] { "name", "libelle" }));
+            Assert.That(copy.Resources[0].Schema!.Fields[2].Language, Is.EqualTo("fr"));
+            var contract = copy.ToCanonicalContract().RequireValue();
+            copy.Resources[0].CategoryFieldMap!.Labels!.Clear();
+            copy.Resources[0].Schema!.Fields[2].Language = "de";
+            var mapped = contract.Assets[0];
+            Assert.That(mapped.CategoryTable!.LabelFields.Select(path => path.Segments.Single()), Is.EqualTo(new[] { "name", "libelle" }));
+            Assert.That(mapped.Schema!.Fields[2].Language, Is.EqualTo("fr"));
+            var extensions = (IReadOnlyDictionary<string, object?>)mapped.Extensions["datapackage"]["categoryFieldMap"]!;
+            Assert.That((System.Collections.IEnumerable)extensions["labels"]!, Is.EqualTo(new[] { "name", "libelle" }));
+            Assert.That(mapped.Schema.Fields[2].Extensions["datapackage"]["language"], Is.EqualTo("fr"));
+        }
+    }
+
+    [TestCase("missing")]
+    [TestCase("duplicate")]
+    [TestCase("type")]
+    [TestCase("language")]
+    public void Invalid_localized_metadata_is_diagnosed(string kind)
+    {
+        var package = Load(Descriptor, SerializationFormat.Json);
+        var resource = package.Resources[1];
+        resource.CategoryFieldMap!.Labels = kind switch
+        {
+            "missing" => ["absent"], "duplicate" => ["name", "name"], "type" => ["code"], _ => ["name"]
+        };
+        if (kind == "type") resource.Schema!.Fields[0].Type = "integer";
+        if (kind == "language") resource.Schema!.Fields[1].Language = "label_fr";
+        Assert.That(DataPackageValidator.Validate(package).Issues, Is.Not.Empty);
+        Assert.That(package.ToCanonicalContract().Diagnostics, Is.Not.Empty);
+    }
+
     private static readonly JsonSerializerSettings JsonSettings = new()
     { ContractResolver = new CamelCasePropertyNamesContractResolver(), Converters = [new JsonCategories(), new JsonMetadata()] };
     private static readonly IDeserializer YamlReader = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance)
@@ -185,6 +245,8 @@ public class CategoryTableTests
     [TestCase("{\"categoryFieldMap\":{\"value\":1}}")]
     [TestCase("{\"categoryFieldMap\":{\"value\":\"code\",\"label\":2}}")]
     [TestCase("{\"categoryFieldMap\":{\"value\":\"code\",\"ordered\":\"false\"}}")]
+    [TestCase("{\"categoryFieldMap\":{\"value\":\"code\",\"labels\":\"name\"}}")]
+    [TestCase("{\"categoryFieldMap\":{\"value\":\"code\",\"labels\":[1]}}")]
     public void Metadata_parsing_rejects_wrong_property_types(string input)
     {
         Assert.That(() => JsonConvert.DeserializeObject<CategoryDescriptor>(input, JsonSettings), Throws.Exception);

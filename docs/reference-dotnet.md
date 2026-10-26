@@ -123,6 +123,13 @@ as a compatibility gate.
 Use `DataField.ValueDomain` to read typed scalar entries, optional labels and descriptions,
 effective `AllowedValues`, ordering and references. For a category table,
 `DataAsset.CategoryTable` identifies the logical value and label field paths.
+Its `LabelFields` collection declares alternate labels, while `DataField.Language`
+identifies textual languages. Configure `ResourceReaderFactoryOptions.DecodeCategoriesLanguage`
+(for example `"fr"`) or `DecodeCategoriesLabel` (for example `"short_label"`) to
+select a table label. Either option enables decoding; they are mutually exclusive.
+`CategoryDecodingDiagnostic` receives language-fallback warnings once per affected
+table per opening. Supply the containing contract in `DataEndpointReadRequest.Contract`.
+See the [selection and fallback rules]({{ '/datapackage-categories/' | relative_url }}#select-a-language-or-a-label-column).
 
 Null membership means unknown membership, which differs from an explicit finite empty set.
 Known allowed values supply the scalar enum constraint, while descriptive metadata remains

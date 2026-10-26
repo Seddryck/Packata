@@ -13,8 +13,10 @@ internal static class PreviewService
 {
     public static IDataEndpointReaderFactory CreateFactory(Uri baseUri, IDatabaseConnectionService? connections = null,
         IEndpointStreamResolver? streams = null, bool decodeCategories = false,
-        long stagingMaximumBytes = Packata.Storages.SeekableStaging.DefaultMaximumBytes) =>
-        new PreviewReaderFactory(baseUri, connections, streams ?? new RelativeStreamResolver(baseUri), decodeCategories, stagingMaximumBytes);
+        long stagingMaximumBytes = Packata.Storages.SeekableStaging.DefaultMaximumBytes,
+        string? decodeCategoriesLanguage = null, string? decodeCategoriesLabel = null) =>
+        new PreviewReaderFactory(baseUri, connections, streams ?? new RelativeStreamResolver(baseUri), decodeCategories,
+            stagingMaximumBytes, decodeCategoriesLanguage, decodeCategoriesLabel);
 
     public static DataEndpointReadRequest Request(DataContract contract, DataAsset asset)
     {

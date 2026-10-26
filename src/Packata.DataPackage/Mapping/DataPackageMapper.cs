@@ -168,7 +168,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             Extensions: ExtensionMetadata.For(SourceNamespace, FieldExtensions(field)),
             PhysicalName: field.PhysicalName ?? name,
             Description: field.Description,
-            ValueDomain: domain);
+            ValueDomain: domain, Language: field.Language);
     }
 
     private static DataConstraint[] MapConstraints(Native.Field field)
@@ -255,7 +255,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             ["sources"] = resource.Sources,
             ["licenses"] = resource.Licenses,
             ["categoryFieldMap"] = resource.CategoryFieldMap is not { } map ? null : MetadataSnapshot.CopyDictionary(
-                new Dictionary<string, object?> { ["value"] = map.Value, ["label"] = map.Label, ["ordered"] = map.Ordered })
+                new Dictionary<string, object?> { ["value"] = map.Value, ["label"] = map.Label, ["labels"] = map.Labels, ["ordered"] = map.Ordered })
         };
 
     private static IReadOnlyDictionary<string, object?> FieldExtensions(Native.Field field)
@@ -264,6 +264,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         {
             ["title"] = field.Title,
             ["description"] = field.Description,
+            ["language"] = field.Language,
+            ["missingValues"] = field.MissingValues is null ? null : Array.AsReadOnly(field.MissingValues.Select(value => value.Value).ToArray()),
             ["example"] = field.Example,
             ["rdfType"] = field.RdfType,
             ["categories"] = CopyCategories(field.Categories),

@@ -298,6 +298,13 @@ To read records through `IDataReader`, follow the
 
 ## Choose a supported format
 
+For category tables with several labels, preview accepts either
+`--decode-categories-language fr` or `--decode-categories-label short_label`.
+Both enable decoding; they cannot be combined with each other. The first uses
+declared field languages and language fallbacks, while the second requires the
+exact declared logical label field. See the
+[category-table example and fallback rules]({{ '/datapackage-categories/' | relative_url }}#select-a-language-or-a-label-column).
+
 Inference currently supports CSV-family file bindings and database bindings.
 Preview can read additional formats, but the ability to read a format does not
 mean Packata can infer its schema. The

@@ -84,7 +84,11 @@ mean it opened the table or established its complete set of values. External and
 unresolved references have no local bound asset ID.
 
 `DataAsset.CategoryTable` describes the table itself: its `ValueField`, optional
-`LabelField` and nullable `Ordered` flag. A field path uses logical field names
+`LabelField`, additional eligible `LabelFields` and nullable `Ordered` flag.
+`DataField.Language` describes a field's text language independently of its label
+role. These additions map Packata's `categoryFieldMap.labels` and field-level
+`language` extensions. The label collection is a detached read-only snapshot.
+A field path uses logical field names
 inside that asset, stored in `FieldPath.Segments`, rather than physical database
 column names. Original mapping names remain in source extensions.
 

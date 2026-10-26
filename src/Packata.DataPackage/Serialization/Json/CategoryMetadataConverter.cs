@@ -26,7 +26,14 @@ internal sealed class CategoryMetadataConverter : JsonConverter
             if (token.Type != JTokenType.Boolean) throw new JsonSerializationException($"{token.Path}: ordered must be boolean.");
             ordered = token.Value<bool>();
         }
-        return new() { Value = String(obj, "value"), Label = String(obj, "label"), Ordered = ordered };
+        List<string>? labels = null;
+        if (obj.TryGetValue("labels", out var columns))
+        {
+            if (columns is not JArray array || array.Any(item => item.Type != JTokenType.String))
+                throw new JsonSerializationException($"{columns.Path}: labels must be an array of strings.");
+            labels = array.Select(item => item.Value<string>()!).ToList();
+        }
+        return new() { Value = String(obj, "value"), Label = String(obj, "label"), Labels = labels, Ordered = ordered };
     }
     private static string? String(JObject obj, string name)
     {
@@ -47,6 +54,7 @@ internal sealed class CategoryMetadataConverter : JsonConverter
         else if (value is CategoryFieldMap map)
         {
             Write(writer, "value", map.Value); Write(writer, "label", map.Label);
+            if (map.Labels is not null) { writer.WritePropertyName("labels"); serializer.Serialize(writer, map.Labels); }
             if (map.Ordered is not null) { writer.WritePropertyName("ordered"); writer.WriteValue(map.Ordered.Value); }
         }
         writer.WriteEndObject();
