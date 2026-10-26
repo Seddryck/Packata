@@ -1,5 +1,6 @@
 using Packata.Core.Contracts;
 using Packata.ResourceReaders;
+using Packata.Storages;
 using Spectre.Console.Cli;
 
 namespace Packata.Cli;
@@ -26,7 +27,8 @@ internal sealed class PreviewCommand : AsyncCommand<PreviewSettings>
             var streams = source.Archive is null ? null
                 : new PreviewService.ArchiveStreamResolver(source.Archive, source.ArchiveDescriptor!);
             var factory = database?.CreateReaders(source.BaseUri, settings.DecodeCategories)
-                ?? PreviewService.CreateFactory(source.BaseUri, streams: streams, decodeCategories: settings.DecodeCategories);
+                ?? PreviewService.CreateFactory(source.BaseUri, streams: streams, decodeCategories: settings.DecodeCategories,
+                    stagingMaximumBytes: settings.StagingMaximumBytes);
             var sample = await PreviewService.ReadAsync(factory, request,
                 settings.Limit, settings.Columns, cancellationToken).ConfigureAwait(false);
             using var output = new OutputDestination(settings.Output);
@@ -48,6 +50,7 @@ internal sealed class PreviewCommand : AsyncCommand<PreviewSettings>
             diagnostic = diagnostic with { Message = $"Unable to preview asset '{assetId}' at endpoint '{endpoint.Id}' (format '{endpoint.Format?.Name ?? "auto"}'). Check the reader provider, format, binding, and resource access." };
         return exception switch
         {
+            StagingLimitExceededException staging => diagnostic with { Code = "CLI132", Message = staging.Message },
             CategoryDecodingNotSupportedException unsupported => diagnostic with { Message = unsupported.Message },
             ReaderProviderUnavailableException unavailable => diagnostic with
             { Message = $"{diagnostic.Message} Required package: {unavailable.SuggestedPackage}; registration: {unavailable.RegistrationMethod}." },

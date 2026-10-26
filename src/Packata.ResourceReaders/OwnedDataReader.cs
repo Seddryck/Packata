@@ -4,6 +4,7 @@ namespace Packata.ResourceReaders;
 
 internal sealed class OwnedDataReader(IDataReader inner, params IDisposable[] owned) : IDataReader
 {
+    private bool _disposed;
     public object this[int i] => inner[i];
     public object this[string name] => inner[name];
     public int Depth => inner.Depth;
@@ -11,7 +12,12 @@ internal sealed class OwnedDataReader(IDataReader inner, params IDisposable[] ow
     public int RecordsAffected => inner.RecordsAffected;
     public int FieldCount => inner.FieldCount;
     public void Close() => Dispose();
-    public void Dispose() { inner.Dispose(); foreach (var value in owned) value.Dispose(); }
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        ResourceDisposal.Run(new[] { inner }.Concat(owned).Select(value => (Action)value.Dispose));
+    }
     public bool GetBoolean(int i) => inner.GetBoolean(i);
     public byte GetByte(int i) => inner.GetByte(i);
     public long GetBytes(int i, long o, byte[]? b, int bo, int l) => inner.GetBytes(i, o, b, bo, l);

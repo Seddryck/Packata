@@ -11,5 +11,5 @@ internal sealed class ParquetReaderProvider : IDataEndpointReaderProvider
 
     public async ValueTask<IDataReader> OpenAsync(ReaderOpenContext context,
         CancellationToken cancellationToken = default) =>
-        await Tabular.ParquetDataReader.CreateAsync(context.Streams).ConfigureAwait(false);
+        await Tabular.ParquetDataReader.CreateAsync(context.Streams, cancellationToken).ConfigureAwait(false);
 }

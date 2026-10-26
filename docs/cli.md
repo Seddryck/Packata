@@ -151,7 +151,7 @@ contract.yml
 Archive suffixes are matched case-insensitively from the URL path; query strings
 and fragments do not affect detection. All four formats have the same command
 coverage: validation, inspection, diff, compatibility comparison, JSON Schema export
-and dialect export. Preview also reads bundled CSV resources from all four formats.
+and dialect export. Preview also reads bundled CSV-family, Excel and Parquet resources from all four formats.
 Schema inference accepts these same descriptor transports and reads local, HTTP/HTTPS
 or archive-relative CSV-family, Excel and Parquet resources. See [inference limits and
 output restrictions]({{ '/cli-inference/' | relative_url }}).
@@ -554,6 +554,7 @@ schema.Serialize(stream);
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
 | `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
 | `--limit <COUNT>` | Positive 32-bit integer; `20` | Maximum data rows, excluding headers |
+| `--staging-maximum-bytes <COUNT>` | Positive integer; `268435456` (256 MiB) | Maximum bytes copied for each non-seekable Excel/Parquet resource; ignored for CSV/inline/database reads |
 | `--columns <NAMES>` | All fields | Unique exact names, comma-separated, in output order |
 | `--decode-categories` | Disabled | Replace inline category/enum codes with labels; PocketCsvReader delimited engine (CSV/TSV/PSV) only |
 | `--output-format <FORMAT>` | `table`, `json`, `csv`; `table` | Result representation |
@@ -571,7 +572,7 @@ packata data preview contract.yaml --asset customers --output-format json > cust
 
 Preview reads an asset from an ODCS YAML or Data Package v2 JSON/YAML descriptor,
 or a local/HTTP(S) ZIP, TAR, TAR.GZ or TAR.BR containing exactly one supported descriptor.
-CSV resources are read from the archive container without requiring manual extraction.
+CSV-family, Excel and Parquet resources are read from the archive container without requiring manual extraction.
 Their paths resolve relative to the descriptor inside the archive, including when
 that descriptor is in a subdirectory:
 
@@ -589,6 +590,11 @@ bindings fail rather than being selected automatically. Row limits, column selec
 all output formats apply equally to ZIP and TAR previews. TAR containers materialize
 entries under the default storage limits and retain them until preview finishes;
 streams and temporary storage are released after success, failure or cancellation.
+
+HTTP and archive streams that cannot seek are staged to disk for Excel/Parquet using
+the same adapter as schema inference. `--staging-maximum-bytes` bounds each staged data
+file; CSV remains streaming. `CLI132` identifies a staging-limit failure and no output
+file is committed. See [staging limits, ownership and temporary storage]({{ '/guides/readers-storage/' | relative_url }}#stage-excel-and-parquet-resources).
 
 
 Relative file paths and database files resolve against the descriptor's directory, so the
@@ -650,8 +656,11 @@ are base64.
 The table view displays null as `(null)`, flattens line breaks and truncates cells beyond
 80 characters; terminal layout may wrap cells further. JSON and CSV values are not truncated.
 
-Preview does not write the contract or change source data. It buffers at most the requested
-rows, although a provider may buffer internally, such as a Parquet reader loading a row group.
+Preview does not write the contract or change source data. Its output buffer contains at most
+the requested rows. Staging can transfer the entire resource before parsing, and Parquet
+preview currently materializes all row groups before returning. `--limit` bounds displayed
+rows; it does not bound transfer cost or provider memory use. Parquet schema inference
+continues to parse only metadata after acquisition.
 
 Cancellation is passed to opening and asynchronous reads, and checked between synchronous
 reads. A synchronous driver call cannot always be interrupted while it is running. Readers

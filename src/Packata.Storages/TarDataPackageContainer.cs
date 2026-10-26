@@ -14,8 +14,11 @@ public sealed class TarDataPackageContainer : IDocumentContainerListable
     private TarDataPackageContainer(Uri uri) => BaseUri = uri;
 
     /// <summary>Consumes and closes <paramref name="tarStream"/>, including on failure.</summary>
+    public static Task<TarDataPackageContainer> CreateAsync(Uri uri, Stream tarStream, TarArchiveOptions? options = null) =>
+        CreateAsync(uri, tarStream, options, CancellationToken.None);
+
     public static async Task<TarDataPackageContainer> CreateAsync(Uri uri, Stream tarStream,
-        TarArchiveOptions? options = null, CancellationToken cancellationToken = default)
+        TarArchiveOptions? options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(tarStream);
         await using (tarStream)

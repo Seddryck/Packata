@@ -239,7 +239,7 @@ public sealed class RemoteInferenceTests(string standard)
         var target = Path.Combine(workspace.Path, "output");
         var result = await CliWorkspace.Run("schema", "infer", source, "--asset", "customers", "--maximum-bytes", "4", "--output", target);
         Assert.That(result.ExitCode, Is.Not.Zero);
-        Assert.That(result.Output, Does.Contain("limit exceeded"));
+        Assert.That(result.Output, Does.Contain("Workbook exceeds MaximumBytes"));
         Assert.That(File.Exists(target), Is.False);
     }
 
@@ -270,12 +270,13 @@ public sealed class RemoteInferenceTests(string standard)
     }
 
     // Close-delimited bodies deliberately omit Content-Length, exercising bounded streaming/staging.
-    private sealed class HttpFixture : IAsyncDisposable
+    internal sealed class HttpFixture : IAsyncDisposable
     {
         private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
         private readonly CancellationTokenSource _stop = new(TimeSpan.FromSeconds(90));
         private readonly Task _serve;
         internal Dictionary<string, (int Status, byte[] Body)> Routes { get; } = new();
+        internal Dictionary<string, long> DeclaredLengths { get; } = new();
         internal string? StallPath { get; set; }
         internal TaskCompletionSource HeadersSent { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal string Url { get; }
@@ -299,7 +300,8 @@ public sealed class RemoteInferenceTests(string standard)
                     var path = request!.Split(' ')[1];
                     var route = Routes.GetValueOrDefault(path, (200, Array.Empty<byte>()));
                     var location = route.Item1 == 302 ? "Location: " + Encoding.ASCII.GetString(route.Item2) + "\r\n" : "";
-                    await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 {route.Item1} Test\r\n{location}Connection: close\r\n\r\n"), _stop.Token);
+                    var length = DeclaredLengths.TryGetValue(path, out var size) ? $"Content-Length: {size}\r\n" : "";
+                    await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 {route.Item1} Test\r\n{location}{length}Connection: close\r\n\r\n"), _stop.Token);
                     HeadersSent.TrySetResult();
                     if (path == StallPath) await Task.Delay(Timeout.Infinite, _stop.Token);
                     await stream.WriteAsync(route.Item2, _stop.Token);

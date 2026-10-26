@@ -22,31 +22,46 @@ public class ParquetDataReader : IDataReader
 
     private ParquetDataReader() { }
 
-    public static async Task<ParquetDataReader> CreateAsync(IEnumerable<Stream> streams)
+    public static Task<ParquetDataReader> CreateAsync(IEnumerable<Stream> streams) => CreateAsync(streams, CancellationToken.None);
+
+    public static async Task<ParquetDataReader> CreateAsync(IEnumerable<Stream> streams, CancellationToken cancellationToken)
     {
         var reader = new ParquetDataReader();
-        foreach (var stream in streams)
+        try
         {
-            var parquetReader = await ParquetReader.CreateAsync(stream);
-            var dataFields = parquetReader.Schema.GetDataFields();
-            if (reader._fieldCount == -1)
+            foreach (var stream in streams)
             {
-                reader._fieldCount = dataFields.Length;
-                reader._dataFields = dataFields;
+                var parquetReader = await ParquetReader.CreateAsync(stream, leaveStreamOpen: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                reader._readers.Add(parquetReader);
+                reader.SetSchema(parquetReader.Schema.GetDataFields());
+                await reader.LoadRowsFromReaderAsync(parquetReader, cancellationToken).ConfigureAwait(false);
             }
-            else if (!reader.AreSchemasEqual(reader._dataFields, dataFields))
-                throw new InvalidOperationException("Inconsistent schema across parquet files.");
-            reader._readers.Add(parquetReader);
-            await reader.LoadRowsFromReaderAsync(parquetReader);
+            return reader;
         }
-        return reader;
+        catch
+        {
+            reader.DisposeAfterFailure();
+            throw;
+        }
+    }
+
+    private void SetSchema(DataField[] fields)
+    {
+        if (_fieldCount == -1) { _fieldCount = fields.Length; _dataFields = fields; }
+        else if (!AreSchemasEqual(_dataFields, fields)) throw new InvalidOperationException("Inconsistent schema across parquet files.");
+    }
+
+    private void DisposeAfterFailure()
+    {
+        try { Dispose(); }
+        catch (Exception) { /* Preserve the parser/transfer/cancellation failure. */ }
     }
 
     private bool AreSchemasEqual(DataField[] a, DataField[] b) =>
         a.Length == b.Length && a.Zip(b).All(pair =>
             pair.First.Name == pair.Second.Name && pair.First.ClrType == pair.Second.ClrType);
 
-    private async Task LoadRowsFromReaderAsync(ParquetReader reader)
+    private async Task LoadRowsFromReaderAsync(ParquetReader reader, CancellationToken cancellationToken)
     {
         for (var i = 0; i < reader.RowGroupCount; i++)
         {
@@ -54,9 +69,10 @@ public class ParquetDataReader : IDataReader
             var columns = new object?[_dataFields.Length][];
             var rowCount = checked((int)groupReader.RowCount);
             for (var j = 0; j < _dataFields.Length; j++)
-                columns[j] = await ReadColumnAsync(groupReader, _dataFields[j], rowCount);
+                columns[j] = await ReadColumnAsync(groupReader, _dataFields[j], rowCount, cancellationToken).ConfigureAwait(false);
             for (var row = 0; row < rowCount; row++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var values = new object[_dataFields.Length];
                 for (var column = 0; column < _dataFields.Length; column++) values[column] = columns[column][row]!;
                 _rows.Add(values);
@@ -64,45 +80,45 @@ public class ParquetDataReader : IDataReader
         }
     }
 
-    private static Task<object?[]> ReadColumnAsync(ParquetRowGroupReader reader, DataField field, int rowCount)
+    private static Task<object?[]> ReadColumnAsync(ParquetRowGroupReader reader, DataField field, int rowCount, CancellationToken cancellationToken)
     {
         if (field.ClrType == typeof(string) || field.ClrType == typeof(ReadOnlyMemory<char>))
-            return ReadStringColumnAsync(reader, field, rowCount);
+            return ReadStringColumnAsync(reader, field, rowCount, cancellationToken);
         if (field.ClrType == typeof(byte[]) || field.ClrType == typeof(ReadOnlyMemory<byte>))
-            return ReadByteArrayColumnAsync(reader, field, rowCount);
+            return ReadByteArrayColumnAsync(reader, field, rowCount, cancellationToken);
         if (!field.ClrType.IsValueType)
             throw new NotSupportedException($"Parquet column type '{field.ClrType}' is not supported.");
         var method = field.IsNullable ? ReadNullableColumnMethod : ReadValueColumnMethod;
-        return (Task<object?[]>)method.MakeGenericMethod(field.ClrType).Invoke(null, [reader, field, rowCount])!;
+        return (Task<object?[]>)method.MakeGenericMethod(field.ClrType).Invoke(null, [reader, field, rowCount, cancellationToken])!;
     }
 
-    private static async Task<object?[]> ReadValueColumnAsync<T>(ParquetRowGroupReader reader, DataField field, int rowCount)
+    private static async Task<object?[]> ReadValueColumnAsync<T>(ParquetRowGroupReader reader, DataField field, int rowCount, CancellationToken cancellationToken)
         where T : struct
     {
         var values = new T[rowCount];
-        await reader.ReadAsync(field, values.AsMemory());
+        await reader.ReadAsync(field, values.AsMemory(), cancellationToken: cancellationToken).ConfigureAwait(false);
         return values.Cast<object?>().ToArray();
     }
 
-    private static async Task<object?[]> ReadNullableColumnAsync<T>(ParquetRowGroupReader reader, DataField field, int rowCount)
+    private static async Task<object?[]> ReadNullableColumnAsync<T>(ParquetRowGroupReader reader, DataField field, int rowCount, CancellationToken cancellationToken)
         where T : struct
     {
         var values = new T?[rowCount];
-        await reader.ReadAsync(field, values.AsMemory());
+        await reader.ReadAsync(field, values.AsMemory(), cancellationToken: cancellationToken).ConfigureAwait(false);
         return values.Cast<object?>().ToArray();
     }
 
-    private static async Task<object?[]> ReadStringColumnAsync(ParquetRowGroupReader reader, DataField field, int rowCount)
+    private static async Task<object?[]> ReadStringColumnAsync(ParquetRowGroupReader reader, DataField field, int rowCount, CancellationToken cancellationToken)
     {
         var values = new string?[rowCount];
-        await reader.ReadAsync(field, values.AsMemory());
+        await reader.ReadAsync(field, values.AsMemory(), cancellationToken: cancellationToken).ConfigureAwait(false);
         return values.Cast<object?>().ToArray();
     }
 
-    private static async Task<object?[]> ReadByteArrayColumnAsync(ParquetRowGroupReader reader, DataField field, int rowCount)
+    private static async Task<object?[]> ReadByteArrayColumnAsync(ParquetRowGroupReader reader, DataField field, int rowCount, CancellationToken cancellationToken)
     {
         var values = new byte[]?[rowCount];
-        await reader.ReadAsync(field, values.AsMemory());
+        await reader.ReadAsync(field, values.AsMemory(), cancellationToken: cancellationToken).ConfigureAwait(false);
         return values.Cast<object?>().ToArray();
     }
 
@@ -139,8 +155,8 @@ public class ParquetDataReader : IDataReader
     public void Dispose()
     {
         if (_disposed) return;
-        foreach (var reader in _readers) reader.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _disposed = true;
+        ResourceDisposal.Run(_readers.Select(reader => (Action)(() => reader.DisposeAsync().AsTask().GetAwaiter().GetResult())));
         GC.SuppressFinalize(this);
     }
     public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferOffset, int length) => throw new NotSupportedException();

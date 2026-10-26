@@ -4,7 +4,7 @@ using Spectre.Console.Cli;
 
 namespace Packata.Cli;
 
-internal sealed class InferSettings : DatabaseCommandSettings
+internal sealed class InferSettings : StagingCommandSettings
 {
     [CommandOption("--asset <ID>")]
     [Description(OptionValidation.AssetDescription)]

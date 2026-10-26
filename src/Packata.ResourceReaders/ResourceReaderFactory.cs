@@ -86,7 +86,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         }
         catch
         {
-            foreach (var stream in opened) stream.Dispose();
+            ResourceDisposal.Run(opened.Select(stream => (Action)stream.Dispose), suppressFailures: true);
             throw;
         }
     }

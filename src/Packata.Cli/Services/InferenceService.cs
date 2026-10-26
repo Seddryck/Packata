@@ -6,7 +6,6 @@ using Packata.ResourceReaders.Database;
 using Packata.ResourceReaders.Parquet;
 using Packata.ResourceReaders.Excel;
 using PocketCsvReader;
-using Packata.Storages;
 
 namespace Packata.Cli;
 
@@ -31,9 +30,8 @@ internal static class InferenceService
             return await InferCsvAsync(document, asset, endpoint, settings, cancellationToken).ConfigureAwait(false);
         RejectOptions(arguments, ["--maximum-records", "--maximum-bytes", "--culture", "--header", "--no-dialect-inference"]);
         RejectExternalCompression(format);
-        await using var input = await document.OpenAssetStreamAsync(asset, endpoint, cancellationToken).ConfigureAwait(false);
-        await using var staged = input.CanSeek ? null : await SeekableStaging.CopyAsync(input, cancellationToken: cancellationToken).ConfigureAwait(false);
-        var stream = staged ?? input;
+        await using var stream = await document.OpenAssetStreamAsync(asset, endpoint, cancellationToken,
+            settings.StagingMaximumBytes).ConfigureAwait(false);
         var options = new ParquetDataContractInferenceOptions
         {
             ContractIdentity = document.Contract.Identity, ContractMetadata = document.Contract.Metadata,
@@ -54,10 +52,8 @@ internal static class InferenceService
     private static async Task<InferenceSelection> InferExcelAsync(ContractDocument document, DataAsset asset,
         DataEndpoint endpoint, InferSettings settings, string path, string formatName, CancellationToken cancellationToken)
     {
-        await using var input = await document.OpenAssetStreamAsync(asset, endpoint, cancellationToken).ConfigureAwait(false);
-        await using var staged = input.CanSeek ? null : await SeekableStaging.CopyAsync(input,
-            Math.Min(settings.MaximumBytes ?? 64 * 1024 * 1024, SeekableStaging.DefaultMaximumBytes), cancellationToken).ConfigureAwait(false);
-        var stream = staged ?? input;
+        await using var stream = await document.OpenAssetStreamAsync(asset, endpoint, cancellationToken,
+            settings.StagingMaximumBytes, settings.MaximumBytes ?? 64 * 1024 * 1024).ConfigureAwait(false);
         var options = new ExcelDataContractInferenceOptions
         {
             ContractIdentity = document.Contract.Identity, ContractMetadata = document.Contract.Metadata,

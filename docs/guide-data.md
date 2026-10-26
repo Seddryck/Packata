@@ -38,7 +38,9 @@ Omit `--columns` to include every field. Omit `--output-format csv` to view a ta
 in the terminal, or choose `json` when another program needs the result. Preview
 does not change the data or the contract.
 
-The row limit bounds the preview, although a reader may buffer more data internally.
+The row limit bounds the preview output. Non-seekable Excel/Parquet inputs may first
+be downloaded completely under `--staging-maximum-bytes` (256 MiB by default), and
+Parquet preview currently materializes all row groups. See [staging and parser costs]({{ '/guides/readers-storage/' | relative_url }}#stage-excel-and-parquet-resources).
 A successful preview shows that those rows can be read; it does not certify that
 all rows satisfy every contract rule. The
 [preview reference]({{ '/cli/' | relative_url }}#preview-bound-data) lists all
@@ -205,7 +207,8 @@ resolved relative to the descriptor, including `../` paths that stay inside the 
 Streams and temporary storage are released after success, failure or cancellation.
 See the [storage guide]({{ '/guides/readers-storage/' | relative_url }}#read-a-tar-package-in-net)
 for limits and patched Brotli runtime requirements.
-Schema inference also accepts these archive formats and HTTP/HTTPS descriptors and
+Preview also supports Excel and Parquet members through the shared bounded staging
+adapter when needed. Schema inference accepts these archive formats and HTTP/HTTPS descriptors and
 data files, including CSV-family, Excel and Parquet resources. See [inference transport,
 staging limits and output restrictions]({{ '/cli-inference/' | relative_url }}).
 
