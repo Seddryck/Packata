@@ -69,7 +69,7 @@ internal static class QualityMapper
                 "library" => new LibraryQuality("odcs", "3.2.0", metric ?? "", native.Arguments.ToDictionary(p => p.Key, p => QualityValue.From(p.Value)), native.Unit ?? "rows"),
                 "sql" => new SqlQuality(native.Query ?? "", native.Unit),
                 "text" => new TextQuality(native.Description),
-                "custom" when string.Equals(native.Engine, "expressif", StringComparison.OrdinalIgnoreCase) => ParseExpressif(native.Implementation),
+                "custom" when string.Equals(native.Engine, "expressif", StringComparison.OrdinalIgnoreCase) => ParseExpressif(native.Implementation, native.Arguments),
                 _ => new CustomQuality(native.Engine ?? native.Type, native.Implementation)
             };
         }
@@ -123,7 +123,7 @@ internal static class QualityMapper
         native.BusinessImpact, native.Method, native.Severity, native.Scheduler, native.Schedule, native.Tags,
         native.AuthoritativeDefinitions.Where(r => r.Url is not null).Select(r => new AuthoritativeReference(r.Url!, r.Type)).ToArray());
 
-    private static ExpressifQuality ParseExpressif(string? payload)
+    private static ExpressifQuality ParseExpressif(string? payload, Dictionary<string, object> arguments)
     {
         using var document = JsonDocument.Parse(payload ?? "");
         var root = document.RootElement;
@@ -142,6 +142,6 @@ internal static class QualityMapper
             "observation" => QualityInputScope.Observation,
             _ => throw new ArgumentException("Explicit scope required.")
         };
-        return new(root.GetProperty("program").GetString() ?? throw new ArgumentException("Program required."), kind, scope, OriginalPayload: payload);
+        return new(root.GetProperty("program").GetString() ?? throw new ArgumentException("Program required."), kind, scope, OriginalPayload: payload, Bindings: arguments.ToDictionary(p => p.Key, p => QualityValue.From(p.Value)));
     }
 }
