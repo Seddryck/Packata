@@ -81,6 +81,11 @@ to inspect or pass to another program. You should see:
 Whitespace can differ. Unlike validation and inspection, preview opens the CSV.
 None of these commands changes either sample file.
 
+If you receive the descriptor and CSV together in `dataset.zip`, you can also run
+`packata data preview dataset.zip --asset customers --limit 2 --output-format json`
+without extracting it. See the [zipped package example]({{ '/guides/data/' | relative_url }}#preview-a-zipped-data-package)
+for the archive layout and resource paths.
+
 ## Export a record schema
 
 To give another tool a JSON Schema for customer records, run:

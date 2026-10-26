@@ -46,6 +46,12 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         var stream = uri.IsFile
             ? File.OpenRead(uri.LocalPath)
             : await httpContainer!.OpenAsync(uri.Segments[^1] + uri.Query).ConfigureAwait(false);
+        return await LoadStreamAsync(source, uri, stream, format, cancellationToken, retainArchive).ConfigureAwait(false);
+    }
+
+    private static async Task<ContractSource> LoadStreamAsync(string source, Uri uri, Stream stream,
+        string format, CancellationToken cancellationToken, bool retainArchive)
+    {
         ZipDataPackageContainer? archive = null;
         var retained = false;
         try
@@ -56,20 +62,13 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
             if (Path.GetExtension(descriptor).Equals(".zip", StringComparison.OrdinalIgnoreCase))
             {
                 archive = new ZipDataPackageContainer(uri, stream);
-                var candidates = (await archive.ListFilesAsync().ConfigureAwait(false))
-                    .Where(name => Path.GetFileName(name).ToLowerInvariant() is "datapackage.json" or "datapackage.yaml" or "datapackage.yml" or "contract.yaml" or "contract.yml")
-                    .ToArray();
-                if (candidates.Length != 1)
-                    throw new ContractOperationException("CLI023", "$", "ZIP must contain exactly one supported contract descriptor.");
-                descriptor = candidates[0];
+                descriptor = await FindArchiveDescriptorAsync(archive).ConfigureAwait(false);
                 await using var entry = await archive.OpenAsync(descriptor).ConfigureAwait(false);
-                using var reader = new StreamReader(entry);
-                text = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                text = await ReadTextAsync(entry, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                using var reader = new StreamReader(stream);
-                text = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                text = await ReadTextAsync(stream, cancellationToken).ConfigureAwait(false);
             }
             cancellationToken.ThrowIfCancellationRequested();
             var result = Parse(source, baseUri, descriptor, text, format);
@@ -88,6 +87,25 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
                 await stream.DisposeAsync().ConfigureAwait(false);
             }
         }
+    }
+
+    private static async Task<string> FindArchiveDescriptorAsync(ZipDataPackageContainer archive)
+    {
+        var candidates = (await archive.ListFilesAsync().ConfigureAwait(false))
+            .Where(IsSupportedDescriptor).ToArray();
+        if (candidates.Length != 1)
+            throw new ContractOperationException("CLI023", "$", "ZIP must contain exactly one supported contract descriptor.");
+        return candidates[0];
+    }
+
+    private static bool IsSupportedDescriptor(string name)
+        => Path.GetFileName(name).ToLowerInvariant() is "datapackage.json" or "datapackage.yaml"
+            or "datapackage.yml" or "contract.yaml" or "contract.yml";
+
+    private static async Task<string> ReadTextAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(stream);
+        return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
     }
 
     internal static ContractSource Parse(string source, Uri baseUri, string descriptor, string text, string format)
