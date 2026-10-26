@@ -5,9 +5,10 @@
     <Description>Database resource reader provider for Packata.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="DubUrl.Application" Version="0.46.1" />
     <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
     <ProjectReference Include="..\Packata.Database\Packata.Database.csproj" />
-    <PackageReference Include="DubUrl.Schema" Version="0.46.0" />
+    <PackageReference Include="DubUrl.Schema" Version="0.46.1" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Packata.ResourceReaders.Testing" />
