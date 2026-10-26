@@ -6,6 +6,10 @@ namespace Packata.Cli;
 
 internal sealed class PreviewSettings : DatabaseCommandSettings
 {
+    [CommandOption("--decode-categories")]
+    [Description("Decode inline category codes to labels (PocketCsvReader CSV/TSV/PSV only; default: disabled).")]
+    public bool DecodeCategories { get; init; }
+
     [CommandOption("--asset <ID>")]
     [Description(OptionValidation.AssetDescription)]
     public required string Asset { get; init; }

@@ -14,9 +14,10 @@ internal sealed record PreviewSample(string[] Columns, IReadOnlyList<object?[]> 
 
 internal static class PreviewService
 {
-    public static IDataEndpointReaderFactory CreateFactory(Uri baseUri, IDatabaseConnectionService? connections = null, IEndpointStreamResolver? streams = null) =>
+    public static IDataEndpointReaderFactory CreateFactory(Uri baseUri, IDatabaseConnectionService? connections = null, IEndpointStreamResolver? streams = null, bool decodeCategories = false) =>
         ResourceReaderFactory.Create(options =>
         {
+            options.DecodeCategories = decodeCategories;
             options.AddExcel().AddParquet();
             if (connections is null) options.AddDatabase(baseUri.IsFile ? baseUri.LocalPath : string.Empty);
             else options.AddDatabase(connections);

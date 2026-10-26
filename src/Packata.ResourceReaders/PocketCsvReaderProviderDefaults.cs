@@ -1,6 +1,7 @@
 using Packata.Core;
 using Packata.Core.Contracts;
 using PocketCsvReader.Configuration;
+using System.Globalization;
 
 namespace Packata.ResourceReaders;
 
@@ -27,8 +28,21 @@ internal static class PocketCsvReaderProviderDefaults
         return builder;
     }
 
-    internal static void AddField(ISchemaDescriptorBuilder schema, RuntimeTypeMapper mapper, DataField field)
+    internal static void AddField(ISchemaDescriptorBuilder schema, RuntimeTypeMapper mapper, DataField field, bool decodeCategories = false)
     {
+        if (decodeCategories && field.ValueDomain?.Entries is { } entries && entries.Any(entry => entry.Label is not null))
+        {
+            // Native sequences replace text before type conversion. A labeled column is
+            // therefore a string presentation column, including its fallback code text.
+            schema.WithField(typeof(string), field.Name, builder =>
+            {
+                builder.WithDataSourceTypeName("string");
+                foreach (var entry in entries.Where(entry => entry.Label is not null))
+                    builder.WithSequence(SequenceText(entry.Value), entry.Label);
+                return builder;
+            });
+            return;
+        }
         var type = mapper.Map(field.LogicalType, field.Format);
         var pattern = ResolvePattern(field);
         if (IsTemporal(type) && pattern is not null)
@@ -44,6 +58,13 @@ internal static class PocketCsvReaderProviderDefaults
             schema.WithField(type, field.Name,
                 builder => field.LogicalType is null ? builder : builder.WithDataSourceTypeName(field.LogicalType));
     }
+
+    private static string SequenceText(ScalarValue scalar) => scalar.Value switch
+    {
+        bool boolean => boolean ? "true" : "false",
+        IFormattable value => value.ToString(null, CultureInfo.InvariantCulture),
+        _ => (string)scalar.Value!
+    };
 
     private static bool IsTemporal(Type type) =>
         type == typeof(DateTime) || type == typeof(DateTimeOffset)

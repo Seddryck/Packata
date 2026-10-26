@@ -16,6 +16,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     private readonly IEndpointStreamResolver _streams;
     private readonly IReadOnlyList<IDataEndpointReaderProvider> _providers;
     private readonly DataFormatResolver _formats;
+    private readonly bool _decodeCategories;
 
     public ResourceReaderFactory(IEndpointStreamResolver? streams = null)
         : this(streams, DefaultProviders(), new DataFormatResolutionOptions())
@@ -29,7 +30,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         var options = new ResourceReaderFactoryOptions();
         configure(options);
         return new ResourceReaderFactory(streams,
-            options.CombineWith(DefaultProviders()), options.Formats);
+            options.CombineWith(DefaultProviders()), options.Formats, options.DecodeCategories);
     }
 
     internal ResourceReaderFactory(IEndpointStreamResolver? streams,
@@ -39,11 +40,14 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
     private ResourceReaderFactory(IEndpointStreamResolver? streams,
         IEnumerable<IDataEndpointReaderProvider> providers,
-        DataFormatResolutionOptions formatOptions)
+        DataFormatResolutionOptions formatOptions, bool decodeCategories = false)
     {
         _streams = streams ?? new DefaultEndpointStreamResolver();
         _providers = providers.ToArray();
+        foreach (var provider in _providers.OfType<DelimitedReaderProvider>())
+            provider.DecodeCategories = decodeCategories;
         _formats = new DataFormatResolver(formatOptions);
+        _decodeCategories = decodeCategories;
     }
 
     public async ValueTask<IDataReader> OpenAsync(DataEndpoint endpoint, DataSchema? schema = null,
@@ -59,8 +63,10 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         cancellationToken.ThrowIfCancellationRequested();
 
         var format = _formats.Resolve(endpoint);
-        var provider = _providers.FirstOrDefault(candidate => candidate.CanHandle(request, format))
-            ?? throw UnsupportedEndpoint(endpoint, format);
+        var provider = _providers.FirstOrDefault(candidate => candidate.CanHandle(request, format));
+        if (_decodeCategories && provider is not DelimitedReaderProvider)
+            throw new CategoryDecodingNotSupportedException();
+        if (provider is null) throw UnsupportedEndpoint(endpoint, format);
 
         var opened = new List<Stream>();
         try
