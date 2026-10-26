@@ -6,13 +6,19 @@ has_children: true
 permalink: /guides/
 ---
 
-Start with a task. Each guide explains the common workflow and labels CLI and .NET examples separately. Examples apply only where that interface implements the task.
+Choose a guide for the task you want to complete. Each explains when to use the
+operation, how to run it, and what to expect from the result.
 
-- [Inspect, validate, compare, and export]({{ '/guides/contracts/' | relative_url }})
-- [Read data and infer schemas]({{ '/guides/data/' | relative_url }})
-- [Configure storage and readers]({{ '/guides/readers-storage/' | relative_url }})
-- [Export a CSV dialect]({{ '/csv-dialect-export/' | relative_url }})
-- [Connect to databases]({{ '/database-integration/' | relative_url }})
-- [Plan and provision a database]({{ '/guides/provisioning/' | relative_url }})
+- [Validate, inspect, diff and export contracts]({{ '/guides/contracts/' | relative_url }}): check a descriptor, explore its contents, review changes, or export a record schema.
+- [Read data and infer schemas]({{ '/guides/data/' | relative_url }}): preview records and use the data to suggest field definitions.
+- [Configure storage and readers]({{ '/guides/readers-storage/' | relative_url }}): choose a supported source and add the readers your .NET application needs.
+- [Export a CSV dialect]({{ '/csv-dialect-export/' | relative_url }}): share a CSV endpoint's parsing settings with another tool.
+- [Connect to databases]({{ '/database-integration/' | relative_url }}): configure connectors and runtime credentials for preview, inference and .NET applications.
+- [Plan and provision a database]({{ '/guides/provisioning/' | relative_url }}): review generated SQL, deploy a schema and load data through the .NET library.
 
-Use [Reference]({{ '/reference/' | relative_url }}) for exhaustive interface syntax and [Concepts]({{ '/concepts/' | relative_url }}) for shared semantics.
+CLI and .NET examples are identified separately. Provisioning is currently available
+through .NET; its CLI command is planned.
+
+Use the [reference]({{ '/reference/' | relative_url }}) for every command option
+and API entry point, or read the [concepts]({{ '/concepts/' | relative_url }})
+for the shared contract model and compatibility rules.

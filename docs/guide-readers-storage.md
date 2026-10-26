@@ -6,99 +6,133 @@ nav_exclude: false
 permalink: /guides/readers-storage/
 ---
 
-A contract describes where its data lives, but loading the contract does not open that data.
-Its endpoints provide the locations and format settings, while each asset's binding selects a
-particular path or table. When an asset has several bindings, choose the one you want explicitly.
+To read a dataset, Packata needs to find the data and choose a reader for its
+format. A contract supplies the location and format settings; your application
+supplies the readers and, where needed, access credentials.
 
-Resolve relative file paths against the directory containing the descriptor. This keeps the
-same contract working when you launch your application from a different directory.
+An endpoint describes a file location or database connection. An asset's binding
+identifies the path or table that holds that dataset. If an asset has several
+bindings, choose the one you intend to read rather than relying on a default.
+Loading the contract alone does not open any of its data.
 
-## CLI
+## Choose a source the CLI can open
 
-The commands for validation, inspection, comparison and metadata export can read local files,
-HTTP(S) addresses and ZIP archives. Preview needs an unpacked descriptor, either local or remote.
-Inference needs a local descriptor, which can be extensionless.
+The source forms available to a command depend on what it needs to do:
 
-Use the input-format option to select the source standard when automatic detection is not enough.
-The accepted values are listed in the [CLI reference]({{ '/cli/' | relative_url }}). Library storage
-backends are configured separately, so their availability does not imply that every CLI command
-can use them.
+| Task | Accepted descriptor locations |
+| --- | --- |
+| Validate, inspect, diff, assess compatibility, or export metadata | Local files, HTTP(S) URLs, or local and remote ZIP archives |
+| Preview records | An unpacked local or HTTP(S) descriptor |
+| Infer a schema | A local descriptor, including a file without an extension |
 
-CLI preview can read delimited files, inline data, Excel, Parquet and databases.
-The fixed-width, NDJSON, key-value and web-log readers are available to .NET applications,
-but are not currently registered for CLI preview.
+Packata normally detects the contract standard from its contents. If you need to
+select it explicitly, use `--input-format auto`, `odcs` or `datapackage`. Selecting
+a format does not expand the locations a command accepts. See the
+[CLI reference]({{ '/cli/' | relative_url }}) for command-specific details.
 
-Database preview and inference share the same connection configuration. See the
-[connector reference]({{ '/cli-database/' | relative_url }}) to configure it.
+For example, the Quickstart sample can be previewed with:
 
-## .NET
+```console
+packata data preview datapackage.json --asset customers --limit 2
+```
 
-Install optional packages and register only the formats you need:
+This opens the CSV referenced by the `customers` asset and displays up to two rows.
+The [data guide]({{ '/guides/data/' | relative_url }}) explains the output and the
+additional preview options.
+
+## Choose a reader for the data format
+
+CLI preview includes readers for delimited files, inline data, Excel, Parquet and
+databases. For database preview or inference, follow the
+[database connection guide]({{ '/database-integration/' | relative_url }}).
+
+In .NET, CSV, TSV, PSV and inline-data readers are built in. Other formats require
+an additional package and registration. Fixed-width, NDJSON, key-value and web-log
+readers are available in .NET but are not currently registered for CLI preview.
+
+| Format | Package | Registration |
+| --- | --- | --- |
+| CSV, TSV, PSV; inline data | `Packata.ResourceReaders` | Built in |
+| Excel | `Packata.ResourceReaders.Excel` | `AddExcel()` |
+| Parquet | `Packata.ResourceReaders.Parquet` | `AddParquet()` |
+| Fixed-width | `Packata.ResourceReaders.FixedWidth` | `AddFixedWidth()`; also configure layout resolution |
+| NDJSON / JSON Lines | `Packata.ResourceReaders.Ndjson` | `AddNdjson()` |
+| LTSV / logfmt | `Packata.ResourceReaders.KeyValue` | `AddKeyValueReaders()` |
+| Common / W3C logs | `Packata.ResourceReaders.WebLogs` | `AddWebLogs()` |
+| Database | `Packata.ResourceReaders.Database` | `AddDatabase()`; also configure the driver or connector |
+
+Install the packages for the formats your application reads, then add those
+providers to a reader factory. For example, an application that reads Excel and
+Parquet uses:
 
 ```csharp
 using Packata.ResourceReaders;
-using Packata.ResourceReaders.Database;
 using Packata.ResourceReaders.Excel;
-using Packata.ResourceReaders.FixedWidth;
-using Packata.ResourceReaders.KeyValue;
-using Packata.ResourceReaders.Ndjson;
 using Packata.ResourceReaders.Parquet;
-using Packata.ResourceReaders.WebLogs;
 
 var readers = ResourceReaderFactory.Create(options => options
-    .AddExcel().AddParquet().AddFixedWidth()
-    .AddNdjson().AddKeyValueReaders().AddWebLogs().AddDatabase());
+    .AddExcel()
+    .AddParquet());
 ```
 
-| Format | Package / registration |
-| --- | --- |
-| CSV, TSV, PSV; inline data | `Packata.ResourceReaders` built-ins |
-| Excel | `Packata.ResourceReaders.Excel` / `AddExcel()` |
-| Parquet | `Packata.ResourceReaders.Parquet` / `AddParquet()` |
-| Fixed-width | `Packata.ResourceReaders.FixedWidth` / `AddFixedWidth()`; configure layout resolution |
-| NDJSON / JSON Lines | `Packata.ResourceReaders.Ndjson` / `AddNdjson()` |
-| LTSV / logfmt | `Packata.ResourceReaders.KeyValue` / `AddKeyValueReaders()` |
-| Common / W3C logs | `Packata.ResourceReaders.WebLogs` / `AddWebLogs()` |
-| Database | `Packata.ResourceReaders.Database` / `AddDatabase()` and driver/connectors |
+This factory can also read the built-in formats. Follow the
+[.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}) to open an asset
+through the factory and iterate over its records.
 
-Packata chooses a reader using the explicit format, media type and file extension.
-If a contract declares an unknown format, reading fails rather than falling back to CSV.
-For an extensionless delimited file, an explicit delimiter can identify the format.
+Packata selects a reader using the explicit format, then the media type and file
+extension. An unknown declared format causes an error instead of silently being
+read as CSV. For an extensionless delimited file, an explicit delimiter can identify
+the format.
 
-If Packata recognizes the format but its reader has not been registered, it throws
-`ReaderProviderUnavailableException`. The exception suggests the package and registration
-method you need.
+If the format is recognized but the provider is missing, Packata throws
+`ReaderProviderUnavailableException`. Its message names the package and
+registration method to add.
 
-Use `Packata.Storages` to configure access to local directories, HTTP(S), ZIP archives,
-S3 or Azure. Register the schemes and archive wrappers with `DataPackageLocatorBuilder`,
-and register resource handlers with `StorageProviderBuilder`. Your host application supplies
-the cloud credentials.
+## Resolve file locations in a .NET application
 
-For custom canonical stream access, implement `IEndpointStreamResolver`. These library extension
-points do not add cloud descriptor URLs to CLI commands.
+Resolve relative data paths against the directory containing the descriptor. If
+you resolve them against the application's working directory instead, the same
+contract can stop working when you launch the program elsewhere. The
+[.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}) includes this path
+resolution before it opens the reader.
 
-## Configuration and ownership
+For local directories, HTTP(S), ZIP archives, S3 or Azure storage, use
+`Packata.Storages`. Register location schemes and archive wrappers with
+`DataPackageLocatorBuilder`, and register resource handlers with
+`StorageProviderBuilder`. Your application supplies cloud credentials.
 
-To add a reader, register an `IDataEndpointReaderProvider` with `AddProvider`.
-Custom providers run before the built-ins, in the order you register them. Registering the
-same provider type twice is rejected.
+These are library configuration points. Adding a storage backend to an application
+does not make its URLs available to every CLI command. If you need custom stream
+access through the shared contract model, implement `IEndpointStreamResolver`.
 
-Parsing can also be configured independently of reader selection. An `IDelimitedDialectResolver`
-can obtain a dialect from a catalog or sidecar file, while a fixed-width layout resolver supplies
-column widths. Use the public options in the corresponding provider package; the
-[.NET reference]({{ '/reference/dotnet/' | relative_url }}) links to those APIs.
+## Configure how values are parsed
 
-For delimited data, the dialect controls the delimiter, quote character, line terminator and
-header. Other behavior, such as encoding, compression and repeated headers across multiple
-paths, depends on the reader provider.
+A delimited file's dialect describes its delimiter, quote character, line
+terminator and header. Use `IDelimitedDialectResolver` when those settings come
+from a catalog or sidecar file. A fixed-width reader instead needs a layout
+resolver to supply column widths. The provider packages expose their own options;
+see the [.NET reference]({{ '/reference/dotnet/' | relative_url }}) for entry points.
 
-Check your provider's support for field matching, missing values, numeric conventions and
-logical-to-runtime type mapping. Preserving a setting in a contract does not guarantee that
-every reader applies it. Temporal parsing follows declared formats: an offset-bearing strptime
-format preserves the offset, while an offset-free value remains offset-free. See
-[temporal concepts]({{ '/concepts/commitments/' | relative_url }}) for details.
+Check the chosen provider's support for encoding, compression, repeated headers,
+field matching, missing values and numeric conventions. A contract can preserve
+a setting even when a particular reader cannot apply it.
 
-Dispose the streams, readers and containers your application owns, including when a read fails
-or stops early. A shared database service shares configuration, not a live connection.
-[Database integration]({{ '/database-integration/' | relative_url }}) explains the ownership,
-callback precedence and cancellation rules.
+Temporal parsing uses the declared format. An offset-bearing strptime format
+preserves the offset; a value parsed with an offset-free format remains offset-free.
+The [temporal concepts]({{ '/concepts/commitments/' | relative_url }}) explain
+these distinctions.
+
+## Add a custom reader
+
+Implement `IDataEndpointReaderProvider` and register it with `AddProvider`.
+Custom providers are tried before built-ins, in registration order. Registering
+the same provider type twice is rejected, which helps catch accidental duplicate
+configuration.
+
+## Release resources when a read finishes
+
+Dispose the streams, readers and containers your application owns, including
+when reading fails or stops early. A database connection service can be shared
+across readers, but each operation still owns its connection. The
+[database guide]({{ '/database-integration/' | relative_url }}#ownership-and-cancellation)
+explains which resources belong to the service and which belong to the caller.

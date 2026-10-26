@@ -6,34 +6,101 @@ nav_exclude: false
 permalink: /guides/data/
 ---
 
-Select a canonical asset and its endpoint binding explicitly. Preview reads values; inference discovers structure. Neither task is equivalent to validating all data against a contract.
+A contract tells you what a dataset should look like. Preview lets you look at a
+few actual records, while inference suggests a schema from the data it finds.
+Use preview to check that you are reading the right dataset, then use inference
+when you need to create or update its field definitions.
 
-## CLI
+Download `datapackage.json` and `customers.csv` from the
+[CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) into the same directory.
+Run the following commands from that directory.
 
-Run from the [sample]({{ '/quickstart/cli/' | relative_url }}) directory:
+## Preview a few records
+
+Use `data preview` to read a small selection of rows before working with a larger
+dataset:
 
 ```console
 packata data preview datapackage.json --asset customers --columns name,id --limit 2 --output-format csv
+```
+
+`--asset customers` selects the dataset described in the contract. `--columns`
+selects its fields and sets their output order, and `--limit 2` reads at most two
+records. Here the result is:
+
+```csv
+name,id
+Alice,1
+Bob,2
+```
+
+Omit `--columns` to include every field. Omit `--output-format csv` to view a table
+in the terminal, or choose `json` when another program needs the result. Preview
+does not change the data or the contract.
+
+The row limit bounds the preview, although a reader may buffer more data internally.
+A successful preview shows that those rows can be read; it does not certify that
+all rows satisfy every contract rule. The
+[preview reference]({{ '/cli/' | relative_url }}#preview-bound-data) lists all
+options and supported sources.
+
+## Infer a schema from the data
+
+Use `schema infer` when a contract has missing or outdated field definitions.
+For a delimited file, Packata samples records and reports the types and CSV
+settings it discovers:
+
+```console
 packata schema infer datapackage.json --asset customers --header present --maximum-records 100
+```
+
+`--header present` tells Packata that the first row contains field names.
+`--maximum-records 100` limits the sample to 100 data records. With the Quickstart
+sample, the report identifies the `id` and `name` fields and their inferred types.
+The descriptor is left unchanged.
+
+Sampling gives you a starting point for a schema. Review the diagnostics and try a
+larger sample if rare values could affect the inferred types. You can also set a
+byte limit, choose the culture used to interpret values, or control dialect
+inference. See the [inference reference]({{ '/cli-inference/' | relative_url }})
+for the complete options.
+
+## Save and review the inferred contract
+
+To keep the result, write an enriched copy to a new file:
+
+```console
 packata schema infer datapackage.json --asset customers --output enriched.json
 ```
 
-The preview example writes the columns in the requested order, so its first line is `name,id`.
-The inference examples report the structure found in the data. They leave the source descriptor
-unchanged unless you explicitly choose `--write`.
+The new file keeps the source document's standard and incorporates the inferred
+schema and endpoint settings. The original `datapackage.json` is unchanged. Choose
+a destination that does not already exist; inference protects existing files.
 
-Use `--output` to save an enriched descriptor to a new file. Existing files are protected.
-Before replacing a contract, review warnings about comments, formatting or source metadata
-that the update cannot preserve.
+Review the new descriptor and any preservation warnings before adopting it.
+Rewriting JSON or YAML can change formatting and comments, and some source
+metadata cannot be preserved. The
+[contract guide]({{ '/guides/contracts/' | relative_url }}#find-changes-with-a-diff)
+shows how to review the differences between the original and enriched versions.
 
-For an asset bound to a database, inference reads database metadata instead of sampling CSV
-records. CSV sampling settings do not change that discovery process.
+If you deliberately want to replace the source, use `--write` instead of
+`--output`. It replaces the descriptor without an overwrite prompt. The two
+options cannot be combined.
 
-See the [complete inference options]({{ '/cli-inference/' | relative_url }}), [preview reference]({{ '/cli/' | relative_url }}#preview-bound-data), and [database configuration]({{ '/cli-database/' | relative_url }}).
+## Infer a database schema
 
-## .NET
+For an asset bound to a database, the same `schema infer` command discovers table
+metadata through the database connection. It does not sample CSV records, so CSV
+header, culture and sampling options do not affect that discovery.
 
-Follow the [.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}) to read the same sample through `IDataReader`. For CSV inference, the library can start from a stream without a pre-existing bound descriptor:
+Start with the [database connection guide]({{ '/database-integration/' | relative_url }})
+to configure the endpoint and connector. Review discovery diagnostics: the
+returned metadata can be incomplete.
+
+## Infer a CSV schema in .NET
+
+In an application, you can infer directly from a CSV stream without creating a
+contract first:
 
 ```csharp
 using Packata.ResourceReaders;
@@ -45,15 +112,22 @@ foreach (var diagnostic in result.Diagnostics)
 var inferred = result.RequireContract();
 ```
 
-Configure CSV sampling, culture, header detection and dialect inference through
-`CsvDataContractInferenceOptions`. The same options object lets you override the generated
-contract identity and asset or endpoint metadata.
+This returns a contract in Packata's shared model. It does not write a descriptor
+file. Use `CsvDataContractInferenceOptions` to configure sampling, culture, header
+and dialect detection, or to choose the generated contract, asset and endpoint
+metadata.
 
-For databases, use `DatabaseDataContractInference` with `DatabaseDataContractInferenceOptions`
-and configure connectivity in your application. Discovery can return partial metadata, so
-review its diagnostics before accepting the result. Library inference returns a canonical
-contract; updating the original source document is a separate CLI operation.
+For database discovery, use `DatabaseDataContractInference` with
+`DatabaseDataContractInferenceOptions` and configure the application's connection
+service. As with the CLI, check its diagnostics before accepting the result.
 
-## Limits
+To read records through `IDataReader`, follow the
+[.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}).
 
-Preview is bounded by a positive row limit, but providers can buffer internally. Only registered formats are available. Inference currently supports CSV-family file bindings and database bindings; it does not infer every format the reader can open. See [reader/storage configuration]({{ '/guides/readers-storage/' | relative_url }}).
+## Choose a supported format
+
+Inference currently supports CSV-family file bindings and database bindings.
+Preview can read additional formats, but the ability to read a format does not
+mean Packata can infer its schema. The
+[storage and reader guide]({{ '/guides/readers-storage/' | relative_url }})
+explains which formats are available in the CLI and how to add readers in .NET.

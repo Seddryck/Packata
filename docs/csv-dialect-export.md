@@ -8,21 +8,118 @@ parent: Guides
 
 # Export a CSV dialect descriptor
 
-Use `Packata.DataPackage.Export.CsvDialectExporter` to export the parsing settings of one
-canonical CSV endpoint. Choose the endpoint explicitly; no CSV data is opened or sampled,
-so the stored settings must already describe the file.
+When you share a CSV file with another tool, it needs to know how to parse the
+file: which delimiter separates fields, whether a header is present, and how
+values are quoted. Use `dialect export` to turn those settings from a contract
+into a standalone JSON descriptor.
 
-The exporter reuses `TableDialect` and `TableDelimitedDialect` from Data Package.
-Core remains independent of those native types.
+The export reads settings already declared in the contract. It does not sample
+the CSV to discover them. If the settings are missing or uncertain, start with
+[schema inference]({{ '/guides/data/' | relative_url }}#infer-a-schema-from-the-data)
+and review the inferred dialect first.
 
-The standalone JSON targets the [Data Package v2 Table Dialect profile](https://datapackage.org/profiles/2.0/tabledialect.json),
-the successor to CSV Dialect. No Data Package wrapper is required. This is a
-descriptor export, not a claim that every Table Dialect property is supported by
-PocketCsvReader or another reader; consumers must check their supported settings.
+## Find the endpoint to export
 
-## .NET library
+Download the sample from the [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }})
+and inspect its contract:
 
-An asset can have multiple CSV representations with different parsing settings:
+```console
+packata contract inspect datapackage.json --output-format json
+```
+
+Find the endpoint ID in the result. For this sample it is `customers-endpoint`.
+Data Package resources normally map to `<resource-name>-endpoint`; ODCS servers
+use their server ID.
+
+Choose the endpoint whose parsing settings you want to share. A dataset can have
+several representations, such as comma-separated and semicolon-separated files,
+so the command requires `--endpoint` even when there is only one endpoint.
+
+## Print or save the descriptor
+
+Export the sample's settings to the terminal:
+
+```console
+packata dialect export datapackage.json --endpoint customers-endpoint
+```
+
+The result is JSON with a comma delimiter, a header enabled, and the sample's
+newline setting. The standalone descriptor follows the Data Package v2 Table
+Dialect profile and does not need a surrounding Data Package document.
+
+To save it for another tool, choose an output path:
+
+```console
+packata dialect export datapackage.json --endpoint customers-endpoint --output customers.dialect.json
+```
+
+Diagnostics go to stderr, keeping them separate from the descriptor. Saving uses
+an atomic write, and an existing file is protected. To deliberately replace that
+output after changing the contract, run:
+
+```console
+packata dialect export datapackage.json --endpoint customers-endpoint --output customers.dialect.json --overwrite
+```
+
+The source contract can never be the output destination. A failed export leaves
+existing output files untouched.
+
+The command accepts local files, HTTP(S) descriptors, and local or remote ZIP
+packages. It opens only the descriptor, not the CSV or a database connection.
+See the [dialect export reference]({{ '/cli/' | relative_url }}#export-a-csv-dialect)
+for all options.
+
+## Check the result and diagnostics
+
+A successful export, including one with warnings, exits with code `0`. Endpoint
+or dialect errors and invalid documents return `1`; invalid invocation returns
+`2`; I/O failures return `3`; cancellation returns `130`.
+
+Warnings identify settings that were left out or need attention from the receiving
+tool. An unknown non-null option or an unsupported non-default extension, such as
+`headerRepeat: false` or a custom dialect profile, is omitted with a warning.
+Errors prevent an export from being produced.
+
+The selected ID must identify exactly one file or object-storage path endpoint.
+Packata rejects missing or duplicate IDs. It recognizes CSV using the explicit
+format, then the media type, then the path extension. Supported forms include
+`csv`, `csv.gz`, `csv.gzip`, `text/csv` and `.csv` paths, with optional gzip
+compression. An unsupported explicit format is an error even if the filename
+ends in `.csv`.
+
+## Understand the exported settings
+
+The descriptor can retain the delimiter, line terminator, quote and escape
+characters, double quoting, header flag, header rows and joining, comment
+character and rows, null sequence, and initial-space handling.
+
+Missing settings use the dialect model's defaults: comma, CRLF, double quotes
+and a first-row header. Defaults are written explicitly, while optional null
+settings are omitted. For a headerless file, the export writes empty header rows
+instead of the implicit `[1]` default.
+
+Contradictory header rows, non-positive row numbers, invalid option types and
+conflicting escape or quote strategies cause errors. Character settings accept
+.NET characters or strings; row lists accept integer sequences; Boolean settings
+require actual Boolean values.
+
+A null quote character is exported as an empty string because the profile does
+not allow JSON null for that property. Packata warns you to check how the
+receiving tool handles disabled quoting. An empty quote character is accepted
+when re-exporting.
+
+The JSON uses `$schema` and camelCase property names. It leaves out Packata's
+`type` discriminator and `headerRepeat` extension, non-CSV settings, the record
+schema, endpoint location, encoding and compression. Share a full resource
+descriptor if the receiving tool also needs those details. Check that tool's
+supported settings: exporting a property does not establish that every reader,
+including PocketCsvReader, applies it.
+
+## Export from .NET
+
+Use `Packata.DataPackage.Export.CsvDialectExporter` with a shared contract mapped
+from Data Package or ODCS. This example creates two CSV endpoints and exports
+the semicolon-separated representation:
 
 ```csharp
 using Packata.Core.Contracts;
@@ -55,64 +152,11 @@ var json = result
 File.WriteAllText("customers.dialect.json", json);
 ```
 
-You can pass a contract mapped from either Data Package or ODCS directly to the exporter.
-If you need the descriptor model rather than JSON, call `CreateDescriptor(contract, endpointId)`
-to obtain a `MappingResult<TableDelimitedDialect>`.
+The resulting file has a semicolon delimiter and a newline terminator. Neither
+CSV is opened.
 
-Both operations report diagnostics. Errors prevent output; warnings identify settings that
-cannot be represented.
-
-## CLI
-
-```console
-packata contract inspect datapackage.json --output-format json
-packata dialect export datapackage.json --endpoint customers-endpoint
-packata dialect export datapackage.json --endpoint customers-endpoint --output customers.dialect.json
-packata dialect export contract.yaml --endpoint local --output local.dialect.json --overwrite
-```
-
-Find the exact endpoint ID with `contract inspect`. Data Package resources normally map to
-`<resource-name>-endpoint`, while ODCS servers use their server ID. You must pass `--endpoint`
-even when the contract has only one endpoint.
-
-The command accepts the same local, HTTP(S) and ZIP descriptors as inspection. It reads only
-the descriptor, without opening the referenced resource or acquiring database connectors.
-
-By default, descriptor JSON goes to stdout and diagnostics go to stderr. Saving to a file
-uses an atomic write. Replacing an existing output requires `--overwrite`, and replacing the
-source contract is always refused. A failed export does not replace output files.
-
-Success, including warnings, returns 0. Invalid documents or endpoint/dialect errors return 1,
-invocation errors return 2, I/O failures return 3, and cancellation returns 130.
-
-## Defaults, scope, and diagnostics
-
-The selected ID must identify exactly one file or object-storage path endpoint. Missing and
-duplicate IDs are rejected.
-
-Format selection uses the explicit format name first, then media type, then path extension.
-Supported forms include `csv`, `csv.gz`, `csv.gzip`, `text/csv` and `.csv` paths, optionally
-gzip-compressed. An unsupported explicit format is rejected even if the path ends in `.csv`.
-
-The export retains delimiter, line terminator, quote and escape characters, double quoting,
-header flag/rows/join, comment character/rows, null sequence and initial-space handling.
-Unspecified settings use the dialect model's defaults, including comma, CRLF, double quotes
-and a first-row header. Defaults are written explicitly, while optional null settings are omitted.
-
-For headerless files, the export writes empty header rows instead of the implicit `[1]` default.
-Contradictory header rows, non-positive row numbers, invalid option types and conflicting
-escape/quote strategies produce errors.
-
-A null quote character becomes an empty string in JSON, with a warning to check
-the consumer's disabled-quoting behavior; the profile does not allow JSON null
-for that property. An empty quote character is accepted when re-exporting.
-Character-valued settings accept either .NET characters or strings, row lists
-accept integer sequences, and boolean settings require actual booleans.
-
-The exporter warns when it omits an unknown non-null option or an unsupported non-default
-extension, such as `headerRepeat: false` or a custom dialect profile.
-
-The standalone output uses `$schema` and camelCase property names. It excludes Packata's
-`type` discriminator and `headerRepeat` extension, non-CSV dialect properties, record schema,
-endpoint location, encoding and compression. Use a full resource descriptor when you need
-those additional resource settings.
+If your application needs a descriptor object instead of JSON, call
+`CreateDescriptor(contract, endpointId)`. It returns a
+`MappingResult<TableDelimitedDialect>` with the same diagnostic behavior.
+The exporter reuses Data Package's `TableDialect` and `TableDelimitedDialect`
+types; Core remains independent of those native types.

@@ -6,41 +6,94 @@ nav_exclude: false
 permalink: /guides/provisioning/
 ---
 
-Map a contract, choose a destination, inspect the schema plan and its diagnostics, then deploy the reviewed script. Schema deployment and bulk loading have independent capabilities.
+You can use a data contract to generate database tables and constraints, review
+the SQL, and then deploy it to a destination database. Packata provides these
+operations through the .NET library. A
+[CLI provisioning command is planned](https://github.com/Seddryck/Packata/issues/476);
+`packata provision` is not implemented.
 
-## .NET
+## Prepare the contract and destination
 
-Given a configured `DubUrlProvisioner` and mapped `contract`:
+Load your descriptor and map it to Packata's shared contract model. The
+[.NET Quickstart]({{ '/quickstart/dotnet/' | relative_url }}) shows how to load a
+Data Package descriptor; the [.NET reference]({{ '/reference/dotnet/' | relative_url }})
+also lists the ODCS entry points.
+
+Configure a `DubUrlProvisioner` for the destination database. You will need a
+connection service, a provider for that database, and any credentials required
+by your application. Follow the
+[database connection guide]({{ '/database-integration/' | relative_url }}) to set
+these up. The examples below assume that `provisioner` is configured and
+`contract` contains the mapped contract.
+
+## Check which operations the provider supports
+
+Before choosing an operation, inspect its capabilities:
 
 ```csharp
 var support = provisioner.GetOperationSupport();
+Console.WriteLine($"Schema deployment: {support.SchemaDeployment}");
+Console.WriteLine($"Bulk loading: {support.BulkLoading}");
+```
+
+Schema deployment and bulk loading are separate capabilities. A provider may be
+able to create tables without offering a bulk-loading adapter. Reading from a
+database is another independent capability, so a working reader alone does not
+establish deployment support.
+
+The [preflight details]({{ '/database-integration/' | relative_url }}#provisioning-operation-preflight)
+explain the supported dialects and how capabilities are determined.
+
+## Generate and review the SQL
+
+Create a plan before changing the destination:
+
+```csharp
 var plan = provisioner.PlanSchema(contract);
 Console.WriteLine(plan.Script);
 foreach (var diagnostic in plan.Diagnostics)
     Console.Error.WriteLine(diagnostic);
-// After reviewing the destination, script and diagnostics:
+```
+
+`PlanSchema` generates the SQL without deploying it. Read the script and diagnostics
+and confirm that the destination is correct before proceeding.
+
+The plan uses mapped physical table and column names, supported physical types,
+and schema qualification. Depending on the dialect, it can include composite
+primary keys, foreign keys, range, length, pattern and enum constraints, and comments.
+
+Diagnostics identify unresolved names and unsupported types, constraints or dialect
+features. A relationship in the contract produces foreign-key SQL only when it
+represents a supported foreign key; other relationships remain in the model.
+
+## Deploy the reviewed plan
+
+When you are ready to apply the script, pass the plan you reviewed:
+
+```csharp
 provisioner.DeploySchema(plan);
 ```
 
-Start with `PlanSchema` when you want to review the generated script before changing a database.
-It renders the plan without deploying it. After review, `DeploySchema(plan)` executes that exact
-script without rendering it again.
+Packata executes that plan's script without generating it again. If your application
+does not need a separate review step, `DeploySchema(contract, options)` generates
+and deploys directly.
 
-You can also deploy directly with `DeploySchema(contract, options)`, load data with
-`LoadDataAsync`, or combine deployment and loading with `ExecuteAsync`. The operation preflight
-checks known capabilities before running DDL or reading source data. It does not guarantee
-server permissions, a successful deployment or transactional rollback.
+Capability checks can reject an unsupported operation before SQL runs. They do
+not establish that the database account has permission, that deployment will
+succeed, or that a failure can be rolled back transactionally.
 
-The provisioner uses mapped physical table and column names, supported physical types and
-schema qualification. It can generate composite primary keys, foreign keys, supported range,
-length, pattern and enum constraints, and comments.
+## Load data after deployment
 
-Review the diagnostics for names that could not be resolved and for unsupported types,
-constraints or dialect features. A relationship that is not a foreign key can remain in the
-model without producing foreign-key DDL.
+Use `LoadDataAsync` to load data into the destination, or `ExecuteAsync` to combine
+schema deployment and loading. The combined operation checks deployment support,
+bulk-loading support and reader configuration before running SQL or reading source
+data. Configure the source readers as described in the
+[reader guide]({{ '/guides/readers-storage/' | relative_url }}).
 
-See [database integration]({{ '/database-integration/' | relative_url }}) for supported dialects, shared connections, credentials and bulk adapters, and [.NET reference]({{ '/reference/dotnet/' | relative_url }}) for entry points.
+For a complete runnable example, see `examples/DatabaseConnections` in the repository.
+It creates a DuckDB table and reads it through both ODCS and Data Package contracts.
+The [database guide]({{ '/database-integration/' | relative_url }}#examples-and-validation-scope)
+provides the run command and explains connector setup and resource ownership.
 
-## CLI status
-
-Command-line provisioning is separate [planned work](https://github.com/Seddryck/Packata/issues/476). No `packata provision` command is implemented. CLI schema inference and JSON Schema export do not deploy a database.
+CLI schema inference discovers metadata from an existing database, and JSON Schema
+export describes a record. Neither command creates database tables.
