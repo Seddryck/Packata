@@ -10,7 +10,8 @@ using Packata.ResourceReaders.Parquet;
 namespace Packata.Cli;
 
 internal sealed class PreviewReaderFactory(Uri baseUri, IDatabaseConnectionService? connections,
-    IEndpointStreamResolver streams, bool decodeCategories, long stagingMaximumBytes) : IDataEndpointReaderFactory
+    IEndpointStreamResolver streams, bool decodeCategories, long stagingMaximumBytes,
+    string? decodeCategoriesLanguage = null, string? decodeCategoriesLabel = null) : IDataEndpointReaderFactory
 {
     public ValueTask<IDataReader> OpenAsync(DataEndpoint endpoint, DataSchema? schema = null,
         CancellationToken cancellationToken = default) => OpenAsync(new DataEndpointReadRequest(endpoint, schema), cancellationToken);
@@ -22,6 +23,10 @@ internal sealed class PreviewReaderFactory(Uri baseUri, IDatabaseConnectionServi
         var factory = ResourceReaderFactory.Create(options =>
         {
             options.DecodeCategories = decodeCategories;
+            options.DecodeCategoriesLanguage = decodeCategoriesLanguage;
+            options.DecodeCategoriesLabel = decodeCategoriesLabel;
+            options.CategoryDecodingDiagnostic = message => CommandOutput.Diagnostic(
+                new MappingDiagnostic("CLI034", MappingSeverity.Warning, "$.categoryFieldMap", message));
             options.AddExcel().AddParquet();
             if (connections is null) options.AddDatabase(baseUri.IsFile ? baseUri.LocalPath : string.Empty);
             else options.AddDatabase(connections);

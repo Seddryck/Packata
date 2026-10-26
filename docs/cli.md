@@ -559,6 +559,8 @@ schema.Serialize(stream);
 | `--staging-maximum-bytes <COUNT>` | Positive integer; `268435456` (256 MiB) | Maximum bytes copied for each non-seekable Excel/Parquet resource; ignored for CSV/inline/database reads |
 | `--columns <NAMES>` | All fields | Unique exact names, comma-separated, in output order |
 | `--decode-categories` | Disabled | Replace inline category/enum and local Category Tables recipe codes with labels; PocketCsvReader delimited engine (CSV/TSV/PSV) only |
+| `--decode-categories-language <LANGUAGE>` | Unset | Enable decoding and select table labels by language, such as `fr` or `fr-BE` |
+| `--decode-categories-label <FIELD>` | Unset | Enable decoding and select an exact declared logical table-label field, such as `label_de` or `short_label` |
 | `--output-format <FORMAT>` | `table`, `json`, `csv`; `table` | Result representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
 | `--connector <SCHEME=ID>` | Repeatable; persisted preference otherwise | Invocation connector preference |
@@ -615,8 +617,16 @@ categories. For example, `S` with label `South` displays as `South`; integer `1`
 label `Low` displays as `Low`. Entries without labels and unmatched codes retain
 their original text; nulls stay null. An explicitly empty label displays as an empty string.
 Decoding is disabled by default. Excel, Parquet, database, inline and other reader
-engines reject the flag with an explicit diagnostic. Category table references
-are not loaded or expanded.
+engines reject decoding with an explicit diagnostic. Local category-table
+references resolve their mapped lookup columns when decoding is enabled.
+
+For tables with alternate labels, use `--decode-categories-language fr` to select
+by field language, or `--decode-categories-label short_label` to select an exact
+declared logical label field. Either option enables decoding, and the two selectors
+are mutually exclusive. Language selection falls back from the exact tag to the
+primary language, default label and original code. Explicit column selection
+requires that label in every involved table and never chooses another column.
+See [category-table metadata, missing translations and examples]({{ '/datapackage-categories/' | relative_url }}#select-a-language-or-a-label-column).
 
 ```console
 packata data preview datapackage.json --asset directions --output-format json

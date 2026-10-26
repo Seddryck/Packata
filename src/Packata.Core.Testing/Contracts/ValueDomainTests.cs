@@ -6,6 +6,30 @@ namespace Packata.Core.Testing.Contracts;
 
 public class ValueDomainTests
 {
+    [TestCase("fr", true)]
+    [TestCase("FR-be", true)]
+    [TestCase("zh-Hant-TW", true)]
+    [TestCase("en-US-u-ca-gregory", true)]
+    [TestCase("de-x-company", true)]
+    [TestCase("label_de", false)]
+    [TestCase("fr-a", false)]
+    [TestCase("fr-", false)]
+    [TestCase(" fr", false)]
+    [TestCase("123", false)]
+    [TestCase(null, false)]
+    public void Language_tags_validate_syntax_without_machine_locale_lookup(string? tag, bool valid)
+        => Assert.That(LanguageTag.IsValid(tag), Is.EqualTo(valid));
+
+    [Test]
+    public void Alternate_label_paths_are_detached_and_read_only()
+    {
+        var paths = new List<FieldPath> { new("libelle") };
+        var table = new CategoryTableDefinition(new("code"), labelFields: paths);
+        paths.Clear();
+        Assert.That(table.LabelFields.Single().Segments.Single(), Is.EqualTo("libelle"));
+        Assert.That(() => ((IList<FieldPath>)table.LabelFields).Clear(), Throws.TypeOf<NotSupportedException>());
+    }
+
     [Test]
     public void Scalar_kinds_and_numbers_preserve_type_precision_and_range()
     {

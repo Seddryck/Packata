@@ -16,9 +16,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     private readonly IEndpointStreamResolver _streams;
     private readonly IReadOnlyList<IDataEndpointReaderProvider> _providers;
     private readonly DataFormatResolver _formats;
-    private readonly bool _decodeCategories;
-    private readonly int _categoryTableRowLimit;
-    private readonly long _categoryTableByteLimit;
+    private readonly CategoryDecodingOptions _categories;
 
     public ResourceReaderFactory(IEndpointStreamResolver? streams = null)
         : this(streams, DefaultProviders(), new DataFormatResolutionOptions())
@@ -32,8 +30,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         var options = new ResourceReaderFactoryOptions();
         configure(options);
         return new ResourceReaderFactory(streams,
-            options.CombineWith(DefaultProviders()), options.Formats, options.DecodeCategories,
-            options.CategoryTableRowLimit, options.CategoryTableByteLimit);
+            options.CombineWith(DefaultProviders()), options.Formats, CategoryDecodingOptions.From(options));
     }
 
     internal ResourceReaderFactory(IEndpointStreamResolver? streams,
@@ -43,19 +40,14 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
     private ResourceReaderFactory(IEndpointStreamResolver? streams,
         IEnumerable<IDataEndpointReaderProvider> providers,
-        DataFormatResolutionOptions formatOptions, bool decodeCategories = false,
-        int categoryTableRowLimit = 100_000, long categoryTableByteLimit = 16 * 1024 * 1024)
+        DataFormatResolutionOptions formatOptions, CategoryDecodingOptions? categories = null)
     {
         _streams = streams ?? new DefaultEndpointStreamResolver();
         _providers = providers.ToArray();
+        _categories = categories ?? new();
         foreach (var provider in _providers.OfType<DelimitedReaderProvider>())
-            provider.DecodeCategories = decodeCategories;
+            provider.DecodeCategories = _categories.Enabled;
         _formats = new DataFormatResolver(formatOptions);
-        _decodeCategories = decodeCategories;
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(categoryTableRowLimit);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(categoryTableByteLimit);
-        _categoryTableRowLimit = categoryTableRowLimit;
-        _categoryTableByteLimit = categoryTableByteLimit;
     }
 
     public async ValueTask<IDataReader> OpenAsync(DataEndpoint endpoint, DataSchema? schema = null,
@@ -72,13 +64,13 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
         var format = _formats.Resolve(endpoint);
         var provider = _providers.FirstOrDefault(candidate => candidate.CanHandle(request, format));
-        if (_decodeCategories && provider is not DelimitedReaderProvider)
+        if (_categories.Enabled && provider is not DelimitedReaderProvider)
             throw new CategoryDecodingNotSupportedException();
         if (provider is null) throw UnsupportedEndpoint(endpoint, format);
 
-        if (_decodeCategories)
-            request = await new CategoryTableLoader(_streams, _formats, _providers,
-                _categoryTableRowLimit, _categoryTableByteLimit).ExpandAsync(request, cancellationToken).ConfigureAwait(false);
+        if (_categories.Enabled)
+            request = await new CategoryTableLoader(_streams, _formats, _providers, _categories)
+                .ExpandAsync(request, cancellationToken).ConfigureAwait(false);
 
         var opened = new List<Stream>();
         try

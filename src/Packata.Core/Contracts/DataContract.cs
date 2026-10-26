@@ -87,7 +87,8 @@ public sealed record DataField(
     string? Description = null,
     bool Nullable = false,
     DataField? Items = null,
-    ValueDomain? ValueDomain = null)
+    ValueDomain? ValueDomain = null,
+    string? Language = null)
 {
     private readonly IReadOnlyList<DataConstraint> _constraints = Array.AsReadOnly((Constraints ?? []).ToArray());
     public IReadOnlyList<DataConstraint> Constraints

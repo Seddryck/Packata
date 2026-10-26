@@ -105,17 +105,36 @@ public static class DataPackageValidator
         {
             var field = schemaFields[index];
             var fieldPath = $"{path}[{index}]";
-            if (string.IsNullOrWhiteSpace(field.Name))
-                Add(issues, $"{fieldPath}.name", "A field name is required.");
-            else if (!fields.Add(field.Name))
-                Add(issues, $"{fieldPath}.name", $"Field name '{field.Name}' must be unique within the schema.");
-            if (field.Type is not null && !FieldTypes.Contains(field.Type))
-                Add(issues, $"{fieldPath}.type", $"Field type '{field.Type}' is not defined by Data Package v2.");
-            if (field.CategoriesOrdered is not null && field.Categories is null)
-                Add(issues, $"{fieldPath}.categoriesOrdered", "categoriesOrdered requires categories.");
-            ValidateCategories(field, fieldPath, issues);
+            ValidateField(field, fieldPath, fields, issues);
         }
         return fields;
+    }
+
+    private static void ValidateField(Field field, string fieldPath, HashSet<string> fields,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        ValidateFieldName(field.Name, fieldPath, fields, issues);
+        ValidateFieldAnnotations(field, fieldPath, issues);
+        if (field.Type is not null && !FieldTypes.Contains(field.Type))
+            Add(issues, $"{fieldPath}.type", $"Field type '{field.Type}' is not defined by Data Package v2.");
+        ValidateCategories(field, fieldPath, issues);
+    }
+
+    private static void ValidateFieldAnnotations(Field field, string fieldPath, ICollection<DataPackageValidationIssue> issues)
+    {
+        if (field.Language is not null && !Packata.Core.Contracts.LanguageTag.IsValid(field.Language))
+            Add(issues, $"{fieldPath}.language", "Expected a language tag such as fr or fr-BE.");
+        if (field.CategoriesOrdered is not null && field.Categories is null)
+            Add(issues, $"{fieldPath}.categoriesOrdered", "categoriesOrdered requires categories.");
+    }
+
+    private static void ValidateFieldName(string? name, string fieldPath, HashSet<string> fields,
+        ICollection<DataPackageValidationIssue> issues)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            Add(issues, $"{fieldPath}.name", "A field name is required.");
+        else if (!fields.Add(name))
+            Add(issues, $"{fieldPath}.name", $"Field name '{name}' must be unique within the schema.");
     }
 
     private static void ValidateCategories(Field field, string path, ICollection<DataPackageValidationIssue> issues)

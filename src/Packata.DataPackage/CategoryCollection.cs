@@ -37,6 +37,8 @@ public sealed class CategoryFieldMap
 {
     public string? Value { get; set; }
     public string? Label { get; set; }
+    /// <summary>Additional eligible label fields (Packata extension).</summary>
+    public List<string>? Labels { get; set; }
     /// <summary>Null makes no assumption about ordering, unlike explicit false.</summary>
     public bool? Ordered { get; set; }
 }

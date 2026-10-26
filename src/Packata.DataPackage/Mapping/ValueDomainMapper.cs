@@ -16,7 +16,8 @@ internal static class ValueDomainMapper
             return null;
         }
         return new CategoryTableDefinition(new FieldPath(map.Value!), map.Label is null ? null : new FieldPath(map.Label), map.Ordered,
-            ExtensionMetadata.For("datapackage", new Dictionary<string, object?> { ["value"] = map.Value, ["label"] = map.Label, ["ordered"] = map.Ordered }));
+            ExtensionMetadata.For("datapackage", new Dictionary<string, object?> { ["value"] = map.Value, ["label"] = map.Label, ["labels"] = map.Labels, ["ordered"] = map.Ordered }),
+            map.Labels?.Select(name => new FieldPath(name)));
     }
 
     public static ValueDomain? Field(Field field, DataPackage package, IReadOnlyDictionary<Resource, CategoryTableDefinition?> tables,

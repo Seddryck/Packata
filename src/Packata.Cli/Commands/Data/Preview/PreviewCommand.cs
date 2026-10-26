@@ -26,9 +26,11 @@ internal sealed class PreviewCommand : AsyncCommand<PreviewSettings>
                     mapped.Value!.Endpoints, settings.Connectors, settings.ConnectionEnvironment) : null;
             var streams = source.Archive is null ? null
                 : new PreviewService.ArchiveStreamResolver(source.Archive, source.ArchiveDescriptor!);
-            var factory = database?.CreateReaders(source.BaseUri, settings.DecodeCategories)
+            var factory = database?.CreateReaders(source.BaseUri, settings.DecodeCategories,
+                settings.DecodeCategoriesLanguage, settings.DecodeCategoriesLabel)
                 ?? PreviewService.CreateFactory(source.BaseUri, streams: streams, decodeCategories: settings.DecodeCategories,
-                    stagingMaximumBytes: settings.StagingMaximumBytes);
+                    stagingMaximumBytes: settings.StagingMaximumBytes,
+                    decodeCategoriesLanguage: settings.DecodeCategoriesLanguage, decodeCategoriesLabel: settings.DecodeCategoriesLabel);
             var sample = await PreviewService.ReadAsync(factory, request,
                 settings.Limit, settings.Columns, cancellationToken).ConfigureAwait(false);
             using var output = new OutputDestination(settings.Output);

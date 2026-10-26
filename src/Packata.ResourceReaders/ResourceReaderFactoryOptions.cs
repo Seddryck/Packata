@@ -8,6 +8,15 @@ public sealed class ResourceReaderFactoryOptions
     /// Native sequences match exact unquoted CSV text; quoted codes remain unchanged.</summary>
     public bool DecodeCategories { get; set; }
 
+    /// <summary>Select category labels by language; implies DecodeCategories. Exclusive with DecodeCategoriesLabel.</summary>
+    public string? DecodeCategoriesLanguage { get; set; }
+
+    /// <summary>Select an exact declared logical label field; implies DecodeCategories. Exclusive with DecodeCategoriesLanguage.</summary>
+    public string? DecodeCategoriesLabel { get; set; }
+
+    /// <summary>Receives one fallback diagnostic per affected category table per reader opening.</summary>
+    public Action<string>? CategoryDecodingDiagnostic { get; set; }
+
     /// <summary>Maximum total category-table rows loaded per reader opening. Defaults to 100,000.</summary>
     public int CategoryTableRowLimit { get; set; } = 100_000;
 

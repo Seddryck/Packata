@@ -162,6 +162,93 @@ must be unique, including empty strings. Integer codes must fit the signed 64-bi
 Missing label mappings retain codes; an empty label produces an empty string. The native
 matching, fallback and returned-type rules above also apply to table labels.
 
+### Select a language or a label column
+
+Packata extends category-table metadata with `categoryFieldMap.labels`, a list of
+eligible logical label fields, and field-level `language` tags. These additions
+are Packata extensions, not part of the published Data Package standard or the
+upstream Category Tables recipe. The existing `label` remains the default and is
+always eligible, even when `labels` is omitted.
+
+```yaml
+categoryFieldMap:
+  value: value
+  label: label_en
+  labels: [label_en, libelle, label_de, short_label]
+schema:
+  fields:
+    - name: value
+      type: string
+      constraints: {required: true, unique: true}
+    - name: label_en
+      type: string
+      language: en
+      constraints: {unique: true}
+    - name: libelle
+      type: string
+      language: fr
+      missingValues: ['~']
+    - name: label_de
+      type: string
+      language: de
+    - name: short_label
+      type: string
+```
+
+For lookup rows `N,North,Nord,Norden,N.` and `S,South,Sud,Süden,S.`:
+
+```console
+packata data preview datapackage.json --asset survey --decode-categories-language fr
+packata data preview datapackage.json --asset survey --decode-categories-label label_de
+packata data preview datapackage.json --asset survey --decode-categories-label short_label
+```
+
+These display `Nord`/`Sud`, `Norden`/`Süden`, and `N.`/`S.` respectively. Either
+selector enables decoding; adding `--decode-categories` is allowed. The language
+and label selectors are mutually exclusive. Without a selector, decoding uses
+the default label as before.
+
+Language selection uses case-insensitive tags: exact tag, primary language,
+default label, then original code. `fr-BE` tries `fr-BE`, `fr`, then the default;
+`zh-Hant-TW` tries that exact tag then `zh`, without intermediate tags. The machine's
+locale is never used. Ordinary language-tag syntax supports language, optional
+script/region/variants/extensions/private use. Registry membership, grandfathered
+tags and private-use-only tags are not supported. `label_de` is a column name,
+not a language tag.
+
+The same fallback order applies to null translations in each row. For CSV, declare
+a field-level `missingValues` marker such as `~` above. Empty cells remain empty
+strings unless explicitly declared missing; an empty label stops fallback.
+Unmatched codes and null source values retain existing decoding behavior. If a
+table has neither an exact nor a primary-language mapping, the CLI emits one
+warning for that table per reader opening, rather than warning for every row.
+
+Explicit selection requires an exact, case-sensitive declared logical label field
+in every involved table. It never selects another column; a null selected label
+retains the original code. Language selection lets different tables use different
+column names. Multiple eligible columns matching a language cause an actionable
+ambiguity error suggesting `--decode-categories-label`. A language on a description
+alone does not make it a label, and column names do not imply languages.
+
+All label fields must be strings. The default label retains the recipe's unique
+constraint and runtime non-null uniqueness checks. Additional display labels may
+repeat text; they are not used to reverse-map label-encoded input. Inputs with
+`encodedAs: label` bypass selection. Source files, code identity, validation and
+ordering are unaffected. Inline decoding keeps its existing single-label behavior.
+
+The equivalent .NET configuration is:
+
+```csharp
+var factory = ResourceReaderFactory.Create(options =>
+{
+    options.DecodeCategoriesLanguage = "fr"; // Enables decoding.
+    options.CategoryDecodingDiagnostic = message => Console.Error.WriteLine(message);
+});
+// Alternatively set options.DecodeCategoriesLabel = "short_label".
+using var reader = await factory.OpenAsync(new DataEndpointReadRequest(
+    endpoint, asset.Schema, Contract: contract), cancellationToken);
+```
+
 Only local, uncompressed delimited lookup resources using PocketCsvReader are supported.
 External-package references, remote lookup paths, other lookup engines, compressed lookups
 and cyclic references fail with explicit diagnostics when resolution is required. Lookups

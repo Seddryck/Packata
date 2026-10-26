@@ -43,6 +43,9 @@ public class Field
     /// </summary>
     public string? Description { get; set; }
 
+    /// <summary>Language tag for textual content (Packata extension).</summary>
+    public string? Language { get; set; }
+
     /// <summary>
     /// An example value for the field.
     /// </summary>
