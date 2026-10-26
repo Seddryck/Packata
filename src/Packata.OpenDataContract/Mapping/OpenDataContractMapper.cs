@@ -91,7 +91,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints,
         ICollection<MappingDiagnostic> diagnostics)
     {
-        var fields = schema.Properties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics)).ToArray();
+        var fields = schema.Properties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics, schema.Name, [property.Name])).ToArray();
         var primaryKey = schema.Properties
             .Where(x => x.PrimaryKey)
             .OrderBy(x => x.PrimaryKeyPosition ?? int.MaxValue)
@@ -112,6 +112,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             MapAssetKind(schema.PhysicalType),
             new DataSchema(fields, primaryKey, relationships),
             endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray(),
+            QualityRules: QualityMapper.Map(schema.Quality, new QualityTarget(schema.Name), $"schema/{schema.Name}/quality", diagnostics),
             Extensions: MapCustomProperties(schema.CustomProperties));
     }
 
@@ -154,7 +155,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         };
     }
 
-    private static DataField MapField(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics)
+    private static DataField MapField(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics, string assetId, IReadOnlyList<string> fieldPath)
     {
         var domain = MapValueDomain(property, path, diagnostics);
         var constraints = MapConstraints(property);
@@ -167,12 +168,13 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             GetFormat(property.LogicalType),
             property.Required ?? false,
             constraints,
-            Children: property.Properties.Select(child => MapField(child, $"{path}/properties/{child.Name}", diagnostics)).ToArray(),
+            QualityRules: QualityMapper.Map(property.Quality, new QualityTarget(assetId, fieldPath), $"{path}/quality", diagnostics),
+            Children: property.Properties.Select(child => MapField(child, $"{path}/properties/{child.Name}", diagnostics, assetId, [..fieldPath, child.Name])).ToArray(),
             Extensions: MapFieldExtensionMetadata(property),
             PhysicalName: property.PhysicalName,
             Description: property.Description,
             Nullable: property.Nullable ?? false,
-            Items: property.Items is null ? null : MapField(property.Items, $"{path}/items", diagnostics),
+            Items: property.Items is null ? null : MapField(property.Items, $"{path}/items", diagnostics, assetId, [..fieldPath, "[]"]),
             ValueDomain: domain);
     }
 

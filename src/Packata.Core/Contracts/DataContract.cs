@@ -114,11 +114,6 @@ public sealed record DataRelationship(
     public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
 }
 
-public sealed record DataQualityRule(
-    string Kind,
-    string? Description = null,
-    string? Expression = null);
-
 public sealed record EndpointBinding(string EndpointId, string? AssetPath = null);
 
 public sealed record DataEndpoint(

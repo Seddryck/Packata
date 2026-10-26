@@ -39,7 +39,7 @@ internal static class ContractDiffValues
             Extensions = Extensions(schema.Extensions)
         } : null,
         EndpointBindings = List(value.EndpointBindings),
-        QualityRules = List(value.QualityRules),
+        QualityRules = List(value.QualityRules, rule => rule.Snapshot()),
         Extensions = Extensions(value.Extensions)
     };
 
@@ -48,7 +48,7 @@ internal static class ContractDiffValues
         Children = List(value.Children, Field),
         Items = value.Items is { } items ? Field(items) : null,
         Constraints = List(value.Constraints, constraint => constraint with { Value = Value(constraint.Value) }),
-        QualityRules = List(value.QualityRules),
+        QualityRules = List(value.QualityRules, rule => rule.Snapshot()),
         Extensions = Extensions(value.Extensions)
     };
 
