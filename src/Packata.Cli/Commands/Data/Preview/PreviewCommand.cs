@@ -52,6 +52,7 @@ internal sealed class PreviewCommand : AsyncCommand<PreviewSettings>
         {
             StagingLimitExceededException staging => diagnostic with { Code = "CLI132", Message = staging.Message },
             CategoryDecodingNotSupportedException unsupported => diagnostic with { Message = unsupported.Message },
+            CategoryTableDecodingException category => diagnostic with { Message = category.Message },
             ReaderProviderUnavailableException unavailable => diagnostic with
             { Message = $"{diagnostic.Message} Required package: {unavailable.SuggestedPackage}; registration: {unavailable.RegistrationMethod}." },
             Packata.Database.DatabaseConnectionException connector => diagnostic with

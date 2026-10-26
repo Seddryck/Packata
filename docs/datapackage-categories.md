@@ -52,8 +52,8 @@ See the [canonical API examples]({{ '/quickstart/dotnet/' | relative_url }}#read
 To display labels, enable `ResourceReaderFactoryOptions.DecodeCategories` in .NET
 or pass `--decode-categories` to `packata data preview`. This option is disabled
 by default and supports only the PocketCsvReader delimited engine (CSV/TSV/PSV).
-Other engines return an explicit unsupported-engine diagnostic. Referenced
-category tables remain metadata and are not fetched or expanded.
+Other engines return an explicit unsupported-engine diagnostic. Local category
+tables from the Category Tables recipe can also supply the labels, as described below.
 
 A matching code with a label returns that string. Unlabeled entries, unmatched
 code text and nulls remain unchanged; an empty label remains an empty string.
@@ -137,9 +137,39 @@ This follows the merged recipe's type rule. Resource-level `ordered` and field-l
 These checks examine descriptors only. They do not open category CSVs, inspect rows or fetch
 external packages. External references remain metadata and are not mistaken for local resources.
 
-Registry resolution, automatic downloading, value expansion and generation of DDL enum
-constraints from table rows are not implemented. Explicit enum constraints remain available
-as declared.
+With `--decode-categories`, preview resolves the explicitly named local category resource
+in either resource order, reads its mapped value and optional label columns, and applies
+native PocketCsvReader sequences. A foreign key alone never supplies labels. Lookup paths
+are resolved relative to the descriptor, just like the consuming data paths. Omitted
+`encodedAs` means `value`; `encodedAs: label` bypasses lookup loading and replacement.
+Without decoding, no lookup is opened solely to obtain labels.
+
+In .NET, supply the containing canonical contract so references can resolve:
+
+```csharp
+var factory = ResourceReaderFactory.Create(options => options.DecodeCategories = true);
+using var reader = await factory.OpenAsync(new DataEndpointReadRequest(
+    endpoint, asset.Schema, Contract: contract), cancellationToken);
+```
+
+Use a stream resolver for descriptor-relative paths (the CLI supplies one). Each reader
+opening loads a shared lookup only once and releases lookup streams/readers before opening
+the consuming reader. No lookup cache survives the operation. Loading honors cancellation
+and is bounded across all lookups by `CategoryTableRowLimit` (100,000 rows) and
+`CategoryTableByteLimit` (16 MiB of CSV input) in `ResourceReaderFactoryOptions`. Exceeding
+either limit fails explicitly. Required codes must be present and unique; non-null labels
+must be unique, including empty strings. Integer codes must fit the signed 64-bit range.
+Missing label mappings retain codes; an empty label produces an empty string. The native
+matching, fallback and returned-type rules above also apply to table labels.
+
+Only local, uncompressed delimited lookup resources using PocketCsvReader are supported.
+External-package references, remote lookup paths, other lookup engines, compressed lookups
+and cyclic references fail with explicit diagnostics when resolution is required. Lookups
+are read without category decoding; nested category references never trigger recursive
+reader initialization.
+
+Registry resolution, automatic downloading and generation of DDL enum constraints from
+table rows are not implemented. Explicit enum constraints remain available as declared.
 
 The [shared value-domain model]({{ '/value-domains/' | relative_url }}) exposes inline values
 and optional labels through `DataField.ValueDomain`, and table mappings through

@@ -195,7 +195,10 @@ This option uses native PocketCsvReader sequences: exact unquoted code text is
 mapped before string parsing. Quoted or escaped codes and alternate numeric
 spellings remain unchanged. Null handling stays with the native engine. Excel,
 Parquet, database and other readers reject this option with
-`CategoryDecodingNotSupportedException`; category table references are not expanded.
+`CategoryDecodingNotSupportedException`. Local Category Tables recipe lookups are
+expanded when `DataEndpointReadRequest.Contract` supplies the containing contract;
+see [category-table decoding]({{ '/datapackage-categories/' | relative_url }}#category-tables-recipe)
+for limits, supported lookup sources and the .NET request example.
 Keep decoding disabled for validation against original codes.
 
 **Write CSV cells to decode as unquoted, unescaped text:** use `S`, not `"S"`.
