@@ -52,7 +52,11 @@ See the [reader and storage guide]({{ '/guides/readers-storage/' | relative_url 
 Configure `ResourceReaderFactory.Create(options => options.DecodeCategories = true)`
 to register canonical `ValueDomain.Entries` labels as native PocketCsvReader
 sequences for CSV/TSV/PSV. The default is false. Both ODCS enums and DPv2 inline
-categories use this API; category table references are not expanded. Other engines
+categories use this API. Local Category Tables recipe references also supply labels
+when `DataEndpointReadRequest.Contract` supplies the containing contract. Lookups
+are loaded once per reader opening with configurable row and byte limits; see
+[category tables]({{ '/datapackage-categories/' | relative_url }}#category-tables-recipe).
+Other engines
 throw `CategoryDecodingNotSupportedException` before opening resources.
 
 Columns with labels return `string`, including unmatched and unlabeled fallback

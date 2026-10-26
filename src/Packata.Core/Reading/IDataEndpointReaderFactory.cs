@@ -17,11 +17,13 @@ public interface IDataEndpointReaderFactory
     }
 }
 
-/// <summary>Describes an endpoint read together with asset-specific context.</summary>
+/// <summary>Describes an endpoint read together with asset-specific context.
+/// Supply Contract when resolving same-package category-table references.</summary>
 public sealed record DataEndpointReadRequest(
     DataEndpoint Endpoint,
     DataSchema? Schema = null,
-    string? AssetPath = null);
+    string? AssetPath = null,
+    DataContract? Contract = null);
 
 /// <summary>Resolves canonical path values to owned streams.</summary>
 public interface IEndpointStreamResolver

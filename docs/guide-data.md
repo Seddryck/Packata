@@ -48,6 +48,10 @@ options and supported sources.
 
 ## Preview category labels
 
+The same `--decode-categories` option can load labels from local delimited lookup
+resources declared with the [Category Tables recipe]({{ '/datapackage-categories/' | relative_url }}#category-tables-recipe),
+which is separate from published DPv2.0 inline category syntax.
+
 Both ODCS enums and DPv2 inline categories can give stored codes human-readable
 labels. Save this CSV as `directions.csv` beside either descriptor below:
 
@@ -149,8 +153,8 @@ Whitespace in JSON output can differ.
 
 Decoding is disabled by default and uses PocketCsvReader's native `WithSequence`
 support for CSV/TSV/PSV. Other engines, including Excel, Parquet, databases and
-inline data, return an explicit unsupported-engine diagnostic. Category table
-references are not expanded.
+inline data, return an explicit unsupported-engine diagnostic. Local Category Tables
+recipe references supply labels through this same native decoding mechanism.
 
 **Cells to decode must contain unquoted, unescaped code text.** PocketCsvReader
 skips native sequence replacement for fields it marks as quoted or escaped,

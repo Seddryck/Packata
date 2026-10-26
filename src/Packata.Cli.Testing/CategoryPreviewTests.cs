@@ -5,6 +5,68 @@ namespace Packata.Cli.Testing;
 
 public class CategoryPreviewTests
 {
+    [TestCase("rows", "duplicate mapped value")]
+    [TestCase("external", "external-package")]
+    [TestCase("engine", "PocketCsvReader")]
+    public async Task Preview_retains_actionable_category_table_diagnostics(string kind, string message)
+    {
+        using var workspace = new CliWorkspace();
+        var descriptor = JObject.Parse("""
+            {"resources":[{"name":"members","path":"members.csv","format":"csv","schema":{"fields":[
+            {"name":"code","type":"string","categories":{"resource":"categories"}}]}},
+            {"name":"categories","type":"table","path":"categories.csv","format":"csv",
+            "categoryFieldMap":{"value":"key","label":"title"},"schema":{"fields":[
+            {"name":"key","type":"string","constraints":{"required":true,"unique":true}},
+            {"name":"title","type":"string","constraints":{"unique":true}}]}}]}
+            """);
+        if (kind == "external") descriptor["resources"]![0]!["schema"]!["fields"]![0]!["categories"]!["package"] = "other";
+        if (kind == "engine") descriptor["resources"]![1]!["format"] = "xlsx";
+        var source = workspace.Write("datapackage.json", descriptor.ToString());
+        workspace.Write("members.csv", "code\r\nA\r\n");
+        workspace.Write("categories.csv", "key,title\r\nA,First\r\nA,Second\r\n");
+        var raw = await CliWorkspace.Run("data", "preview", source, "--asset", "members", "--output-format", "json");
+        Assert.That(raw.ExitCode, Is.Zero, raw.Error);
+        var result = await CliWorkspace.Run("data", "preview", source, "--asset", "members", "--decode-categories");
+        Assert.That(result.ExitCode, Is.Not.Zero);
+        Assert.That(result.Output, Is.Empty);
+        Assert.That(result.Error, Does.Contain("Category table").And.Contain(message));
+    }
+
+    [TestCase(false, false)]
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public async Task Preview_resolves_category_tables_relative_to_descriptor_in_either_order(bool first, bool decode)
+    {
+        using var workspace = new CliWorkspace();
+        var dataResource = JObject.Parse("""
+            {"name":"members","path":"members.csv","format":"csv","schema":{"fields":[
+            {"name":"category_code","type":"string","categories":{"resource":"categories"}}]}}
+            """);
+        var lookupResource = JObject.Parse("""
+            {"name":"categories","type":"table","path":"categories.csv","format":"csv",
+            "categoryFieldMap":{"value":"category_code","label":"category_label"},"schema":{"fields":[
+            {"name":"category_code","type":"string","constraints":{"required":true,"unique":true}},
+            {"name":"category_label","type":"string","constraints":{"unique":true}}]}}
+            """);
+        var descriptor = new JObject { ["resources"] = first ? new JArray(lookupResource, dataResource) : new JArray(dataResource, lookupResource) }.ToString();
+        var source = workspace.Write("datapackage.json", descriptor);
+        const string csv = "category_code\r\nREG\r\nSTU\r\nHON\r\n";
+        const string lookup = "category_code,category_label\r\nREG,Regular\r\nSTU,Student\r\nHON,Honorary\r\n";
+        var dataPath = workspace.Write("members.csv", csv);
+        var lookupPath = workspace.Write("categories.csv", lookup);
+        var args = new List<string> { "data", "preview", source, "--asset", "members", "--output-format", "json" };
+        if (decode) args.Add("--decode-categories");
+        var result = await CliWorkspace.Run(args.ToArray());
+        Assert.That(result.ExitCode, Is.Zero, result.Error);
+        var rows = JObject.Parse(result.Output)["rows"]!;
+        Assert.That(rows.Select(row => (string?)row[0]), Is.EqualTo(decode
+            ? new[] { "Regular", "Student", "Honorary" } : new[] { "REG", "STU", "HON" }));
+        Assert.That(File.ReadAllText(source), Is.EqualTo(descriptor));
+        Assert.That(File.ReadAllText(dataPath), Is.EqualTo(csv));
+        Assert.That(File.ReadAllText(lookupPath), Is.EqualTo(lookup));
+    }
+
     [TestCase(false, false)]
     [TestCase(false, true)]
     [TestCase(true, false)]
