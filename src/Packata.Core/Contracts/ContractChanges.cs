@@ -63,7 +63,13 @@ public sealed record RelationshipRemoved(ContractPath Path, DataRelationship Rel
 public sealed record RelationshipModified(ContractPath Path, DataRelationship Previous, DataRelationship Current) : IContractChange, IModified, IRelationshipChange;
 public sealed record QualityRuleAdded(ContractPath Path, DataQualityRule QualityRule) : IContractChange, IAdded, IQualityRuleChange;
 public sealed record QualityRuleRemoved(ContractPath Path, DataQualityRule QualityRule) : IContractChange, IRemoved, IQualityRuleChange;
-public sealed record QualityRuleModified(ContractPath Path, DataQualityRule Previous, DataQualityRule Current) : IContractChange, IModified, IQualityRuleChange;
+public sealed record QualityRuleModified(ContractPath Path, DataQualityRule Previous, DataQualityRule Current) : IContractChange, IModified, IQualityRuleChange
+{
+    public bool MeasurementChanged => !ContractDiffValues.Equal(Previous.Definition, Current.Definition);
+    public bool ExpectationsChanged => !ContractDiffValues.Equal(Previous.Expectations, Current.Expectations);
+    public bool MetadataChanged => !ContractDiffValues.Equal(Previous.Metadata, Current.Metadata)
+        || Previous.Description != Current.Description || !ContractDiffValues.Equal(Previous.Extensions, Current.Extensions);
+}
 
 /// <summary>A modification to contract identity, metadata, governance, or extension metadata.</summary>
 public sealed record ContractMetadataChanged(ContractPath Path, object? Previous, object? Current) : IContractChange, IModified, IContractMetadataChange;

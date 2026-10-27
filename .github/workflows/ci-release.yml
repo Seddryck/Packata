@@ -91,7 +91,9 @@ jobs:
             'Packata.ResourceReaders',
             'Packata.Provisioners',
             'Packata.Storages',
-            'Packata.OpenDataContract'
+            'Packata.OpenDataContract',
+            'Packata.Rules.Expressif',
+            'Packata.Rules.Sql'
           )
           $frameworks = @('net8.0', 'net9.0', 'net10.0')
           $thresholdProjects = @('Packata.Core', 'Packata.ResourceReaders', 'Packata.Provisioners')
@@ -159,6 +161,10 @@ jobs:
             src/Packata.DataPackage/obj
             src/Packata.OpenDataContract/bin/Release
             src/Packata.OpenDataContract/obj
+            src/Packata.Rules.Expressif/bin/Release
+            src/Packata.Rules.Expressif/obj
+            src/Packata.Rules.Sql/bin/Release
+            src/Packata.Rules.Sql/obj
             src/Packata.Provisioners/bin/Release
             src/Packata.Provisioners/obj
             src/Packata.ResourceReaders/bin/Release
@@ -238,7 +244,9 @@ jobs:
             'Packata.ResourceReaders.WebLogs',
             'Packata.Provisioners',
             'Packata.Storages',
-            'Packata.OpenDataContract'
+            'Packata.OpenDataContract',
+            'Packata.Rules.Expressif',
+            'Packata.Rules.Sql'
           )
 
           foreach ($project in $projects) {

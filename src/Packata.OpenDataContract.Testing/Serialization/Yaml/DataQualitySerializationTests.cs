@@ -29,6 +29,23 @@ public class DataQualitySerializationTests
     }
 
     [Test]
+    public void Serialize_PreservesExplicitNullAndAbsentOperands()
+    {
+        var contract = Deserialize("""
+                          - metric: rowCount
+                            mustBe: null
+                          - metric: rowCount
+            """);
+        var yaml = new DataContractSerializer().Serialize(contract);
+        Assert.That(yaml.Split("mustBe:").Length - 1, Is.EqualTo(1));
+        Assert.That(yaml, Does.Not.Contain("mustBeBetween:"));
+        using var reader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(yaml)));
+        var roundtrip = new DataContractSerializer().Deserialize(reader, Mock.Of<IDocumentContainer>(), new StorageProvider());
+        Assert.That(roundtrip.Schema[0].Properties[0].Quality[0].DeclaredExpectations.ContainsKey("MustBe"), Is.True);
+        Assert.That(roundtrip.Schema[0].Properties[0].Quality[1].DeclaredExpectations, Is.Empty);
+    }
+
+    [Test]
     public void Deserialize_TextQualityRule_PreservesCommonMetadata()
     {
         var contract = Deserialize("""

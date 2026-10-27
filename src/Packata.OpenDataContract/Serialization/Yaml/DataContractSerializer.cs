@@ -27,6 +27,7 @@ internal class DataContractSerializer : IDataContractSerializer
             {
                 new ServerTypeDiscriminator().Execute(o);
             })
+            .WithTypeConverter(new QualityRuleConverter())
             .WithTypeConverter(new ContextConverter())
             .WithTypeConverter(new TeamConverter())
             .WithTypeConverter(new CustomPropertyListConverter())
@@ -50,6 +51,7 @@ internal class DataContractSerializer : IDataContractSerializer
 
         return new SerializerBuilder()
             .WithNamingConvention(new DataContractNamingConvention())
+            .WithTypeConverter(new QualityRuleConverter())
             .WithTypeConverter(new ContextConverter())
             .WithTypeConverter(new TeamConverter())
             .WithTypeConverter(new CustomPropertyListConverter())

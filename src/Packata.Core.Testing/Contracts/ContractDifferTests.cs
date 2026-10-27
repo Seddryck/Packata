@@ -13,6 +13,22 @@ public class ContractDifferTests
     private static DataContract WithAsset(DataContract contract, DataAsset asset) => contract with { Assets = [asset] };
 
     [Test]
+    public void IdentifiedQualityRule_DistinguishesMeasurementExpectationsAndMetadata()
+    {
+        var rule = new DataQualityRule("sql") { SourceId = "quality", Definition = new SqlQuality("select 1") };
+        var before = Contract() with { Assets = [Contract().Assets[0] with { QualityRules = [rule] }] };
+        var changed = rule with { Definition = new SqlQuality("select 2"), Metadata = new(Name: "new"),
+            Expectations = [new(ExpectationOperator.Equal, QualityValue.From(2))] };
+        var after = before with { Assets = [before.Assets[0] with { QualityRules = [changed] }] };
+        var change = before.Diff(after).Changes.OfType<QualityRuleModified>().Single();
+        Assert.That(change.MeasurementChanged, Is.True);
+        Assert.That(change.ExpectationsChanged, Is.True);
+        Assert.That(change.MetadataChanged, Is.True);
+        Assert.That(before.Diff(after).Changes.OfType<QualityRuleAdded>(), Is.Empty);
+        Assert.That(before.Diff(before).Changes, Is.Empty);
+    }
+
+    [Test]
     public void EquivalentGraphs_WithDifferentCollectionInstances_HaveNoChanges()
     {
         var before = Contract(new DataField("id", "integer", Constraints: [new("minimum", 0)]));

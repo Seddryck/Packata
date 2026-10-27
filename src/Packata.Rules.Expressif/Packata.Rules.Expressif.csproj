@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><Description>Expressif adapters and versioned ODCS quality metric catalog for Packata rules.</Description></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\Packata.Core\Packata.Core.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Expressif" Version="2.93.1" /></ItemGroup>
+</Project>
