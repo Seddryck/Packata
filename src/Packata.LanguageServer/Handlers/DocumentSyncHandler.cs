@@ -80,7 +80,7 @@ public sealed class DocumentSyncHandler(DocumentStore documents, ContractService
             work.Token.ThrowIfCancellationRequested();
             if (result.Version == version) publisher.Publish(result.Uri, version, result.Diagnostics);
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { /* Superseded edits and closed documents intentionally cancel their pending analysis. */ }
         catch (Exception) { /* Never log parser/source exception details. Explicit requests report failures. */ }
         finally
         {

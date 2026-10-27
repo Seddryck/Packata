@@ -31,6 +31,8 @@ npm run package -- --target win32-x64
 
 Use `linux-x64` or `darwin-arm64` for the other packages. Packaging publishes the self-contained server, builds a platform-specific VSIX in `artifacts/`, and checks the ZIP contains the runtime, executable and client bundle. `PACKATA_VERSION` optionally supplies the shared repository release version; otherwise development packages use the manifest version. Packaging leaves the source manifest unchanged. Authentication dependencies of the packaging tool are pinned through npm overrides to avoid advisory-affected versions; none of the packaging dependencies ship in the VSIX.
 
+Packaging invokes the SDK using its absolute installation path. Set `DOTNET_ROOT` for a nonstandard SDK location; otherwise the platform's standard installation directory is used. CI's .NET setup supplies this location. On Unix, packaging verifies that the published server is executable and is not writable by group or others; it does not change file permissions.
+
 The solution includes `Packata.VSCode.csproj`, which installs locked npm dependencies when needed and compiles the client during `dotnet build Packata.sln`. The .NET projects separate shared document services (`Packata.Documents`), editor-independent document/tree services (`Packata.LanguageServer.Core`), and OmniSharp LSP handlers (`Packata.LanguageServer`).
 
 To debug, open this folder in VS Code and press F5 using **Packata Extension**. First either copy the native server payload from `artifacts/staging-<target>/server` to `server/`, or set `packata.languageServer.path` in your development-host user settings to its absolute executable path. Attach the .NET debugger to the `Packata.LanguageServer` child process for server debugging. Do not commit machine paths.

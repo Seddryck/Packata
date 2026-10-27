@@ -25,39 +25,63 @@ public sealed class ContractService(DocumentStore documents)
         token.ThrowIfCancellationRequested();
         if (cache.TryGetValue(snapshot.Uri, out var previous) && previous.Snapshot == snapshot)
             return previous.Inspection;
-        var uri = snapshot.Uri.AbsoluteUri;
-        var baseUri = snapshot.Uri.IsAbsoluteUri ? new Uri(snapshot.Uri, ".").AbsoluteUri : uri;
+        var baseUri = new Uri(snapshot.Uri, ".").AbsoluteUri;
         var recognized = DescriptorName(snapshot.Uri);
         try
         {
-            if (System.Text.Encoding.UTF8.GetByteCount(snapshot.Text) > MaximumDocumentBytes) throw new InvalidDataException();
-            var yaml = new YamlStream();
-            yaml.Load(new StringReader(snapshot.Text));
-            recognized = recognized || (yaml.Documents.Count == 1 && yaml.Documents[0].RootNode is YamlMappingNode root && ContractDocument.Recognizes(root));
-            if (!recognized) return new(1, uri, snapshot.Version, baseUri, false, null, null, [], null);
-            var document = ContractDocument.Parse(snapshot.Text, baseUri: new Uri(baseUri));
-            var mapped = document.Map();
-            token.ThrowIfCancellationRequested();
-            var index = new SourceIndex(document.Root);
-            var diagnostics = mapped.Diagnostics.Select(value => Diagnostic(value, index)).ToArray();
-            var inspection = new Inspection(1, uri, snapshot.Version, baseUri, true, document.Format,
-                mapped.Value is null ? null : ContractJson.RedactedJson(mapped.Value), diagnostics,
-                mapped.Value is null ? null : new ContractTreeBuilder(document, snapshot.Uri).Build(mapped.Value));
-            cache[snapshot.Uri] = new(snapshot, inspection, document);
-            return inspection;
+            recognized |= RecognizesContent(snapshot.Text);
+            if (!recognized) return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, false, null, null, [], null);
+            var analysis = Analyze(snapshot, baseUri, token);
+            cache[snapshot.Uri] = analysis;
+            return analysis.Inspection;
         }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception error) when (error is YamlException or FormatException or InvalidDataException or Newtonsoft.Json.JsonException or ArgumentException or InvalidOperationException)
+        catch (Exception error) when (IsDocumentError(error))
         {
             recognized |= previous?.Inspection.Recognized == true;
-            // Parser messages may contain source excerpts and credentials. Only expose a fixed message.
-            SourceRange? range = error is YamlException yaml && yaml.Start.Line > 0
-                ? new(new((int)yaml.Start.Line - 1, (int)Math.Max(0, yaml.Start.Column - 1)), new((int)yaml.Start.Line - 1, (int)Math.Max(0, yaml.Start.Column - 1))) : null;
-            var inspection = new Inspection(1, uri, snapshot.Version, baseUri, recognized, null, null,
-                recognized ? [new("PKT001", "Error", "$", "Invalid or unsupported contract document. Check syntax, format, and document size (4 MiB maximum).", range)] : [], null);
+            var inspection = InvalidInspection(snapshot, baseUri, recognized, error);
             cache[snapshot.Uri] = new(snapshot, inspection, null);
             return inspection;
         }
+    }
+
+    private static bool RecognizesContent(string text)
+    {
+        if (System.Text.Encoding.UTF8.GetByteCount(text) > MaximumDocumentBytes) throw new InvalidDataException();
+        var yaml = new YamlStream();
+        yaml.Load(new StringReader(text));
+        return yaml.Documents.Count == 1 && yaml.Documents[0].RootNode is YamlMappingNode root && ContractDocument.Recognizes(root);
+    }
+
+    private static Analysis Analyze(DocumentSnapshot snapshot, string baseUri, CancellationToken token)
+    {
+        var document = ContractDocument.Parse(snapshot.Text, baseUri: new Uri(baseUri));
+        var mapped = document.Map();
+        token.ThrowIfCancellationRequested();
+        var index = new SourceIndex(document.Root);
+        var diagnostics = mapped.Diagnostics.Select(value => Diagnostic(value, index)).ToArray();
+        var inspection = new Inspection(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, true, document.Format,
+            mapped.Value is null ? null : ContractJson.RedactedJson(mapped.Value), diagnostics,
+            mapped.Value is null ? null : new ContractTreeBuilder(document, snapshot.Uri).Build(mapped.Value));
+        return new(snapshot, inspection, document);
+    }
+
+    private static bool IsDocumentError(Exception error) => error is YamlException or FormatException
+        or InvalidDataException or Newtonsoft.Json.JsonException or ArgumentException or InvalidOperationException;
+
+    private static Inspection InvalidInspection(DocumentSnapshot snapshot, string baseUri, bool recognized, Exception error)
+    {
+        // Parser messages may contain source excerpts or credentials. Only expose a fixed message.
+        var diagnostics = recognized
+            ? new[] { new DocumentDiagnostic("PKT001", "Error", "$", "Invalid or unsupported contract document. Check syntax, format, and document size (4 MiB maximum).", FailureRange(error)) }
+            : [];
+        return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, recognized, null, null, diagnostics, null);
+    }
+
+    private static SourceRange? FailureRange(Exception error)
+    {
+        if (error is not YamlException yaml || yaml.Start.Line <= 0) return null;
+        var position = new Position((int)yaml.Start.Line - 1, (int)Math.Max(0, yaml.Start.Column - 1));
+        return new(position, position);
     }
 
     public async Task<ValidationResult> ValidateAsync(Uri uri, CancellationToken token)
@@ -77,28 +101,35 @@ public sealed class ContractService(DocumentStore documents)
 
     public async Task<DiscoveryResult> DiscoverAsync(IEnumerable<string> folders, CancellationToken token)
     {
-        var candidates = new HashSet<Uri>();
-        foreach (var folder in folders)
-        {
-            var uri = WorkspaceUri.Parse(folder);
-            if (!uri.IsFile || !Directory.Exists(uri.LocalPath)) continue;
-            foreach (var file in Files(uri.LocalPath, token)) candidates.Add(new Uri(file));
-        }
-        foreach (var document in documents.OpenDocuments)
-            if (Candidate(document.Uri.LocalPath)) candidates.Add(document.Uri);
+        var candidates = Candidates(folders, token);
         foreach (var removed in cache.Keys.Where(uri => !candidates.Contains(uri))) cache.TryRemove(removed, out _);
         var results = new List<Inspection>();
         foreach (var uri in candidates.OrderBy(value => value.AbsoluteUri, StringComparer.Ordinal))
         {
             token.ThrowIfCancellationRequested();
-            try
-            {
-                var inspection = await InspectAsync(uri, token);
-                if (inspection.Recognized) results.Add(inspection);
-            }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { /* A watcher will retry transient workspace changes. */ }
+            var inspection = await InspectIfReadableAsync(uri, token);
+            if (inspection?.Recognized == true) results.Add(inspection);
         }
         return new(1, results);
+    }
+
+    private HashSet<Uri> Candidates(IEnumerable<string> folders, CancellationToken token)
+    {
+        var candidates = new HashSet<Uri>();
+        foreach (var uri in folders.Select(WorkspaceUri.Parse).Where(uri => uri.IsFile && Directory.Exists(uri.LocalPath)))
+            foreach (var file in Files(uri.LocalPath, token)) candidates.Add(new Uri(file));
+        candidates.UnionWith(documents.OpenDocuments.Where(document => Candidate(document.Uri.LocalPath)).Select(document => document.Uri));
+        return candidates;
+    }
+
+    private async Task<Inspection?> InspectIfReadableAsync(Uri uri, CancellationToken token)
+    {
+        try { return await InspectAsync(uri, token); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            // A watcher will retry files that disappear or become inaccessible during a scan.
+            return null;
+        }
     }
 
     private static IEnumerable<string> Files(string directory, CancellationToken token)

@@ -12,6 +12,26 @@ export const targets = {
   'linux-x64': { rid: 'linux-x64', executable: 'Packata.LanguageServer', runtime: 'libcoreclr.so' },
   'darwin-arm64': { rid: 'osx-arm64', executable: 'Packata.LanguageServer', runtime: 'libcoreclr.dylib' }
 };
+
+export function resolveDotnet(environment = process.env, platform = process.platform) {
+  let defaultRoot = '/usr/share/dotnet';
+  if (platform === 'win32') defaultRoot = path.join(environment.ProgramFiles ?? 'C:\\Program Files', 'dotnet');
+  if (platform === 'darwin') defaultRoot = '/usr/local/share/dotnet';
+  const sdkRoot = environment.DOTNET_ROOT || defaultRoot;
+  if (!path.isAbsolute(sdkRoot)) throw new Error('DOTNET_ROOT must be an absolute SDK installation directory.');
+  const executable = path.join(sdkRoot, platform === 'win32' ? 'dotnet.exe' : 'dotnet');
+  if (!fs.existsSync(executable) || !fs.statSync(executable).isFile()) {
+    throw new Error('The .NET SDK executable was not found. Set DOTNET_ROOT to its installation directory.');
+  }
+  return fs.realpathSync(executable);
+}
+
+export function validateExecutableMode(mode) {
+  if ((mode & 0o111) === 0 || (mode & 0o022) !== 0) {
+    throw new Error('The published server must be executable and must not be writable by group or others. Republish it with the .NET SDK.');
+  }
+}
+
 export async function validateVsix(filename, target) {
   const definition = targets[target];
   if (!definition) throw new Error('Unsupported VSIX target.');
@@ -43,12 +63,16 @@ export async function pack(target, version) {
   fs.rmSync(staging, { recursive: true, force: true });
   fs.mkdirSync(staging, { recursive: true });
   const server = path.join(staging, 'server');
-  execFileSync('dotnet', ['publish', path.join(root, '../src/Packata.LanguageServer/Packata.LanguageServer.csproj'),
+  execFileSync(resolveDotnet(), ['publish', path.join(root, '../src/Packata.LanguageServer/Packata.LanguageServer.csproj'),
     '-c', 'Release', '-f', 'net10.0', '-r', definition.rid, '--self-contained', 'true',
     '--disable-build-servers', '-p:PublishTrimmed=false', `-p:Version=${version}`, '-o', server],
     { stdio: 'inherit', env: { ...process.env, DOTNET_CLI_TELEMETRY_OPTOUT: '1' } });
   for (const file of fs.readdirSync(server)) if (file.endsWith('.pdb')) fs.unlinkSync(path.join(server, file));
-  if (target !== 'win32-x64') fs.chmodSync(path.join(server, definition.executable), 0o755);
+  // dotnet publish sets the native apphost's executable mode. Validate it on Unix rather
+  // than broadening permissions; a Windows cross-publish cannot establish Unix file modes.
+  if (process.platform !== 'win32' && target !== 'win32-x64') {
+    validateExecutableMode(fs.statSync(path.join(server, definition.executable)).mode);
+  }
   for (const file of ['dist', 'images', 'README.md', 'LICENSE']) fs.cpSync(path.join(root, file), path.join(staging, file), { recursive: true });
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   manifest.version = version;

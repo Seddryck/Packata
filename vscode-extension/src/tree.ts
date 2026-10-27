@@ -32,19 +32,28 @@ export class ContractTree implements vscode.TreeDataProvider<TreeEntry> {
     item.tooltip = `${node.label}\n${node.description ?? ''}\n${vscode.Uri.parse(contract.uri).fsPath}\n${node.logicalPath}`;
     const icons: Record<string, string> = { contract: 'file-code', asset: 'database', field: 'symbol-field', constraint: 'symbol-ruler', quality: 'checklist', endpoint: 'plug', sla: 'clock', governance: 'organization', group: 'folder' };
     item.iconPath = new vscode.ThemeIcon(icons[node.kind] ?? 'symbol-property');
-    if (node.kind === 'contract') {
-      const validation = this.validation.get(contract.uri);
-      const errors = contract.diagnostics.some(value => value.severity === 'Error');
-      const warnings = contract.diagnostics.some(value => value.severity === 'Warning');
-      item.description = [node.description, validation?.version === contract.version ? validation.valid ? 'Validated' : 'Invalid' : 'Not validated'].filter(Boolean).join(' · ');
-      if (errors || (validation?.version === contract.version && !validation.valid)) item.iconPath = new vscode.ThemeIcon('error');
-      else if (warnings) item.iconPath = new vscode.ThemeIcon('warning');
-      else if (validation?.version === contract.version && validation.valid) item.iconPath = new vscode.ThemeIcon('pass');
-      if (contract.diagnostics.length) item.tooltip += '\n' + contract.diagnostics.map(value => value.message).join('\n');
-    }
+    if (node.kind === 'contract') this.decorateContract(item, entry);
     // Group nodes expand on click; only syntax-backed concrete nodes navigate.
     if (node.kind !== 'group' && node.location) item.command = { command: 'packata.revealSource', title: 'Reveal Source', arguments: [entry] };
     return item;
+  }
+  private decorateContract(item: vscode.TreeItem, entry: TreeEntry): void {
+    const { node, contract } = entry;
+    const validation = this.validation.get(contract.uri);
+    const current = validation?.version === contract.version ? validation : undefined;
+    item.description = [node.description, this.validationLabel(current)].filter(Boolean).join(' · ');
+    item.iconPath = new vscode.ThemeIcon(this.contractIcon(contract, current));
+    if (contract.diagnostics.length) item.tooltip += '\n' + contract.diagnostics.map(value => value.message).join('\n');
+  }
+  private validationLabel(validation?: { valid: boolean }): string {
+    if (!validation) return 'Not validated';
+    return validation.valid ? 'Validated' : 'Invalid';
+  }
+  private contractIcon(contract: Inspection, validation?: { valid: boolean }): string {
+    if (contract.diagnostics.some(value => value.severity === 'Error') || validation?.valid === false) return 'error';
+    if (contract.diagnostics.some(value => value.severity === 'Warning')) return 'warning';
+    if (validation?.valid) return 'pass';
+    return 'file-code';
   }
   dispose(): void { this.changed.dispose(); }
 }

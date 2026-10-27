@@ -12,13 +12,13 @@ internal static class ProtocolVersion
     public static async Task<T> RunAsync<T>(int version, Func<Task<T>> operation)
     {
         if (version != ContractService.SchemaVersion)
-            throw new RpcErrorException(-32602, null!, "Unsupported Packata payload version. Update the client and server together.");
+            throw new RpcErrorException(-32602, new object(), "Unsupported Packata payload version. Update the client and server together.");
         try { return await operation(); }
         catch (OperationCanceledException) { throw; }
         catch (Exception)
         {
             // The default JSON-RPC exception formatter includes exception details and source paths.
-            throw new RpcErrorException(-32001, null!, "Unable to read or process the requested workspace document. Check its URI and access permissions.");
+            throw new RpcErrorException(-32001, new object(), "Unable to read or process the requested workspace document. Check its URI and access permissions.");
         }
     }
 }

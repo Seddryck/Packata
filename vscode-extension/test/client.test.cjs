@@ -21,6 +21,24 @@ const inspection = (version = 1) => ({ schemaVersion: 1, uri: 'file:///contract.
   } });
 const discovery = (...contracts) => ({ schemaVersion: 1, contracts });
 
+test('packaging resolves an absolute SDK executable without searching PATH', async () => {
+  const { resolveDotnet } = await import('../scripts/package.mjs');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'packata sdk '));
+  try {
+    const executable = path.join(root, process.platform === 'win32' ? 'dotnet.exe' : 'dotnet');
+    fs.writeFileSync(executable, 'fixture');
+    assert.equal(resolveDotnet({ DOTNET_ROOT: root, PATH: '/untrusted' }), fs.realpathSync(executable));
+    assert.throws(() => resolveDotnet({ DOTNET_ROOT: 'relative-sdk' }));
+    assert.throws(() => resolveDotnet({ DOTNET_ROOT: path.join(root, 'missing') }));
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+test('packaging accepts executable apphosts while rejecting group/other write permissions', async () => {
+  const { validateExecutableMode } = await import('../scripts/package.mjs');
+  validateExecutableMode(0o755);
+  validateExecutableMode(0o500);
+  for (const mode of [0o644, 0o777, 0o775, 0o757]) assert.throws(() => validateExecutableMode(mode));
+});
+
 test('requires supported Packata capability and payload versions', () => {
   assert.throws(() => protocol.requireCapabilities(['packata.contract.inspect']));
   protocol.requireCapabilities(['packata.protocol.v1', 'packata.contract.inspect', 'packata.contract.validate', 'packata.workspace.discover']);

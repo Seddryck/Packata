@@ -9,7 +9,7 @@ public static class WorkspaceUri
     {
         var uri = new Uri(value, UriKind.Absolute);
         return uri.IsFile
-            ? new Uri(Regex.Replace(uri.AbsoluteUri, @"^(file:///[a-zA-Z])%3[aA]/", "$1:/"))
+            ? new Uri(Regex.Replace(uri.AbsoluteUri, @"^(file:///[a-zA-Z])%3[aA]/", "$1:/", RegexOptions.None, TimeSpan.FromSeconds(1)))
             : uri;
     }
 }

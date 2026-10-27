@@ -108,8 +108,9 @@ public sealed class ContractServiceTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Test]
-    public async Task InvalidBuffers_ReturnSafeDiagnosticsWithoutReadingResourcesAsync()
+    [TestCase("\n")]
+    [TestCase("\r\n")]
+    public async Task InvalidBuffers_ReturnSafeDiagnosticsWithoutReadingResourcesAsync(string newline)
     {
         var store = new DocumentStore();
         var uri = new Uri("file:///workspace/contract.yaml");
@@ -119,7 +120,8 @@ public sealed class ContractServiceTests
         Assert.That(result.Diagnostics, Has.Count.EqualTo(1));
         Assert.That(result.Diagnostics[0].Message, Does.Not.Contain("supersecret"));
         Assert.That(result.Diagnostics[0].Range, Is.Not.Null);
-        store.Update(uri, Odcs.Replace("version: 1.0.0\n", ""), 2);
+        var text = Odcs.ReplaceLineEndings(newline);
+        store.Update(uri, text.Replace("version: 1.0.0" + newline, ""), 2);
         var validation = await new ContractService(store).ValidateAsync(uri, CancellationToken.None);
         Assert.That(validation.Valid, Is.False);
         Assert.That(validation.Diagnostics.Select(value => value.Code), Does.Contain("ODCSV001"));

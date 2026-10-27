@@ -49,10 +49,13 @@ public sealed class SourceIndex(YamlMappingNode root)
         if (path == "$") return null;
         if (path.StartsWith("$."))
         {
-            path = Regex.Replace(path[2..], @"\[(\d+)\]", "/$1").Replace('.', '/');
+            path = Regex.Replace(path[2..], @"\[(\d+)\]", "/$1", RegexOptions.None, TimeSpan.FromSeconds(1)).Replace('.', '/');
         }
         return Range("/" + path.TrimStart('/'));
     }
 
     public static string Escape(string name) => name.Replace("~", "~0").Replace("/", "~1");
+
+    /// <summary>Appends a JSON Pointer segment, not an operating-system file path.</summary>
+    public static string Append(string pointer, string segment) => pointer + '/' + Escape(segment);
 }

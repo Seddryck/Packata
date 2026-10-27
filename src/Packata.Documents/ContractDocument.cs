@@ -25,10 +25,10 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
         var odcs = format == "odcs" || (format == "auto" && Child(root, "kind") is not null);
         using var content = new MemoryStream(Encoding.UTF8.GetBytes(text));
         var context = new DescriptorContainer(baseUri ?? new Uri(Path.GetFullPath(".") + Path.DirectorySeparatorChar));
+        var serializationFormat = text.TrimStart().StartsWith('{') ? SerializationFormat.Json : SerializationFormat.Yaml;
         object native = odcs
             ? new Packata.OpenDataContract.DataContractFactory().LoadFromStream(content, context)
-            : new Packata.DataPackage.DataPackageFactory().LoadFromStream(content, context,
-                text.TrimStart().StartsWith('{') ? SerializationFormat.Json : SerializationFormat.Yaml);
+            : new Packata.DataPackage.DataPackageFactory().LoadFromStream(content, context, serializationFormat);
         return new(native, root);
     }
 

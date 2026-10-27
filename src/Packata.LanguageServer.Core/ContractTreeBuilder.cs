@@ -1,4 +1,3 @@
-using Newtonsoft.Json.Linq;
 using Packata.Core.Contracts;
 using Packata.Documents;
 using YamlDotNet.RepresentationModel;
@@ -8,6 +7,8 @@ namespace Packata.LanguageServer.Core;
 /// <summary>Builds the editor-independent navigation model alongside authoritative syntax locations.</summary>
 public sealed class ContractTreeBuilder(ContractDocument document, Uri uri)
 {
+    private const string GroupKind = "group";
+    private const string QualityKind = "quality";
     private readonly SourceIndex source = new(document.Root);
     private string UriText => uri.AbsoluteUri;
     private bool Odcs => document.Format == "odcs";
@@ -17,9 +18,9 @@ public sealed class ContractTreeBuilder(ContractDocument document, Uri uri)
         var children = new List<ContractNode>();
         AddNative(children, "Overview", "/overview", "overview", "id", "name", "title", "version", "status", "description", "domain", "tags");
         var assets = contract.Assets.Select((asset, index) => Asset(asset, index)).ToArray();
-        if (assets.Length > 0) children.Add(Node("/assets", "Assets", "group", null, assets));
+        if (assets.Length > 0) children.Add(Node("/assets", "Assets", GroupKind, null, assets));
         AddNative(children, "Servers / endpoints", "/endpoints", "endpoint", "servers");
-        AddNative(children, "Contract-level quality rules (source)", "/quality", "quality", "quality");
+        AddNative(children, "Contract-level quality rules (source)", "/quality", QualityKind, QualityKind);
         AddNative(children, "SLA commitments", "/sla", "sla", "slaProperties");
         AddNative(children, "Governance", "/governance", "governance", "team", "roles", "support", "authoritativeDefinitions");
         if (!Odcs) AddNative(children, "Package metadata", "/metadata", "metadata", "contributors", "licenses", "sources", "profile", "created", "keywords");
@@ -39,11 +40,11 @@ public sealed class ContractTreeBuilder(ContractDocument document, Uri uri)
         {
             var fieldPath = path + (Odcs ? "/properties" : "/schema/fields");
             var columns = schema.Fields.Select((field, i) => Field(field, schema.PrimaryKey, $"{id}/fields/{SourceIndex.Escape(field.Name)}/{i}", $"{fieldPath}/{i}")).ToArray();
-            if (columns.Length > 0) children.Add(Node(id + "/columns", "Columns", "group", fieldPath, columns));
+            if (columns.Length > 0) children.Add(Node(id + "/columns", "Columns", GroupKind, fieldPath, columns));
             AddNativeAt(children, "Constraints", id + "/constraints", "constraint", path,
                 Odcs ? ["relationships"] : ["schema/primaryKey", "schema/foreignKeys", "schema/uniqueKeys", "schema/fieldsMatch"]);
         }
-        AddNativeAt(children, "Quality rules (source)", id + "/quality", "quality", path, "quality");
+        AddNativeAt(children, "Quality rules (source)", id + "/quality", QualityKind, path, QualityKind);
         AddNativeAt(children, "Source / endpoints", id + "/endpoints", "endpoint", path,
             Odcs ? ["physicalName", "physicalType"] : ["path", "connection", "format", "mediatype", "dialect"]);
         AddNativeAt(children, "Metadata", id + "/metadata", "metadata", path, "description", "customProperties");
@@ -55,11 +56,11 @@ public sealed class ContractTreeBuilder(ContractDocument document, Uri uri)
         var children = new List<ContractNode>();
         if (field.Constraints.Count > 0)
         {
-            children.Add(Node(id + "/constraints", "Constraints", "group", null,
+            children.Add(Node(id + "/constraints", "Constraints", GroupKind, null,
                 field.Constraints.Select((constraint, index) => Node(id + $"/constraints/{index}", constraint.Kind,
                     "constraint", ConstraintPath(path, constraint.Kind), [], SafeValue(constraint.Value))).ToArray()));
         }
-        AddNativeAt(children, "Quality rules (source)", id + "/quality", "quality", path, "quality");
+        AddNativeAt(children, "Quality rules (source)", id + "/quality", QualityKind, path, QualityKind);
         children.AddRange(field.Children.Select((child, index) => Field(child, [], id + $"/fields/{SourceIndex.Escape(child.Name)}/{index}", path + $"/properties/{index}")));
         if (field.Items is { } items) children.Add(Field(items, [], id + "/items", path + "/items"));
         var key = keys.Contains(field.Name) ? " [key]" : "";
@@ -78,30 +79,46 @@ public sealed class ContractTreeBuilder(ContractDocument document, Uri uri)
 
     private void AddNativeAt(List<ContractNode> nodes, string label, string id, string kind, string parent, params string[] names)
     {
-        var children = names.Select(name => (name, path: parent + "/" + name))
-            .Where(item => source.Find(item.path) is { } node && Meaningful(node))
-            .Select(item => Native(item.name, id + "/" + item.name, kind, item.path, source.Find(item.path)!)).ToArray();
-        if (children.Length > 0) nodes.Add(Node(id, label, "group", null, children,
-            kind == "quality" ? "Source declarations; execution is unavailable" : null));
+        var children = names.Select(name => (name, pointer: parent + "/" + name))
+            .Select(item => (item.name, item.pointer, value: source.Find(item.pointer)))
+            .Where(item => item.value is not null && Meaningful(item.value))
+            .Select(item => Native(item.name, id + "/" + item.name, kind, item.pointer, item.value)).ToArray();
+        if (children.Length > 0) nodes.Add(Node(id, label, GroupKind, null, children,
+            kind == QualityKind ? "Source declarations; execution is unavailable" : null));
     }
 
-    private ContractNode Native(string label, string id, string kind, string path, YamlNode value)
+    private ContractNode Native(string label, string id, string kind, string sourcePointer, YamlNode? value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        var sensitive = IsSensitive(label, value);
+        var children = sensitive ? [] : NativeChildren(value, id, kind, sourcePointer);
+        var description = (value as YamlScalarNode)?.Value;
+        if (sensitive) description = "[redacted]";
+        return Node(id, label, kind, sourcePointer, children, description);
+    }
+
+    private static bool IsSensitive(string label, YamlNode value)
     {
         // Never project credential-bearing properties into tree descriptions.
         var namedProperty = (ContractDocument.Child(value, "property") as YamlScalarNode)?.Value
             ?? (ContractDocument.Child(value, "name") as YamlScalarNode)?.Value;
-        var sensitive = ContractJson.IsSensitiveProperty(label)
+        return ContractJson.IsSensitiveProperty(label)
             || (namedProperty is not null && ContractDocument.Child(value, "value") is not null && ContractJson.IsSensitiveProperty(namedProperty));
-        var children = sensitive ? [] : value switch
-        {
-            YamlMappingNode map => map.Children.Select(pair => (name: ((YamlScalarNode)pair.Key).Value ?? "", pair.Value))
-                .Where(pair => Meaningful(pair.Value)).Select(pair => Native(pair.name, id + "/" + SourceIndex.Escape(pair.name), kind, path + "/" + SourceIndex.Escape(pair.name), pair.Value)).ToArray(),
-            YamlSequenceNode sequence => sequence.Children.Select((child, index) => Native(
-                (ContractDocument.Child(child, "name") as YamlScalarNode)?.Value ?? $"{index + 1}", id + $"/{index}", kind, path + $"/{index}", child)).ToArray(),
-            _ => Array.Empty<ContractNode>()
-        };
-        return Node(id, label, kind, path, children, sensitive ? "[redacted]" : value is YamlScalarNode scalar ? scalar.Value : null);
     }
+
+    private ContractNode[] NativeChildren(YamlNode value, string id, string kind, string sourcePointer) => value switch
+    {
+        YamlMappingNode map => MappingChildren(map, id, kind, sourcePointer),
+        YamlSequenceNode sequence => sequence.Children.Select((child, index) => Native(
+            (ContractDocument.Child(child, "name") as YamlScalarNode)?.Value ?? $"{index + 1}",
+            SourceIndex.Append(id, $"{index}"), kind, SourceIndex.Append(sourcePointer, $"{index}"), child)).ToArray(),
+        _ => []
+    };
+
+    private ContractNode[] MappingChildren(YamlMappingNode map, string id, string kind, string sourcePointer)
+        => map.Children.Select(pair => (name: ((YamlScalarNode)pair.Key).Value ?? "", pair.Value))
+            .Where(pair => Meaningful(pair.Value))
+            .Select(pair => Native(pair.name, SourceIndex.Append(id, pair.name), kind, SourceIndex.Append(sourcePointer, pair.name), pair.Value)).ToArray();
 
     private ContractNode Node(string id, string label, string kind, string? path, IReadOnlyList<ContractNode> children, string? description = null)
         => new(UriText + "#" + id, ContractJson.Redact(label), kind, id, ContractJson.Redact(description ?? ""),
