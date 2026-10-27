@@ -15,7 +15,7 @@ export const targets = {
 
 export function resolveDotnet(environment = process.env, platform = process.platform) {
   let defaultRoot = '/usr/share/dotnet';
-  if (platform === 'win32') defaultRoot = path.join(environment.ProgramFiles ?? 'C:\\Program Files', 'dotnet');
+  if (platform === 'win32') defaultRoot = path.join(environment.ProgramFiles ?? String.raw`C:\Program Files`, 'dotnet');
   if (platform === 'darwin') defaultRoot = '/usr/local/share/dotnet';
   const sdkRoot = environment.DOTNET_ROOT || defaultRoot;
   if (!path.isAbsolute(sdkRoot)) throw new Error('DOTNET_ROOT must be an absolute SDK installation directory.');
