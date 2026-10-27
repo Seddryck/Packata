@@ -5,7 +5,7 @@ description: Design or revise Packata .NET CI, packaging, and release workflows 
 
 # Packata .NET CI and release workflow
 
-Apply this workflow to Seddryck/Packata. Preserve repository and archive casing: Packata-cli archives contain the lowercase packata executable. Inspect .github/workflows/ci-release.yml for the current versioned artifact contracts. VS Code language-support packaging is currently introduced by PR #642; inspect that PR before assuming its VSIX artifacts are available on main.
+Apply this workflow to Seddryck/Packata. Preserve repository and archive casing: Packata-cli archives contain the lowercase packata executable. Inspect .github/workflows/ci-release.yml for the current versioned artifact contracts. For a PR installation, inspect the user-selected PR and its workflow artifacts rather than assuming that its packaging is available on main.
 
 Design the workflow from the repository's declared support, implementation, dependencies, packaging model, and release policy. Preserve valid existing contracts unless the task explicitly changes them.
 

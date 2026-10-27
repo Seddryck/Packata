@@ -9,15 +9,15 @@ Use `scripts/install-local.ps1` with PowerShell 7, authenticated GitHub CLI acce
 
 ## Source selection
 
-Language support is currently in [PR #642](https://github.com/Seddryck/Packata/pull/642), not main. Until it is released, use an explicitly selected PR source:
+Specify the PR you want to deploy locally. Any open PR can be selected, provided its current head has a successful workflow run that produces the matching VSIX artifact:
 
-`./scripts/install-local.ps1 -PullRequest 642`
+`./scripts/install-local.ps1 -PullRequest <number>`
 
-Run from this skill directory, or invoke the script by its full path. The script resolves the PR's current head SHA, finds its newest successful `ci-release.yml` pull-request run, and downloads the single unexpired `vscode-win32-x64-*` artifact. Version suffixes vary per run.
+Replace <number> with your chosen PR number. Run from this skill directory, or invoke the script by its full path. The script resolves that PR's current head SHA, finds its newest successful `ci-release.yml` pull-request run, and downloads the single unexpired `vscode-win32-x64-*` artifact. Version suffixes vary per run.
 
 A merged PR resolves a published release whose tag points to the merge commit. If no matching release/VSIX exists, explain the condition; do not substitute another build. Closed, unmerged PRs are not installable.
 
-Once a release contains the VSIX, use `-Release <tag>` or omit source options for the latest release. These modes may fail while the extension exists only in a PR; do not assume current releases contain it.
+For a release containing the VSIX, use `-Release <tag>` or omit source options for the latest release. If the selected release has no matching VSIX, explain the missing artifact without switching to a PR or another release.
 
 ## Install and verify
 
