@@ -1,0 +1,4 @@
+interface:
+  display_name: "Install Packata in VS Code Insiders"
+  short_description: "Install a Packata PR or release VSIX in Insiders"
+  default_prompt: "Use $install-local-vscode to install Packata Language Support from a pull request into my existing VS Code Insiders."

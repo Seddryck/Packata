@@ -1,9 +1,11 @@
 ---
 name: dotnet-ci-release
-description: Design or revise .NET CI, packaging, and release workflows from repository evidence, including TFM, runner, RID, architecture, libc, generated-asset, NuGet, and publishing decisions. Use when creating or reviewing a .NET delivery workflow; do not use for unrelated application implementation.
+description: Design or revise Packata .NET CI, packaging, and release workflows from repository evidence, including TFM, runner, RID, architecture, libc, generated-asset, NuGet, and publishing decisions. Use when creating or reviewing a .NET delivery workflow; do not use for unrelated application implementation.
 ---
 
-# .NET CI and release workflow
+# Packata .NET CI and release workflow
+
+Apply this workflow to Seddryck/Packata. Preserve repository and archive casing: Packata-cli archives contain the lowercase packata executable. Inspect .github/workflows/ci-release.yml for the current versioned artifact contracts. VS Code language-support packaging is currently introduced by PR #642; inspect that PR before assuming its VSIX artifacts are available on main.
 
 Design the workflow from the repository's declared support, implementation, dependencies, packaging model, and release policy. Preserve valid existing contracts unless the task explicitly changes them.
 
