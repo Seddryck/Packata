@@ -24,7 +24,7 @@ param(
     [string] $ArchivePattern,
 
     [ValidateNotNullOrEmpty()]
-    [string] $ArtifactName = 'cli-self-contained-win-x64-*',
+    [string] $ArtifactName = 'cli-framework-net10.0-win-x64-*',
 
     [ValidateNotNullOrEmpty()]
     [string] $Workflow = 'ci-release.yml',
@@ -40,7 +40,7 @@ $filePrefix = $ProductName.ToLowerInvariant()
 $executableName = "$filePrefix.exe"
 $configurationNames = @("$filePrefix.config.json") + $ConfigurationFiles
 if (-not $PSBoundParameters.ContainsKey('ArchivePattern')) {
-    $ArchivePattern = "$ProductName-cli-*-win-x64.zip"
+    $ArchivePattern = "$ProductName-cli-*-net10.0-win-x64.zip"
 }
 
 function Assert-Command {

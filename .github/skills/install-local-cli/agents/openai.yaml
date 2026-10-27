@@ -1,4 +1,4 @@
 interface:
   display_name: "Install Packata locally"
   short_description: "Install Packata from a PR or release locally"
-  default_prompt: "Use $install-local-cli to install the self-contained Windows x64 Packata CLI from a pull request or release into a local directory I specify."
+  default_prompt: "Use $install-local-cli to install the framework-dependent .NET 10 Windows x64 Packata CLI from a pull request or release into a local directory I specify."

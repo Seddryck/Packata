@@ -1,15 +1,15 @@
 ---
 name: install-local-cli
-description: Install the self-contained Packata CLI locally from a GitHub pull request or release into a user-specified directory. Use for downloaded CLI distributions, not building from source or installing the .NET tool globally.
+description: Install the framework-dependent .NET 10 Windows x64 Packata CLI locally from a GitHub pull request or release into a user-specified directory. Use for downloaded CLI distributions, not building from source or installing the .NET tool globally.
 ---
 
 # Install Packata CLI locally
 
-Use `scripts/install-local.ps1` with PowerShell 7 and authenticated GitHub CLI access (`gh auth status -h github.com`). Defaults target `Seddryck/Packata` and its self-contained Windows x64 ZIP; a separate .NET runtime is not required for that distribution.
+Use `scripts/install-local.ps1` with PowerShell 7 and authenticated GitHub CLI access (`gh auth status -h github.com`). Defaults target `Seddryck/Packata` and its lightweight framework-dependent .NET 10 Windows x64 ZIP. The matching x64 .NET 10 runtime must already be installed; the archive does not bundle it.
 
 Run from this skill directory, or invoke the script by its full path.
 
-- Open PR: `./scripts/install-local.ps1 -InstallDirectory <path> -PullRequest <number>` selects the newest successful `ci-release.yml` run for the PR head SHA and the single unexpired `cli-self-contained-win-x64-*` artifact.
+- Open PR: `./scripts/install-local.ps1 -InstallDirectory <path> -PullRequest <number>` selects the newest successful `ci-release.yml` run for the PR head SHA and the single unexpired `cli-framework-net10.0-win-x64-*` artifact.
 - Merged PR: the same command resolves a published release whose tag points to the merge commit. Closed, unmerged PRs are not installable.
 - Named release: `./scripts/install-local.ps1 -InstallDirectory <path> -Release <tag>`.
 - Latest release: `./scripts/install-local.ps1 -InstallDirectory <path>`.
@@ -26,9 +26,9 @@ The script downloads exactly one matching ZIP, stages it in a unique temporary d
 |---|---|
 | `-ProductName` | `Packata`; executable and conventional config filenames use lowercase `packata` |
 | `-Repository` | `Seddryck/Packata`; retain supplied casing |
-| `-ArchivePattern` | `Packata-cli-*-win-x64.zip`; the archive prefix intentionally retains uppercase P |
-| `-ArtifactName` | `cli-self-contained-win-x64-*`; case-sensitive wildcard pattern for versioned PR artifact names |
+| `-ArchivePattern` | `Packata-cli-*-net10.0-win-x64.zip`; the archive prefix intentionally retains uppercase P |
+| `-ArtifactName` | `cli-framework-net10.0-win-x64-*`; case-sensitive wildcard pattern for versioned PR artifact names |
 | `-Workflow` | `ci-release.yml` |
 | `-ConfigurationFiles` | `config.json`, `appsettings.json`; basenames preserved in addition to `<product>.config.json` |
 
-Only ZIP distributions containing a Windows executable are supported. For a framework-dependent build, override both the archive and artifact patterns, for example `-ArchivePattern 'Packata-cli-*-net10.0-win-x64.zip' -ArtifactName 'cli-framework-net10.0-win-x64-*'`; that distribution requires its matching .NET runtime. Keep normal invocations about Packata; the script's independent parameters support reuse without editing product literals.
+Only ZIP distributions containing a Windows executable are supported. Use the framework-dependent .NET 10 Windows x64 distribution by default. Keep normal invocations about Packata; the script's independent parameters support reuse without editing product literals.

@@ -59,7 +59,7 @@ try {
     }
 
     $scenarios = @(
-        @{ProductName='Packata'; Repository='Seddryck/Packata'; Workflow='ci-release.yml'; ArtifactName='cli-self-contained-win-x64-*'},
+        @{ProductName='Packata'; Repository='Seddryck/Packata'; Workflow='ci-release.yml'; ArtifactName='cli-framework-net10.0-win-x64-*'},
         @{ProductName='SampleCli'; Repository='ExampleOwner/SampleCLI'; Workflow='Build-Custom.yml'; ArtifactName='Custom-Zip'; ArchivePattern='portable-*-windows.zip'; ConfigurationFiles=@('appsettings.json', 'preferences.json')}
     )
     foreach ($scenario in $scenarios) {
@@ -67,10 +67,12 @@ try {
         $source = Join-Path $testRoot "$prefix-source"
         New-Item -ItemType Directory -Path $source | Out-Null
         Set-Content (Join-Path $source "$prefix.exe") 'new executable'
+        Set-Content (Join-Path $source "$prefix.dll") 'managed assembly'
+        Set-Content (Join-Path $source "$prefix.runtimeconfig.json") '{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"}}}'
         Set-Content (Join-Path $source 'config.json') '{"default":true}'
         Set-Content (Join-Path $source 'appsettings.json') '{"indent":2}'
         Set-Content (Join-Path $source "$prefix.config.json") '{"indent":2}'
-        $expectedPattern = if ($scenario.ArchivePattern) { $scenario.ArchivePattern } else { "$($scenario.ProductName)-cli-*-win-x64.zip" }
+        $expectedPattern = if ($scenario.ArchivePattern) { $scenario.ArchivePattern } else { "$($scenario.ProductName)-cli-*-net10.0-win-x64.zip" }
         $archive = Join-Path $testRoot ($expectedPattern.Replace('*', 'test'))
         if ($scenario.ConfigurationFiles) {
             Set-Content (Join-Path $source 'preferences.json') '{"custom":true}'
@@ -83,6 +85,8 @@ try {
         & "$PSScriptRoot/install-local.ps1" -InstallDirectory $destination @parameters
         $config = Join-Path $destination "$prefix.config.json"
         Assert-Test ((Get-Content $config -Raw).Trim() -eq '{"indent":2}') 'Packaged defaults missing.'
+        Assert-Test ((Get-Content (Join-Path $destination "$prefix.dll") -Raw).Trim() -ceq 'managed assembly') 'Managed assembly missing.'
+        Assert-Test (Test-Path -LiteralPath (Join-Path $destination "$prefix.runtimeconfig.json")) 'Runtime configuration missing.'
         Assert-Fails { & "$PSScriptRoot/install-local.ps1" -InstallDirectory $destination @parameters } '*must be empty*'
         [IO.File]::WriteAllText($config, '{"indent":"tab"}')
         $before = [Convert]::ToBase64String([IO.File]::ReadAllBytes($config))
