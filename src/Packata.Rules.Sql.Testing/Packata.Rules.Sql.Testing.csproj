@@ -28,6 +28,6 @@
     <ProjectReference Include="..\Packata.ResourceReaders.Database\Packata.ResourceReaders.Database.csproj" />
     <PackageReference Include="Moq" Version="4.21.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
-    <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.46.1" />
+    <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.48.1" />
   </ItemGroup>
 </Project>
