@@ -225,7 +225,7 @@ internal static class InferenceService
                 $"Endpoint binding '{endpointId}' for asset '{asset.Id}' could not be resolved uniquely.");
     }
 
-    private static void ValidateCsvEndpoint(DataAsset asset, DataEndpoint endpoint)
+    internal static void ValidateCsvEndpoint(DataAsset asset, DataEndpoint endpoint)
     {
         if (endpoint.Kind != EndpointKind.File || endpoint.Location is not PathLocation { Paths.Count: 1 })
             throw new NotSupportedException(
@@ -236,7 +236,7 @@ internal static class InferenceService
             throw new NotSupportedException($"Asset '{asset.Id}' is not bound to a supported CSV resource.");
     }
 
-    private static CsvInferenceOptions CreateOptions(InferSettings settings, DataEndpoint endpoint)
+    internal static CsvInferenceOptions CreateOptions(InferSettings settings, DataEndpoint endpoint)
     {
         var format = endpoint.Format;
         return new CsvInferenceOptions

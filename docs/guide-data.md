@@ -329,6 +329,15 @@ staging limits and output restrictions]({{ '/cli-inference/' | relative_url }}).
 
 ## Infer a schema from the data
 
+If field definitions are already correct and only CSV parsing settings need checking,
+use `packata dialect infer datapackage.json --asset customers`. It reports candidates
+without changing files. Save a dialect-only copy with `--output updated.json`, or use
+`--write` for an atomic source update. Review ambiguity warnings before explicitly
+accepting candidates with `--accept-ambiguous`. Fields and constraints are preserved.
+See the [dialect guide]({{ '/csv-dialect-export/' | relative_url }}) for sampling,
+shared-endpoint acknowledgement and preservation limits. `dialect export` instead
+exports settings already declared in the contract without reading data.
+
 Use `schema infer` when a contract has missing or outdated field definitions.
 For a delimited file, Packata samples records and reports the types and CSV
 settings it discovers:

@@ -1,12 +1,12 @@
 ---
-title: CSV dialect export
+title: CSV dialect inference and export
 nav_order: 4
 nav_exclude: false
 permalink: /csv-dialect-export/
 parent: Guides
 ---
 
-# Export a CSV dialect descriptor
+# Infer or export a CSV dialect
 
 When you share a CSV file with another tool, it needs to know how to parse the
 file: which delimiter separates fields, whether a header is present, and how
@@ -14,9 +14,48 @@ values are quoted. Use `dialect export` to turn those settings from a contract
 into a standalone JSON descriptor.
 
 The export reads settings already declared in the contract. It does not sample
-the CSV to discover them. If the settings are missing or uncertain, start with
-[schema inference]({{ '/guides/data/' | relative_url }}#infer-a-schema-from-the-data)
-and review the inferred dialect first.
+the CSV to discover them. If the settings are missing or uncertain, use `dialect infer`
+to sample the data without replacing field definitions. `schema infer` discovers both
+fields and dialect together.
+
+## Discover parsing settings without changing fields
+
+Select the asset whose CSV parsing needs checking:
+
+```console
+packata dialect infer datapackage.json --asset customers
+```
+
+The report shows candidate settings, sample limits, warnings and detection confidence
+where available. This invocation changes neither the descriptor nor the data. It accepts
+local ODCS YAML and Data Package JSON/YAML descriptors with one unambiguous CSV, TSV or
+PSV endpoint binding. Missing assets, unavailable resources and unsupported formats fail
+with an actionable diagnostic.
+
+Review the report, then save an enriched copy beside the source. Specify header presence
+when known. If detection remains ambiguous, explicitly accept the reported candidates:
+
+```console
+packata dialect infer datapackage.json --asset customers --header present --accept-ambiguous --output updated.json
+```
+
+Existing destinations are protected. The copy retains field definitions, constraints,
+resource paths and unrelated metadata. Only supported dialect settings change. Review the
+copy before adoption: serialization can change comments, formatting and YAML constructs.
+
+To replace the source deliberately, use `--write` instead of `--output`:
+
+```console
+packata dialect infer datapackage.json --asset customers --header present --accept-ambiguous --write
+```
+
+Replacement is atomic; a failed write leaves the original intact. Shared ODCS endpoints
+affect every bound asset; the report lists them and saving additionally requires
+`--allow-shared-endpoint`. Small, incomplete or inconsistent samples cannot be saved.
+Use `--maximum-records` and `--maximum-bytes` to adjust sampling. Settings the detector
+cannot establish, such as null tokens and comments, are retained. See the
+[dialect inference reference]({{ '/cli/' | relative_url }}#infer-csv-parsing-settings)
+for exact detection, hint, sampling, location and exit-code policies.
 
 ## Find the endpoint to export
 
