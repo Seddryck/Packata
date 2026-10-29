@@ -83,67 +83,85 @@ public sealed class QualityRun
         foreach (var rule in selected)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (rule.Definition is TextQuality || rule.Kind == "text")
-            {
-                results.Add(new(rule, RuleOutcome.Skipped, null, "Text quality rules are not executable.", null));
-                continue;
-            }
-            var engine = _engines.SingleOrDefault(e => e.Info.Types.Contains(rule.Kind, StringComparer.Ordinal));
-            if (engine is null)
-            {
-                results.Add(new(rule, RuleOutcome.Error, null, "No engine is registered for this rule type.", null));
-                continue;
-            }
-            participating.Add(engine.Info.Id);
-            RuleExecutionContext? executionContext = null;
-            IExecutableRule? executingPlan = null;
-            DateTimeOffset? executionStart = null;
-            long executionTimestamp = 0;
-            try
-            {
-                var context = contextFactory(rule);
-                var compiled = engine.Compiler.Compile(rule, new(contract));
-                if (compiled.Diagnostics.Count > 0 || compiled.Plans.Count != 1)
-                {
-                    var unsupported = compiled.Diagnostics.Count > 0 && compiled.Diagnostics.All(d => d.Kind == CompilationFindingKind.Unsupported);
-                    results.Add(new(rule, unsupported ? RuleOutcome.Skipped : RuleOutcome.Error, null,
-                        unsupported ? "The engine cannot evaluate this rule with its available capabilities."
-                            : "The rule configuration or required binding is invalid.", engine.Info.Id));
-                    continue;
-                }
-                executionContext = context;
-                executingPlan = compiled.Plans[0];
-                executionStart = clock.GetUtcNow();
-                executionTimestamp = clock.GetTimestamp();
-                var execution = await executingPlan.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
-                // Incomplete measurements and timeouts cannot be reported as successful quality evaluations.
-                var outcome = execution.Outcome == RuleOutcome.Inconclusive ? RuleOutcome.Error : execution.Outcome;
-                if (!execution.Measurement.Complete && outcome is RuleOutcome.Passed or RuleOutcome.Failed or RuleOutcome.Warn)
-                    outcome = RuleOutcome.Error;
-                var message = outcome switch
-                {
-                    RuleOutcome.Failed => "The observed output did not satisfy the rule expectation.",
-                    RuleOutcome.Warn => "The observed output breached a warning threshold.",
-                    RuleOutcome.Error => "The rule could not be evaluated reliably. Check its configuration, input and runtime.",
-                    RuleOutcome.Skipped => "The selected rule was intentionally not executed.",
-                    _ => null
-                };
-                results.Add(new(rule, outcome, execution, message, engine.Info.Id));
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-            catch (Exception)
-            {
-                // Compiler, binding and provider exceptions may contain program text, raw records or secrets.
-                var execution = executionStart is null ? null : new RuleResult(executingPlan!.Descriptor, RuleOutcome.Error,
-                    new(null, Complete: false), [], executionContext!.ObservationTime, executionStart.Value,
-                    clock.GetUtcNow(), clock.GetElapsedTime(executionTimestamp));
-                results.Add(new(rule, RuleOutcome.Error, execution, "Rule compilation, binding or execution failed.", engine.Info.Id));
-            }
+            results.Add(await ExecuteRuleAsync(rule, contract, contextFactory, participating, clock, cancellationToken).ConfigureAwait(false));
         }
         return new(Guid.NewGuid().ToString(), start, clock.GetUtcNow(), clock.GetElapsedTime(timestamp), results.AsReadOnly(),
-            Array.AsReadOnly(_engines.Where(e => participating.Contains(e.Info.Id)).Select(e => e.Info with
-            {
-                Types = e.Info.Types.Where(t => results.Any(r => r.EngineId == e.Info.Id && r.Rule.Kind == t)).ToArray()
-            }).ToArray()));
+            ParticipatingEngines(participating, results));
     }
+
+    private IReadOnlyList<QualityEngineInfo> ParticipatingEngines(HashSet<string> participating, IReadOnlyList<QualityRunResult> results)
+        => Array.AsReadOnly(_engines.Where(e => participating.Contains(e.Info.Id)).Select(e => e.Info with
+        {
+            Types = e.Info.Types.Where(t => results.Any(r => r.EngineId == e.Info.Id && r.Rule.Kind == t)).ToArray()
+        }).ToArray());
+
+    private async Task<QualityRunResult> ExecuteRuleAsync(DataQualityRule rule, DataContract contract,
+        Func<DataQualityRule, RuleExecutionContext> contextFactory, HashSet<string> participating,
+        TimeProvider clock, CancellationToken cancellationToken)
+    {
+        if (rule.Definition is TextQuality || rule.Kind == "text")
+            return new(rule, RuleOutcome.Skipped, null, "Text quality rules are not executable.", null);
+        var engine = _engines.SingleOrDefault(e => e.Info.Types.Contains(rule.Kind, StringComparer.Ordinal));
+        if (engine is null)
+            return new(rule, RuleOutcome.Error, null, "No engine is registered for this rule type.", null);
+        participating.Add(engine.Info.Id);
+        try
+        {
+            var context = contextFactory(rule);
+            var compiled = engine.Compiler.Compile(rule, new(contract));
+            if (compiled.Diagnostics.Count > 0 || compiled.Plans.Count != 1)
+                return CompilationFailure(rule, engine.Info.Id, compiled);
+            var (execution, failed) = await AttemptAsync(compiled.Plans[0], context, clock, cancellationToken).ConfigureAwait(false);
+            var outcome = NormalizeOutcome(execution);
+            var message = failed ? "Rule compilation, binding or execution failed." : Message(outcome);
+            return new(rule, outcome, execution, message, engine.Info.Id);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception)
+        {
+            // Compiler and binding exceptions may contain program text, raw records or secrets.
+            return new(rule, RuleOutcome.Error, null, "Rule compilation, binding or execution failed.", engine.Info.Id);
+        }
+    }
+
+    private static QualityRunResult CompilationFailure(DataQualityRule rule, string engineId, CompilationResult compiled)
+    {
+        var unsupported = compiled.Diagnostics.Count > 0 && compiled.Diagnostics.All(d => d.Kind == CompilationFindingKind.Unsupported);
+        return new(rule, unsupported ? RuleOutcome.Skipped : RuleOutcome.Error, null,
+            unsupported ? "The engine cannot evaluate this rule with its available capabilities."
+                : "The rule configuration or required binding is invalid.", engineId);
+    }
+
+    private static async Task<(RuleResult Execution, bool Failed)> AttemptAsync(IExecutableRule plan, RuleExecutionContext context,
+        TimeProvider clock, CancellationToken cancellationToken)
+    {
+        var started = clock.GetUtcNow();
+        var timestamp = clock.GetTimestamp();
+        try { return (await plan.ExecuteAsync(context, cancellationToken).ConfigureAwait(false), false); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception)
+        {
+            // Provider exception messages may contain secrets; preserve only execution timing.
+            return (new(plan.Descriptor, RuleOutcome.Error, new(null, Complete: false), [], context.ObservationTime,
+                started, clock.GetUtcNow(), clock.GetElapsedTime(timestamp)), true);
+        }
+    }
+
+    private static RuleOutcome NormalizeOutcome(RuleResult execution)
+    {
+        // Incomplete measurements and timeouts cannot be reported as successful quality evaluations.
+        if (execution.Outcome == RuleOutcome.Inconclusive) return RuleOutcome.Error;
+        if (!execution.Measurement.Complete && execution.Outcome is RuleOutcome.Passed or RuleOutcome.Failed or RuleOutcome.Warn)
+            return RuleOutcome.Error;
+        return execution.Outcome;
+    }
+
+    private static string? Message(RuleOutcome outcome) => outcome switch
+    {
+        RuleOutcome.Failed => "The observed output did not satisfy the rule expectation.",
+        RuleOutcome.Warn => "The observed output breached a warning threshold.",
+        RuleOutcome.Error => "The rule could not be evaluated reliably. Check its configuration, input and runtime.",
+        RuleOutcome.Skipped => "The selected rule was intentionally not executed.",
+        _ => null
+    };
 }

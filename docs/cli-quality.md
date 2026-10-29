@@ -8,6 +8,14 @@ grand_parent: Reference
 
 # Execute quality rules
 
+<!-- cli:quality run -->
+
+`packata quality run <SOURCE> [options]`
+
+`<SOURCE>` is the ODCS contract location. `--input-format auto|odcs|datapackage`
+controls source detection; quality execution requires ODCS. `--output <PATH>` and
+`-o <PATH>` write a new report file.
+
 ```console
 packata quality run contract.odcs.yaml
 packata quality run contract.odcs.yaml --asset customers --field email --dimension completeness --dimension uniqueness

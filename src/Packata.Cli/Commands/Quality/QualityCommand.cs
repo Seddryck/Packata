@@ -28,49 +28,79 @@ internal sealed class QualityCommand : AsyncCommand<QualitySettings>
         try
         {
             using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken, retainArchive: true).ConfigureAwait(false);
-            if (source.NativeDocument is not Packata.OpenDataContract.DataContract odcs)
-                throw new ArgumentException("quality run requires an ODCS contract.");
-            var validation = ContractValidation.Validate(source);
-            foreach (var diagnostic in validation) CommandOutput.Diagnostic(diagnostic);
-            if (validation.Any(d => d.Severity == MappingSeverity.Error)) return 2;
-            var mapped = source.Map();
-            if (!mapped.IsSuccessful) throw new InvalidOperationException("The contract cannot be processed.");
-            var contract = mapped.RequireValue();
+            var contract = ValidateContract(source);
+            if (contract is null) return 2;
             // Validate selection before acquiring database configuration or data resources.
-            IReadOnlyList<DataQualityRule> selected;
-            try { selected = QualityRun.Select(contract, settings.Filters); }
-            catch (ArgumentException) { throw new ContractOperationException("QUALITY002", "$", "No quality rules match the supplied filters."); }
+            var selected = SelectRules(contract, settings.Filters);
             CliDatabase.ResolveOverrides(contract.Endpoints, settings.ConnectionEnvironment);
             CliDatabase.ParsePairs(settings.Connectors, "--connector");
-            using var database = selected.Any(r => r.Definition is not TextQuality) && contract.Endpoints.Any(e => e.Location is ConnectionLocation)
-                ? new CliDatabase(new CliConfiguration(), source.BaseUri.IsFile ? source.BaseUri.LocalPath : "",
-                    contract.Endpoints, settings.Connectors, settings.ConnectionEnvironment) : null;
-            var streams = source.Archive is null ? null : new PreviewService.ArchiveStreamResolver(source.Archive, source.ArchiveDescriptor!);
-            var readers = PreviewService.CreateFactory(source.BaseUri, database?.RuntimeConnectionsService, streams);
+            using var database = CreateDatabase(source, contract, selected, settings);
+            var readers = CreateReaders(source, database);
             var engines = CreateEngines(database is null ? null : new SqlConnections(database, settings.SqlReadOnlyCredentials));
             var runner = new QualityRun(engines);
             RuleExecutionContext Context(DataQualityRule rule) => new(start,
                 Data: new ContractDataSource(contract, readers, source.Source));
             var report = await runner.ExecuteAsync(contract, settings.Filters, Context, cancellationToken, clock, start, timestamp).ConfigureAwait(false);
-            var document = OorsReport.Create(report, contract, odcs.ApiVersion, source, settings.Filters);
-            OorsReport.Stamp(document, start, clock.GetUtcNow(), clock.GetElapsedTime(timestamp));
-            var rendered = OorsReport.Serialize(document, settings.OutputFormat);
-            cancellationToken.ThrowIfCancellationRequested();
-            using var output = new OutputDestination(settings.Output);
-            output.Writer.WriteLine(rendered);
-            output.Commit();
+            WriteReport(report, contract, source, settings, clock, timestamp, cancellationToken);
             return report.ExitCode;
         }
         catch (Exception exception)
         {
             // Never echo arbitrary parser, runtime, SQL or provider messages.
-            var message = exception is ContractOperationException operation ? operation.Diagnostic.Message
-                : exception is OperationCanceledException ? "Quality run cancelled."
-                : "Unable to complete the quality run or produce a valid OORS report. Check the contract, bindings and output destination.";
-            CommandOutput.Diagnostic(new("QUALITY001", MappingSeverity.Error, "$", message));
+            CommandOutput.Diagnostic(new("QUALITY001", MappingSeverity.Error, "$", FailureMessage(exception)));
             return 2;
         }
     }
+
+    private static DataContract? ValidateContract(ContractSource source)
+    {
+        if (source.NativeDocument is not Packata.OpenDataContract.DataContract)
+            throw new ArgumentException("quality run requires an ODCS contract.");
+        var validation = ContractValidation.Validate(source);
+        foreach (var diagnostic in validation) CommandOutput.Diagnostic(diagnostic);
+        if (validation.Any(d => d.Severity == MappingSeverity.Error)) return null;
+        var mapped = source.Map();
+        if (!mapped.IsSuccessful) throw new InvalidOperationException("The contract cannot be processed.");
+        return mapped.RequireValue();
+    }
+
+    private static IReadOnlyList<DataQualityRule> SelectRules(DataContract contract, QualityFilters filters)
+    {
+        try { return QualityRun.Select(contract, filters); }
+        catch (ArgumentException) { throw new ContractOperationException("QUALITY002", "$", "No quality rules match the supplied filters."); }
+    }
+
+    private static CliDatabase? CreateDatabase(ContractSource source, DataContract contract,
+        IReadOnlyList<DataQualityRule> selected, QualitySettings settings)
+        => selected.Any(r => r.Definition is not TextQuality) && contract.Endpoints.Any(e => e.Location is ConnectionLocation)
+            ? new CliDatabase(new CliConfiguration(), source.BaseUri.IsFile ? source.BaseUri.LocalPath : "",
+                contract.Endpoints, settings.Connectors, settings.ConnectionEnvironment) : null;
+
+    private static IDataEndpointReaderFactory CreateReaders(ContractSource source, CliDatabase? database)
+    {
+        var streams = source.Archive is null ? null : new PreviewService.ArchiveStreamResolver(source.Archive, source.ArchiveDescriptor!);
+        return PreviewService.CreateFactory(source.BaseUri, database?.RuntimeConnectionsService, streams);
+    }
+
+    private static void WriteReport(QualityRunReport report, DataContract contract, ContractSource source,
+        QualitySettings settings, TimeProvider clock, long timestamp, CancellationToken cancellationToken)
+    {
+        var odcs = (Packata.OpenDataContract.DataContract)source.NativeDocument;
+        var document = OorsReport.Create(report, contract, odcs.ApiVersion, source, settings.Filters);
+        OorsReport.Stamp(document, report.StartedAt, clock.GetUtcNow(), clock.GetElapsedTime(timestamp));
+        var rendered = OorsReport.Serialize(document, settings.OutputFormat);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var output = new OutputDestination(settings.Output);
+        output.Writer.WriteLine(rendered);
+        output.Commit();
+    }
+
+    private static string FailureMessage(Exception exception) => exception switch
+    {
+        ContractOperationException operation => operation.Diagnostic.Message,
+        OperationCanceledException => "Quality run cancelled.",
+        _ => "Unable to complete the quality run or produce a valid OORS report. Check the contract, bindings and output destination."
+    };
 
     internal static QualityEngine[] CreateEngines(ISqlRuleConnectionSource? connections) =>
     [
