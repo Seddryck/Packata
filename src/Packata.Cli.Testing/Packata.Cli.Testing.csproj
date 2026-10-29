@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <PackageReference Include="Moq" Version="4.21.0" />
-    <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.46.1" />
+    <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.48.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.14" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
