@@ -89,12 +89,23 @@
         "command": "packata.copyPath",
         "title": "Copy Logical Path",
         "category": "Packata"
+      },
+      {
+        "command": "packata.selectView",
+        "title": "View as: Canonical / Native",
+        "category": "Packata",
+        "icon": "$(list-tree)"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "packata.refresh",
+          "when": "view == packata.contracts",
+          "group": "navigation"
+        },
+        {
+          "command": "packata.selectView",
           "when": "view == packata.contracts",
           "group": "navigation"
         }

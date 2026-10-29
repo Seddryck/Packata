@@ -2,11 +2,11 @@ export interface Position { line: number; character: number }
 export interface Location { uri: string; range: { start: Position; end: Position } }
 export interface ContractNode {
   id: string; label: string; kind: string; logicalPath: string; description?: string;
-  location?: Location; children: ContractNode[];
+  location?: Location; sourcePath?: string; children: ContractNode[];
 }
 export interface Inspection {
   schemaVersion: number; uri: string; version: number | null; baseUri: string; recognized: boolean;
-  format?: string; contract?: unknown; diagnostics: { code?: string; severity: string; sourcePath?: string; message: string }[]; tree?: ContractNode;
+  format?: string; contract?: unknown; diagnostics: { code?: string; severity: string; sourcePath?: string; message: string }[]; tree?: ContractNode; nativeTree?: ContractNode;
 }
 export interface Discovery { schemaVersion: number; contracts: Inspection[] }
 export interface Validation { schemaVersion: number; uri: string; version: number | null; valid: boolean; diagnostics: unknown[] }
@@ -32,7 +32,8 @@ export function requireDiscovery(value: unknown): asserts value is Discovery {
   const result = value as Discovery;
   if (!Array.isArray(result.contracts) || result.contracts.some(item => item.schemaVersion !== 1
     || typeof item.uri !== 'string' || (item.version !== null && !Number.isInteger(item.version))
-    || !Array.isArray(item.diagnostics) || (item.tree != null && !node(item.tree)))) {
+    || !Array.isArray(item.diagnostics) || (item.tree != null && !node(item.tree))
+    || (item.nativeTree != null && !node(item.nativeTree)))) {
     throw new Error('Malformed Packata discovery response. Restart or update the language server.');
   }
 }

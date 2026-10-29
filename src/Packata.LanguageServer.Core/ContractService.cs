@@ -61,7 +61,9 @@ public sealed class ContractService(DocumentStore documents)
         var diagnostics = mapped.Diagnostics.Select(value => Diagnostic(value, index)).ToArray();
         var inspection = new Inspection(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, true, document.Format,
             mapped.Value is null ? null : ContractJson.RedactedJson(mapped.Value), diagnostics,
-            mapped.Value is null ? null : new ContractTreeBuilder(document, snapshot.Uri).Build(mapped.Value));
+            mapped.Value is null ? null : new ContractTreeBuilder(document, snapshot.Uri).Build(mapped.Value),
+            new ContractTreeBuilder(document, snapshot.Uri).BuildNative());
+        token.ThrowIfCancellationRequested();
         return new(snapshot, inspection, document);
     }
 
@@ -74,7 +76,24 @@ public sealed class ContractService(DocumentStore documents)
         var diagnostics = recognized
             ? new[] { new DocumentDiagnostic("PKT001", "Error", "$", "Invalid or unsupported contract document. Check syntax, format, and document size (4 MiB maximum).", FailureRange(error)) }
             : [];
-        return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, recognized, null, null, diagnostics, null);
+        var native = TryNativeTree(snapshot, recognized);
+        return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, recognized, native.Format, null, diagnostics, null, native.Tree);
+    }
+
+    private static (string? Format, ContractNode? Tree) TryNativeTree(DocumentSnapshot snapshot, bool recognized)
+    {
+        if (!recognized || System.Text.Encoding.UTF8.GetByteCount(snapshot.Text) > MaximumDocumentBytes) return (null, null);
+        try
+        {
+            var root = ContractDocument.ParseRoot(snapshot.Text);
+            var odcs = ContractDocument.Child(root, "kind") is not null;
+            return (odcs ? "odcs" : "datapackage", new ContractTreeBuilder(root, odcs, snapshot.Uri).BuildNative());
+        }
+        catch (Exception error) when (IsDocumentError(error))
+        {
+            // Broken or unsafe syntax has diagnostics but cannot provide a reliable source tree.
+            return (null, null);
+        }
     }
 
     private static SourceRange? FailureRange(Exception error)

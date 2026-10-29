@@ -59,7 +59,7 @@ An inspection result has this shape (contract contents omitted here for readabil
 
 `contract` is the shared canonical `Packata.Core.Contracts.DataContract` representation, projected as camel-case JSON with string enums and credential redaction. The server-generated tree provides editor-independent grouping and source mappings; it is not a second contract parser. Real results include the populated canonical contract and tree. A node has `id`, `label`, `kind`, `logicalPath`, optional `description`/`location`, and `children`. Asset IDs are name-based (occurrence suffixes disambiguate duplicates); fields include their occurrence index. Consumers should treat IDs as opaque.
 
-Inspection includes mapping diagnostics and does not certify successful validation. Unsupported or malformed recognized documents have no contract/tree and include a safe diagnostic. Unrelated documents return `recognized:false` with no diagnostics.
+Inspection includes mapping diagnostics and does not certify successful validation. Unsupported or malformed recognized documents have no canonical contract/tree and include a safe diagnostic. Well-formed source can still provide the native projection described below. Unrelated documents return `recognized:false` with no diagnostics.
 
 ## Validation and diagnostics
 
@@ -85,3 +85,11 @@ The server returns JSON-RPC error `-32602` for an unsupported Packata payload ve
 | Prerequisites | Locked npm dependencies, Node 24, .NET 10 SDK; existing icon reused, no new asset generator |
 | Validation | Focused service/protocol/client tests, Extension Development Host smoke test, ZIP content/runtime checks; cross-publishing alone does not establish native execution |
 | Publication | Existing main-branch release flow attaches validated VSIX artifacts; PR builds only validate/package; no Marketplace publishing or new credentials |
+
+## Explorer projections
+
+Inspection and discovery now also return `nativeTree` (an additive version-1 field). `tree` remains the canonical projection and includes a source-properties branch for content the canonical mapping does not represent. `nativeTree` preserves every source mapping property and sequence item, including unknown properties, false/null values and empty collections; credential-bearing values remain redacted. The original property names provide ODCS schema/properties/servers/SLA/team and Data Package resources/path/dialect/schema/fields/contributors hierarchies without a second client parser.
+
+Both projections carry optional `sourcePath` JSON Pointers and syntax-derived `location` values. `logicalPath` is canonical in canonical nodes and the native JSON Pointer in native nodes. Stable opaque IDs use unique source names for named sequence items, falling back to occurrence indices for unnamed/duplicate items. Clients match source paths across projections, then fall back to the closest corresponding parent. Well-formed source that fails native deserialization can still return `nativeTree` with diagnostics and a null canonical tree; malformed, cyclic, oversized or excessively deep syntax provides diagnostics without a fabricated tree.
+
+The extension stores its Canonical/Native preference in VS Code workspace state, shared by all workspace folders. Switching uses the already synchronized inspection snapshot; ordinary refresh/version/cancellation handling updates both projections together. Source navigation reinspects the current buffer and searches both trees for the selected opaque ID.

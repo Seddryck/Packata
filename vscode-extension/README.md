@@ -57,3 +57,9 @@ Server communication failures clear the tree and display restart guidance. The l
 Protocol tracing is disabled by default. Avoid enabling verbose LSP tracing for documents containing secrets: traces include synchronized editor text. User-visible inspection/tree payloads are redacted, and parser/transport exceptions are replaced with fixed messages.
 
 See [the protocol contract](../docs/language-server-protocol.md) for request/response shapes, diagnostics, version negotiation, and the preview extension boundary.
+
+## Canonical and Native explorer views
+
+Use **Packata: View as: Canonical / Native** from the command palette or the Data Contracts toolbar. Canonical is the default and shows assets, columns and constraints. Native shows the descriptor's original ODCS or Data Package v2 property names and hierarchy, including extension properties and empty values. The choice is saved per workspace and applies to every workspace folder.
+
+Both projections come from the language server and follow unsaved edits. Switching preserves corresponding expanded/selected source nodes, with a nearest-parent fallback, and never rewrites the descriptor. Canonical also includes **Source properties (including unmapped)** so information outside the canonical mapping remains accessible. Mapping diagnostics appear on contract tooltips and in Problems/output; constraints, quality declarations and SLA commitments remain distinct. Credential values remain redacted in either view.

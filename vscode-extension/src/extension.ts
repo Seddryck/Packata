@@ -3,13 +3,43 @@ import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node
 import { ContractNode, ContractState, Discovery, Inspection, Validation, requireCapabilities, requireDiscovery, requireSchema } from './protocol';
 import { resolveServer } from './serverPath';
 import { ContractTree, TreeEntry } from './tree';
+import { ViewMode, ViewPreference } from './viewMode';
 
 let client: LanguageClient | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const state = new ContractState();
   const tree = new ContractTree(state);
+  const preference = new ViewPreference(context.workspaceState);
+  tree.mode = preference.mode;
   const view = vscode.window.createTreeView('packata.contracts', { treeDataProvider: tree, showCollapseAll: true });
+  const expanded = new Map<string, TreeEntry>();
+  const describeMode = () => { view.description = `View as: ${tree.mode === 'native' ? 'Native' : 'Canonical'}`; };
+  describeMode();
+  context.subscriptions.push(
+    view.onDidExpandElement(event => expanded.set(event.element.node.id, event.element)),
+    view.onDidCollapseElement(event => expanded.delete(event.element.node.id)),
+    vscode.commands.registerCommand('packata.selectView', async (requested?: ViewMode) => {
+      const selected = requested ?? await vscode.window.showQuickPick([
+        { label: 'Canonical', mode: 'canonical' as const, description: 'Assets, columns and constraints' },
+        { label: 'Native', mode: 'native' as const, description: 'Original ODCS or Data Package properties' }
+      ], { title: 'View as', placeHolder: `Current: ${tree.mode}` }).then(item => item?.mode);
+      if (selected !== 'canonical' && selected !== 'native') return;
+      await preference.set(selected);
+      const selection = [...view.selection];
+      const expansion = [...expanded.values()];
+      expanded.clear();
+      tree.mode = selected; tree.refresh(); describeMode();
+      for (const previous of expansion) {
+        const next = tree.corresponding(previous);
+        if (next) await view.reveal(next, { expand: true, focus: false, select: false });
+      }
+      for (const previous of selection) {
+        const next = tree.corresponding(previous);
+        if (next) await view.reveal(next, { select: true, focus: false });
+      }
+    })
+  );
   const output = vscode.window.createOutputChannel('Packata', { log: true });
   context.subscriptions.push(tree, view, output);
   const config = () => vscode.workspace.getConfiguration('packata');
@@ -135,7 +165,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
   command('packata.refresh', refresh);
   command('packata.restart', async () => { state.clear(); tree.validation.clear(); tree.refresh(); await connection.restart(); await Promise.all(pendingOpenNotifications); compatible(); schedule(); });
-  command('packata.copyPath', entry => entry && vscode.env.clipboard.writeText(entry.node.logicalPath));
+  command('packata.copyPath', entry => entry && vscode.env.clipboard.writeText(tree.mode === 'native' ? entry.node.sourcePath ?? entry.node.logicalPath : entry.node.logicalPath));
   command('packata.openSource', async entry => vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.parse(uri(entry)))));
   command('packata.revealSource', async entry => {
     if (!entry?.node.location) return;
@@ -147,7 +177,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     requireSchema(result);
     if (epoch !== documentEpoch || !current(result)) { schedule(); return; }
     const find = (node: ContractNode): ContractNode | undefined => node.id === entry.node.id ? node : node.children.map(find).find(Boolean);
-    const location = result.tree && find(result.tree)?.location;
+    const location = (result.tree && find(result.tree)?.location) ?? (result.nativeTree && find(result.nativeTree)?.location);
     if (!location) { schedule(); return; }
     const range = new vscode.Range(location.range.start.line, location.range.start.character, location.range.end.line, location.range.end.character);
     const editor = await vscode.window.showTextDocument(document, { selection: range });

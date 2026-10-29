@@ -136,3 +136,58 @@ test('manifest contributes native navigation/context menus without unsupported p
   assert.ok(manifest.contributes.menus['view/item/context'].some(item => item.command === 'packata.validate'));
   assert.ok(!manifest.contributes.commands.some(item => /preview|executeQuality/.test(item.command)));
 });
+
+test('workspace preference defaults to canonical and survives recreation without crossing workspaces', async () => {
+  const { ViewPreference } = load('viewMode.ts');
+  const values = new Map();
+  const storage = { get: key => values.get(key), update: async (key, value) => { values.set(key, value); } };
+  const preference = new ViewPreference(storage);
+  assert.equal(preference.mode, 'canonical');
+  await preference.set('native');
+  assert.equal(new ViewPreference(storage).mode, 'native');
+  assert.equal(new ViewPreference({ get: () => undefined }).mode, 'canonical');
+  await preference.set('canonical');
+  assert.equal(new ViewPreference(storage).mode, 'canonical');
+});
+
+test('switches all mixed-format roots and resolves selection/expansion by source or nearest parent', () => {
+  const { ContractTree } = load('tree.ts', { vscode });
+  const a = inspection(), b = { ...inspection(), uri: 'file:///other/datapackage.json', format: 'datapackage' };
+  b.tree = { ...b.tree, id: b.uri + '#/' };
+  const location = { uri: a.uri, range: { start: { line: 4, character: 2 }, end: { line: 4, character: 8 } } };
+  a.tree.sourcePath = '';
+  a.tree.children = [{ id: 'asset', label: 'Customers', kind: 'asset', logicalPath: '/assets/customers', sourcePath: '/schema/0', location, children: [
+    { id: 'synthetic', label: 'Constraints', kind: 'group', logicalPath: '/constraints', children: [] }
+  ] }];
+  a.nativeTree = { ...a.tree, children: [{ id: 'schema', label: 'schema', kind: 'metadata', logicalPath: '/native/schema', sourcePath: '/schema', children: [
+    { id: 'native-customer', label: 'Customers', kind: 'metadata', logicalPath: '/native/schema/customers', sourcePath: '/schema/0', location, children: [] }
+  ] }] };
+  b.nativeTree = { ...b.tree, id: b.uri + '#/', children: [{ id: 'resources', label: 'resources', kind: 'metadata', logicalPath: '/native/resources', sourcePath: '/resources', children: [] }] };
+  const state = new protocol.ContractState(); state.apply(state.begin(), discovery(a, b), new Map());
+  const tree = new ContractTree(state); tree.refresh();
+  const asset = tree.getChildren(tree.getChildren()[0])[0];
+  const synthetic = tree.getChildren(asset)[0];
+  tree.mode = 'native'; tree.refresh();
+  assert.equal(tree.getChildren(tree.getChildren()[0])[0].node.label, 'schema');
+  assert.equal(tree.getChildren(tree.getChildren()[1])[0].node.label, 'resources');
+  const match = tree.corresponding(asset);
+  assert.equal(match.node.id, 'native-customer');
+  assert.equal(tree.corresponding(synthetic), match);
+  assert.equal(tree.getTreeItem(match).command.command, 'packata.revealSource');
+  tree.mode = 'canonical'; tree.refresh();
+  assert.equal(tree.corresponding(match).node.id, 'asset');
+  assert.equal(a.version, 1);
+});
+
+test('native partial documents retain diagnostics and malformed native trees are rejected', () => {
+  const { ContractTree } = load('tree.ts', { vscode });
+  const partial = inspection(); partial.nativeTree = partial.tree; partial.tree = null;
+  partial.diagnostics = [{ severity: 'Warning', message: 'Mapping incomplete' }];
+  const state = new protocol.ContractState(); state.apply(state.begin(), discovery(partial), new Map());
+  const tree = new ContractTree(state); tree.mode = 'native'; tree.refresh();
+  assert.match(tree.getTreeItem(tree.getChildren()[0]).tooltip, /Mapping incomplete/);
+  tree.mode = 'canonical'; tree.refresh();
+  assert.equal(tree.getChildren(tree.getChildren()[0])[0].node.label, 'Source properties (including unmapped)');
+  partial.nativeTree = { children: 'invalid' };
+  assert.throws(() => protocol.requireDiscovery(discovery(partial)));
+});

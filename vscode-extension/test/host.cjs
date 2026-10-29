@@ -12,8 +12,10 @@ exports.run = async function () {
   const discover = await vscode.commands.executeCommand('packata.workspace.discover', { workspaceFolders: folders, schemaVersion: 1 });
   assert.equal(discover.contracts.length, 2, 'Both roots are discovered, unrelated JSON is ignored');
   assert.ok(discover.contracts.every(contract => contract.tree.children.some(node => node.label === 'Assets')));
+  assert.ok(discover.contracts.every(contract => contract.nativeTree.children.some(node => node.label === (contract.format === 'odcs' ? 'schema' : 'resources'))));
   await vscode.commands.executeCommand('workbench.view.extension.packata');
   await vscode.commands.executeCommand('packata.refresh');
+  await vscode.commands.executeCommand('packata.selectView', 'native');
   const odcs = discover.contracts.find(contract => contract.format === 'odcs');
   const odcsColumn = odcs.tree.children.find(node => node.label === 'Assets').children[0].children.find(node => node.label === 'Columns').children[0];
   await vscode.commands.executeCommand('packata.revealSource', { node: odcsColumn, contract: odcs });
@@ -34,9 +36,17 @@ exports.run = async function () {
   assert.equal(vscode.window.activeTextEditor.document.uri.toString(), uri.toString());
   assert.equal(vscode.window.activeTextEditor.selection.start.line, column.location.range.start.line);
   assert.equal(document.isDirty, true);
+  const unchanged = document.getText();
+  await vscode.commands.executeCommand('packata.selectView', 'native');
+  const nativeName = inspection.nativeTree.children.find(node => node.sourcePath === '/name');
+  assert.equal(nativeName.description, 'Unsaved');
+  await vscode.commands.executeCommand('packata.revealSource', { node: nativeName, contract: inspection });
+  assert.equal(vscode.window.activeTextEditor.selection.start.line, 0);
+  await vscode.commands.executeCommand('packata.selectView', 'canonical');
+  assert.equal(document.getText(), unchanged, 'Switching projections never rewrites the descriptor');
   await vscode.commands.executeCommand('packata.restart');
   const restarted = await vscode.commands.executeCommand('packata.contract.inspect', { uri: uri.toString(), schemaVersion: 1 });
   assert.equal(restarted.contract.identity.name, 'Unsaved', `Restart resynchronizes modified buffers (version ${restarted.version}, buffer ${document.getText().split('\n')[0]})`);
   // Do not save modified source fixtures. The isolated test host discards this profile.
-  console.log('Packata host smoke: activation, multi-root tree data, unsaved inspection, source navigation and restart passed.');
+  console.log('Packata host smoke: activation, mixed roots, projection switching, unsaved source navigation and restart passed.');
 };

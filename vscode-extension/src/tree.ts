@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ContractNode, ContractState, Inspection } from './protocol';
+import { ViewMode } from './viewMode';
 
 export interface TreeEntry { node: ContractNode; contract: Inspection; parent?: TreeEntry }
 export class ContractTree implements vscode.TreeDataProvider<TreeEntry> {
@@ -8,15 +9,19 @@ export class ContractTree implements vscode.TreeDataProvider<TreeEntry> {
   private roots: TreeEntry[] = [];
   private readonly children = new Map<string, TreeEntry[]>();
   readonly validation = new Map<string, { version: number | null; valid: boolean }>();
+  mode: ViewMode = 'canonical';
+  private readonly entries: TreeEntry[] = [];
   constructor(readonly state: ContractState) {}
   refresh(): void {
     this.children.clear();
+    this.entries.length = 0;
     const collect = (node: ContractNode, contract: Inspection, parent?: TreeEntry): TreeEntry => {
       const entry = { node, contract, parent };
+      this.entries.push(entry);
       this.children.set(node.id, node.children.map(child => collect(child, contract, entry)));
       return entry;
     };
-    this.roots = this.state.contracts.map(contract => collect(contract.tree ?? {
+    this.roots = this.state.contracts.map(contract => collect(this.projection(contract) ?? {
       id: contract.uri + '#/', label: vscode.Uri.parse(contract.uri).path.split('/').pop() ?? 'Invalid contract',
       kind: 'contract', logicalPath: '/', description: 'Invalid or unsupported descriptor — open source', children: []
     }, contract));
@@ -25,11 +30,29 @@ export class ContractTree implements vscode.TreeDataProvider<TreeEntry> {
   getChildren(entry?: TreeEntry): TreeEntry[] { return entry ? this.children.get(entry.node.id) ?? [] : this.roots; }
   getParent(entry: TreeEntry): TreeEntry | undefined { return entry.parent; }
   root(uri: string): TreeEntry | undefined { return this.roots.find(item => item.contract.uri === uri); }
+  private projection(contract: Inspection): ContractNode | undefined {
+    if (this.mode === 'native') return contract.nativeTree;
+    if (contract.tree || !contract.nativeTree) return contract.tree;
+    return { ...contract.nativeTree, description: 'Canonical mapping unavailable', children: [{
+      id: contract.uri + '#/source', label: 'Source properties (including unmapped)', kind: 'group',
+      logicalPath: '/source', children: contract.nativeTree.children
+    }] };
+  }
+  corresponding(entry: TreeEntry): TreeEntry | undefined {
+    const candidates = this.entries.filter(value => value.contract.uri === entry.contract.uri);
+    for (let current: TreeEntry | undefined = entry; current; current = current.parent) {
+      const target = current.node;
+      const match = candidates.find(value => target.sourcePath !== undefined && value.node.sourcePath === target.sourcePath)
+        ?? candidates.find(value => value.node.id === target.id);
+      if (match) return match;
+    }
+    return this.root(entry.contract.uri);
+  }
   getTreeItem(entry: TreeEntry): vscode.TreeItem {
     const { node, contract } = entry;
     const item = new vscode.TreeItem(node.label, node.children.length ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
     item.id = node.id; item.description = node.description; item.contextValue = node.kind;
-    item.tooltip = `${node.label}\n${node.description ?? ''}\n${vscode.Uri.parse(contract.uri).fsPath}\n${node.logicalPath}`;
+    item.tooltip = `${node.label}\n${node.description ?? ''}\n${vscode.Uri.parse(contract.uri).fsPath}\n${node.logicalPath}\nSource: ${node.sourcePath ?? 'unmapped'}`;
     const icons: Record<string, string> = { contract: 'file-code', asset: 'database', field: 'symbol-field', constraint: 'symbol-ruler', quality: 'checklist', endpoint: 'plug', sla: 'clock', governance: 'organization', group: 'folder' };
     item.iconPath = new vscode.ThemeIcon(icons[node.kind] ?? 'symbol-property');
     if (node.kind === 'contract') this.decorateContract(item, entry);

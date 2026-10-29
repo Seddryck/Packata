@@ -5,13 +5,23 @@ using YamlDotNet.RepresentationModel;
 namespace Packata.LanguageServer.Core;
 
 /// <summary>Builds the editor-independent navigation model alongside authoritative syntax locations.</summary>
-public sealed class ContractTreeBuilder(ContractDocument document, Uri uri)
+public sealed class ContractTreeBuilder(YamlMappingNode root, bool odcs, Uri uri)
 {
     private const string GroupKind = "group";
     private const string QualityKind = "quality";
-    private readonly SourceIndex source = new(document.Root);
+    private readonly SourceIndex source = new(root);
     private string UriText => uri.AbsoluteUri;
-    private bool Odcs => document.Format == "odcs";
+    private bool Odcs => odcs;
+
+    public ContractTreeBuilder(ContractDocument document, Uri uri) : this(document.Root, document.Format == "odcs", uri) { }
+
+    public ContractNode BuildNative()
+    {
+        var label = (ContractDocument.Child(root, "name") as YamlScalarNode)?.Value
+            ?? (ContractDocument.Child(root, "id") as YamlScalarNode)?.Value ?? "Contract";
+        return Node("/", label, "contract", "", NativeChildren(root, "/native", "metadata", ""),
+            Odcs ? "ODCS" : "Data Package v2");
+    }
 
     public ContractNode Build(DataContract contract)
     {
@@ -24,6 +34,7 @@ public sealed class ContractTreeBuilder(ContractDocument document, Uri uri)
         AddNative(children, "SLA commitments", "/sla", "sla", "slaProperties");
         AddNative(children, "Governance", "/governance", "governance", "team", "roles", "support", "authoritativeDefinitions");
         if (!Odcs) AddNative(children, "Package metadata", "/metadata", "metadata", "contributors", "licenses", "sources", "profile", "created", "keywords");
+        children.Add(Node("/source", "Source properties (including unmapped)", GroupKind, "", BuildNative().Children));
         return Node("/", contract.Metadata.Title ?? contract.Identity.Name ?? contract.Identity.Id, "contract", "",
             children, Odcs ? "ODCS" : "Data Package v2");
     }
@@ -91,11 +102,20 @@ public sealed class ContractTreeBuilder(ContractDocument document, Uri uri)
     {
         ArgumentNullException.ThrowIfNull(value);
         var sensitive = IsSensitive(label, value);
-        var children = sensitive ? [] : NativeChildren(value, id, kind, sourcePointer);
+        var children = sensitive ? [] : NativeChildren(value, id, NativeKind(label, kind), sourcePointer);
         var description = (value as YamlScalarNode)?.Value;
         if (sensitive) description = "[redacted]";
-        return Node(id, label, kind, sourcePointer, children, description);
+        return Node(id, label, NativeKind(label, kind), sourcePointer, children, description) with { LogicalPath = sourcePointer };
     }
+
+    private static string NativeKind(string label, string inherited) => label switch
+    {
+        "quality" => QualityKind,
+        "slaProperties" => "sla",
+        "constraints" or "primaryKey" or "foreignKeys" or "uniqueKeys" => "constraint",
+        "servers" => "endpoint",
+        _ => inherited
+    };
 
     private static bool IsSensitive(string label, YamlNode value)
     {
@@ -109,20 +129,39 @@ public sealed class ContractTreeBuilder(ContractDocument document, Uri uri)
     private ContractNode[] NativeChildren(YamlNode value, string id, string kind, string sourcePointer) => value switch
     {
         YamlMappingNode map => MappingChildren(map, id, kind, sourcePointer),
-        YamlSequenceNode sequence => sequence.Children.Select((child, index) => Native(
-            (ContractDocument.Child(child, "name") as YamlScalarNode)?.Value ?? $"{index + 1}",
-            SourceIndex.Append(id, $"{index}"), kind, SourceIndex.Append(sourcePointer, $"{index}"), child)).ToArray(),
+        YamlSequenceNode sequence => SequenceChildren(sequence, id, kind, sourcePointer),
         _ => []
     };
 
+    private ContractNode[] SequenceChildren(YamlSequenceNode sequence, string id, string kind, string sourcePointer)
+    {
+        var names = sequence.Children.Select(child => (ContractDocument.Child(child, "name") as YamlScalarNode)?.Value).ToArray();
+        var counts = names.OfType<string>().CountBy(name => name).ToDictionary();
+        return sequence.Children.Select((child, index) =>
+        {
+            var name = names[index];
+            var key = name is not null && counts[name] == 1 ? "name:" + name : $"index:{index}";
+            var node = Native(name ?? $"{index + 1}", SourceIndex.Append(id, key), kind,
+                SourceIndex.Append(sourcePointer, $"{index}"), child);
+            return node with { Kind = SequenceItemKind(sourcePointer, kind) };
+        }).ToArray();
+    }
+
+    private static string SequenceItemKind(string sourcePointer, string inherited)
+    {
+        if (sourcePointer is "/schema" or "/resources") return "asset";
+        if (sourcePointer.EndsWith("/fields", StringComparison.Ordinal)
+            || sourcePointer.EndsWith("/properties", StringComparison.Ordinal)) return "field";
+        return inherited;
+    }
+
     private ContractNode[] MappingChildren(YamlMappingNode map, string id, string kind, string sourcePointer)
         => map.Children.Select(pair => (name: ((YamlScalarNode)pair.Key).Value ?? "", pair.Value))
-            .Where(pair => Meaningful(pair.Value))
             .Select(pair => Native(pair.name, SourceIndex.Append(id, pair.name), kind, SourceIndex.Append(sourcePointer, pair.name), pair.Value)).ToArray();
 
     private ContractNode Node(string id, string label, string kind, string? path, IReadOnlyList<ContractNode> children, string? description = null)
         => new(UriText + "#" + id, ContractJson.Redact(label), kind, id, ContractJson.Redact(description ?? ""),
-            path is not null && source.Range(path) is { } range ? new(UriText, range) : null, children);
+            path is not null && source.Range(path) is { } range ? new(UriText, range) : null, children, path);
 
     private static bool Meaningful(YamlNode value) => value switch
     {

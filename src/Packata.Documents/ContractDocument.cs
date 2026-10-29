@@ -16,12 +16,7 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
 
     public static ContractDocument Parse(string text, string format = "auto", Uri? baseUri = null)
     {
-        var yaml = new YamlStream();
-        yaml.Load(new StringReader(text));
-        if (yaml.Documents.Count != 1 || yaml.Documents[0].RootNode is not YamlMappingNode root)
-            throw new FormatException("A contract must contain one mapping document.");
-        var visited = 0;
-        EnsureBounded(root, new HashSet<YamlNode>(ReferenceEqualityComparer.Instance), 0, ref visited);
+        var root = ParseRoot(text);
         var odcs = format == "odcs" || (format == "auto" && Child(root, "kind") is not null);
         using var content = new MemoryStream(Encoding.UTF8.GetBytes(text));
         var context = new DescriptorContainer(baseUri ?? new Uri(Path.GetFullPath(".") + Path.DirectorySeparatorChar));
@@ -30,6 +25,18 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
             ? new Packata.OpenDataContract.DataContractFactory().LoadFromStream(content, context)
             : new Packata.DataPackage.DataPackageFactory().LoadFromStream(content, context, serializationFormat);
         return new(native, root);
+    }
+
+    /// <summary>Reads bounded source syntax independently of native model deserialization.</summary>
+    public static YamlMappingNode ParseRoot(string text)
+    {
+        var yaml = new YamlStream();
+        yaml.Load(new StringReader(text));
+        if (yaml.Documents.Count != 1 || yaml.Documents[0].RootNode is not YamlMappingNode root)
+            throw new FormatException("A contract must contain one mapping document.");
+        var visited = 0;
+        EnsureBounded(root, new HashSet<YamlNode>(ReferenceEqualityComparer.Instance), 0, ref visited);
+        return root;
     }
 
     /// <summary>Content-based recognition. File suffixes alone do not identify a contract.</summary>

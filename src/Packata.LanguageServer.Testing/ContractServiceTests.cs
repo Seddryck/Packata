@@ -59,13 +59,69 @@ public sealed class ContractServiceTests
             Assert.That(result.Version, Is.EqualTo(7));
             Assert.That(result.BaseUri, Is.EqualTo("file:///workspace/folder/"));
             Assert.That(result.Contract!["assets"]![0]!["id"]!.Value<string>(), Is.EqualTo(asset));
-            Assert.That(Flatten(result.Tree!).Single(node => node.Kind == "field" && node.Label == field).Location, Is.Not.Null);
+            Assert.That(CanonicalFields(result.Tree!).Single(node => node.Label == field).Location, Is.Not.Null);
             Assert.That(Flatten(result.Tree!).Any(node => node.Label == "SLA commitments"), Is.False);
             Assert.That(Flatten(result.Tree!).Any(node => node.Label.Contains("Quality rules")), Is.False);
         });
-        var selected = Flatten(result.Tree!).Single(node => node.Kind == "field" && node.Label == field);
+        var selected = CanonicalFields(result.Tree!).Single(node => node.Label == field);
         var start = selected.Location!.Range.Start;
         Assert.That(text.Split('\n')[start.Line][start.Character..], Does.StartWith("name: " + field));
+    }
+
+    [TestCase(Package, "resources", "/resources/0/schema/fields/0")]
+    [TestCase(Odcs, "schema", "/schema/0/properties/0")]
+    public void NativeProjection_PreservesSourcePropertiesAndUnsavedVersions(string text, string section, string fieldPath)
+    {
+        text += "\nx-extension:\n  enabled: false\n  empty: []\n  absent: null\n";
+        var service = new ContractService(new DocumentStore());
+        var uri = new Uri("file:///workspace/contract.yaml");
+        var result = service.Inspect(new(uri, text, 3), CancellationToken.None);
+        var native = Flatten(result.NativeTree!).ToArray();
+        var field = native.Single(node => node.SourcePath == fieldPath);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.NativeTree!.Children.Select(node => node.Label), Does.Contain(section));
+            Assert.That(result.NativeTree.Children.Select(node => node.Label), Does.Not.Contain("Assets"));
+            Assert.That(native.Select(node => node.SourcePath), Does.Contain("/x-extension/absent"));
+            Assert.That(native.Select(node => node.SourcePath), Does.Contain("/x-extension/empty"));
+            Assert.That(field.Location, Is.Not.Null);
+            Assert.That(field.Kind, Is.EqualTo("field"));
+            Assert.That(native.Single(node => node.SourcePath == "/" + section + "/0").Kind, Is.EqualTo("asset"));
+            var start = field.Location!.Range.Start;
+            Assert.That(text.Split('\n')[start.Line][start.Character..], Does.StartWith("name: id"));
+            Assert.That(Flatten(result.Tree!).Any(node => node.SourcePath == "/x-extension/enabled"), Is.True);
+        });
+        var updated = service.Inspect(new(uri, text.Replace("name: id", "name: updated"), 4), CancellationToken.None);
+        Assert.That(updated.Version, Is.EqualTo(4));
+        Assert.That(Flatten(updated.NativeTree!).Any(node => node.Label == "updated"), Is.True);
+        Assert.That(service.Inspect(new(uri, "schema: [", 5), CancellationToken.None).NativeTree, Is.Null);
+    }
+
+    [Test]
+    public void NativeProjection_RemainsAvailableWhenNativeModelCannotDeserialize()
+    {
+        var service = new ContractService(new DocumentStore());
+        var result = service.Inspect(new(new Uri("file:///contract.yaml"),
+            "kind: DataContract\napiVersion: v3.2.0\nschema: still-editing\nx-extra: keep-me\n", 1), CancellationToken.None);
+        Assert.That(result.Tree, Is.Null);
+        Assert.That(result.Diagnostics, Is.Not.Empty);
+        Assert.That(Flatten(result.NativeTree!).Single(node => node.SourcePath == "/x-extra").Description, Is.EqualTo("keep-me"));
+    }
+
+    [Test]
+    public void NativeProjection_SeparatesQualityConstraintsAndSlaAndKeepsNamedIdsStable()
+    {
+        var service = new ContractService(new DocumentStore());
+        var uri = new Uri("file:///contract.yaml");
+        var text = Odcs.ReplaceLineEndings("\n") + "\nquality:\n  - name: freshness\n    type: custom\nslaProperties:\n  - name: latency\n    value: 10\n";
+        var result = service.Inspect(new(uri, text, 1), CancellationToken.None);
+        var nodes = Flatten(result.NativeTree!).ToArray();
+        Assert.That(nodes.Single(node => node.SourcePath == "/quality").Kind, Is.EqualTo("quality"));
+        Assert.That(nodes.Single(node => node.SourcePath == "/slaProperties").Kind, Is.EqualTo("sla"));
+        Assert.That(nodes.Single(node => node.SourcePath == "/schema/0/properties/0/primaryKey").Kind, Is.EqualTo("constraint"));
+        var id = nodes.Single(node => node.SourcePath == "/schema/0/properties/0").Id;
+        var updated = service.Inspect(new(uri, text.Replace("properties:\n      - name: id", "properties:\n      - name: added\n        logicalType: string\n      - name: id"), 2), CancellationToken.None);
+        Assert.That(Flatten(updated.NativeTree!).Single(node => node.SourcePath == "/schema/0/properties/1").Id, Is.EqualTo(id));
     }
 
     [Test]
@@ -156,8 +212,9 @@ public sealed class ContractServiceTests
         const string text = """{"name":"😀","resources":[{"name":"rows","path":"missing.csv","schema":{"fields":[{"name":"id","type":"integer"}]}}]}""";
         var service = new ContractService(new DocumentStore());
         var result = service.Inspect(new(new Uri("file:///contract.json"), text, 1), CancellationToken.None);
-        var field = Flatten(result.Tree!).Single(value => value.Kind == "field");
+        var field = CanonicalFields(result.Tree!).Single();
         var range = field.Location!.Range;
+        Assert.That(Flatten(result.NativeTree!).Single(node => node.SourcePath == "/resources/0/schema/fields/0").Location!.Range, Is.EqualTo(range));
         var syntax = new SourceIndex(Packata.Documents.ContractDocument.Parse(text).Root).Find("/resources/0/schema/fields/0")!;
         Assert.That(text[range.Start.Character..range.End.Character], Does.StartWith("{\"name\":\"id\""), Newtonsoft.Json.JsonConvert.SerializeObject(new { range, syntax.Start, syntax.End, expected = text.IndexOf("{\"name\":\"id\"", StringComparison.Ordinal) }));
     }
@@ -201,4 +258,7 @@ public sealed class ContractServiceTests
 
     internal static IEnumerable<ContractNode> Flatten(ContractNode node)
         => new[] { node }.Concat(node.Children.SelectMany(Flatten));
+
+    private static IEnumerable<ContractNode> CanonicalFields(ContractNode node)
+        => Flatten(node).Where(value => value.Kind == "field" && value.LogicalPath.StartsWith("/assets/", StringComparison.Ordinal));
 }
