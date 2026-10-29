@@ -15,11 +15,15 @@ the extracted archives before upload.
 | Runtime distributions | Preserve all eight declared RIDs, including glibc/musl and x64/ARM64. |
 | Package identity | Preserve `Packata-cli` plus eight `Packata-cli.<rid>` packages at one release version. Each RID package contains all three frameworks. |
 | Build inputs | Use the validated framework archives, README, and existing icon; no new generated prerequisites or packaging tools. |
-| Installation tests | SDK 10 installs from an isolated candidate-only feed on every framework/RID. Native runners cover Windows, Linux, and macOS; Alpine SDK containers cover musl. Run help and version through the installed shim. |
+| Installation tests | SDK 10 installs from an isolated candidate-only feed on every framework/RID. Each RID job shares SDK setup and the package download across three explicit framework steps, each with its own feed/cache/tool directory. This avoids repeating a roughly 261 MB download and SDK installation three times per platform. Native runners cover Windows, Linux, and macOS; pinned Alpine SDK/runtime images cover musl. Run help and version through the installed launcher. |
 | Older SDKs | SDK 8 and 9 cannot consume the version-2 RID-aware pointer. Explicitly pin each SDK and verify its compatibility rejection on Windows and Linux. This does not remove .NET 8/9 runtime payloads or standalone archives. |
 | Publishing | Preserve main-only NuGet publication, patch-zero GitHub releases, versions, and permission boundaries. Complete artifact validation now also waits for installation checks. |
 
-The compatibility tests use a `global.json` with `rollForward: disable` and check
+The version job canonicalizes prerelease casing before building any artifact;
+older Linux SDKs otherwise fail while staging a mixed-case nuspec version. All
+artifacts retain one shared version, and stable numeric release versions are
+unchanged. Test feeds also use canonical lowercase filenames and version requests.
+They use a `global.json` with `rollForward: disable` and check
 `dotnet --version`. Package sources and caches are isolated to prevent public
 packages or hosted-runner SDK selection from masking a broken candidate.
 

@@ -5,13 +5,40 @@ param(
     [Parameter(Mandatory)][string] $SdkVersion,
     [Parameter(Mandatory)][string] $WorkingDirectory,
     [string] $Framework = 'net10.0',
+    [string] $ContainerImage,
     [switch] $ExpectUnsupportedSdk
 )
 
 $ErrorActionPreference = 'Stop'
-$feed = (Resolve-Path -LiteralPath $NuGetDirectory).Path
+$sourceFeed = (Resolve-Path -LiteralPath $NuGetDirectory).Path
+if ($ContainerImage) {
+    $repository = Split-Path (Split-Path $PSScriptRoot)
+    $arguments = @(
+        'run', '--rm',
+        '--volume', "$($repository):/repo:ro",
+        '--volume', "$($sourceFeed):/feed:ro",
+        '--workdir', '/repo',
+        '--env', 'DOTNET_CLI_TELEMETRY_OPTOUT=1',
+        $ContainerImage, 'pwsh', '-NoProfile', '-File', '/repo/.github/scripts/Test-CliToolInstallation.ps1',
+        '-Version', $Version, '-NuGetDirectory', '/feed', '-SdkVersion', $SdkVersion,
+        '-Framework', $Framework, '-WorkingDirectory', $WorkingDirectory
+    )
+    if ($ExpectUnsupportedSdk) { $arguments += '-ExpectUnsupportedSdk' }
+    & docker @arguments
+    if ($LASTEXITCODE -ne 0) { throw "Containerized installation check failed for '$Framework' on '$ContainerImage'." }
+    return
+}
 if (Test-Path -LiteralPath $WorkingDirectory) { throw "Test directory already exists: '$WorkingDirectory'." }
 $work = (New-Item -ItemType Directory -Path $WorkingDirectory -Force).FullName
+$feed = (New-Item -ItemType Directory -Path (Join-Path $work 'feed')).FullName
+# Match NuGet.org's canonical filenames; the version job also canonicalizes
+# nuspec prerelease casing before building the actual candidate packages.
+$packages = @(Get-ChildItem -LiteralPath $sourceFeed -Filter '*.nupkg' -File)
+if ($packages.Count -eq 0) { throw "No candidate packages found in '$sourceFeed'." }
+foreach ($package in $packages) {
+    Copy-Item -LiteralPath $package.FullName -Destination (Join-Path $feed $package.Name.ToLowerInvariant())
+}
+$installVersion = $Version.ToLowerInvariant()
 @{ sdk = @{ version = $SdkVersion; rollForward = 'disable'; allowPrerelease = $false } } |
     ConvertTo-Json | Set-Content (Join-Path $work 'global.json')
 # A private feed and cache prevent a published package from hiding a broken candidate.
@@ -28,7 +55,7 @@ try {
             throw "Expected SDK '$SdkVersion', selected '$selectedSdk'."
         }
         $toolDirectory = Join-Path $work 'tool'
-        $output = @(& dotnet tool install Packata-cli --version $Version --tool-path $toolDirectory `
+        $output = @(& dotnet tool install Packata-cli --version $installVersion --tool-path $toolDirectory `
             --framework $Framework --configfile (Join-Path $work 'NuGet.Config') --no-cache 2>&1)
         $installExitCode = $LASTEXITCODE
         $output | ForEach-Object { Write-Host $_ }
