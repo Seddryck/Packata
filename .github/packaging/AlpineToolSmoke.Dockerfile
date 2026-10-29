@@ -5,3 +5,6 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0.403-alpine3.24
 # Use the same three runtime versions as native smoke jobs, without an installer script.
 COPY --from=net8 /usr/share/dotnet/shared/Microsoft.NETCore.App/ /usr/share/dotnet/shared/Microsoft.NETCore.App/
 COPY --from=net9 /usr/share/dotnet/shared/Microsoft.NETCore.App/ /usr/share/dotnet/shared/Microsoft.NETCore.App/
+
+ENV DOTNET_CLI_HOME=/tmp/dotnet-cli-home
+USER app
