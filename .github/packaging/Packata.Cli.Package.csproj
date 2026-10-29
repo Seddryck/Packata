@@ -20,6 +20,9 @@
 
   <ItemGroup>
     <PackageReference Remove="@(PackageReference)" />
+    <!-- NuGet package paths use forward slashes, including on Linux. -->
+    <None Update="../../assets/Packata-icon-128.png" PackagePath="icon/" />
+    <None Update="../../README.md" PackagePath="/" />
   </ItemGroup>
 
   <Target Name="ValidatePrebuiltCli" BeforeTargets="PackTool" Condition="'$(RuntimeIdentifier)' != ''">
