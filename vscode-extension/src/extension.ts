@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node';
 import { ContractNode, ContractState, Discovery, Inspection, Validation, requireCapabilities, requireDiscovery, requireSchema } from './protocol';
 import { resolveServer } from './serverPath';
-import { ContractTree, TreeEntry } from './tree';
+import { ContractTree, TreeEntry, restoreViewState } from './tree';
 import { ViewMode, ViewPreference } from './viewMode';
 
 let client: LanguageClient | undefined;
@@ -30,14 +30,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const expansion = [...expanded.values()];
       expanded.clear();
       tree.mode = selected; tree.refresh(); describeMode();
-      for (const previous of expansion) {
-        const next = tree.corresponding(previous);
-        if (next) await view.reveal(next, { expand: true, focus: false, select: false });
-      }
-      for (const previous of selection) {
-        const next = tree.corresponding(previous);
-        if (next) await view.reveal(next, { select: true, focus: false });
-      }
+      await restoreViewState(tree, view, expansion, selection[0]);
     })
   );
   const output = vscode.window.createOutputChannel('Packata', { log: true });

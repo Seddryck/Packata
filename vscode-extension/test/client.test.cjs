@@ -191,3 +191,26 @@ test('native partial documents retain diagnostics and malformed native trees are
   partial.nativeTree = { children: 'invalid' };
   assert.throws(() => protocol.requireDiscovery(discovery(partial)));
 });
+
+test('restores independent expansions together before revealing the single selection', async () => {
+  const { restoreViewState } = load('tree.ts', { vscode });
+  const a = { node: { id: 'a' } }, b = { node: { id: 'b' } }, missing = { node: { id: 'removed' } };
+  const targets = new Map([[a, { node: { id: 'native-a' } }], [b, { node: { id: 'native-b' } }]]);
+  const calls = [], pending = [];
+  const view = { reveal: (entry, options) => {
+    calls.push({ id: entry.node.id, options });
+    return options.expand ? new Promise(resolve => pending.push(resolve)) : Promise.resolve();
+  } };
+  const tree = { corresponding: entry => targets.get(entry) };
+  const restored = restoreViewState(tree, view, [a, missing, b], b);
+  assert.equal(calls.length, 2, 'Both expansions start before either completes; missing nodes are skipped');
+  pending[1](); await Promise.resolve();
+  assert.equal(calls.length, 2, 'Selection waits for every expansion');
+  pending[0](); await restored;
+  assert.equal(calls.length, 3);
+  assert.equal(calls[2].id, 'native-b');
+  assert.equal(calls[2].options.select, true);
+  await restoreViewState(tree, view, [], missing);
+  await restoreViewState(tree, view, []);
+  assert.equal(calls.length, 3);
+});

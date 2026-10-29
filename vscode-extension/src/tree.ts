@@ -3,6 +3,18 @@ import { ContractNode, ContractState, Inspection } from './protocol';
 import { ViewMode } from './viewMode';
 
 export interface TreeEntry { node: ContractNode; contract: Inspection; parent?: TreeEntry }
+
+/** Restore independent expansions before revealing the tree's single selection. */
+export async function restoreViewState(tree: Pick<ContractTree, 'corresponding'>,
+  view: Pick<vscode.TreeView<TreeEntry>, 'reveal'>, expansion: readonly TreeEntry[], selection?: TreeEntry): Promise<void> {
+  await Promise.all(expansion.map(previous => {
+    const next = tree.corresponding(previous);
+    return next ? view.reveal(next, { expand: true, focus: false, select: false }) : undefined;
+  }));
+  const selected = selection && tree.corresponding(selection);
+  if (selected) await view.reveal(selected, { select: true, focus: false });
+}
+
 export class ContractTree implements vscode.TreeDataProvider<TreeEntry> {
   private readonly changed = new vscode.EventEmitter<TreeEntry | undefined>();
   readonly onDidChangeTreeData = this.changed.event;
