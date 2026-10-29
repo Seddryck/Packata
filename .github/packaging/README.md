@@ -11,6 +11,7 @@ the extracted archives before upload.
 | Dimension | Evidence and decision |
 | --- | --- |
 | Frameworks | Preserve `net8.0`, `net9.0`, and `net10.0` from `Directory.Build.props`. |
+| CLI unit tests | Restore, build, and test each framework in an independent matrix job. Archive jobs wait for the complete matrix, preserving the existing test gate while avoiding sequential framework runs. |
 | Runtime distributions | Preserve all eight declared RIDs, including glibc/musl and x64/ARM64. |
 | Package identity | Preserve `Packata-cli` plus eight `Packata-cli.<rid>` packages at one release version. Each RID package contains all three frameworks. |
 | Build inputs | Use the validated framework archives, README, and existing icon; no new generated prerequisites or packaging tools. |

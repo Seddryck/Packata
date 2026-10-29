@@ -348,9 +348,13 @@ jobs:
           if-no-files-found: error
 
   build-test-cli:
-    name: CLI · build and test
+    name: CLI · build and test (${{ matrix.framework }})
     needs: calculate-version
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [net8.0, net9.0, net10.0]
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -364,32 +368,30 @@ jobs:
             10.0.403
 
       - name: Restore CLI tests
-        run: dotnet restore src/Packata.Cli.Testing/Packata.Cli.Testing.csproj
+        run: >-
+          dotnet restore src/Packata.Cli.Testing/Packata.Cli.Testing.csproj
+          -p:TargetFrameworks=${{ matrix.framework }}
 
       - name: Build CLI tests
         run: >-
           dotnet build src/Packata.Cli.Testing/Packata.Cli.Testing.csproj
           --configuration Release
+          --framework ${{ matrix.framework }}
           --no-restore
           --nologo
+          -p:TargetFrameworks=${{ matrix.framework }}
           -p:Version=${{ needs.calculate-version.outputs.semver }}
           -p:ContinuousIntegrationBuild=true
 
       - name: Run CLI tests
-        shell: pwsh
-        run: |
-          foreach ($framework in @('net8.0', 'net9.0', 'net10.0')) {
-            dotnet test src/Packata.Cli.Testing/Packata.Cli.Testing.csproj `
-              --configuration Release `
-              --framework $framework `
-              --no-build `
-              --no-restore `
-              --nologo
-
-            if ($LASTEXITCODE -ne 0) {
-              throw "CLI tests failed on $framework."
-            }
-          }
+        run: >-
+          dotnet test src/Packata.Cli.Testing/Packata.Cli.Testing.csproj
+          --configuration Release
+          --framework ${{ matrix.framework }}
+          --no-build
+          --no-restore
+          --nologo
+          -p:TargetFrameworks=${{ matrix.framework }}
 
   package-cli-nuget:
     name: CLI · package NuGet tool
