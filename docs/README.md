@@ -44,6 +44,7 @@ For runtime help and executable examples, first build the CLI for an installed f
 dotnet build src/Packata.Cli/Packata.Cli.csproj -f net10.0
 node .github/scripts/Validate-Documentation.mjs --cli src/Packata.Cli/bin/Debug/net10.0/packata.dll
 node .github/scripts/Test-DocumentationQuickstarts.mjs net10.0
+node .github/scripts/Test-OdcsValidationExamples.mjs net10.0
 ```
 
 To test .NET 8 or 9, use `net8.0` or `net9.0` consistently in the commands above.

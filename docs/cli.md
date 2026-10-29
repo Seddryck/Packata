@@ -171,6 +171,9 @@ packata contract diff baseline.zip candidate.tar --output-format json
 Packata checks Data Package descriptors against the library's descriptor rules.
 For ODCS contracts, it checks YAML syntax and semantic rules, including the required
 identity, version and status, the supported API version, and the document kind.
+It does not execute the official ODCS descriptor JSON Schema. The
+[ODCS validation matrix]({{ '/standards/odcs-validation/' | relative_url }}) lists
+the implemented checks, uncovered rules and separate runtime operations.
 
 `--output-format text` is the default. Text diagnostics go to stderr. `--output-format json`
 writes a single object to stdout with `schemaVersion: 1`, `source`, `valid`, and

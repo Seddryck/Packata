@@ -1,0 +1,12 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: validation-example
+version: 1.0.0
+status: active
+unknownField: ignored by Packata
+schema:
+  - name: orders
+    logicalType: object
+    properties:
+      - name: status
+        logicalType: string

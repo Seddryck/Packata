@@ -37,6 +37,11 @@ Add `--output-format json` when you need a machine-readable validation report.
 See the [validation reference]({{ '/cli/' | relative_url }}#validate-a-contract)
 for supported sources, options and exit codes.
 
+For ODCS, this command enforces selected descriptor checks. See the
+[ODCS validation matrix]({{ '/standards/odcs-validation/' | relative_url }}) for
+the exact JSON Schema, semantic and runtime coverage, version differences and
+examples that demonstrate the limits of a successful result.
+
 ## Inspect the contract's contents
 
 Use `contract inspect` to see how Packata understands the descriptor. This is useful

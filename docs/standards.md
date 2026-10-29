@@ -27,6 +27,11 @@ Keep the native document when your workflow needs source-only metadata.
 
 ## ODCS
 
+The [ODCS validation matrix]({{ '/standards/odcs-validation/' | relative_url }})
+identifies every official schema assertion and the implemented semantic checks,
+runtime prerequisites and remaining gaps. `contract validate` checks selected
+rules; success does not certify full ODCS conformance.
+
 The ODCS model retains context blocks, schema and server variants, nested logical types,
 temporal options and relationships. It also retains teams, roles, pricing, support channels,
 custom properties and SLA metadata.
@@ -38,7 +43,8 @@ convention extends ODCS; it does not infer labels from foreign keys. See the
 
 Quality definitions can be textual, library-based, SQL-based or custom, and can include
 schedules. Reading or preserving them does not execute the rules or schedules. The current
-canonical mapping does not populate native ODCS quality rules, so their presence in YAML
+canonical mapping retains quality declarations. Execute supported rules explicitly
+with [`quality run`]({{ '/cli-quality/' | relative_url }}); their presence in YAML
 does not establish runtime validation.
 
 SLA and lifecycle metadata **are** normalized into canonical commitments. Unknown/invalid SLA properties remain in extensions with diagnostics. See [commitments and temporal values]({{ '/concepts/commitments/' | relative_url }}).
