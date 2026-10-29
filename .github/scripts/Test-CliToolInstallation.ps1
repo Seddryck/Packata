@@ -34,7 +34,7 @@ try {
         $output | ForEach-Object { Write-Host $_ }
         if ($ExpectUnsupportedSdk) {
             if ($installExitCode -eq 0) { throw "SDK '$SdkVersion' unexpectedly accepted the RID-aware tool; update the compatibility policy and tests." }
-            if (($output -join "`n") -notmatch 'DotnetToolSettings.xml|NU1202|not supported|not compatible') {
+            if (($output -join "`n") -notmatch 'Format version is higher than supported') {
                 throw "SDK '$SdkVersion' failed for an unexpected reason, rather than tool format compatibility."
             }
             Write-Host "Confirmed SDK '$SdkVersion' cannot install the RID-aware pointer package."
@@ -43,7 +43,11 @@ try {
             return
         }
         if ($installExitCode -ne 0) { throw "Tool installation failed on SDK '$SdkVersion'." }
-        $executable = Join-Path $toolDirectory $(if ($IsWindows) { 'packata.exe' } else { 'packata' })
+        # RID-aware executable tools use a .cmd launcher on Windows SDK 10.
+        $names = if ($IsWindows) { @('packata.cmd', 'packata.exe') } else { @('packata') }
+        $shims = @($names | ForEach-Object { Join-Path $toolDirectory $_ } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+        if ($shims.Count -ne 1) { throw "Expected one installed packata launcher, found $($shims.Count)." }
+        $executable = $shims[0]
         $help = @(& $executable --help 2>&1)
         if ($LASTEXITCODE -ne 0 -or ($help -join "`n") -notmatch 'USAGE') { throw 'Installed CLI help smoke test failed.' }
         $reportedVersion = @(& $executable --version 2>&1)
