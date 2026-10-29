@@ -27,6 +27,7 @@ The existing `packata infer` command remains available.
 | `data preview` | [Read data](#preview-bound-data) |
 | `quality run` | [Quality execution and OORS reports]({{ '/cli-quality/' | relative_url }}) |
 | `dialect export` | [CSV dialect](#export-a-csv-dialect) |
+| `dialect infer` | [Infer CSV parsing settings](#infer-csv-parsing-settings) |
 | `connector list`, `connector show`, `connector install` | [Connectors]({{ '/cli-database/' | relative_url }}) |
 | `config list`, `config get`, `config set`, `config unset` | [Configuration]({{ '/cli-database/' | relative_url }}) |
 
@@ -41,6 +42,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 | quality run | 0 pass or warning; 1 quality failure without errors; 2 command/contract/execution/report error, cancellation, no matches, or all skipped |
 | contract compare | Same base codes, plus 4 for a completed report failing the selected gate and 5 for incomplete analysis; see [details](#assess-consumer-compatibility) |
 | schema infer/infer | 0 success; 1 operation failure; 2 caught cancellation or invocation error; framework cancellation can return 130 |
+| dialect infer | 0 report or save succeeded; 1 operation or I/O failure; 2 invocation error or caught cancellation; framework cancellation can return 130 |
 | config and connector discovery | 0 success; 1 operation/file failure; 2 invocation error |
 | connector install | 0 success; 1 operation failure; 2 caught cancellation/invocation error; framework cancellation can return 130 |
 
@@ -112,6 +114,66 @@ By default, the JSON goes to stdout and diagnostics go to stderr. Use `--output`
 to a file. Replacing an existing output requires `--overwrite`; the source contract is always
 protected. The [CSV dialect guide]({{ '/csv-dialect-export/' | relative_url }}) explains the
 library API, supported settings, defaults and diagnostics, with a two-endpoint example.
+
+<!-- cli:dialect infer -->
+## Infer CSV parsing settings
+
+`packata dialect infer <SOURCE> --asset <ID> [OPTIONS]`
+
+Read a local ODCS YAML or Data Package JSON/YAML descriptor and sample its selected
+CSV, TSV or PSV resource. The default prints candidates, warnings, confidence where
+available and sample limits without changing either file. `--output` saves an enriched
+contract, retaining its standard; `--write` atomically replaces the source. Field
+definitions, constraints, resource locations and unrelated metadata are preserved.
+
+| Option / alias | Values / default | Meaning |
+| --- | --- | --- |
+| `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Input standard |
+| `--asset <ID>` | Required | Exact asset with exactly one endpoint binding and one CSV-family path |
+| `-o`, `--output <PATH>` | Unset | Save to a new local file; existing destinations, including the source, are protected |
+| `--write` | Off | Replace the local source atomically; mutually exclusive with `--output` |
+| `--maximum-records <COUNT>` | Positive; `1000` | Records to profile, including the header; candidate scoring uses at most 100 |
+| `--maximum-bytes <COUNT>` | Positive; `1048576` | Source bytes sampled; also bounds the bytes examined for dialect detection |
+| `--header <MODE>` | `auto`, `present`, `absent`; `auto` | Auto honors declared header hints, otherwise detects; explicit modes override hints |
+| `--accept-ambiguous` | Off | Explicitly permit saving ambiguous candidates after reviewing the report |
+| `--allow-shared-endpoint` | Off | Acknowledge changing parsing settings for every asset bound to the endpoint |
+
+Declared delimiter and quote settings seed the detector's candidates; they can be corrected
+by detection. Line endings are detected from the sampled text. Escape and null-token rules
+and spacing hints help parse the sample but are not independently inferred or overwritten.
+Only delimiter, quote character, line terminator, header presence and header rows can change.
+Encoding, compression, double-quote rules, null tokens, comments and all other settings
+are retained. Header rows use the detector's first-record convention (`[1]` or `[]`).
+Advanced multirow headers and comments are not discovered by this operation.
+
+Confidence is a detector heuristic, not a probability of correctness. Quote candidates often
+tie when no quoted values are present. Ambiguous reports succeed, but saving requires
+`--accept-ambiguous`; use `--header present` or `--header absent` to resolve header uncertainty.
+Empty samples fail; fewer than two records, a byte-truncated sample, unresolved detection
+or inconsistent record widths cannot be saved even with acknowledgement. Increase limits
+or correct the input before retrying. A sample reaching its record limit may miss later variations.
+For compressed CSVs the byte limit applies to compressed bytes, and a truncated compressed
+stream may fail decoding; raise the limit to include a complete compressed resource.
+
+Missing/duplicate assets, multiple or unresolved bindings, unsupported formats, unavailable
+resources and refused writes return 1. Invalid options return 2. Cancellation returns 2
+when caught by the command, or 130 through the framework. Success returns 0. Failed writes
+leave the original descriptor intact. External dialect references must be inlined before updating.
+Shared endpoint reports list affected asset IDs; saving requires `--allow-shared-endpoint`
+for both output copies and in-place updates.
+
+Descriptors must be ordinary local files: remote descriptors and archive containers are
+rejected. Resources use existing local or HTTP/HTTPS CSV access, resolved relative to the
+descriptor; no native cloud backend is added. Saving retains relative resource paths exactly,
+so put an output copy beside the source or ensure the same relative paths work at its new location.
+Reserialization warns before writing: comments, formatting and quoting may change.
+YAML anchors, aliases, explicit tags and merge keys are rejected for updates to protect
+unrelated values; expand them in a copy first. Duplicate JSON keys are also rejected on save.
+Review an output copy before adoption.
+
+Use `dialect export` to export declared settings without sampling data, and `schema infer`
+to discover fields and dialect together. See the [dialect guide]({{ '/csv-dialect-export/' | relative_url }})
+for the dialect-only workflow.
 
 <!-- cli:contract validate -->
 ## Validate a contract

@@ -72,6 +72,7 @@ public sealed class CliOptionConsistencyTests
     [TestCase("schema|export")]
     [TestCase("data|preview")]
     [TestCase("dialect|export")]
+    [TestCase("dialect|infer")]
     public async Task SourceCommands_RejectInvalidInputFormatsBeforeReading(string command)
     {
         var arguments = Arguments(command, "missing");
@@ -210,6 +211,7 @@ public sealed class CliOptionConsistencyTests
         "schema|infer" => ["schema", "infer", source, "--asset", "customers"],
         "schema|export" => ["schema", "export", source, "--asset", "customers"],
         "dialect|export" => ["dialect", "export", source, "--endpoint", "local"],
+        "dialect|infer" => ["dialect", "infer", source, "--asset", "customers"],
         _ => [.. command.Split('|'), source]
     };
 }

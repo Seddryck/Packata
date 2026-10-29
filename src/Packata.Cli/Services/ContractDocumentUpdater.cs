@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Packata.Core.Contracts;
 using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 using YamlDotNet.RepresentationModel;
 
 namespace Packata.Cli;
@@ -12,6 +13,66 @@ internal static class ContractDocumentUpdater
 {
     private const string SheetNameOption = "sheetName";
     private const string SheetNumberOption = "sheetNumber";
+    internal static ContractDocumentUpdate UpdateDialect(ContractDocument document, string assetId, string endpointId,
+        IReadOnlyDictionary<string, object?> options)
+    {
+        var warnings = new List<string>
+        {
+            "Reserialization can change comments, whitespace and quoting. YAML anchors, aliases, explicit tags and merge keys must be expanded before saving. Review the enriched copy before adopting it; field definitions and unrelated values are preserved."
+        };
+        if (document.Kind == ContractDocumentKind.DataPackageJson)
+        {
+            // Reject duplicate keys, then retain JSON number lexemes and date strings through JsonNode.
+            _ = JObject.Parse(document.OriginalText, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });
+            var root = System.Text.Json.Nodes.JsonNode.Parse(document.OriginalText, documentOptions: new()
+            {
+                CommentHandling = System.Text.Json.JsonCommentHandling.Skip, AllowTrailingCommas = true
+            })!;
+            var resource = (root["resources"] as System.Text.Json.Nodes.JsonArray)?
+                .OfType<System.Text.Json.Nodes.JsonObject>().Single(item => (string?)item["name"] == assetId)
+                ?? throw new InvalidDataException("The Data Package document has no resources array.");
+            var dialect = resource["dialect"] as System.Text.Json.Nodes.JsonObject ?? new();
+            if (resource["dialect"] is not null && resource["dialect"] is not System.Text.Json.Nodes.JsonObject)
+                throw new NotSupportedException("External dialect references cannot be updated; inline the dialect first.");
+            if (resource["dialect"] is null) resource["dialect"] = dialect;
+            dialect["type"] = "delimited";
+            foreach (var name in DataPackageDialectOptions)
+                if (options.TryGetValue(name, out var value))
+                    dialect[name] = System.Text.Json.JsonSerializer.SerializeToNode(value);
+            return new(root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, warnings);
+        }
+        EnsureSimpleYaml(document.OriginalText);
+        var yaml = LoadYaml(document.OriginalText);
+        var mapping = Root(yaml);
+        if (document.Kind == ContractDocumentKind.OpenDataContractYaml)
+        {
+            var server = FindByScalar(Sequence(mapping, "servers"), "server", endpointId)
+                ?? throw new InvalidDataException($"Server '{endpointId}' was not found.");
+            ApplyOdcsDialect(server, options, warnings);
+        }
+        else
+        {
+            var resource = FindByScalar(Sequence(mapping, "resources"), "name", assetId)
+                ?? throw new InvalidDataException($"Resource '{assetId}' was not found.");
+            var dialect = Mapping(resource, "dialect", create: true)!;
+            SetScalar(dialect, "type", "delimited");
+            ApplyYamlDialect(dialect, options, DataPackageDialectOptions);
+        }
+        return new(SaveYaml(yaml), warnings);
+    }
+
+    private static void EnsureSimpleYaml(string content)
+    {
+        var parser = new Parser(new StringReader(content));
+        while (parser.MoveNext())
+        {
+            if (parser.Current is AnchorAlias
+                || parser.Current is NodeEvent node && (!node.Anchor.IsEmpty || !node.Tag.IsEmpty)
+                || parser.Current is Scalar { Value: "<<" })
+                throw new NotSupportedException("Dialect updates require YAML without anchors, aliases, explicit tags or merge keys. Expand these constructs in a copy before saving.");
+        }
+    }
+
     public static ContractDocumentUpdate Update(
         ContractDocument document,
         DataAsset originalAsset,
