@@ -19,11 +19,10 @@ if ($ContainerImage) {
         '--volume', "$($sourceFeed):/feed:ro",
         '--workdir', '/repo',
         '--env', 'DOTNET_CLI_TELEMETRY_OPTOUT=1',
-        $ContainerImage, 'pwsh', '-NoProfile', '-File', '/repo/.github/scripts/Test-CliToolInstallation.ps1',
-        '-Version', $Version, '-NuGetDirectory', '/feed', '-SdkVersion', $SdkVersion,
-        '-Framework', $Framework, '-WorkingDirectory', $WorkingDirectory
+        $ContainerImage, 'sh', '/repo/.github/scripts/Test-CliToolInstallation.sh',
+        $Version, '/feed', $SdkVersion, $Framework, $WorkingDirectory,
+        $(if ($ExpectUnsupportedSdk) { '1' } else { '0' })
     )
-    if ($ExpectUnsupportedSdk) { $arguments += '-ExpectUnsupportedSdk' }
     & docker @arguments
     if ($LASTEXITCODE -ne 0) { throw "Containerized installation check failed for '$Framework' on '$ContainerImage'." }
     return
