@@ -14,6 +14,7 @@ internal sealed class CliDatabase : IDisposable
     private readonly HttpClient _http;
     private readonly Dictionary<string, string> _overrides;
     public DubUrlConnectionService Connections { get; }
+    internal IDatabaseConnectionService RuntimeConnectionsService => new RuntimeConnections(this);
 
     public CliDatabase(CliConfiguration configuration, string rootPath, IReadOnlyList<DataEndpoint> endpoints,
         string[] preferences, string[] connectionEnvironment, HttpClient? http = null)

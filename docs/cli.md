@@ -25,6 +25,7 @@ The existing `packata infer` command remains available.
 | `schema export`, alias `export` | [JSON Schema](#export-a-dataset-schema) |
 | `schema infer`, alias `infer` | [Schema inference]({{ '/cli-inference/' | relative_url }}) |
 | `data preview` | [Read data](#preview-bound-data) |
+| `quality run` | [Quality execution and OORS reports]({{ '/cli-quality/' | relative_url }}) |
 | `dialect export` | [CSV dialect](#export-a-csv-dialect) |
 | `connector list`, `connector show`, `connector install` | [Connectors]({{ '/cli-database/' | relative_url }}) |
 | `config list`, `config get`, `config set`, `config unset` | [Configuration]({{ '/cli-database/' | relative_url }}) |
@@ -37,6 +38,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 | --- | --- |
 | validate, inspect, diff, schema export/export, dialect export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
 | contract satisfies | 0 gate passes; 1 Unsatisfied or default Unknown; 2 input/invocation/I/O/cancellation/analysis error or Unknown under error policy |
+| quality run | 0 pass or warning; 1 quality failure without errors; 2 command/contract/execution/report error, cancellation, no matches, or all skipped |
 | contract compare | Same base codes, plus 4 for a completed report failing the selected gate and 5 for incomplete analysis; see [details](#assess-consumer-compatibility) |
 | schema infer/infer | 0 success; 1 operation failure; 2 caught cancellation or invocation error; framework cancellation can return 130 |
 | config and connector discovery | 0 success; 1 operation/file failure; 2 invocation error |
@@ -45,7 +47,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 ## Shared options
 
 The CLI uses Spectre.Console.Cli. Commands are grouped under `contract`, `schema`,
-`data`, `dialect`, `connector`, and `config`. `infer` and `export` remain compatibility
+`data`, `quality`, `dialect`, `connector`, and `config`. `infer` and `export` remain compatibility
 entry points for `schema infer` and `schema export`, with the same options.
 
 | Option | Meaning |

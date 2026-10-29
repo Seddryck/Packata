@@ -7,6 +7,11 @@ internal static class CliApplication
 {
     private static int HandleInvocation(string[] args, Exception exception)
     {
+        if (args.FirstOrDefault() == "quality")
+        {
+            CliErrorHandler.Invocation(exception);
+            return 2;
+        }
         if (args.Take(2).SequenceEqual(new[] { "contract", "satisfies" }))
         {
             if (args.Contains("--quiet")) return 2;
@@ -17,7 +22,7 @@ internal static class CliApplication
     }
     internal static int Run(string[] args, CancellationToken cancellationToken)
     {
-        if (args.Length == 1 && args[0] is "contract" or "data" or "schema" or "config" or "connector" or "dialect") args = [args[0], "--help"];
+        if (args.Length == 1 && args[0] is "contract" or "data" or "schema" or "config" or "connector" or "dialect" or "quality") args = [args[0], "--help"];
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
         {
@@ -28,11 +33,12 @@ internal static class CliApplication
                 Ansi = Console.IsOutputRedirected ? AnsiSupport.No : AnsiSupport.Detect,
                 Enrichment = new ProfileEnrichment { UseDefaultEnrichers = !Console.IsOutputRedirected }
             }));
-            configuration.CancellationExitCode(args.Take(2).SequenceEqual(new[] { "contract", "satisfies" }) ? 2 : ExitCodes.Cancelled);
+            configuration.CancellationExitCode(args.FirstOrDefault() == "quality" || args.Take(2).SequenceEqual(new[] { "contract", "satisfies" }) ? 2 : ExitCodes.Cancelled);
             configuration.SetExceptionHandler((exception, _) => HandleInvocation(args, exception));
             ContractCommands.Configure(configuration);
             DialectCommands.Configure(configuration);
             DataCommands.Configure(configuration);
+            QualityCommands.Configure(configuration);
             configuration.AddCommand<ExportCommand>("export")
                 .WithDescription("Export an asset as JSON Schema; compatibility alias for schema export.")
                 .WithExample(["export", "sales.odcs.yaml", "--output-format", "json-schema", "--asset", "orders"]);

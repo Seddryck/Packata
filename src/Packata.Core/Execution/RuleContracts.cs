@@ -4,7 +4,7 @@ using Packata.Core.Contracts;
 namespace Packata.Core.Execution;
 
 public enum RuleCategory { Constraint, Quality, Sla }
-public enum RuleOutcome { Passed, Failed, Inconclusive, Error, Skipped }
+public enum RuleOutcome { Passed, Failed, Inconclusive, Error, Skipped, Warn }
 public enum CompilationFindingKind { Unsupported, Invalid, MissingBinding }
 
 public sealed record RuleDescriptor(string ExecutionId, string? SourceId, string? SourcePath,

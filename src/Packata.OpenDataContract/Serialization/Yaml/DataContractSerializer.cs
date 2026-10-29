@@ -50,6 +50,7 @@ internal class DataContractSerializer : IDataContractSerializer
         ArgumentNullException.ThrowIfNull(dataContract);
 
         return new SerializerBuilder()
+            .WithQuotingNecessaryStrings()
             .WithNamingConvention(new DataContractNamingConvention())
             .WithTypeConverter(new QualityRuleConverter())
             .WithTypeConverter(new ContextConverter())
