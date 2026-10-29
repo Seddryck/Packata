@@ -216,7 +216,7 @@ records fail with line-aware diagnostics.
 
 ### Command-line tool
 
-Install the CLI from NuGet:
+Install the CLI from NuGet using a .NET 10 or later SDK:
 
 ```console
 dotnet tool install --global Packata-cli

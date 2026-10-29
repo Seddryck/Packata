@@ -395,7 +395,7 @@ jobs:
     name: CLI · package NuGet tool
     needs:
       - calculate-version
-      - build-test-cli
+      - package-cli-framework-archives
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -406,18 +406,34 @@ jobs:
         with:
           dotnet-version: 10.0.403
 
-      - name: Restore CLI package dependencies
-        run: dotnet restore src/Packata.Cli/Packata.Cli.csproj -p:BuildCliToolPackage=true
+      - name: Download tested framework-dependent archives
+        uses: actions/download-artifact@v7
+        with:
+          pattern: cli-framework-*-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/cli-framework-archives
+          merge-multiple: true
+
+      - name: Extract immutable CLI package inputs
+        shell: pwsh
+        run: >-
+          ./.github/scripts/Expand-CliFrameworkArchives.ps1
+          -Version '${{ needs.calculate-version.outputs.semver }}'
+          -ArchiveDirectory './.artifacts/cli-framework-archives'
+          -OutputDirectory './.artifacts/cli-publish'
+
+      - name: Restore packaging metadata
+        run: dotnet restore .github/packaging/Packata.Cli.Package.csproj
 
       - name: Package CLI pointer and RID-specific tools
         run: >-
-          dotnet pack src/Packata.Cli/Packata.Cli.csproj
+          dotnet pack .github/packaging/Packata.Cli.Package.csproj
           --configuration Release
+          --no-build
           --no-restore
           --nologo
           --output .artifacts/cli-nuget
           -p:Version=${{ needs.calculate-version.outputs.semver }}
-          -p:BuildCliToolPackage=true
+          -p:CliPublishRoot=${{ github.workspace }}/.artifacts/cli-publish
           -p:ContinuousIntegrationBuild=true
 
       - name: Validate CLI tool package
@@ -426,6 +442,7 @@ jobs:
           ./.github/scripts/Validate-CliArtifacts.ps1
           -Version '${{ needs.calculate-version.outputs.semver }}'
           -NuGetDirectory './.artifacts/cli-nuget'
+          -FrameworkPayloadDirectory './.artifacts/cli-publish'
           -SkipFrameworkDependentArchives
           -SkipSelfContainedArchives
 
@@ -435,6 +452,129 @@ jobs:
           name: cli-tool-${{ needs.calculate-version.outputs.semver }}
           path: .artifacts/cli-nuget
           if-no-files-found: error
+
+  test-cli-nuget:
+    name: CLI · install NuGet tool (${{ matrix.target.rid }}, ${{ matrix.framework }})
+    needs:
+      - calculate-version
+      - package-cli-nuget
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [net8.0, net9.0, net10.0]
+        target:
+          - rid: win-x64
+            runner: windows-latest
+          - rid: win-arm64
+            runner: windows-11-arm
+          - rid: linux-x64
+            runner: ubuntu-latest
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+          - rid: linux-musl-x64
+            runner: ubuntu-latest
+          - rid: linux-musl-arm64
+            runner: ubuntu-24.04-arm
+          - rid: osx-x64
+            runner: macos-15-intel
+          - rid: osx-arm64
+            runner: macos-15
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET SDKs and runtimes
+        if: ${{ !startsWith(matrix.target.rid, 'linux-musl-') }}
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.427
+            9.0.320
+            10.0.403
+
+      - name: Download candidate CLI packages
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-tool-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/cli-nuget
+
+      - name: Install and execute candidate NuGet tool
+        if: ${{ !startsWith(matrix.target.rid, 'linux-musl-') }}
+        shell: pwsh
+        run: >-
+          ./.github/scripts/Test-CliToolInstallation.ps1
+          -Version '${{ needs.calculate-version.outputs.semver }}'
+          -NuGetDirectory './.artifacts/cli-nuget'
+          -SdkVersion '10.0.403'
+          -Framework '${{ matrix.framework }}'
+          -WorkingDirectory './.artifacts/tool-install'
+
+      - name: Install and execute candidate NuGet tool on Alpine
+        if: startsWith(matrix.target.rid, 'linux-musl-')
+        shell: bash
+        env:
+          VERSION: ${{ needs.calculate-version.outputs.semver }}
+          FRAMEWORK: ${{ matrix.framework }}
+        run: |
+          # Exercise the musl package with the installing SDK and the selected runtime.
+          docker run --rm -v "$PWD:/work" -w /work \
+            -e VERSION -e FRAMEWORK mcr.microsoft.com/dotnet/sdk:10.0.403-alpine sh -eu -c '
+              test "$(dotnet --version)" = 10.0.403
+              mkdir -p /tmp/tool-test
+              printf "%s" "<configuration><packageSources><clear/><add key=\"candidate\" value=\"/work/.artifacts/cli-nuget\"/></packageSources></configuration>" > /tmp/tool-test/NuGet.Config
+              export NUGET_PACKAGES=/tmp/tool-test/packages
+              dotnet tool install Packata-cli --version "$VERSION" --tool-path /tmp/tool-test/tool \
+                --framework "$FRAMEWORK" --configfile /tmp/tool-test/NuGet.Config --no-cache
+              # Install the older runtime when exercising the net8/net9 payload.
+              if [ "$FRAMEWORK" != net10.0 ]; then
+                curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/tool-test/dotnet-install.sh
+                case "$FRAMEWORK" in net8.0) runtime=8.0.33 ;; net9.0) runtime=9.0.22 ;; esac
+                bash /tmp/tool-test/dotnet-install.sh --version "$runtime" --runtime dotnet --install-dir /usr/share/dotnet --no-path \
+                  --azure-feed https://dotnetcli.blob.core.windows.net/dotnet
+              fi
+              /tmp/tool-test/tool/packata --help > /tmp/tool-test/help.txt
+              grep -q USAGE /tmp/tool-test/help.txt
+              /tmp/tool-test/tool/packata --version > /tmp/tool-test/version.txt
+              grep -F "$VERSION" /tmp/tool-test/version.txt
+            '
+
+  test-cli-sdk-compatibility:
+    name: CLI · verify SDK ${{ matrix.sdk }} installation compatibility (${{ matrix.runner }})
+    needs:
+      - calculate-version
+      - package-cli-nuget
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: [8.0.427, 9.0.320]
+        runner: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up the SDK under test
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ matrix.sdk }}
+
+      - name: Download candidate CLI packages
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-tool-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/cli-nuget
+
+      - name: Verify older SDK rejection of the RID-aware pointer
+        shell: pwsh
+        run: >-
+          ./.github/scripts/Test-CliToolInstallation.ps1
+          -Version '${{ needs.calculate-version.outputs.semver }}'
+          -NuGetDirectory './.artifacts/cli-nuget'
+          -SdkVersion '${{ matrix.sdk }}'
+          -Framework 'net${{ startsWith(matrix.sdk, '8.') && '8' || '9' }}.0'
+          -WorkingDirectory './.artifacts/tool-install'
+          -ExpectUnsupportedSdk
 
   package-cli-framework-archives:
     name: CLI · package framework archive (${{ matrix.framework.tfm }}, ${{ matrix.target.rid }})
@@ -775,6 +915,8 @@ jobs:
       - calculate-version
       - package-libraries
       - package-cli-nuget
+      - test-cli-nuget
+      - test-cli-sdk-compatibility
       - package-cli-framework-archives
       - package-cli-self-contained-archives
       - build-package-language-support
