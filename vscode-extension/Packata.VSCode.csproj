@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net10.0</TargetFrameworks><IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems><EnableDefaultNoneItems>false</EnableDefaultNoneItems>
+  </PropertyGroup>
+  <Target Name="RestoreExtension" BeforeTargets="CompileExtension" Inputs="package-lock.json" Outputs="node_modules/.package-lock.json">
+    <Exec Command="npm ci --ignore-scripts" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+  <Target Name="CompileExtension" BeforeTargets="Build">
+    <Exec Command="npm run compile" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+</Project>

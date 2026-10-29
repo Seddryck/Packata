@@ -1,8 +1,6 @@
-using System.Text;
 using Packata.Core.Contracts;
 using Packata.Core.Storage;
 using Packata.DataPackage.Mapping;
-using Packata.DataPackage.Serialization;
 using Packata.OpenDataContract.Mapping;
 using Packata.Storages;
 using YamlDotNet.RepresentationModel;
@@ -132,19 +130,8 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
 
     internal static ContractSource Parse(string source, Uri baseUri, string descriptor, string text, string format)
     {
-        // JSON is also YAML; inspecting the root avoids treating an extension as a standard identifier.
-        var yaml = new YamlStream();
-        yaml.Load(new StringReader(text));
-        if (yaml.Documents.Count != 1 || yaml.Documents[0].RootNode is not YamlMappingNode root)
-            throw new FormatException("A contract must contain one mapping document.");
-        var odcs = format == "odcs" || (format == "auto" &&
-            root.Children.ContainsKey(new YamlScalarNode("kind")));
-        using var content = new MemoryStream(Encoding.UTF8.GetBytes(text));
-        object native = odcs
-            ? new Packata.OpenDataContract.DataContractFactory().LoadFromStream(content)
-            : new Packata.DataPackage.DataPackageFactory().LoadFromStream(content,
-                text.TrimStart().StartsWith('{') ? SerializationFormat.Json : SerializationFormat.Yaml);
-        return new(source, baseUri, native) { DescriptorRoot = root, OriginalText = text };
+        var document = Packata.Documents.ContractDocument.Parse(text, format, baseUri);
+        return new(source, baseUri, document.NativeDocument) { DescriptorRoot = document.Root, OriginalText = text };
     }
 
     // Transport-only projection; source coverage and all compatibility rules live in Core.

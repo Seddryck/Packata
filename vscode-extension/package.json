@@ -1,0 +1,177 @@
+{
+  "name": "packata-language-support",
+  "displayName": "Packata Language Support",
+  "description": "ODCS and Data Package navigation and validation through Packata.LanguageServer.",
+  "version": "0.1.0",
+  "publisher": "seddryck",
+  "license": "Apache-2.0",
+  "icon": "images/packata-icon-128.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Seddryck/Packata.git",
+    "directory": "vscode-extension"
+  },
+  "engines": {
+    "vscode": "^1.137.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "files": [
+    "dist/extension.js",
+    "server/**",
+    "images/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "packata",
+          "title": "Packata",
+          "icon": "images/packata.svg"
+        }
+      ]
+    },
+    "views": {
+      "packata": [
+        {
+          "id": "packata.contracts",
+          "name": "Data Contracts"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "packata.contracts",
+        "contents": "Open a folder containing ODCS or Data Package v2 descriptors.\n[Refresh contracts](command:packata.refresh)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "packata.refresh",
+        "title": "Refresh Contracts",
+        "category": "Packata",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "packata.restart",
+        "title": "Restart Language Server",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.openSource",
+        "title": "Open Source",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.inspect",
+        "title": "Inspect Contract",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.validate",
+        "title": "Validate Contract",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.copyPath",
+        "title": "Copy Logical Path",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.selectView",
+        "title": "View as: Canonical / Native",
+        "category": "Packata",
+        "icon": "$(list-tree)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "packata.refresh",
+          "when": "view == packata.contracts",
+          "group": "navigation"
+        },
+        {
+          "command": "packata.selectView",
+          "when": "view == packata.contracts",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "packata.openSource",
+          "when": "view == packata.contracts",
+          "group": "1_source"
+        },
+        {
+          "command": "packata.inspect",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset)",
+          "group": "2_contract"
+        },
+        {
+          "command": "packata.validate",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset)",
+          "group": "2_contract"
+        },
+        {
+          "command": "packata.copyPath",
+          "when": "view == packata.contracts",
+          "group": "3_copy"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Packata",
+      "properties": {
+        "packata.languageServer.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional absolute development server executable path. Empty uses the bundled self-contained server."
+        },
+        "packata.requestTimeout": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "description": "Maximum server request time in milliseconds."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "compile": "npm run check && esbuild src/extension.ts --bundle --external:vscode --platform=node --format=cjs --outfile=dist/extension.js",
+    "test": "node --test test/*.test.cjs",
+    "package": "npm run compile && node scripts/package.mjs",
+    "test:host": "node scripts/test-host.mjs"
+  },
+  "dependencies": {
+    "vscode-languageclient": "10.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.1",
+    "@types/vscode": "1.137.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "3.9.2",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "yauzl": "3.4.0"
+  },
+  "overrides": {
+    "@azure/identity": "4.13.0",
+    "uuid": "11.1.1"
+  }
+}

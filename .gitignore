@@ -354,3 +354,7 @@ MigrationBackup/
 # Codecod
 codecov.exe
 .coverage/
+
+vscode-extension/dist/
+vscode-extension/server/
+*.vsix

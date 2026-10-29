@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net10.0</TargetFrameworks><OutputType>Exe</OutputType><IsPackable>false</IsPackable>
+    <PublishTrimmed>false</PublishTrimmed><AssemblyName>Packata.LanguageServer</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="OmniSharp.Extensions.LanguageServer" Version="0.19.9" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.12" />
+    <ProjectReference Include="../Packata.LanguageServer.Core/Packata.LanguageServer.Core.csproj" />
+  </ItemGroup>
+</Project>

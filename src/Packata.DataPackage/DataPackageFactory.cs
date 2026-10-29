@@ -38,7 +38,7 @@ public class DataPackageFactory
     protected DataPackage LoadFromStream(Stream stream, IDocumentContainer container, string extension)
         => LoadFromStream(stream, container, _serializerFactory.Instantiate(extension));
 
-    protected DataPackage LoadFromStream(Stream stream, IDocumentContainer container, SerializationFormat format)
+    public DataPackage LoadFromStream(Stream stream, IDocumentContainer container, SerializationFormat format)
         => LoadFromStream(stream, container, _serializerFactory.Instantiate(format));
 
     protected DataPackage LoadFromStream(Stream stream, IDocumentContainer container, IDataPackageSerializer serializer)

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Packata.DataPackage/Packata.DataPackage.csproj" />
+    <ProjectReference Include="../Packata.OpenDataContract/Packata.OpenDataContract.csproj" />
+  </ItemGroup>
+</Project>
