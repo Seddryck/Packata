@@ -7,6 +7,36 @@ namespace Packata.OpenDataContract.Testing.Serialization.Yaml;
 
 public class DataQualitySerializationTests
 {
+    [Test]
+    public void QualityOperandsAndArgumentsPreserveYamlTypesThroughRoundTrip()
+    {
+        var contract = Deserialize("""
+                          - type: library
+                            metric: missingValues
+                            mustBe: 2
+                            arguments:
+                              missingValues: [null, 1, '1', false, 'false']
+                          - type: sql
+                            query: SELECT true
+                            mustBe: true
+                          - type: sql
+                            query: SELECT '2'
+                            mustBe: '2'
+                          - type: library
+                            metric: rowCount
+                            mustBeBetween: [1, 3.5]
+            """);
+        var serialized = new DataContractSerializer().Serialize(contract);
+        using var reader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serialized)));
+        var roundtrip = new DataContractSerializer().Deserialize(reader, Mock.Of<IDocumentContainer>(), new StorageProvider());
+        var rules = roundtrip.Schema[0].Properties[0].Quality;
+        Assert.That(rules[0].MustBe, Is.EqualTo(2L));
+        Assert.That((System.Collections.IEnumerable)rules[0].Arguments["missingValues"], Is.EqualTo(new object?[] { null, 1L, "1", false, "false" }));
+        Assert.That(rules[1].MustBe, Is.EqualTo(true));
+        Assert.That(rules[2].MustBe, Is.EqualTo("2"));
+        Assert.That(rules[3].MustBeBetween, Is.EqualTo(new object[] { 1L, 3.5m }));
+    }
+
     private static DataContract Deserialize(string quality)
     {
         var yaml = $$"""

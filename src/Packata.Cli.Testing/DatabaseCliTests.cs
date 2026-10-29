@@ -410,6 +410,67 @@ public sealed class DatabaseCliTests
         command.ExecuteNonQuery();
     }
 
+    [Test]
+    public async Task Quality_run_dispatches_sql_and_library_against_offline_sqlite_and_blocks_writes()
+    {
+        var pack = ConfigurePack(standalone: true);
+        using var handler = new Downloads(pack.Bytes);
+        using (var connectors = new CliConnectors(Configuration, new HttpClient(handler)))
+            await connectors.InstallAsync(pack.Entry.Provider, CancellationToken.None);
+        Configuration.Set("connectors.offline", "true");
+        Seed();
+        var source = Path.Combine(_root, "quality.odcs.yaml");
+        File.WriteAllText(source, """
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: sql-quality
+            version: 1.0.0
+            status: active
+            schema:
+              - name: customers
+                physicalName: customers
+                quality:
+                  - id: sql-count
+                    type: sql
+                    query: SELECT count(*) FROM {object}
+                    mustBe: 1
+                  - id: catalog-count
+                    type: library
+                    metric: rowCount
+                    mustBe: 1
+                  - id: attempted-write
+                    type: sql
+                    query: DELETE FROM {object} RETURNING id
+                    mustBe: 42
+                  - id: attempted-disable-query-only
+                    type: sql
+                    query: PRAGMA query_only=OFF; DELETE FROM {object} RETURNING id
+                    mustBe: 42
+            servers:
+              - server: db
+                type: custom
+                endpointUrl: sqlite://./warehouse.db?Pooling=false
+                format: database
+                database: warehouse.db
+                schema: main
+            """);
+        using var loaded = await ContractSource.LoadAsync(source, "odcs", CancellationToken.None);
+        Assert.That(ContractValidation.Validate(loaded).Where(d => d.Severity == MappingSeverity.Error), Is.Empty);
+        Assert.That(loaded.Map().IsSuccessful, Is.True);
+        var result = Run("quality", "run", source);
+        Assert.That(result.ExitCode, Is.EqualTo(2), result.Output + result.Error);
+        Assert.That(result.Output, Is.Not.Empty, result.Error);
+        var document = Newtonsoft.Json.Linq.JObject.Parse(result.Output);
+        OorsReport.Validate(document);
+        Assert.That(document["results"]!.Select(r => (string?)r["status"]), Is.EqualTo(new[] { "pass", "pass", "error", "error" }), result.Output);
+        Assert.That(document["customProperties"]!.Single(p => (string?)p["property"] == "engines")["value"]!.Count(), Is.EqualTo(2));
+        using var connection = new SqliteConnection("Data Source=" + Path.Combine(_root, "warehouse.db") + ";Pooling=false");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT count(*) FROM customers";
+        Assert.That(command.ExecuteScalar(), Is.EqualTo(1L));
+    }
+
     private string WriteContract()
     {
         var source = Path.Combine(_root, "datapackage.json");

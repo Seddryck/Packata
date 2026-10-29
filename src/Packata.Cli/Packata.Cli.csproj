@@ -19,6 +19,7 @@
     <PackageReference Include="Spectre.Console.Cli" Version="0.57.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
+    <PackageReference Include="JsonSchema.Net" Version="9.4.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +30,8 @@
     <ProjectReference Include="..\Packata.ResourceReaders.Excel\Packata.ResourceReaders.Excel.csproj" />
     <ProjectReference Include="..\Packata.ResourceReaders.Parquet\Packata.ResourceReaders.Parquet.csproj" />
     <ProjectReference Include="..\Packata.Storages\Packata.Storages.csproj" />
+    <ProjectReference Include="..\Packata.Rules.Sql\Packata.Rules.Sql.csproj" />
+    <ProjectReference Include="..\Packata.Rules.Expressif\Packata.Rules.Expressif.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +42,7 @@
   <ItemGroup>
     <!-- Pinned from https://github.com/Seddryck/DubUrl/releases/tag/v0.46.0. -->
     <EmbeddedResource Include="Resources/connector-catalog-0.46.0.json" LogicalName="Packata.Cli.ConnectorCatalog" />
+    <EmbeddedResource Include="Resources/oors-json-schema-v0.8.0.json" LogicalName="Packata.Cli.OorsSchema" />
     <InternalsVisibleTo Include="Packata.Cli.Testing" />
   </ItemGroup>
 

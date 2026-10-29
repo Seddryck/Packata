@@ -44,7 +44,7 @@ internal sealed class EnumerationValueConverter : IYamlTypeConverter
     private const string NullTag = "tag:yaml.org,2002:null";
     private const string StringTag = "tag:yaml.org,2002:str";
 
-    private static object? ReadScalar(Scalar scalar)
+    internal static object? ReadScalar(Scalar scalar)
     {
         if (IsString(scalar)) return scalar.Value;
         if (TryReadNonNumeric(scalar, out var value)) return value;

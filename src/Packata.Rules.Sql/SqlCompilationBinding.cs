@@ -17,7 +17,9 @@ internal sealed record SqlCompilationBinding(DataAsset Asset, DataEndpoint Endpo
         if (endpointId is null) return null;
         var endpoint = ResolveEndpoint(context.Contract!, endpointId, Missing);
         if (endpoint is null) return null;
-        var dialect = options.AuthoredDialect ?? ResolveDialect(((ConnectionLocation)endpoint.Location).Scheme);
+        var location = (ConnectionLocation)endpoint.Location;
+        var dialect = options.AuthoredDialect ?? ResolveDialect(location.Scheme)
+            ?? (Uri.TryCreate(location.ConnectionUrl, UriKind.Absolute, out var url) ? ResolveDialect(url.Scheme) : null);
         if (dialect is null || !Enum.IsDefined(dialect.Value))
         {
             Missing("SQL_DIALECT", "Declare the authored SQL dialect for this endpoint scheme."); return null;
