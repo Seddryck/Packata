@@ -33,17 +33,28 @@ public sealed record ContractInferenceOptions
 
     public void Validate()
     {
-        if ((SuppliedOptions & ~InferenceCapabilities.AllOptions) != 0)
-            throw new ArgumentOutOfRangeException(paramName: null, message: "SuppliedOptions contains unknown inference options.");
+        ValidateSuppliedOptions(SuppliedOptions);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(MaximumRecords);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(StagingMaximumBytes);
         ValidateSampling();
         ValidateWorksheet();
     }
 
+    private static void ValidateSuppliedOptions(InferenceOptions suppliedOptions)
+    {
+        if ((suppliedOptions & ~InferenceCapabilities.AllOptions) != 0)
+            throw new ArgumentOutOfRangeException(nameof(suppliedOptions), "SuppliedOptions contains unknown inference options.");
+    }
+
+    private static void ValidateMaximumBytes(long? maximumBytes)
+    {
+        if (maximumBytes <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maximumBytes), "MaximumBytes must be positive when specified.");
+    }
+
     private void ValidateSampling()
     {
-        if (MaximumBytes <= 0) throw new ArgumentOutOfRangeException(paramName: null, message: "MaximumBytes must be positive when specified.");
+        ValidateMaximumBytes(MaximumBytes);
         if (Header.ToLowerInvariant() is not ("auto" or "present" or "absent"))
             throw new ArgumentException("Header mode must be auto, present or absent.");
         if (!string.IsNullOrWhiteSpace(Culture)) _ = System.Globalization.CultureInfo.GetCultureInfo(Culture);

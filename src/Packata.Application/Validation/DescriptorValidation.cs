@@ -48,7 +48,7 @@ public static class DescriptorValidation
         var selected = new[] { ValidationLayers.Schema, ValidationLayers.Semantic }.Where(layer => layers.HasFlag(layer)).ToArray();
         JsonObject root;
         var syntaxCheck = DescriptorSyntaxValidation.Validate(text, cancellationToken);
-        var syntax = syntaxCheck.Syntax;
+        ContractSyntax syntax;
         try
         {
             if (!syntaxCheck.Valid) throw new FormatException();
