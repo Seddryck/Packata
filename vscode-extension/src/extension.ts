@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node';
-import { ContractNode, ContractState, Discovery, Inspection, Validation, requireCapabilities, requireDiscovery, requireSchema } from './protocol';
+import { ContractNode, ContractState, Discovery, Inspection, requireCapabilities, requireDiscovery, requireSchema } from './protocol';
 import { resolveServer } from './serverPath';
 import { ContractTree, TreeEntry, restoreViewState } from './tree';
 import { ViewMode, ViewPreference } from './viewMode';
+import { ValidationUi } from './validationUi';
 
 let client: LanguageClient | undefined;
 
@@ -119,6 +120,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       requireDiscovery(response);
       if (cancellation.token.isCancellationRequested || !state.apply(epoch, response, versions())) return;
       tree.refresh();
+      validation.refreshAction();
       for (const contract of state.contracts) {
         const signature = JSON.stringify(contract.diagnostics);
         if (reportedDiagnostics.get(contract.uri) !== signature) {
@@ -183,22 +185,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (epoch !== documentEpoch || !current(result)) { schedule(); return; }
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument({ language: 'json', content: JSON.stringify(result, null, 2) }));
   });
-  command('packata.validate', async entry => {
-    const epoch = documentEpoch;
-    const result = await request<Validation>('packata.contract.validate', { uri: uri(entry) });
-    requireSchema(result);
-    if (epoch !== documentEpoch || !current(result)) { schedule(); return; }
-    tree.validation.set(result.uri, { version: result.version, valid: result.valid }); tree.refresh();
-    void vscode.window.showInformationMessage(result.valid ? 'Packata: contract validation passed.' : 'Packata: contract validation failed. See Problems.');
-  });
-  const invalidate = (document: vscode.TextDocument) => { tree.validation.delete(document.uri.toString()); schedule(); };
+  const validation = new ValidationUi(context, request, tree);
+  context.subscriptions.push(validation);
+  const invalidate = (document: vscode.TextDocument) => { validation.markOutdated(document.uri); schedule(); };
   context.subscriptions.push(
     watcher.onDidCreate(schedule), watcher.onDidDelete(() => { tree.validation.clear(); schedule(); }),
-    watcher.onDidChange(() => { tree.validation.clear(); schedule(); }),
+    watcher.onDidChange(uri => {
+      if (!vscode.workspace.textDocuments.some(document => document.uri.toString() === uri.toString())) validation.markOutdated(uri);
+      schedule();
+    }),
     vscode.workspace.onDidChangeWorkspaceFolders(schedule),
     vscode.workspace.onDidOpenTextDocument(schedule), vscode.workspace.onDidCloseTextDocument(schedule),
-    vscode.workspace.onDidChangeTextDocument(event => invalidate(event.document)),
-    vscode.workspace.onDidSaveTextDocument(invalidate),
+    vscode.workspace.onDidChangeTextDocument(event => { if (event.contentChanges.length) invalidate(event.document); }),
+    vscode.workspace.onDidSaveTextDocument(schedule),
     vscode.window.onDidChangeActiveTextEditor(editor => {
       const entry = editor && tree.root(editor.document.uri.toString());
       if (entry) void view.reveal(entry, { select: true, focus: false, expand: false }).then(undefined, () => undefined);

@@ -180,7 +180,7 @@ public sealed class ContractServiceTests
         store.Update(uri, text.Replace("version: 1.0.0" + newline, ""), 2);
         var validation = await new ContractService(store).ValidateAsync(uri, CancellationToken.None);
         Assert.That(validation.Valid, Is.False);
-        Assert.That(validation.Diagnostics.Select(value => value.Code), Does.Contain("ODCSV001"));
+        Assert.That(validation.Diagnostics.Select(value => value.Code), Does.Contain("VAL_SCHEMA"));
     }
 
     [Test]

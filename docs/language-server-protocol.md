@@ -63,9 +63,27 @@ Inspection includes mapping diagnostics and does not certify successful validati
 
 ## Validation and diagnostics
 
-Send `packata.contract.validate` with the same argument as inspection. It returns `{schemaVersion:1,uri,version,valid,diagnostics}` and publishes diagnostics through `textDocument/publishDiagnostics`. Automatic checks run after a 180 ms document-change debounce. The VS Code client uses this single LSP diagnostic collection; explicit validation does not create duplicate Problems entries.
+Send `packata.validation.options` with the inspection argument to obtain
+`{schemaVersion:1,format,validators}`. Each validator has a stable `id`, `label`,
+`description`, applicable `formats` and `blockedBySelected` IDs. The catalog drives
+the native multi-select workflow; new entries never expand saved selections.
 
-A diagnostic DTO has `code`, `severity` (`Error`, `Warning`, `Information`), `sourcePath`, `message`, and optional `range`. Native paths are resolved to ranges only when a syntax-backed match exists. The LSP form preserves the code/severity/message, uses source `Packata`, and includes `{sourcePath,locationUnavailable}` in `data`. LSP requires a range, so unmapped diagnostics use an empty document-start range with `locationUnavailable:true`; this is a document-level fallback, not a claimed precise source location.
+Send `packata.contract.validate` with `{schemaVersion:1,uri,checks:["schema"]}` to
+execute exactly that selection. Omitted `checks` preserves the explicit default
+`["schema","semantic"]`; empty or unknown selections are rejected. The response is
+`{schemaVersion:1,uri,version,format,valid,diagnostics,checks}`. Every catalog check
+has `id`, `label`, `state`, error count and optional reason. States include `Passed`,
+`Failed`, `NotSelected` and `Blocked`. Parsing blocks selected checks; failed selected
+schema checks block selected semantics. Semantic-only never adds schema. `valid`
+covers selected checks only, so clients must display their scope.
+
+The handler replaces previous scopes through `textDocument/publishDiagnostics`.
+Automatic checks run syntax only after a 180 ms document-change debounce, without
+replacing current explicit results for the same version. The client marks edits
+outdated, discards superseded replies, and distinguishes cancellation and execution
+errors. It uses the single LSP collection rather than duplicating Problems entries.
+
+A diagnostic DTO has `code`, `severity` (`Error`, `Warning`, `Information`), `sourcePath`, `message`, optional `range`, and validation `layer` (`Schema`, `Semantic`, `Syntax`). Paths resolve to syntax-backed ranges, falling back to a containing declaration for absent fields. LSP uses source `Packata · <layer>` (plain `Packata` for inspection), and `{sourcePath,locationUnavailable}` in `data`. Unmapped diagnostics use an empty document-start range with `locationUnavailable:true`; this is a document-level fallback, not a claimed precise source location.
 
 Mapping warnings, schema constraints, quality declarations, and SLA commitments retain their separate meanings. Source quality metadata is labelled as a declaration with no execution support. The tree only displays passing validation status after a current explicit validation result, and invalidates that status on edits/file changes or reconnect.
 
