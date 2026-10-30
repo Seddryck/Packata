@@ -19,10 +19,9 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
 
     public static ContractDocument Parse(ContractSyntax syntax, string format = "auto", Uri? baseUri = null)
     {
-        if (format is not ("auto" or "odcs" or "datapackage")) throw new ArgumentException("Unknown input format.", nameof(format));
         var text = syntax.Text;
         var root = syntax.Root;
-        var odcs = format == "odcs" || (format == "auto" && Child(root, "kind") is not null);
+        var odcs = DescriptorFormat.Identify(root, format) == "odcs";
         using var content = new MemoryStream(Encoding.UTF8.GetBytes(text));
         var context = new DescriptorContainer(baseUri ?? new Uri(Path.GetFullPath(".") + Path.DirectorySeparatorChar));
         var serializationFormat = text.TrimStart().StartsWith('{') ? SerializationFormat.Json : SerializationFormat.Yaml;

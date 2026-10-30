@@ -1,6 +1,5 @@
 using Packata.Application;
 using Packata.Core.Contracts;
-using Packata.ResourceReaders;
 using InferenceSelection = Packata.Application.ContractInferenceService.InferenceSelection;
 
 namespace Packata.Cli;
@@ -8,18 +7,27 @@ namespace Packata.Cli;
 /// <summary>Adapts command options and invocation-owned resource access to application inference.</summary>
 internal static class InferenceService
 {
-    internal static Task<InferenceSelection> InferFileAsync(ContractDocument document, DataAsset asset,
+    private static readonly IReadOnlyDictionary<string, InferenceOption> OptionNames = new Dictionary<string, InferenceOption>
+    {
+        ["--maximum-records"] = InferenceOption.MaximumRecords, ["--maximum-bytes"] = InferenceOption.MaximumBytes,
+        ["--culture"] = InferenceOption.Culture, ["--header"] = InferenceOption.Header,
+        ["--no-dialect-inference"] = InferenceOption.DialectInference,
+        ["--sheet-name"] = InferenceOption.SheetName, ["--sheet-number"] = InferenceOption.SheetNumber
+    };
+
+    internal static async Task<InferenceSelection> InferFileAsync(ContractDocument document, DataAsset asset,
         DataEndpoint endpoint, InferSettings settings, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
-        var format = new DataFormatResolver().Resolve(endpoint).Name;
-        if (format is "xls" or "xlsx") RejectOptions(arguments, ["--culture", "--no-dialect-inference"]);
-        else
+        try
         {
-            RejectOptions(arguments, ["--sheet-name", "--sheet-number"]);
-            if (format is "parquet" or "pqt")
-                RejectOptions(arguments, ["--maximum-records", "--maximum-bytes", "--culture", "--header", "--no-dialect-inference"]);
+            return await ContractInferenceService.InferFileAsync(Input(document), asset, endpoint,
+                Options(settings, arguments), cancellationToken).ConfigureAwait(false);
         }
-        return ContractInferenceService.InferFileAsync(Input(document), asset, endpoint, Options(settings), cancellationToken);
+        catch (UnsupportedInferenceOptionsException error)
+        {
+            var names = OptionNames.Where(pair => error.Options.HasFlag(pair.Value)).Select(pair => pair.Key);
+            throw new NotSupportedException($"Options {string.Join(", ", names)} do not apply to this resource format.");
+        }
     }
 
     internal static async Task<InferenceSelection> InferDatabaseAsync(ContractDocument document, DataAsset asset,
@@ -44,20 +52,17 @@ internal static class InferenceService
     }
 
     internal static InferenceInput Input(ContractDocument document) => new(document.Contract, new Streams(document));
-    internal static ContractInferenceOptions Options(InferSettings settings) => new()
+    internal static ContractInferenceOptions Options(InferSettings settings, IReadOnlyList<string>? arguments = null) => new()
     {
+        SuppliedOptions = OptionNames.Where(pair => arguments?.Any(argument => argument == pair.Key
+            || argument.StartsWith(pair.Key + "=", StringComparison.Ordinal)) == true)
+            .Aggregate(InferenceOption.None, (options, pair) => options | pair.Value),
         MaximumRecords = settings.MaximumRecords, MaximumBytes = settings.MaximumBytes,
         Header = settings.Header, Culture = settings.Culture, NoDialectInference = settings.NoDialectInference,
         SheetName = settings.SheetName, SheetNumber = settings.SheetNumber, StagingMaximumBytes = settings.StagingMaximumBytes
     };
     internal static DataAsset SelectAsset(DataContract contract, string assetId) => ContractInferenceService.SelectAsset(contract, assetId);
     internal static DataEndpoint SelectEndpoint(DataContract contract, DataAsset asset) => ContractInferenceService.SelectEndpoint(contract, asset);
-    private static void RejectOptions(IReadOnlyList<string> arguments, IReadOnlyList<string> unsupported)
-    {
-        var invalid = unsupported.Where(option => arguments.Any(argument => argument == option
-            || argument.StartsWith(option + "=", StringComparison.Ordinal))).ToArray();
-        if (invalid.Length > 0) throw new NotSupportedException($"Options {string.Join(", ", invalid)} do not apply to this resource format.");
-    }
 
     private sealed class Streams(ContractDocument document) : IInferenceStreamSource
     {

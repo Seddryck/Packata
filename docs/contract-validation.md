@@ -122,6 +122,20 @@ var semantics = DescriptorValidation.Validate(originalText, format: "odcs",
 // report.Valid requires every selected layer to complete and pass.
 ```
 
+Each layer reports its `State`, whether it `Executed`, and its `Prerequisites`
+(`Satisfied` or `Failed`). A semantic layer can partially execute and fail a
+structural prerequisite; it then reports `State=Failed`, `Executed=true`, and
+`Prerequisites=Failed`. A skipped layer has `Executed=false` and failed
+prerequisites. Editor hosts use this structured status to show blocked checks;
+they do not derive execution eligibility from diagnostic codes. Ordinary failed
+checks can have satisfied prerequisites.
+
+`report.Format` and `ContractSyntax.Format` use the same `DescriptorFormat`
+classifier as native parsing and inspection. In auto mode, either `kind` or
+`apiVersion` identifies ODCS, including partially authored documents. Explicit
+format overrides remain authoritative. Broken-buffer recovery hints are also
+provided by Application through `DescriptorFormat.Detect`/`Recover`.
+
 Pass original source text, not a serialized native model. The older
 `ContractDocument.Validate(object)` remains a native-model helper; it cannot prove
 source-schema validity. Data Package semantic validation retains the existing

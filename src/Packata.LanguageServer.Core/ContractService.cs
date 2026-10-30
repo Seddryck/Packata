@@ -81,8 +81,8 @@ public sealed class ContractService(DocumentStore documents)
         try
         {
             var root = (syntax ?? ContractSyntax.Parse(snapshot.Text)).Root;
-            var odcs = ContractDocument.Child(root, "kind") is not null;
-            return (odcs ? "odcs" : "datapackage", new ContractTreeBuilder(root, odcs, snapshot.Uri).BuildNative());
+            var format = DescriptorFormat.Identify(root);
+            return (format, new ContractTreeBuilder(root, format == "odcs", snapshot.Uri).BuildNative());
         }
         catch (Exception error) when (IsDocumentError(error))
         {

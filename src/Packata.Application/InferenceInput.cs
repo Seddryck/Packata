@@ -21,6 +21,7 @@ public sealed record InferenceInput(DataContract Contract, IInferenceStreamSourc
 
 public sealed record ContractInferenceOptions
 {
+    public InferenceOption SuppliedOptions { get; init; }
     public int MaximumRecords { get; init; } = 1000;
     public long? MaximumBytes { get; init; }
     public string Culture { get; init; } = string.Empty;
@@ -32,6 +33,7 @@ public sealed record ContractInferenceOptions
 
     public void Validate()
     {
+        if ((SuppliedOptions & ~InferenceCapabilities.AllOptions) != 0) throw new ArgumentOutOfRangeException(nameof(SuppliedOptions));
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(MaximumRecords);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(StagingMaximumBytes);
         if (MaximumBytes <= 0) throw new ArgumentOutOfRangeException(nameof(MaximumBytes));

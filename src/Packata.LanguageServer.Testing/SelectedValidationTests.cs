@@ -5,6 +5,47 @@ namespace Packata.LanguageServer.Testing;
 
 public sealed class SelectedValidationTests
 {
+    [TestCase("apiVersion: v3.2.0\nid: contract\nversion: 1.0.0\nstatus: draft\nschema: []", "odcs")]
+    [TestCase("kind: DataContract\nschema: []", "odcs")]
+    [TestCase("resources: []", "datapackage")]
+    public void PartialDocumentFormat_AgreesWithApplicationInspectionAndValidation(string text, string expected)
+    {
+        var snapshot = new DocumentSnapshot(Uri, text, 17);
+        var application = Packata.Application.ContractInspector.Inspect(text);
+        var validation = Packata.Application.Validation.DescriptorValidation.Validate(text);
+        var editor = SelectedValidation.Validate(snapshot);
+        var inspection = new ContractService(new DocumentStore()).Inspect(snapshot, CancellationToken.None);
+        Assert.That(application.Document.Format, Is.EqualTo(expected));
+        Assert.That(validation.Format, Is.EqualTo(expected));
+        Assert.That(SelectedValidation.Options(snapshot).Format, Is.EqualTo(expected));
+        Assert.That(editor.Format, Is.EqualTo(expected));
+        Assert.That(inspection.Format, Is.EqualTo(expected));
+        Assert.That(editor.Version, Is.EqualTo(17));
+    }
+
+    [TestCase("schema: not-an-array", "Blocked")]
+    [TestCase("schema: []", "Passed")]
+    [TestCase("schema: [", "Blocked")]
+    public void CheckPresentation_UsesApplicationPrerequisiteStatus(string schema, string expected)
+    {
+        var text = "apiVersion: v3.2.0\nkind: DataContract\nid: contract\nversion: 1.0.0\nstatus: draft\n" + schema;
+        var report = Packata.Application.Validation.DescriptorValidation.Validate(text, layers: Packata.Application.Validation.ValidationLayers.Semantic);
+        var editor = SelectedValidation.Validate(new(Uri, text, 1), ["semantic"]);
+        var outcome = report.Layers.Single();
+        Assert.That(editor.Checks!.Single(check => check.Id == "semantic").State, Is.EqualTo(expected));
+        Assert.That(expected == "Blocked", Is.EqualTo(outcome.Prerequisites == Packata.Application.Validation.ValidationPrerequisiteStatus.Failed));
+    }
+
+    [Test]
+    public void NativeTreeFallback_UsesApplicationStandardWhenKindIsMissing()
+    {
+        const string text = "apiVersion: v3.2.0\nschema: still-editing\nx-extra: preserved\n";
+        var result = new ContractService(new DocumentStore()).Inspect(new(Uri, text, 8), CancellationToken.None);
+        Assert.That(result.Format, Is.EqualTo(Packata.Application.DescriptorFormat.Detect(text)));
+        Assert.That(result.Format, Is.EqualTo("odcs"));
+        Assert.That(result.NativeTree, Is.Not.Null);
+    }
+
     [TestCase(ContractServiceTests.Package)]
     [TestCase(ContractServiceTests.Odcs)]
     [TestCase("resources: []")]

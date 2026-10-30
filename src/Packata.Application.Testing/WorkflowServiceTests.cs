@@ -69,7 +69,7 @@ public sealed class WorkflowServiceTests
             : "id\r\n1\r\n2\r\n"u8.ToArray();
         var streams = new InferenceStreams(data);
         var result = await ContractInferenceService.InferFileAsync(new(contract, streams), asset, endpoint,
-            new() { Header = "present", StagingMaximumBytes = 1024 * 1024 }, CancellationToken.None);
+            new() { Header = format == "parquet" ? "auto" : "present", StagingMaximumBytes = 1024 * 1024 }, CancellationToken.None);
         Assert.That(result.Result.IsSuccessful, Is.True, string.Join(";", result.Result.Diagnostics));
         Assert.That(result.Asset.Schema!.Fields, Is.Not.Empty);
         Assert.That(streams.Opens, Is.EqualTo(1));

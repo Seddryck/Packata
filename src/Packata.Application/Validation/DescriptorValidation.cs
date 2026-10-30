@@ -12,17 +12,23 @@ namespace Packata.Application.Validation;
 [Flags]
 public enum ValidationLayers { None = 0, Schema = 1, Semantic = 2 }
 public enum ValidationState { Passed, Failed, Skipped }
+public enum ValidationPrerequisiteStatus { Satisfied, Failed }
 public sealed record ValidationFinding(ValidationLayers Layer, string Code, MappingSeverity Severity, string SourcePath, string Message);
 public sealed record LayerValidation(ValidationLayers Layer, ValidationState State, string? Reason = null)
 {
     public bool Executed => State != ValidationState.Skipped;
+    /// <summary>Partial execution may still fail a declaration prerequisite; hosts must not infer this from diagnostic codes.</summary>
+    public ValidationPrerequisiteStatus Prerequisites { get; init; } = State == ValidationState.Skipped
+        ? ValidationPrerequisiteStatus.Failed : ValidationPrerequisiteStatus.Satisfied;
 }
 public sealed record DescriptorValidationReport(IReadOnlyList<LayerValidation> Layers, IReadOnlyList<ValidationFinding> Diagnostics, DescriptorProfile? Profile = null)
 {
     /// <summary>Source syntax retained for host-specific diagnostic locations.</summary>
     public ContractSyntax? Syntax { get; init; }
+    public string? Format { get; init; }
 
-    public bool Valid => Layers.Count > 0 && Layers.All(layer => layer.State == ValidationState.Passed)
+    public bool Valid => Layers.Count > 0 && Layers.All(layer => layer.State == ValidationState.Passed
+        && layer.Prerequisites == ValidationPrerequisiteStatus.Satisfied)
         && Diagnostics.All(finding => finding.Severity != MappingSeverity.Error);
 }
 
@@ -56,19 +62,20 @@ public static class DescriptorValidation
                 results.Add(new(layer, ValidationState.Skipped, "Parsing prerequisite failed."));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            return new(results, findings) { Syntax = syntax };
+            return new(results, findings)
+            { Syntax = syntax, Format = syntax is null ? format == "auto" ? null : format : DescriptorFormat.Identify(syntax.Root, format) };
         }
 
         var report = Execute(root, syntax, format, selected, baseUri, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        return report with { Syntax = syntax };
+        return report with { Syntax = syntax, Format = DescriptorFormat.Identify(syntax.Root, format) };
     }
 
     private static DescriptorValidationReport Execute(JsonObject root, ContractSyntax syntax, string format, ValidationLayers[] selected, Uri? baseUri, CancellationToken cancellationToken)
     {
         var findings = new List<ValidationFinding>();
         var results = new List<LayerValidation>();
-        var odcs = format == "odcs" || (format == "auto" && (root.ContainsKey("kind") || root.ContainsKey("apiVersion")));
+        var odcs = DescriptorFormat.Identify(syntax.Root, format) == "odcs";
         var profile = DescriptorProfiles.Select(root, odcs);
         var selectionIssue = SelectionIssue(root, format, odcs);
         foreach (var layer in selected)
@@ -94,8 +101,12 @@ public static class DescriptorValidation
     }
 
     private static LayerValidation Outcome(ValidationLayers layer, ValidationFinding[] current)
-        => new(layer, current.Any(f => f.Severity == MappingSeverity.Error) ? ValidationState.Failed : ValidationState.Passed,
-            current.Any(f => f.Code is "VAL_PREREQUISITE" or "SEM_STRUCTURE") ? "Some declaration checks could not complete because structural prerequisites failed." : null);
+    {
+        var prerequisiteFailed = current.Any(f => f.Code is "VAL_PREREQUISITE" or "SEM_STRUCTURE");
+        return new(layer, current.Any(f => f.Severity == MappingSeverity.Error) ? ValidationState.Failed : ValidationState.Passed,
+            prerequisiteFailed ? "Some declaration checks could not complete because structural prerequisites failed." : null)
+        { Prerequisites = prerequisiteFailed ? ValidationPrerequisiteStatus.Failed : ValidationPrerequisiteStatus.Satisfied };
+    }
 
     private static string? SelectionIssue(JsonObject root, string format, bool odcs)
     {

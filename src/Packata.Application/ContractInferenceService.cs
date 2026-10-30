@@ -16,10 +16,10 @@ public static class ContractInferenceService
         DataEndpoint endpoint, ContractInferenceOptions settings, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        settings.Validate();
         if (endpoint.Location is not PathLocation { Paths.Count: 1 } paths)
             throw new NotSupportedException("File inference requires exactly one bound path.");
         var format = new DataFormatResolver().Resolve(endpoint);
+        InferenceCapabilities.Validate(format.Name, settings);
         endpoint = endpoint with { Format = (endpoint.Format ?? new DataFormat(format.Name)) with
             { Name = format.Name, Compression = format.Compression } };
         if (format.Name is "xls" or "xlsx")
@@ -94,8 +94,8 @@ public static class ContractInferenceService
         InferenceInput document, DataAsset asset, DataEndpoint endpoint, ContractInferenceOptions settings, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        settings.Validate();
         ValidateCsvEndpoint(asset, endpoint);
+        InferenceCapabilities.Validate(new DataFormatResolver().Resolve(endpoint).Name, settings);
         await using var stream = await document.OpenAssetStreamAsync(asset, endpoint, cancellationToken).ConfigureAwait(false);
         var options = new CsvDataContractInferenceOptions
         {

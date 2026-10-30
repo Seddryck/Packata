@@ -1,7 +1,6 @@
 using Packata.Application;
 using Packata.Application.Validation;
 using YamlDotNet.Core;
-using YamlDotNet.RepresentationModel;
 
 namespace Packata.LanguageServer.Core;
 
@@ -33,7 +32,7 @@ public static class SelectedValidation
         var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."), cancellationToken);
         var diagnostics = Diagnostics(snapshot.Text, report);
         var checks = Validators.Select(option => Check(option, selected, report)).ToArray();
-        var format = report.Syntax is null ? FormatFallback(snapshot) : Format(new SourceIndex(report.Syntax.Root));
+        var format = report.Format ?? DescriptorFormat.Recover(snapshot.Text, snapshot.Uri);
         return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, report.Valid, diagnostics, checks, format, report.Profile);
     }
 
@@ -77,8 +76,7 @@ public static class SelectedValidation
         var layer = option.Id == SchemaId ? ValidationLayers.Schema : ValidationLayers.Semantic;
         var outcome = report.Layers.Single(result => result.Layer == layer);
         var errors = report.Diagnostics.Count(d => d.Layer == layer && d.Severity == Packata.Core.Contracts.MappingSeverity.Error);
-        var prerequisiteFailed = report.Diagnostics.Any(d => d.Layer == layer && d.Code is "VAL_PREREQUISITE" or "SEM_STRUCTURE");
-        var state = outcome.State == ValidationState.Skipped || prerequisiteFailed ? "Blocked" : outcome.State.ToString();
+        var state = outcome.Prerequisites == ValidationPrerequisiteStatus.Failed ? "Blocked" : outcome.State.ToString();
         return new(option.Id, option.Label, state, errors, outcome.Reason);
     }
 
@@ -95,25 +93,9 @@ public static class SelectedValidation
         return null;
     }
 
-    private static SourceIndex? Index(string text)
-    {
-        if (TooLarge(text)) return null;
-        try { return new(ContractDocument.ParseRoot(text)); }
-        catch (Exception error) when (error is YamlException or FormatException or ArgumentException) { return null; }
-    }
-
     private static bool TooLarge(string text) => System.Text.Encoding.UTF8.GetByteCount(text) > ContractService.MaximumDocumentBytes;
 
-    private static string Format(DocumentSnapshot snapshot)
-    {
-        var index = Index(snapshot.Text);
-        return index is not null ? Format(index) : FormatFallback(snapshot);
-    }
-
-    private static string Format(SourceIndex index) =>
-        index.Find("/kind") is not null || index.Find("/apiVersion") is not null ? "odcs" : DataPackageFormat;
-
-    private static string FormatFallback(DocumentSnapshot snapshot) => snapshot.Uri.LocalPath.Contains("odcs", StringComparison.OrdinalIgnoreCase) ||
-            Path.GetFileName(snapshot.Uri.LocalPath).StartsWith("contract", StringComparison.OrdinalIgnoreCase) ||
-            snapshot.Text.Contains("apiVersion", StringComparison.Ordinal) ? "odcs" : DataPackageFormat;
+    private static string Format(DocumentSnapshot snapshot) => TooLarge(snapshot.Text)
+        ? DescriptorFormat.Recover(snapshot.Text, snapshot.Uri)
+        : DescriptorFormat.Detect(snapshot.Text, snapshot.Uri);
 }

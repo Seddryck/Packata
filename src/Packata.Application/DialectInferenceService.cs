@@ -37,9 +37,9 @@ public static class DialectInferenceService
         ContractInferenceOptions options, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        options.Validate();
         ContractInferenceService.ValidateCsvEndpoint(asset, endpoint);
         var resolved = new DataFormatResolver().Resolve(endpoint);
+        InferenceCapabilities.Validate(resolved.Name, options);
         var effective = endpoint with { Format = (endpoint.Format ?? new DataFormat(resolved.Name)) with
         { Name = resolved.Name, Compression = resolved.Compression } };
         await using var stream = await input.OpenAssetStreamAsync(asset, effective, cancellationToken, options.StagingMaximumBytes).ConfigureAwait(false);

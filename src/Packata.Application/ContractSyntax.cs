@@ -9,6 +9,7 @@ public sealed class ContractSyntax
 
     public string Text { get; }
     public YamlMappingNode Root { get; }
+    public string Format => DescriptorFormat.Identify(Root);
     public bool Recognized => ContractDocument.Recognizes(Root);
 
     public static ContractSyntax Parse(string text) => new(text, ContractDocument.ParseRoot(text));
