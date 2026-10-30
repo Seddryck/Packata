@@ -1,7 +1,7 @@
 #requires -Version 7.0
 # Generate the documentation inventory from schema objects, never instance examples.
 $repositoryRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$schemaPath = Join-Path $repositoryRoot 'src/Packata.Documents/Validation/Schemas/odcs-v3.2.0.json'
+$schemaPath = Join-Path $repositoryRoot 'src/Packata.Application/Validation/Schemas/odcs-v3.2.0.json'
 $destination = Join-Path $repositoryRoot 'docs/odcs-schema-assertions.tsv'
 $keywords = @('type', 'enum', 'const', 'required', 'pattern', 'format', 'minimum', 'maximum',
     'exclusiveMinimum', 'exclusiveMaximum', 'minItems', 'maxItems', 'uniqueItems', 'minLength',

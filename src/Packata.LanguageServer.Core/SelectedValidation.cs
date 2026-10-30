@@ -1,5 +1,5 @@
-using Packata.Documents;
-using Packata.Documents.Validation;
+using Packata.Application;
+using Packata.Application.Validation;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
@@ -17,22 +17,23 @@ public static class SelectedValidation
 
     public static ValidationOptions Options(DocumentSnapshot snapshot) => new(1, Format(snapshot), Validators);
 
-    public static ValidationResult Validate(DocumentSnapshot snapshot, IReadOnlyList<string>? selected = null)
+    public static ValidationResult Validate(DocumentSnapshot snapshot, IReadOnlyList<string>? selected = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         selected ??= [SchemaId, "semantic"];
         if (!ValidSelection(selected))
             throw new ArgumentException("Select at least one available validation check.", nameof(selected));
-        var format = Format(snapshot);
         var layers = ValidationLayers.None;
         if (selected.Contains(SchemaId)) layers |= ValidationLayers.Schema;
         if (selected.Contains("semantic")) layers |= ValidationLayers.Semantic;
         if (TooLarge(snapshot.Text))
             return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, false, SyntaxDiagnostics(snapshot.Text),
                 Validators.Select(option => new ValidationCheck(option.Id, option.Label, selected.Contains(option.Id) ? "Blocked" : "NotSelected",
-                    Reason: "Document exceeds the 4 MiB size limit.")).ToArray(), format);
-        var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."));
+                    Reason: "Document exceeds the 4 MiB size limit.")).ToArray(), Format(snapshot));
+        var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."), cancellationToken);
         var diagnostics = Diagnostics(snapshot.Text, report);
         var checks = Validators.Select(option => Check(option, selected, report)).ToArray();
+        var format = report.Syntax is null ? FormatFallback(snapshot) : Format(new SourceIndex(report.Syntax.Root));
         return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, report.Valid, diagnostics, checks, format, report.Profile);
     }
 
@@ -41,7 +42,7 @@ public static class SelectedValidation
 
     private static DocumentDiagnostic[] Diagnostics(string text, DescriptorValidationReport report)
     {
-        var index = Index(text);
+        var index = report.Syntax is null ? null : new SourceIndex(report.Syntax.Root);
         var diagnostics = report.Diagnostics.Select(finding => new DocumentDiagnostic(finding.Code,
             finding.Severity.ToString(), ContractJson.Redact(finding.SourcePath), ContractJson.Redact(finding.Message),
             FindingRange(index, finding.SourcePath), finding.Code == "VAL_PARSE" ? "Syntax" : finding.Layer.ToString())).ToArray();
@@ -106,10 +107,13 @@ public static class SelectedValidation
     private static string Format(DocumentSnapshot snapshot)
     {
         var index = Index(snapshot.Text);
-        if (index is not null)
-            return index.Find("/kind") is not null || index.Find("/apiVersion") is not null ? "odcs" : DataPackageFormat;
-        return snapshot.Uri.LocalPath.Contains("odcs", StringComparison.OrdinalIgnoreCase) ||
+        return index is not null ? Format(index) : FormatFallback(snapshot);
+    }
+
+    private static string Format(SourceIndex index) =>
+        index.Find("/kind") is not null || index.Find("/apiVersion") is not null ? "odcs" : DataPackageFormat;
+
+    private static string FormatFallback(DocumentSnapshot snapshot) => snapshot.Uri.LocalPath.Contains("odcs", StringComparison.OrdinalIgnoreCase) ||
             Path.GetFileName(snapshot.Uri.LocalPath).StartsWith("contract", StringComparison.OrdinalIgnoreCase) ||
             snapshot.Text.Contains("apiVersion", StringComparison.Ordinal) ? "odcs" : DataPackageFormat;
-    }
 }

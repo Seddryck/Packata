@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const source = 'src/Packata.Documents/Validation/Schemas/datapackage.json';
+const source = 'src/Packata.Application/Validation/Schemas/datapackage.json';
 const destination = 'docs/profiles/category-tables/1.0.0/datapackage.json';
 const uri = 'https://raw.githubusercontent.com/Seddryck/Packata/profile-category-tables-v1.0.0/' + destination;
 const schema = JSON.parse(fs.readFileSync(path.join(root, source), 'utf8'));

@@ -7,7 +7,7 @@ using Packata.DataPackage.Validation;
 using Packata.OpenDataContract.Mapping;
 using YamlDotNet.RepresentationModel;
 
-namespace Packata.Documents;
+namespace Packata.Application;
 
 /// <summary>Shared descriptor parsing, mapping and validation for interactive and command-line hosts.</summary>
 public sealed record ContractDocument(object NativeDocument, YamlMappingNode Root)
@@ -15,8 +15,13 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
     public string Format => NativeDocument is Packata.DataPackage.DataPackage ? "datapackage" : "odcs";
 
     public static ContractDocument Parse(string text, string format = "auto", Uri? baseUri = null)
+        => Parse(ContractSyntax.Parse(text), format, baseUri);
+
+    public static ContractDocument Parse(ContractSyntax syntax, string format = "auto", Uri? baseUri = null)
     {
-        var root = ParseRoot(text);
+        if (format is not ("auto" or "odcs" or "datapackage")) throw new ArgumentException("Unknown input format.", nameof(format));
+        var text = syntax.Text;
+        var root = syntax.Root;
         var odcs = format == "odcs" || (format == "auto" && Child(root, "kind") is not null);
         using var content = new MemoryStream(Encoding.UTF8.GetBytes(text));
         var context = new DescriptorContainer(baseUri ?? new Uri(Path.GetFullPath(".") + Path.DirectorySeparatorChar));

@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Packata.Core.Contracts;
-using Packata.Documents.Validation;
+using Packata.Application.Validation;
 
 namespace Packata.Cli.Testing;
 
@@ -166,7 +166,7 @@ public sealed class DescriptorValidationTests
     [TestCase("datapackage.json", "A9EF0FC168B3402AE7AA7D22BBCB798E0DB6B639E7EE15FF4AA177463CEA7112")]
     public void OfficialArtifacts_ArePinnedVerbatim(string name, string expectedHash)
     {
-        using var stream = typeof(DescriptorValidation).Assembly.GetManifestResourceStream("Packata.Documents.Validation.Schemas." + name)!;
+        using var stream = typeof(DescriptorValidation).Assembly.GetManifestResourceStream("Packata.Application.Validation.Schemas." + name)!;
         Assert.That(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream)), Is.EqualTo(expectedHash));
     }
 

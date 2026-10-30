@@ -8,8 +8,8 @@ internal sealed class InspectCommand : AsyncCommand<InspectSettings>
     {
         try
         {
-            var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var mapped = ContractSelection.Map(source);
+            using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
+            var mapped = ContractSelection.Map(source, cancellationToken);
             var contract = mapped.Value!;
             if (settings.Asset is not null)
             {

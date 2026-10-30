@@ -2,7 +2,7 @@ using System.Data;
 using System.Data.Common;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
-using Packata.Documents;
+using Packata.Application;
 using Packata.ResourceReaders;
 using Packata.ResourceReaders.Excel;
 using Packata.Storages;
@@ -115,8 +115,9 @@ public static class ResourcePreview
             var baseUri = new Uri(snapshot.Uri, ".");
             if (EncodingSize(snapshot.Text) > ContractService.MaximumDocumentBytes)
                 return Failure("PREVIEW_DOCUMENT", "The descriptor exceeds the supported document size.");
-            var document = ContractDocument.Parse(snapshot.Text, baseUri: baseUri);
-            var contract = document.Map().Value;
+            var inspection = ContractInspector.Inspect(snapshot.Text, baseUri: baseUri, cancellationToken: token);
+            var document = inspection.Document;
+            var contract = inspection.Mapping.Value;
             if (contract is null) return Failure("PREVIEW_DOCUMENT", "The descriptor cannot be mapped for preview.");
             var selections = Selections(document, contract, baseUri).Where(value => value.Target.SourcePath == sourcePath).ToArray();
             if (bindingIndex is null && selections.Length > 1)

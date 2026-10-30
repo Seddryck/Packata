@@ -20,9 +20,9 @@ internal static class ContractSelection
         };
     }
 
-    public static MappingResult<DataContract> Map(ContractSource source)
+    public static MappingResult<DataContract> Map(ContractSource source, CancellationToken cancellationToken = default)
     {
-        var result = source.Map();
+        var result = source.Map(cancellationToken);
         if (result.Value is null)
             throw new ContractOperationException("CLI012", "$", "The contract could not be mapped to the canonical model.");
         return result;

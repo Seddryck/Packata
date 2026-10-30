@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
 using Packata.Core.Contracts;
-using Packata.Documents;
+using Packata.Application;
 using YamlDotNet.Core;
-using YamlDotNet.RepresentationModel;
 
 namespace Packata.LanguageServer.Core;
 
@@ -27,36 +26,31 @@ public sealed class ContractService(DocumentStore documents)
             return previous.Inspection;
         var baseUri = new Uri(snapshot.Uri, ".").AbsoluteUri;
         var recognized = DescriptorName(snapshot.Uri);
+        ContractSyntax? syntax = null;
         try
         {
-            recognized |= RecognizesContent(snapshot.Text);
+            if (System.Text.Encoding.UTF8.GetByteCount(snapshot.Text) > MaximumDocumentBytes) throw new InvalidDataException();
+            syntax = ContractSyntax.Parse(snapshot.Text);
+            recognized |= syntax.Recognized;
             if (!recognized) return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, false, null, null, [], null);
-            var analysis = Analyze(snapshot, baseUri, token);
+            var analysis = Analyze(snapshot, syntax, baseUri, token);
             cache[snapshot.Uri] = analysis;
             return analysis.Inspection;
         }
         catch (Exception error) when (IsDocumentError(error))
         {
             recognized |= previous?.Inspection.Recognized == true;
-            var inspection = InvalidInspection(snapshot, baseUri, recognized, error);
+            var inspection = InvalidInspection(snapshot, baseUri, recognized, error, syntax);
             cache[snapshot.Uri] = new(snapshot, inspection, null);
             return inspection;
         }
     }
 
-    private static bool RecognizesContent(string text)
+    private static Analysis Analyze(DocumentSnapshot snapshot, ContractSyntax syntax, string baseUri, CancellationToken token)
     {
-        if (System.Text.Encoding.UTF8.GetByteCount(text) > MaximumDocumentBytes) throw new InvalidDataException();
-        var yaml = new YamlStream();
-        yaml.Load(new StringReader(text));
-        return yaml.Documents.Count == 1 && yaml.Documents[0].RootNode is YamlMappingNode root && ContractDocument.Recognizes(root);
-    }
-
-    private static Analysis Analyze(DocumentSnapshot snapshot, string baseUri, CancellationToken token)
-    {
-        var document = ContractDocument.Parse(snapshot.Text, baseUri: new Uri(baseUri));
-        var mapped = document.Map();
-        token.ThrowIfCancellationRequested();
+        var analysis = ContractInspector.Inspect(syntax, baseUri: new Uri(baseUri), cancellationToken: token);
+        var document = analysis.Document;
+        var mapped = analysis.Mapping;
         var index = new SourceIndex(document.Root);
         var diagnostics = mapped.Diagnostics.Select(value => Diagnostic(value, index)).ToArray();
         var inspection = new Inspection(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, true, document.Format,
@@ -71,22 +65,22 @@ public sealed class ContractService(DocumentStore documents)
     private static bool IsDocumentError(Exception error) => error is YamlException or FormatException
         or InvalidDataException or Newtonsoft.Json.JsonException or ArgumentException or InvalidOperationException;
 
-    private static Inspection InvalidInspection(DocumentSnapshot snapshot, string baseUri, bool recognized, Exception error)
+    private static Inspection InvalidInspection(DocumentSnapshot snapshot, string baseUri, bool recognized, Exception error, ContractSyntax? syntax)
     {
         // Parser messages may contain source excerpts or credentials. Only expose a fixed message.
         var diagnostics = recognized
             ? new[] { new DocumentDiagnostic("PKT001", "Error", "$", "Invalid or unsupported contract document. Check syntax, format, and document size (4 MiB maximum).", FailureRange(error)) }
             : [];
-        var native = TryNativeTree(snapshot, recognized);
+        var native = TryNativeTree(snapshot, recognized, syntax);
         return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, recognized, native.Format, null, diagnostics, null, native.Tree);
     }
 
-    private static (string? Format, ContractNode? Tree) TryNativeTree(DocumentSnapshot snapshot, bool recognized)
+    private static (string? Format, ContractNode? Tree) TryNativeTree(DocumentSnapshot snapshot, bool recognized, ContractSyntax? syntax)
     {
         if (!recognized || System.Text.Encoding.UTF8.GetByteCount(snapshot.Text) > MaximumDocumentBytes) return (null, null);
         try
         {
-            var root = ContractDocument.ParseRoot(snapshot.Text);
+            var root = (syntax ?? ContractSyntax.Parse(snapshot.Text)).Root;
             var odcs = ContractDocument.Child(root, "kind") is not null;
             return (odcs ? "odcs" : "datapackage", new ContractTreeBuilder(root, odcs, snapshot.Uri).BuildNative());
         }
@@ -108,7 +102,7 @@ public sealed class ContractService(DocumentStore documents)
     {
         var snapshot = await documents.ReadAsync(uri, token);
         token.ThrowIfCancellationRequested();
-        var result = SelectedValidation.Validate(snapshot, checks);
+        var result = SelectedValidation.Validate(snapshot, checks, token);
         token.ThrowIfCancellationRequested();
         return result;
     }

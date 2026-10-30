@@ -1,6 +1,10 @@
 # Packata language-server protocol
 
-Packata uses the same host separation as Expressif.LanguageServer: a TypeScript `vscode-languageclient`, a persistent .NET OmniSharp language server, and services that call Packata libraries directly. The CLI is an independent host of the shared `Packata.Documents` parser, validator, and redacted JSON projection.
+Packata uses the same host separation as Expressif.LanguageServer: a TypeScript `vscode-languageclient`, a persistent .NET OmniSharp language server, and services that call Packata libraries directly. The CLI and LanguageServer independently host `Packata.Application`, which replaces `Packata.Documents` and coordinates descriptor inspection and validation.
+
+`ContractInspector.Inspect` accepts descriptor text or reusable `ContractSyntax`, format options, a base URI and cancellation. It returns the native document, source syntax, canonical mapping and diagnostics before host presentation. `Validation.DescriptorValidation.Validate` runs the selected offline validation layers and retains syntax for diagnostic locations. Neither workflow resolves credentials, acquires connectors or reads referenced resource data. `ContractJson` owns redaction and JSON projection without exposing mutable serializer settings.
+
+The CLI owns argument parsing, local/HTTP/archive acquisition, output destinations and exit codes. The LanguageServer owns synchronized document versions, discovery, caching, source ranges, trees and LSP publication. Domain libraries retain their models, mapping and validation rules; neither host references the other. Resource previews remain explicit host operations.
 
 ## Session and capabilities
 

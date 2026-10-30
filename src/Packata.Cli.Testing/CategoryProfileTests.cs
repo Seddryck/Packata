@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 using NUnit.Framework;
-using Packata.Documents.Validation;
+using Packata.Application.Validation;
 
 namespace Packata.Cli.Testing;
 
@@ -103,7 +103,7 @@ public sealed class CategoryProfileTests
     [Test]
     public void EmbeddedProfile_HasPublishedIdentityAndNoExternalDependencies()
     {
-        using var stream = typeof(DescriptorValidation).Assembly.GetManifestResourceStream("Packata.Documents.Validation.Schemas.category-tables-v1.0.0.json")!;
+        using var stream = typeof(DescriptorValidation).Assembly.GetManifestResourceStream("Packata.Application.Validation.Schemas.category-tables-v1.0.0.json")!;
         Assert.That(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream)),
             Is.EqualTo("BA06A502CFFE98380BEBFE64888235BE6719EDBC0777C135805C318CE53F9469"));
         stream.Position = 0;

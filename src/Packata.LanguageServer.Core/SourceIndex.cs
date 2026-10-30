@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Packata.Documents;
+using Packata.Application;
 using YamlDotNet.RepresentationModel;
 
 namespace Packata.LanguageServer.Core;

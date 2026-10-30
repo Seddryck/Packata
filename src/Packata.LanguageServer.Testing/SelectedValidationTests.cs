@@ -5,6 +5,25 @@ namespace Packata.LanguageServer.Testing;
 
 public sealed class SelectedValidationTests
 {
+    [TestCase(ContractServiceTests.Package)]
+    [TestCase(ContractServiceTests.Odcs)]
+    [TestCase("resources: []")]
+    public void Validation_PreservesApplicationOutcomesBeforeEditorProjection(string text)
+    {
+        var snapshot = new DocumentSnapshot(Uri, text, 12);
+        var application = Packata.Application.Validation.DescriptorValidation.Validate(text, baseUri: new Uri(Uri, "."));
+        var editor = SelectedValidation.Validate(snapshot);
+        Assert.Multiple(() =>
+        {
+            Assert.That(editor.Valid, Is.EqualTo(application.Valid));
+            Assert.That(editor.Profile, Is.EqualTo(application.Profile));
+            Assert.That(editor.Version, Is.EqualTo(12));
+            Assert.That(editor.Diagnostics.Select(value => (value.Code, value.Severity, value.SourcePath, value.Message)),
+                Is.EqualTo(application.Diagnostics.Select(value => (value.Code, value.Severity.ToString(),
+                    Packata.Application.ContractJson.Redact(value.SourcePath), Packata.Application.ContractJson.Redact(value.Message))).Distinct()));
+        });
+    }
+
     [Test]
     public void SchemaMismatch_HasTheSharedMessageAndNavigableCategoryRange()
     {
@@ -20,8 +39,8 @@ public sealed class SelectedValidationTests
                   primaryKey: [nationality]
             """;
         var result = SelectedValidation.Validate(new(Uri, source, 9), ["schema"]);
-        var expected = Packata.Documents.Validation.DescriptorValidation.Validate(source,
-            layers: Packata.Documents.Validation.ValidationLayers.Schema).Diagnostics.Single();
+        var expected = Packata.Application.Validation.DescriptorValidation.Validate(source,
+            layers: Packata.Application.Validation.ValidationLayers.Schema).Diagnostics.Single();
         Assert.That(result.Valid, Is.False);
         Assert.That(result.Diagnostics, Has.Length.EqualTo(1));
         Assert.That(result.Diagnostics[0].Message, Is.EqualTo(expected.Message));
@@ -33,7 +52,7 @@ public sealed class SelectedValidationTests
     [Test]
     public void RecipeProfile_IsSelectedForUnsavedYaml()
     {
-        var profile = Packata.Documents.Validation.DescriptorProfiles.CategoryTablesUri;
+        var profile = Packata.Application.Validation.DescriptorProfiles.CategoryTablesUri;
         var source = $"$schema: {profile}\nresources:\n  - name: members\n    path: absent.csv\n    schema:\n      fields:\n        - name: code\n          type: string\n          categories:\n            resource: codes\n            package: registry-name\n";
         var result = SelectedValidation.Validate(new(Uri, source, 8));
         Assert.That(result.Valid, Is.True, string.Join(";", result.Diagnostics));
@@ -81,7 +100,7 @@ public sealed class SelectedValidationTests
         Assert.That(result.Diagnostics.Any(d => d.Layer == "Semantic" && d.SourcePath.Contains("dimensions")), Is.True);
         Assert.That(result.Diagnostics.Single(d => d.Code == "SEM_VECTOR").Range, Is.Not.Null);
         // Existing source locations are indexed without requiring native deserialization.
-        var index = new SourceIndex(Packata.Documents.ContractDocument.ParseRoot(snapshot.Text));
+        var index = new SourceIndex(Packata.Application.ContractDocument.ParseRoot(snapshot.Text));
         Assert.That(index.DiagnosticRange("$/schema/0/properties/0/logicalType"), Is.Not.Null);
     }
 

@@ -19,6 +19,8 @@ public sealed class ValidateCommandTests
         var path = workspace.Write(name, text);
         var result = await CliWorkspace.Run("contract", "validate", path, "--output-format", "json");
         var json = JObject.Parse(result.Output);
+        var application = Packata.Application.Validation.DescriptorValidation.Validate(text, baseUri: new Uri(new Uri(path), "."));
+        var expected = Packata.Application.ContractJson.RedactedJson(new { application.Diagnostics, application.Layers, application.Profile });
         Assert.Multiple(() =>
         {
             Assert.That(result.ExitCode, Is.Zero, result.Error);
@@ -26,6 +28,9 @@ public sealed class ValidateCommandTests
             Assert.That((int?)json["schemaVersion"], Is.EqualTo(1));
             Assert.That(result.Error, Is.Empty);
             Assert.That(File.ReadAllText(path), Is.EqualTo(text));
+            Assert.That(JToken.DeepEquals(json["diagnostics"], expected["diagnostics"]), Is.True);
+            Assert.That(JToken.DeepEquals(json["layers"], expected["layers"]), Is.True);
+            Assert.That(JToken.DeepEquals(json["profile"], expected["profile"]), Is.True);
         });
     }
 

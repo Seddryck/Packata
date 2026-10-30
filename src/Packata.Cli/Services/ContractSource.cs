@@ -1,7 +1,6 @@
 using Packata.Core.Contracts;
 using Packata.Core.Storage;
-using Packata.DataPackage.Mapping;
-using Packata.OpenDataContract.Mapping;
+using Packata.Application;
 using Packata.Storages;
 using YamlDotNet.RepresentationModel;
 
@@ -22,6 +21,7 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
             .Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
     }
     internal YamlMappingNode? DescriptorRoot { get; init; }
+    internal Packata.Application.ContractDocument? Document { get; init; }
 
     internal CompatibilityInput CompatibilityInput()
     {
@@ -31,12 +31,8 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
             DescriptorRoot is null ? null : Tree(DescriptorRoot));
     }
 
-    public MappingResult<DataContract> Map() => NativeDocument switch
-    {
-        Packata.DataPackage.DataPackage package => package.ToCanonicalContract(),
-        Packata.OpenDataContract.DataContract contract => contract.ToCanonicalContract(),
-        _ => throw new NotSupportedException()
-    };
+    public MappingResult<DataContract> Map(CancellationToken cancellationToken = default) =>
+        ContractInspector.Inspect(Document ?? throw new InvalidOperationException("The descriptor has not been parsed."), cancellationToken).Mapping;
 
     public static async Task<ContractSource> LoadAsync(string source, string format, CancellationToken cancellationToken, bool retainArchive = false, bool rawOnly = false)
     {
@@ -131,8 +127,8 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
     internal static ContractSource Parse(string source, Uri baseUri, string descriptor, string text, string format, bool rawOnly = false)
     {
         if (rawOnly) return new(source, baseUri, text) { OriginalText = text };
-        var document = Packata.Documents.ContractDocument.Parse(text, format, baseUri);
-        return new(source, baseUri, document.NativeDocument) { DescriptorRoot = document.Root, OriginalText = text };
+        var document = Packata.Application.ContractDocument.Parse(text, format, baseUri);
+        return new(source, baseUri, document.NativeDocument) { Document = document, DescriptorRoot = document.Root, OriginalText = text };
     }
 
     // Transport-only projection; source coverage and all compatibility rules live in Core.

@@ -16,6 +16,8 @@ public sealed class InspectCommandTests
         var source = workspace.Write(name, text);
         var result = await CliWorkspace.Run("contract", "inspect", source, "--output-format", "json");
         var json = JObject.Parse(result.Output);
+        var application = Packata.Application.ContractInspector.Inspect(text, baseUri: new Uri(new Uri(source), "."));
+        var expected = Packata.Application.ContractJson.RedactedJson(new { contract = application.Mapping.Value, diagnostics = application.Mapping.Diagnostics });
         Assert.Multiple(() =>
         {
             Assert.That(result.ExitCode, Is.Zero, result.Error);
@@ -23,6 +25,8 @@ public sealed class InspectCommandTests
             Assert.That(json["contract"]!["endpoints"]!.Count(), Is.EqualTo(1));
             Assert.That(json["diagnostics"], Is.Not.Null);
             Assert.That(result.Output.Contains('\u001b'), Is.False);
+            Assert.That(JToken.DeepEquals(json["contract"], expected["contract"]), Is.True);
+            Assert.That(JToken.DeepEquals(json["diagnostics"], expected["diagnostics"]), Is.True);
         });
     }
 

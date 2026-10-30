@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks><IsPackable>false</IsPackable></PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../Packata.Documents/Packata.Documents.csproj" />
+    <ProjectReference Include="../Packata.Application/Packata.Application.csproj" />
     <ProjectReference Include="../Packata.ResourceReaders.Excel/Packata.ResourceReaders.Excel.csproj" />
     <ProjectReference Include="../Packata.Storages/Packata.Storages.csproj" />
   </ItemGroup>

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="NUnit" Version="5.0.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="6.3.1" />
+    <ProjectReference Include="../Packata.Application/Packata.Application.csproj" />
+  </ItemGroup>
+</Project>

@@ -88,7 +88,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.ResourceReaders.Web
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Database", "src\Packata.Database\Packata.Database.csproj", "{26634187-7B46-4E19-8E65-A2E27028D82D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Documents", "src\Packata.Documents\Packata.Documents.csproj", "{3185CE8F-44CA-456D-9703-8D218C060B54}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Application", "src\Packata.Application\Packata.Application.csproj", "{3185CE8F-44CA-456D-9703-8D218C060B54}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.LanguageServer.Core", "src\Packata.LanguageServer.Core\Packata.LanguageServer.Core.csproj", "{662C68C4-B881-49FF-A8CD-601780DCA8A1}"
 EndProject
@@ -105,6 +105,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Rules.Sql", "src\Packata.Rules.Sql\Packata.Rules.Sql.csproj", "{8F3B5E8F-C8B5-4B21-8897-46AF9573EAC5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Rules.Sql.Testing", "src\Packata.Rules.Sql.Testing\Packata.Rules.Sql.Testing.csproj", "{B446C4AD-8FB6-4264-A31B-C0031BD95E81}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Packata.Application.Testing", "src\Packata.Application.Testing\Packata.Application.Testing.csproj", "{B22C98CE-C76D-48EA-986A-3EBB7937AC04}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -488,11 +490,24 @@ Global
 		{B446C4AD-8FB6-4264-A31B-C0031BD95E81}.Release|x64.Build.0 = Release|Any CPU
 		{B446C4AD-8FB6-4264-A31B-C0031BD95E81}.Release|x86.ActiveCfg = Release|Any CPU
 		{B446C4AD-8FB6-4264-A31B-C0031BD95E81}.Release|x86.Build.0 = Release|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Debug|x64.Build.0 = Debug|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Debug|x86.Build.0 = Debug|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Release|x64.ActiveCfg = Release|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Release|x64.Build.0 = Release|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Release|x86.ActiveCfg = Release|Any CPU
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{B22C98CE-C76D-48EA-986A-3EBB7937AC04} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{B17B8F9D-6832-4215-A388-EC9398E7C071} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{7A9C53DD-A0D6-4771-8934-4DE37C10ECAD} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{B5B47B86-1EF3-4C24-B6CC-A9749C750E42} = {3EC93812-5079-426E-89E5-7785B87B7D55}

@@ -113,7 +113,7 @@ enum membership, foreign-key rows, quality results, or SLA observations in a dat
 
 ## Library entry point
 
-The CLI and .NET hosts share `Packata.Documents.Validation.DescriptorValidation`:
+The CLI and .NET hosts share `Packata.Application.Validation.DescriptorValidation`:
 
 ```csharp
 var report = DescriptorValidation.Validate(originalText, format: "odcs");

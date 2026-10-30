@@ -13,7 +13,7 @@ public sealed record Inspection(int SchemaVersion, string Uri, int? Version, str
     IReadOnlyList<PreviewTarget>? PreviewTargets = null);
 public sealed record ValidationResult(int SchemaVersion, string Uri, int? Version, bool Valid,
     IReadOnlyList<DocumentDiagnostic> Diagnostics, IReadOnlyList<ValidationCheck>? Checks = null, string? Format = null,
-    Packata.Documents.Validation.DescriptorProfile? Profile = null);
+    Packata.Application.Validation.DescriptorProfile? Profile = null);
 public sealed record ValidationCheck(string Id, string Label, string State, int Errors = 0, string? Reason = null);
 public sealed record ValidatorOption(string Id, string Label, string Description, string[] Formats, string[] BlockedBySelected);
 public sealed record ValidationOptions(int SchemaVersion, string Format, IReadOnlyList<ValidatorOption> Validators);
