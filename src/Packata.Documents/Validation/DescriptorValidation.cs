@@ -98,9 +98,11 @@ public static class DescriptorValidation
     {
         if (layer == ValidationLayers.Schema)
         {
-            var evaluation = DescriptorProfiles.Schema(profile).Evaluate(JsonSerializer.SerializeToElement(root),
-                new EvaluationOptions { OutputFormat = OutputFormat.List, RequireFormatValidation = true });
-            SchemaFindings(evaluation, findings);
+            var schema = DescriptorProfiles.Schema(profile);
+            var instance = JsonSerializer.SerializeToElement(root);
+            var evaluation = schema.Evaluate(instance,
+                new EvaluationOptions { OutputFormat = OutputFormat.Hierarchical, RequireFormatValidation = true });
+            findings.AddRange(SchemaDiagnostics.Project(schema, evaluation, instance, profile));
             return;
         }
         if (profile.Format == "odcs") OdcsSemanticValidation.Validate(root, findings);
@@ -134,17 +136,6 @@ public static class DescriptorValidation
         "ODCS004" => "Unsupported SLA declaration; retained without evaluation.",
         _ => "Quality declaration has normalization limitations; no rule was executed."
     };
-
-    private static void SchemaFindings(EvaluationResults evaluation, List<ValidationFinding> findings)
-    {
-        if (evaluation.IsValid) return;
-        if (evaluation.Errors is not null)
-            foreach (var keyword in evaluation.Errors.Keys)
-                findings.Add(new(ValidationLayers.Schema, "VAL_SCHEMA", MappingSeverity.Error,
-                    "$" + evaluation.InstanceLocation, $"Official schema assertion '{keyword}' failed."));
-        if (evaluation.Details is not null)
-            foreach (var child in evaluation.Details) SchemaFindings(child, findings);
-    }
 
     internal static string? Text(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
 
