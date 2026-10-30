@@ -43,7 +43,7 @@ internal static class PocketCsvReaderProviderDefaults
             });
             return;
         }
-        var type = mapper.Map(field.LogicalType, field.Format);
+        var type = mapper.Resolve(field, TypeMappingOptions.LegacyCompatibility).RuntimeType!;
         var pattern = ResolvePattern(field);
         if (IsTemporal(type) && pattern is not null)
         {

@@ -61,7 +61,7 @@ internal sealed class FixedWidthReaderProvider : IDataEndpointReaderProvider
         var builder = new SchemaDescriptorBuilder().Indexed();
         var mapper = new RuntimeTypeMapper();
         foreach (var field in schema.Fields)
-            builder.WithField(mapper.Map(field.LogicalType, field.Format), field.Name,
+            builder.WithField(mapper.Resolve(field, TypeMappingOptions.LegacyCompatibility).RuntimeType!, field.Name,
                 value => field.LogicalType is null ? value : value.WithDataSourceTypeName(field.LogicalType));
         return builder;
     }

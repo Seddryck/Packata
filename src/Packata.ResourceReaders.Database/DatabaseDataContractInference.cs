@@ -200,7 +200,7 @@ public sealed class DatabaseDataContractInference
 
         var required = column.Constraints.OfType<NotNullableConstraint>().Any();
         return new DataField(column.Name, logicalType, column.NativeType?.Name ?? column.Type.ToString(),
-            format, required, constraints, Extensions: MapColumnExtensions(column));
+            format, required, constraints, Extensions: MapColumnExtensions(column), Nullable: !required);
     }
 
     private static DataField MapColumn(MetadataColumn column,
@@ -211,11 +211,15 @@ public sealed class DatabaseDataContractInference
             diagnostics.Add(new("DBI003", InferenceSeverity.Warning, sourcePath,
                 $"View column '{view}.{column.Name}' has no discovered logical type."));
             return new DataField(column.Name, null, column.NativeType, Required: column.Nullable == false,
-                Extensions: MapColumnExtensions(column));
+                Extensions: MapColumnExtensions(column), Nullable: column.Nullable ?? false);
         }
         var (logicalType, format) = MapType(dbType);
+        var parameters = new List<DataConstraint>();
+        if (column.Precision is not null) parameters.Add(new("precision", column.Precision));
+        if (column.Scale is not null) parameters.Add(new("scale", column.Scale));
         return new DataField(column.Name, logicalType, column.NativeType ?? dbType.ToString(), format,
-            column.Nullable == false, Extensions: MapColumnExtensions(column));
+            column.Nullable == false, Constraints: parameters, Extensions: MapColumnExtensions(column),
+            Nullable: column.Nullable ?? false);
     }
 
     private Dictionary<DatabaseScope, DataEndpoint> BuildEndpoints(
@@ -415,9 +419,14 @@ public sealed class DatabaseDataContractInference
     private static (string LogicalType, string? Format) MapType(DbType type) => type switch
     {
         DbType.Boolean => ("boolean", null),
-        DbType.SByte or DbType.Byte or DbType.Int16 or DbType.UInt16 => ("integer", "i16"),
-        DbType.Int32 or DbType.UInt32 => ("integer", "i32"),
-        DbType.Int64 or DbType.UInt64 => ("integer", "i64"),
+        DbType.SByte => ("integer", "i8"),
+        DbType.Byte => ("integer", "u8"),
+        DbType.Int16 => ("integer", "i16"),
+        DbType.UInt16 => ("integer", "u16"),
+        DbType.Int32 => ("integer", "i32"),
+        DbType.UInt32 => ("integer", "u32"),
+        DbType.Int64 => ("integer", "i64"),
+        DbType.UInt64 => ("integer", "u64"),
         DbType.Single => ("number", "fp32"),
         DbType.Double => ("number", "fp64"),
         DbType.Currency or DbType.Decimal or DbType.VarNumeric => ("number", null),

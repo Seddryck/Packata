@@ -7,6 +7,23 @@ namespace Packata.ResourceReaders.Testing;
 
 public class CanonicalInlineReaderTests
 {
+    [TestCase(false, false)]
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public async Task Null_values_use_DBNull_and_underlying_types_independently_of_schema_flags(bool required, bool nullable)
+    {
+        var schema = new DataSchema([new("id", "integer", Required: required, Nullable: nullable)]);
+        var rows = new object?[] { new object?[] { null } };
+        using var table = Tabular.InlineDataReader.CreateTable(rows, schema);
+        Assert.That(table.Columns[0].DataType, Is.EqualTo(typeof(int)));
+        Assert.That(table.Rows[0][0], Is.EqualTo(DBNull.Value));
+        using var reader = await new ResourceReaderFactory().OpenAsync(Endpoint(rows), schema);
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(int)));
+        Assert.That(reader.IsDBNull(0), Is.True);
+    }
+
     [Test]
     public async Task OpenAsync_reads_mapped_inline_dictionary_rows_with_schema_types()
     {

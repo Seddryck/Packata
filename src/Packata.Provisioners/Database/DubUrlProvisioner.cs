@@ -203,7 +203,7 @@ public class DubUrlProvisioner : IDataContractProvisioner
 
     private IColumnBuilder MapColumn(ColumnBuilder column, DataField field, ColumnMappingContext context)
     {
-        var logicalType = DbTypeMapper.Map(field.LogicalType, field.Format);
+        var logicalType = DbTypeMapper.Resolve(field, TypeMappingOptions.LegacyCompatibility).DatabaseType!.Value;
         var typeBuilder = column.WithName(field.PhysicalName ?? field.Name).WithType(logicalType);
         var constraints = ApplyPhysicalType(typeBuilder, context.Asset, field, context.Diagnostics);
         ApplyColumnConstraints(constraints, field, context.Options, context.HasPrimaryKey,
