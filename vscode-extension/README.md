@@ -1,12 +1,34 @@
 # Packata Language Support
 
-Navigate ODCS v3.2 and Frictionless Data Package v2 contracts in the **Packata → Data Contracts** Activity Bar view. The native tree discovers descriptors across workspace folders, displays canonical assets and columns, and preserves format-specific metadata. Context menus provide **Open Source**, **Inspect Contract**, **Validate Contract**, and **Copy Logical Path**. Click a source-backed item to reveal its definition.
+Navigate ODCS v3.2 and Frictionless Data Package v2 contracts in the **Packata → Data Contracts** Activity Bar view. The native tree discovers descriptors across workspace folders, displays canonical assets and columns, and preserves format-specific metadata. Context menus provide **Open Source**, **Inspect Contract**, **Validate…**, and **Copy Logical Path**. Click a source-backed item to reveal its definition.
 
 Open buffers take precedence over saved descriptors, including unsaved edits. Constraints, quality declarations, and SLA commitments remain separate. Source quality declarations are labelled as such; the extension does not execute quality rules. No empty quality/SLA sections are invented. Mapping diagnostics remain visible even when some source information cannot be represented canonically; use Open Source to inspect the complete descriptor.
 
 Inspection is distinct from validation. A successful tree load does not display a passing validation status. Explicit validation reports through VS Code Problems, using the same server diagnostic collection as automatic document checks. Resource preview is tracked separately by [#451](https://github.com/Seddryck/Packata/issues/451).
 
-## Install
+## Select validation checks
+
+Run **Packata: Validate…** on the active editor, a file context menu, or a contract
+tree entry. The native multi-select picker identifies the file and format. Select
+**Schema**, **Semantic**, or both; an empty selection cannot run. Schema checks
+the descriptor's structure and types, not dataset records. Semantic checks declaration
+consistency, references and supported contract rules.
+
+Both checks start selected. Confirmed choices survive restarts per workspace and
+format. Escape runs nothing and preserves the saved scope. **Packata: Run Last
+Validation** and the editor status-bar action repeat that scope; its tooltip shows,
+for example, **Validate: Schema + Semantic**. Missing or unavailable saved choices
+require confirmation. New validators never enter remembered selections implicitly.
+
+Problems identify `Packata · Schema`, `Packata · Semantic`, or `Packata · Syntax`,
+with source navigation where available. **Packata Validation** output shows the
+file and every check's outcome: passed, errors, not run, blocked, cancelled or
+execution error. A schema-only success says **Schema checks passed · Semantic not
+run**. Parsing blocks checks; selected schema failure blocks selected semantics;
+semantic-only never enables schema. Background checks validate syntax only.
+Completed reruns replace previous diagnostics; edits mark results outdated.
+
+## Install the extension
 
 Install the VSIX for your platform with **Extensions: Install from VSIX**. Each package bundles its own .NET server and runtime; a separate .NET or Packata CLI installation is unnecessary.
 

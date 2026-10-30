@@ -20,7 +20,7 @@ export class ContractTree implements vscode.TreeDataProvider<TreeEntry> {
   readonly onDidChangeTreeData = this.changed.event;
   private roots: TreeEntry[] = [];
   private readonly children = new Map<string, TreeEntry[]>();
-  readonly validation = new Map<string, { version: number | null; valid: boolean }>();
+  readonly validation = new Map<string, { version: number | null; valid: boolean; summary?: string; outdated?: boolean }>();
   mode: ViewMode = 'canonical';
   private readonly entries: TreeEntry[] = [];
   constructor(readonly state: ContractState) {}
@@ -75,16 +75,16 @@ export class ContractTree implements vscode.TreeDataProvider<TreeEntry> {
   private decorateContract(item: vscode.TreeItem, entry: TreeEntry): void {
     const { node, contract } = entry;
     const validation = this.validation.get(contract.uri);
-    const current = validation?.version === contract.version ? validation : undefined;
-    item.description = [node.description, this.validationLabel(current)].filter(Boolean).join(' · ');
+    const current = validation?.version === contract.version && !validation.outdated ? validation : undefined;
+    item.description = [node.description, validation && !current ? 'Outdated — run validation again' : this.validationLabel(current)].filter(Boolean).join(' · ');
     item.iconPath = new vscode.ThemeIcon(this.contractIcon(contract, current));
     if (contract.diagnostics.length) item.tooltip += '\n' + contract.diagnostics.map(value => value.message).join('\n');
   }
-  private validationLabel(validation?: { valid: boolean }): string {
+  private validationLabel(validation?: { valid: boolean; summary?: string }): string {
     if (!validation) return 'Not validated';
-    return validation.valid ? 'Validated' : 'Invalid';
+    return validation.summary ?? (validation.valid ? 'Validated' : 'Invalid');
   }
-  private contractIcon(contract: Inspection, validation?: { valid: boolean }): string {
+  private contractIcon(contract: Inspection, validation?: { valid: boolean; summary?: string }): string {
     if (contract.diagnostics.some(value => value.severity === 'Error') || validation?.valid === false) return 'error';
     if (contract.diagnostics.some(value => value.severity === 'Warning')) return 'warning';
     if (validation?.valid) return 'pass';

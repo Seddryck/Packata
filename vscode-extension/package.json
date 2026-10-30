@@ -82,7 +82,7 @@
       },
       {
         "command": "packata.validate",
-        "title": "Validate Contract",
+        "title": "Validate…",
         "category": "Packata"
       },
       {
@@ -95,6 +95,12 @@
         "title": "View as: Canonical / Native",
         "category": "Packata",
         "icon": "$(list-tree)"
+      },
+      {
+        "title": "Run Last Validation",
+        "icon": "$(checklist)",
+        "command": "packata.runLastValidation",
+        "category": "Packata"
       }
     ],
     "menus": {
@@ -130,6 +136,30 @@
           "command": "packata.copyPath",
           "when": "view == packata.contracts",
           "group": "3_copy"
+        }
+      ],
+      "explorer/context": [
+        {
+          "when": "resourceScheme == file && (resourceExtname == .json || resourceExtname == .yaml || resourceExtname == .yml)",
+          "command": "packata.validate",
+          "group": "packata@1"
+        },
+        {
+          "when": "resourceScheme == file && (resourceExtname == .json || resourceExtname == .yaml || resourceExtname == .yml)",
+          "command": "packata.runLastValidation",
+          "group": "packata@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "when": "resourceScheme == file && (resourceExtname == .json || resourceExtname == .yaml || resourceExtname == .yml)",
+          "command": "packata.validate",
+          "group": "packata@1"
+        },
+        {
+          "when": "resourceScheme == file && (resourceExtname == .json || resourceExtname == .yaml || resourceExtname == .yml)",
+          "command": "packata.runLastValidation",
+          "group": "packata@2"
         }
       ]
     },

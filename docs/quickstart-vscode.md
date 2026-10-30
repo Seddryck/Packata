@@ -1,30 +1,32 @@
 ---
-title: VS Code Quickstart (planned)
+title: VS Code Quickstart
 parent: Getting started
 nav_order: 3
 nav_exclude: false
 permalink: /quickstart/vscode/
 ---
 
-The Packata VS Code extension is **planned, not implemented**. There is currently
-no extension to install and no editor walkthrough to run. This page records its
-status so you can distinguish proposed editor features from tools available today.
+Install a Packata Language Support VSIX for your platform using **Extensions:
+Install from VSIX**, then open a trusted folder with an ODCS 3.2.0 or Data Package v2
+YAML/JSON descriptor. The package bundles its server and runtime; see the
+[extension installation instructions](https://github.com/Seddryck/Packata/tree/main/vscode-extension).
 
-## Use Packata today
+## Validate a descriptor
 
-Follow the [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}) to inspect a
-contract and preview data from a terminal. If you are building an application,
-the [.NET Library Quickstart]({{ '/quickstart/dotnet/' | relative_url }}) shows
-how to read the same sample from C#.
+1. Open the descriptor or select it in **Packata → Data Contracts**.
+2. Run **Packata: Validate…** from the Command Palette or file context menu.
+3. Select **Schema**, **Semantic**, or both, then press Enter.
+4. Read categorized findings in Problems and per-check outcomes in **Packata Validation**.
 
-## Follow the proposed extension
+Schema validates the descriptor, not dataset rows. A schema-only success says
+**Schema checks passed · Semantic not run**. The [semantic checklist]({{ '/standards/validation/' | relative_url }})
+explains the second layer. Neither layer reads dataset contents.
 
-The [extension proposal](https://github.com/Seddryck/Packata/issues/450) tracks the
-editor integration. Separate proposals cover
-[data preview](https://github.com/Seddryck/Packata/issues/451) and a
-[contract tree](https://github.com/Seddryck/Packata/issues/452). These links describe
-planned work, not available features.
+The picker remembers confirmed choices per workspace and format across restarts.
+Escape preserves them. **Packata: Run Last Validation**, or the editor status-bar
+action with its scope tooltip, repeats them. Edits mark results outdated; rerunning
+replaces their diagnostics. See the [VS Code reference]({{ '/reference/vscode/' | relative_url }})
+for blocked checks, cancellation and execution errors.
 
-Installation steps and editor examples will be added when there is an implemented
-extension to use. The [VS Code reference status]({{ '/reference/vscode/' | relative_url }})
-tracks the same boundary.
+To preview data, use the [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}).
+Editor data preview remains tracked separately in [#451](https://github.com/Seddryck/Packata/issues/451).

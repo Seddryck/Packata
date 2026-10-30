@@ -99,7 +99,163 @@ test('tree inspection is not marked as validated, and versions invalidate explic
   assert.equal(tree.getTreeItem(root).iconPath.id, 'pass');
   state.apply(state.begin(), discovery(inspection(2)), new Map()); tree.refresh();
   root = tree.getChildren()[0];
-  assert.match(tree.getTreeItem(root).description, /Not validated/);
+  assert.match(tree.getTreeItem(root).description, /Outdated/);
+});
+
+const validationModel = load('validation.ts');
+const validationOptions = (format = 'odcs') => ({ schemaVersion: 1, format, validators: [
+  { id: 'schema', label: 'Schema', description: 'Descriptor, not dataset records', formats: ['odcs', 'datapackage'], blockedBySelected: [] },
+  { id: 'semantic', label: 'Semantic', description: 'Consistency; blocked if selected schema fails', formats: ['odcs', 'datapackage'], blockedBySelected: ['schema'] }
+] });
+
+test('validation choices persist per workspace and format without enabling future validators', async () => {
+  const values = new Map();
+  const storage = { get: key => values.get(key), update: async (key, value) => values.set(key, value) };
+  await new validationModel.ValidationPreference(storage).set('odcs', ['schema']);
+  const restored = new validationModel.ValidationPreference(storage);
+  assert.deepEqual(Array.from(restored.get('odcs')), ['schema']);
+  assert.equal(restored.get('datapackage'), undefined);
+  await assert.rejects(() => restored.set('odcs', []));
+  const options = validationOptions();
+  options.validators.push({ id: 'organization', label: 'Organization policy', description: 'Policy', formats: ['odcs'], blockedBySelected: [] });
+  assert.deepEqual(Array.from(validationModel.initialSelection(options)), ['schema', 'semantic']);
+  assert.deepEqual(Array.from(validationModel.initialSelection(options, restored.get('odcs'))), ['schema']);
+  assert.equal(validationModel.scopeLabel(options, ['organization']), 'Organization policy');
+  assert.equal(validationModel.selectionAvailable(['removed'], options), false);
+  assert.equal(validationModel.selectionAvailable([], options), false);
+  assert.equal(new validationModel.ValidationPreference({ get: () => undefined }).get('odcs'), undefined);
+});
+
+test('partial validation success and incomplete states have explicitly scoped summaries', () => {
+  const report = { checks: [ { id: 'schema', label: 'Schema', state: 'Passed', errors: 0 },
+    { id: 'semantic', label: 'Semantic', state: 'NotSelected', errors: 0 } ] };
+  assert.equal(validationModel.validationSummary(report), 'Schema checks passed · Semantic not run');
+  for (const state of ['Blocked', 'Cancelled', 'ExecutionError']) {
+    report.checks[0].state = state;
+    assert.doesNotMatch(validationModel.validationSummary(report), /checks passed|Document valid/);
+  }
+  assert.equal(validationModel.checkLabel({ state: 'Failed', errors: 2 }), '2 errors');
+});
+
+function validationUiFixture(saved, catalog = validationOptions()) {
+  class Uri {
+    constructor(value) { this.value = value; this.scheme = 'file'; this.path = '/orders.odcs.yaml'; this.fsPath = this.path; }
+    static parse(value) { return new Uri(value); }
+    toString() { return this.value; }
+  }
+  const uri = Uri.parse('file:///orders.odcs.yaml');
+  const document = { uri, version: 1 };
+  const values = new Map(saved ? [['validationChecks.v1.odcs', saved]] : []);
+  const picks = [], calls = [], messages = [], summaries = [], commands = new Map();
+  const controls = { cancelProgress: false, failValidation: false };
+  const disposable = () => ({ dispose() {} });
+  const status = { show() {}, hide() {}, dispose() {} };
+  const mock = { Uri, StatusBarAlignment: { Right: 1 }, ProgressLocation: { Notification: 1 },
+    CancellationTokenSource: class {
+      token = { isCancellationRequested: false, onCancellationRequested: disposable };
+      cancel() { this.token.isCancellationRequested = true; }
+      dispose() {}
+    },
+    commands: { registerCommand: (name, handler) => { commands.set(name, handler); return disposable(); } },
+    workspace: { textDocuments: [document], openTextDocument: async () => document, asRelativePath: () => uri.path },
+    window: { activeTextEditor: { document }, onDidChangeActiveTextEditor: disposable,
+      createStatusBarItem: () => status,
+      createOutputChannel: () => ({ clear: () => summaries.length = 0, appendLine: text => summaries.push(text), show() {}, dispose() {} }),
+      showWarningMessage: async text => messages.push(text), showInformationMessage: async text => messages.push(text), showErrorMessage: async text => messages.push(text),
+      withProgress: async (_, work) => work({}, { isCancellationRequested: controls.cancelProgress,
+        onCancellationRequested: handler => { if (controls.cancelProgress) handler(); return disposable(); } }),
+      createQuickPick: () => {
+        const picker = { items: [], selectedItems: [], show() {}, dispose() {},
+          onDidAccept(handler) { this.accept = handler; return disposable(); },
+          onDidHide(handler) { this.hide = handler; return disposable(); } };
+        picks.push(picker); return picker;
+      }
+    } };
+  const tree = { validation: new Map(), refresh() {} };
+  const request = async (command, args) => {
+    calls.push({ command, args });
+    if (command === 'packata.validation.options') return catalog;
+    if (controls.failValidation) throw new Error('Sensitive transport payload');
+    return { schemaVersion: 1, uri: uri.toString(), version: 1, valid: true, format: 'odcs', diagnostics: [],
+      checks: catalog.validators.map(option => ({ id: option.id, label: option.label,
+        state: args.checks.includes(option.id) ? 'Passed' : 'NotSelected', errors: 0 })) };
+  };
+  const { ValidationUi } = load('validationUi.ts', { vscode: mock });
+  const ui = new ValidationUi({ workspaceState: { get: key => values.get(key), update: async (key, value) => values.set(key, value) } }, request, tree);
+  return { ui, picks, calls, values, messages, summaries, tree, uri, status, document, commands, controls };
+}
+const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test('native picker cancellation and empty acceptance never run or change remembered scope', async () => {
+  const f = validationUiFixture(['semantic']);
+  const pending = f.ui.run(undefined, true); await tick();
+  const picker = f.picks[0];
+  assert.equal(picker.canSelectMany, true);
+  assert.match(picker.title, /orders.*ODCS/);
+  assert.equal(picker.selectedItems[0].validator.id, 'semantic');
+  picker.selectedItems = []; picker.accept(); await tick();
+  assert.equal(f.calls.filter(call => call.command === 'packata.contract.validate').length, 0);
+  assert.match(picker.title, /at least one/);
+  picker.hide(); await pending;
+  assert.deepEqual(f.values.get('validationChecks.v1.odcs'), ['semantic']);
+  assert.match(f.summaries.join('\n'), /Cancelled/);
+  f.ui.dispose();
+});
+
+test('confirmed schema selection controls execution, summary and direct rerun tooltip', async () => {
+  const f = validationUiFixture();
+  const pending = f.ui.run(undefined, true); await tick();
+  assert.deepEqual(Array.from(f.picks[0].selectedItems, item => item.validator.id), ['schema', 'semantic']);
+  f.picks[0].selectedItems = [f.picks[0].items[0]]; f.picks[0].accept(); await pending;
+  assert.deepEqual(Array.from(f.calls.find(call => call.command === 'packata.contract.validate').args.checks), ['schema']);
+  assert.match(f.messages.join('\n'), /Schema checks passed · Semantic not run/);
+  assert.match(f.status.tooltip, /Validate: Schema/);
+  await f.commands.get('packata.runLastValidation')();
+  assert.equal(f.picks.length, 1);
+  f.document.version = 2; f.ui.markOutdated(f.uri);
+  assert.equal(f.tree.validation.get(f.uri.toString()).outdated, true);
+  assert.match(f.status.tooltip, /Outdated/);
+  f.ui.dispose();
+});
+
+test('unavailable remembered checks require confirmation rather than silently running extra checks', async () => {
+  const f = validationUiFixture(['organization']);
+  const pending = f.ui.run(undefined, false); await tick();
+  assert.match(f.messages[0], /unavailable/);
+  assert.equal(f.picks.length, 1);
+  assert.equal(f.calls.filter(call => call.command === 'packata.contract.validate').length, 0);
+  f.picks[0].hide(); await pending;
+  assert.deepEqual(f.values.get('validationChecks.v1.odcs'), ['organization']);
+  f.ui.dispose();
+});
+
+test('a third catalog validator gets a checkbox, execution scope and summary without changing UI', async () => {
+  const catalog = validationOptions();
+  catalog.validators.push({ id: 'organization', label: 'Organization policy', description: 'Organization rules', formats: ['odcs'], blockedBySelected: [] });
+  const f = validationUiFixture(['schema'], catalog);
+  const pending = f.ui.run(undefined, true); await tick();
+  assert.equal(f.picks[0].items.length, 3);
+  assert.deepEqual(Array.from(f.picks[0].selectedItems, item => item.validator.id), ['schema']);
+  f.picks[0].selectedItems = [f.picks[0].items[2]]; f.picks[0].accept(); await pending;
+  assert.deepEqual(Array.from(f.calls.find(call => call.command === 'packata.contract.validate').args.checks), ['organization']);
+  assert.match(f.messages.join('\n'), /Organization policy checks passed/);
+  assert.match(f.messages.join('\n'), /Schema not run/);
+  f.ui.dispose();
+});
+
+test('execution cancellation is distinct from transport errors and never exposes payloads', async () => {
+  const cancelled = validationUiFixture(['schema']);
+  cancelled.controls.cancelProgress = true;
+  await cancelled.ui.run(undefined, false);
+  assert.match(cancelled.tree.validation.get(cancelled.uri.toString()).summary, /Cancelled/);
+  assert.doesNotMatch(cancelled.summaries.join('\n'), /Execution error/);
+  cancelled.ui.dispose();
+  const failed = validationUiFixture(['semantic']);
+  failed.controls.failValidation = true;
+  await failed.ui.run(undefined, false);
+  assert.match(failed.tree.validation.get(failed.uri.toString()).summary, /Execution error/);
+  assert.doesNotMatch(failed.messages.join('\n') + failed.summaries.join('\n'), /Sensitive transport payload/);
+  failed.ui.dispose();
 });
 test('only syntax-backed concrete nodes reveal source; groups keep native expansion', () => {
   const { ContractTree } = load('tree.ts', { vscode });

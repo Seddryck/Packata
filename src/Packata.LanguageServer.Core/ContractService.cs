@@ -103,19 +103,23 @@ public sealed class ContractService(DocumentStore documents)
         return new(position, position);
     }
 
-    public async Task<ValidationResult> ValidateAsync(Uri uri, CancellationToken token)
+    public async Task<ValidationResult> ValidateAsync(Uri uri, CancellationToken token, IReadOnlyList<string>? checks = null)
     {
         var snapshot = await documents.ReadAsync(uri, token);
-        var inspection = Inspect(snapshot, token);
-        if (!inspection.Recognized || inspection.Contract is null)
-            return new(1, uri.AbsoluteUri, snapshot.Version, false, inspection.Diagnostics);
-        var document = cache.TryGetValue(uri, out var entry) && entry.Snapshot == snapshot && entry.Document is not null
-            ? entry.Document : ContractDocument.Parse(snapshot.Text, baseUri: new Uri(inspection.BaseUri));
-        var index = new SourceIndex(document.Root);
-        var diagnostics = inspection.Diagnostics.Concat(ContractDocument.Validate(document.NativeDocument)
-            .Select(value => Diagnostic(value, index))).Distinct().ToArray();
         token.ThrowIfCancellationRequested();
-        return new(1, uri.AbsoluteUri, snapshot.Version, diagnostics.All(value => value.Severity != "Error"), diagnostics);
+        var result = SelectedValidation.Validate(snapshot, checks);
+        token.ThrowIfCancellationRequested();
+        return result;
+    }
+
+    public async Task<ValidationOptions> ValidationOptionsAsync(Uri uri, CancellationToken token)
+        => SelectedValidation.Options(await documents.ReadAsync(uri, token));
+
+    public async Task<ValidationResult> SyntaxAsync(Uri uri, CancellationToken token)
+    {
+        var snapshot = await documents.ReadAsync(uri, token);
+        var diagnostics = SelectedValidation.SyntaxDiagnostics(snapshot.Text);
+        return new(1, uri.AbsoluteUri, snapshot.Version, diagnostics.Length == 0, diagnostics);
     }
 
     public async Task<DiscoveryResult> DiscoverAsync(IEnumerable<string> folders, CancellationToken token)

@@ -19,6 +19,7 @@ public static class Program
             .WithHandler<DocumentSyncHandler>()
             .WithHandler<InspectHandler>()
             .WithHandler<ValidateHandler>()
+            .WithHandler<ValidationOptionsHandler>()
             .WithHandler<ProtocolHandler>()
             .WithHandler<DiscoverHandler>());
         await server.WaitForExit;

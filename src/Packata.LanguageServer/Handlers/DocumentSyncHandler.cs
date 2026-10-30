@@ -13,15 +13,22 @@ namespace Packata.LanguageServer.Handlers;
 
 public sealed class DiagnosticPublisher(DocumentStore documents, ILanguageServerFacade server)
 {
-    public void Publish(string uri, int? version, IReadOnlyList<DocumentDiagnostic> diagnostics)
+    private readonly ConcurrentDictionary<string, int> explicitVersions = new();
+    public void Publish(string uri, int? version, IReadOnlyList<DocumentDiagnostic> diagnostics, bool explicitValidation = false)
     {
         if (!documents.IsCurrent(new(new Uri(uri), "", version))) return;
+        if (version is null) explicitVersions.TryRemove(uri, out _);
+        else if (explicitValidation) explicitVersions[uri] = version.Value;
+        else if (explicitVersions.TryGetValue(uri, out var explicitVersion) && explicitVersion == version) return;
         server.TextDocument.PublishDiagnostics(new()
         {
-            Uri = DocumentUri.From(uri), Version = version,
+            Uri = DocumentUri.From(uri),
+            Version = version,
             Diagnostics = diagnostics.Select(value => new Diagnostic
             {
-                Code = value.Code, Source = "Packata", Message = value.Message,
+                Code = value.Code,
+                Source = value.Layer is null ? "Packata" : $"Packata · {value.Layer}",
+                Message = value.Message,
                 Severity = value.Severity switch { "Error" => DiagnosticSeverity.Error, "Warning" => DiagnosticSeverity.Warning, _ => DiagnosticSeverity.Information },
                 Range = value.Range is { } range ? new LspRange(range.Start.Line, range.Start.Character, range.End.Line, range.End.Character) : new LspRange(0, 0, 0, 0),
                 Data = new Newtonsoft.Json.Linq.JObject { ["sourcePath"] = value.SourcePath, ["locationUnavailable"] = value.Range is null }
@@ -60,7 +67,8 @@ public sealed class DocumentSyncHandler(DocumentStore documents, ContractService
         {
             DocumentSelector = new TextDocumentSelector(
                 new TextDocumentFilter { Scheme = "file", Pattern = "**/*.{json,yaml,yml}" }),
-            Change = TextDocumentSyncKind.Full, Save = false
+            Change = TextDocumentSyncKind.Full,
+            Save = false
         };
 
     private void Changed(Uri uri, string text, int version)
@@ -76,7 +84,7 @@ public sealed class DocumentSyncHandler(DocumentStore documents, ContractService
         try
         {
             await Task.Delay(180, work.Token);
-            var result = await contracts.ValidateAsync(uri, work.Token);
+            var result = await contracts.SyntaxAsync(uri, work.Token);
             work.Token.ThrowIfCancellationRequested();
             if (result.Version == version) publisher.Publish(result.Uri, version, result.Diagnostics);
         }

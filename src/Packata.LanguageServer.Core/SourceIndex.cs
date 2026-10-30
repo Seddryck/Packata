@@ -47,6 +47,7 @@ public sealed class SourceIndex(YamlMappingNode root)
     public SourceRange? DiagnosticRange(string path)
     {
         if (path == "$") return null;
+        if (path.StartsWith("$/", StringComparison.Ordinal)) path = path[1..];
         if (path.StartsWith("$."))
         {
             path = Regex.Replace(path[2..], @"\[(\d+)\]", "/$1", RegexOptions.None, TimeSpan.FromSeconds(1)).Replace('.', '/');

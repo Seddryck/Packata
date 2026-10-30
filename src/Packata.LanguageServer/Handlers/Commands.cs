@@ -5,6 +5,7 @@ using Packata.LanguageServer.Core;
 namespace Packata.LanguageServer.Handlers;
 
 public sealed record DocumentRequest(string Uri, int SchemaVersion = 1);
+public sealed record ValidationRequest(string Uri, int SchemaVersion = 1, string[]? Checks = null);
 public sealed record DiscoveryRequest(string[] WorkspaceFolders, int SchemaVersion = 1);
 
 internal static class ProtocolVersion
@@ -33,14 +34,22 @@ public sealed class InspectHandler(ContractService contracts, ISerializer serial
 }
 
 public sealed class ValidateHandler(ContractService contracts, DiagnosticPublisher publisher, ISerializer serializer)
-    : ExecuteTypedResponseCommandHandlerBase<DocumentRequest, ValidationResult>("packata.contract.validate", serializer)
+    : ExecuteTypedResponseCommandHandlerBase<ValidationRequest, ValidationResult>("packata.contract.validate", serializer)
 {
-    public override async Task<ValidationResult> Handle(DocumentRequest request, CancellationToken cancellationToken)
+    public override async Task<ValidationResult> Handle(ValidationRequest request, CancellationToken cancellationToken)
     {
-        var result = await ProtocolVersion.RunAsync(request.SchemaVersion, () => contracts.ValidateAsync(WorkspaceUri.Parse(request.Uri), cancellationToken));
-        publisher.Publish(result.Uri, result.Version, result.Diagnostics);
+        var result = await ProtocolVersion.RunAsync(request.SchemaVersion, () => contracts.ValidateAsync(WorkspaceUri.Parse(request.Uri), cancellationToken, request.Checks));
+        cancellationToken.ThrowIfCancellationRequested();
+        publisher.Publish(result.Uri, result.Version, result.Diagnostics, explicitValidation: true);
         return result;
     }
+}
+
+public sealed class ValidationOptionsHandler(ContractService contracts, ISerializer serializer)
+    : ExecuteTypedResponseCommandHandlerBase<DocumentRequest, ValidationOptions>("packata.validation.options", serializer)
+{
+    public override Task<ValidationOptions> Handle(DocumentRequest request, CancellationToken cancellationToken)
+        => ProtocolVersion.RunAsync(request.SchemaVersion, () => contracts.ValidationOptionsAsync(WorkspaceUri.Parse(request.Uri), cancellationToken));
 }
 
 public sealed class DiscoverHandler(ContractService contracts, ISerializer serializer)

@@ -35,6 +35,7 @@ public sealed class StdioTests
         await using var client = await StdioClient.StartAsync();
         Assert.That(client.Commands, Does.Contain("packata.contract.inspect"));
         Assert.That(client.Commands, Does.Contain("packata.contract.validate"));
+        Assert.That(client.Commands, Does.Contain("packata.validation.options"));
         Assert.That(client.Commands, Does.Contain("packata.workspace.discover"));
         const string uri = "file:///workspace/contract.yaml";
         await client.NotifyAsync("textDocument/didOpen", new { textDocument = new { uri, languageId = "yaml", version = 1, text = ContractServiceTests.Odcs } });
@@ -47,13 +48,19 @@ public sealed class StdioTests
         Assert.That((string?)changed["contract"]?["identity"]?["name"], Is.EqualTo("Unsaved"));
         var validation = await client.CommandAsync("packata.contract.validate", new { uri });
         Assert.That((bool)validation["valid"]!, Is.True);
+        var options = await client.CommandAsync("packata.validation.options", new { uri });
+        Assert.That((string?)options["format"], Is.EqualTo("odcs"));
+        var schema = await client.CommandAsync("packata.contract.validate", new { uri, checks = new[] { "schema" } });
+        Assert.That((string?)schema["checks"]?[1]?["state"], Is.EqualTo("NotSelected"));
         await client.NotifyAsync("textDocument/didChange", new { textDocument = new { uri, version = 3 }, contentChanges = new[] { new { text = "kind: DataContract\nschema: [" } } });
         var invalid = await client.CommandAsync("packata.contract.validate", new { uri });
         Assert.That((bool)invalid["valid"]!, Is.False);
-        Assert.That((string?)invalid["diagnostics"]?[0]?["code"], Is.EqualTo("PKT001"));
+        Assert.That((string?)invalid["diagnostics"]?[0]?["code"], Is.EqualTo("VAL_PARSE"));
         // Validation publishes the same diagnostics through LSP, not a separate client collection.
         Assert.That(client.Notifications.Any(value => (string?)value["method"] == "textDocument/publishDiagnostics"
             && (int?)value["params"]?["version"] == 3), Is.True);
+        Assert.That(client.Notifications.Any(value => (string?)value["method"] == "textDocument/publishDiagnostics"
+            && value["params"]?["diagnostics"]?.Any(d => (string?)d["source"] == "Packata · Syntax") == true), Is.True);
         await client.NotifyAsync("textDocument/didClose", new { textDocument = new { uri } });
         await client.StopAsync();
     }
