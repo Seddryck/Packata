@@ -13,7 +13,8 @@ for trying Packata with a small sample.
 
 ## Command-line tool
 
-Use a .NET 8, 9 or 10 SDK for the `dotnet tool` commands below. The installed tool
+Use a .NET 10 or later SDK for the `dotnet tool` commands below. The RID-aware
+NuGet package format is not supported by the .NET 8 or 9 SDK. The installed tool
 runs on a compatible .NET runtime; the .NET CLI chooses the host platform and a
 compatible target framework. If you want an executable that includes its runtime,
 use a self-contained [standalone archive](#standalone-archives) instead.

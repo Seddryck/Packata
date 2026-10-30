@@ -10,7 +10,8 @@ This walkthrough checks a small customer dataset's contract, reads two records,
 and exports its schema and CSV parsing settings. You can run every step in a
 terminal without writing application code.
 
-You need a .NET 8, 9 or 10 SDK to install the CLI with the commands below. If you
+You need a .NET 10 or later SDK to install the CLI with the commands below. The
+.NET 8 and 9 SDKs cannot install the RID-aware NuGet tool package. If you
 prefer an executable that includes .NET, follow the
 [standalone installation instructions]({{ '/installation/' | relative_url }}#standalone-archives)
 and then continue at the sample download step.

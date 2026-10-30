@@ -1,0 +1,87 @@
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string] $Version,
+    [Parameter(Mandatory)][string] $NuGetDirectory,
+    [Parameter(Mandatory)][string] $SdkVersion,
+    [Parameter(Mandatory)][string] $WorkingDirectory,
+    [string] $Framework = 'net10.0',
+    [string] $ContainerImage,
+    [switch] $ExpectUnsupportedSdk
+)
+
+$ErrorActionPreference = 'Stop'
+$sourceFeed = (Resolve-Path -LiteralPath $NuGetDirectory).Path
+if ($ContainerImage) {
+    $repository = Split-Path (Split-Path $PSScriptRoot)
+    $arguments = @(
+        'run', '--rm',
+        '--volume', "$($repository):/repo:ro",
+        '--volume', "$($sourceFeed):/feed:ro",
+        '--workdir', '/repo',
+        '--env', 'DOTNET_CLI_TELEMETRY_OPTOUT=1',
+        $ContainerImage, 'sh', '/repo/.github/scripts/Test-CliToolInstallation.sh',
+        $Version, '/feed', $SdkVersion, $Framework, $WorkingDirectory,
+        $(if ($ExpectUnsupportedSdk) { '1' } else { '0' })
+    )
+    & docker @arguments
+    if ($LASTEXITCODE -ne 0) { throw "Containerized installation check failed for '$Framework' on '$ContainerImage'." }
+    return
+}
+if (Test-Path -LiteralPath $WorkingDirectory) { throw "Test directory already exists: '$WorkingDirectory'." }
+$work = (New-Item -ItemType Directory -Path $WorkingDirectory -Force).FullName
+$feed = (New-Item -ItemType Directory -Path (Join-Path $work 'feed')).FullName
+# Match NuGet.org's canonical filenames; the version job also canonicalizes
+# nuspec prerelease casing before building the actual candidate packages.
+$packages = @(Get-ChildItem -LiteralPath $sourceFeed -Filter '*.nupkg' -File)
+if ($packages.Count -eq 0) { throw "No candidate packages found in '$sourceFeed'." }
+foreach ($package in $packages) {
+    Copy-Item -LiteralPath $package.FullName -Destination (Join-Path $feed $package.Name.ToLowerInvariant())
+}
+$installVersion = $Version.ToLowerInvariant()
+@{ sdk = @{ version = $SdkVersion; rollForward = 'disable'; allowPrerelease = $false } } |
+    ConvertTo-Json | Set-Content (Join-Path $work 'global.json')
+# A private feed and cache prevent a published package from hiding a broken candidate.
+$escapedFeed = [System.Security.SecurityElement]::Escape($feed)
+"<configuration><packageSources><clear/><add key=`"candidate`" value=`"$escapedFeed`"/></packageSources></configuration>" |
+    Set-Content (Join-Path $work 'NuGet.Config')
+$previousPackages = $env:NUGET_PACKAGES
+try {
+    $env:NUGET_PACKAGES = Join-Path $work 'packages'
+    Push-Location $work
+    try {
+        $selectedSdk = & dotnet --version
+        if ($LASTEXITCODE -ne 0 -or $selectedSdk.Trim() -ne $SdkVersion) {
+            throw "Expected SDK '$SdkVersion', selected '$selectedSdk'."
+        }
+        $toolDirectory = Join-Path $work 'tool'
+        $output = @(& dotnet tool install Packata-cli --version $installVersion --tool-path $toolDirectory `
+            --framework $Framework --configfile (Join-Path $work 'NuGet.Config') --no-cache 2>&1)
+        $installExitCode = $LASTEXITCODE
+        $output | ForEach-Object { Write-Host $_ }
+        if ($ExpectUnsupportedSdk) {
+            if ($installExitCode -eq 0) { throw "SDK '$SdkVersion' unexpectedly accepted the RID-aware tool; update the compatibility policy and tests." }
+            if (($output -join "`n") -notmatch 'Format version is higher than supported') {
+                throw "SDK '$SdkVersion' failed for an unexpected reason, rather than tool format compatibility."
+            }
+            Write-Host "Confirmed SDK '$SdkVersion' cannot install the RID-aware pointer package."
+            # GitHub's pwsh wrapper otherwise propagates the expected native failure.
+            $global:LASTEXITCODE = 0
+            return
+        }
+        if ($installExitCode -ne 0) { throw "Tool installation failed on SDK '$SdkVersion'." }
+        # RID-aware executable tools use a .cmd launcher on Windows SDK 10.
+        $names = if ($IsWindows) { @('packata.cmd', 'packata.exe') } else { @('packata') }
+        $shims = @($names | ForEach-Object { Join-Path $toolDirectory $_ } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+        if ($shims.Count -ne 1) { throw "Expected one installed packata launcher, found $($shims.Count)." }
+        $executable = $shims[0]
+        $help = @(& $executable --help 2>&1)
+        if ($LASTEXITCODE -ne 0 -or ($help -join "`n") -notmatch 'USAGE') { throw 'Installed CLI help smoke test failed.' }
+        $reportedVersion = @(& $executable --version 2>&1)
+        if ($LASTEXITCODE -ne 0 -or ($reportedVersion -join "`n") -notmatch [regex]::Escape($Version)) {
+            throw "Installed CLI reported '$reportedVersion' instead of '$Version'."
+        }
+        Write-Host "Installed CLI $Version passed help/version checks with SDK $SdkVersion ($Framework)."
+    }
+    finally { Pop-Location }
+}
+finally { $env:NUGET_PACKAGES = $previousPackages }

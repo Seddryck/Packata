@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Package the immutable framework archive payloads; never compile or publish here. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>packata</AssemblyName>
+    <PackageId>Packata-cli</PackageId>
+    <Description>Cross-platform command-line interface for Packata.</Description>
+    <PackageIcon>icon/Packata-icon-128.png</PackageIcon>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>packata</ToolCommandName>
+    <RuntimeIdentifiers>$(CliToolRuntimeIdentifiers)</RuntimeIdentifiers>
+    <ToolPackageRuntimeIdentifiers>$(RuntimeIdentifiers)</ToolPackageRuntimeIdentifiers>
+    <SelfContained>false</SelfContained>
+    <IsPublishable>false</IsPublishable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <NoBuild>true</NoBuild>
+    <PublishDir>$(CliPublishRoot)/$(TargetFramework)/$(RuntimeIdentifier)/</PublishDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Remove="@(PackageReference)" />
+    <!-- NuGet package paths use forward slashes, including on Linux. -->
+    <None Update="../../assets/Packata-icon-128.png" PackagePath="icon/" />
+    <None Update="../../README.md" PackagePath="/" />
+  </ItemGroup>
+
+  <Target Name="ValidatePrebuiltCli" BeforeTargets="PackTool" Condition="'$(RuntimeIdentifier)' != ''">
+    <Error Condition="'$(CliPublishRoot)' == ''" Text="CliPublishRoot must point to the extracted framework archives." />
+    <Error Condition="!Exists('$(PublishDir)packata.dll')" Text="Missing prebuilt CLI payload: $(PublishDir)packata.dll" />
+    <Error Condition="!Exists('$(PublishDir)packata.runtimeconfig.json')" Text="Missing prebuilt CLI runtime configuration: $(PublishDir)" />
+    <Error Condition="!Exists('$(PublishDir)packata.deps.json')" Text="Missing prebuilt CLI dependencies: $(PublishDir)" />
+  </Target>
+
+  <!-- PackTool already globs the complete prebuilt PublishDir. Do not also add
+       runtime files from bin/, or add runtime files to the payload-free pointer. -->
+  <Target Name="UsePrebuiltCliRuntimeFiles" AfterTargets="PackToolImplementation">
+    <ItemGroup>
+      <_GeneratedFiles Remove="@(_GeneratedFiles)" />
+    </ItemGroup>
+  </Target>
+</Project>

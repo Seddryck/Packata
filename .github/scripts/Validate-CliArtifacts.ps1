@@ -7,6 +7,9 @@ param(
 
     [string] $ReleaseDirectory,
 
+    # When packaging from archives, prove that every payload file was reused unchanged.
+    [string] $FrameworkPayloadDirectory,
+
     [string[]] $ExpectedFrameworks = @('net8.0', 'net9.0', 'net10.0'),
 
     [string[]] $ExpectedRids = @(
@@ -159,6 +162,23 @@ if (-not $SkipNuGetPackage) {
                 Assert-Condition ($entries -contains "$toolPath/DotnetToolSettings.xml") "RID package '$packageId' has no settings for '$framework'."
                 Assert-Condition ($entries -contains "$toolPath/$executable") "RID package '$packageId' has no '$framework' executable."
                 Assert-Condition ($entries -contains "$toolPath/packata.dll") "RID package '$packageId' has no '$framework' implementation assembly."
+                foreach ($name in @('packata.deps.json', 'packata.runtimeconfig.json')) {
+                    Assert-Condition ($entries -contains "$toolPath/$name") "RID package '$packageId' is missing '$framework/$name'."
+                }
+                if ($FrameworkPayloadDirectory) {
+                    $payload = (Resolve-Path -LiteralPath (Join-Path $FrameworkPayloadDirectory "$framework/$rid")).Path
+                    foreach ($file in Get-ChildItem -LiteralPath $payload -Recurse -File) {
+                        $relativePath = [System.IO.Path]::GetRelativePath($payload, $file.FullName).Replace('\', '/')
+                        $entry = $packageArchive.GetEntry("$toolPath/$relativePath")
+                        Assert-Condition ($null -ne $entry) "RID package '$packageId' dropped payload file '$framework/$relativePath'."
+                        $stream = $entry.Open()
+                        try {
+                            $packageHash = [System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($stream))
+                        }
+                        finally { $stream.Dispose() }
+                        Assert-Condition ($packageHash -eq (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash) "RID package '$packageId' changed payload file '$framework/$relativePath'."
+                    }
+                }
             }
         }
         finally {
