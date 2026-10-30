@@ -26,8 +26,13 @@ and optional `reason`) and `diagnostics` (`layer`, `code`, `severity`, `sourcePa
 selected layer to complete and pass**. Parse/version prerequisites produce skipped
 layers and errors; an incomplete native declaration check also produces an error.
 New source paths use `$` followed by a JSON Pointer; reused native diagnostics
-retain their existing paths. Schema messages identify the failed keyword without
-echoing source values. Exit codes remain `0` success, `1` invalid or unsupported
+retain their existing paths. Schema messages name the selected profile and explain
+the expected shape or failed assertion without echoing source values. Rejected
+`anyOf`/`oneOf` alternatives and false `if` conditions are not independent errors.
+When shape or discriminator evidence identifies one relevant alternative, its
+actionable findings replace ancestor summaries; otherwise a union-shape error is
+reported. Multiple matching `oneOf` alternatives produce an ambiguity error.
+Independent failed assertions remain visible. Exit codes remain `0` success, `1` invalid or unsupported
 descriptor, `2` invocation error, `3` I/O failure, `130` cancellation.
 
 ## Schemas and versions

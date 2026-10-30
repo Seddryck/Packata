@@ -6,6 +6,31 @@ namespace Packata.LanguageServer.Testing;
 public sealed class SelectedValidationTests
 {
     [Test]
+    public void SchemaMismatch_HasTheSharedMessageAndNavigableCategoryRange()
+    {
+        const string source = """
+            resources:
+              - name: members
+                path: members.csv
+                schema:
+                  fields:
+                    - name: nationality
+                      type: string
+                      categories: {resource: countries}
+                  primaryKey: [nationality]
+            """;
+        var result = SelectedValidation.Validate(new(Uri, source, 9), ["schema"]);
+        var expected = Packata.Documents.Validation.DescriptorValidation.Validate(source,
+            layers: Packata.Documents.Validation.ValidationLayers.Schema).Diagnostics.Single();
+        Assert.That(result.Valid, Is.False);
+        Assert.That(result.Diagnostics, Has.Length.EqualTo(1));
+        Assert.That(result.Diagnostics[0].Message, Is.EqualTo(expected.Message));
+        Assert.That(result.Diagnostics[0].SourcePath, Is.EqualTo(expected.SourcePath));
+        Assert.That(result.Diagnostics[0].Range, Is.Not.Null);
+        Assert.That(result.Diagnostics[0].Range!.Start.Line, Is.EqualTo(7));
+    }
+
+    [Test]
     public void RecipeProfile_IsSelectedForUnsavedYaml()
     {
         var profile = Packata.Documents.Validation.DescriptorProfiles.CategoryTablesUri;
