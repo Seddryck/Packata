@@ -1,6 +1,7 @@
 using Packata.Application;
 using Packata.Core.Contracts;
 using Spectre.Console.Cli;
+using Packata.Application.Generation;
 
 namespace Packata.Cli;
 
@@ -11,6 +12,7 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
         try
         {
             using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
+            if (settings.GeneratesCode) return await GenerateAsync(source, settings, cancellationToken).ConfigureAwait(false);
             var result = ContractExportService.JsonSchema(source.ParsedDocument, settings.Asset ?? throw new ArgumentException("An asset is required."), cancellationToken);
             foreach (var diagnostic in result.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!result.IsSuccessful) return ExitCodes.InvalidDocument;
@@ -39,5 +41,25 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
             CommandOutput.Diagnostic(CommandOutput.Failure(exception));
             return CommandOutput.FailureExitCode(exception);
         }
+    }
+
+    private static async Task<int> GenerateAsync(ContractSource source, ExportSettings settings, CancellationToken token)
+    {
+        TemplateInput? template = null;
+        if (settings.Template is not null)
+        {
+            var uri = Uri.TryCreate(settings.Template, UriKind.Absolute, out var absolute) ? absolute : new Uri(source.BaseUri, settings.Template);
+            if (!uri.IsFile) throw new NotSupportedException("Custom templates must be local files.");
+            template = new(uri.AbsoluteUri, await File.ReadAllTextAsync(uri.LocalPath, token).ConfigureAwait(false));
+        }
+        var result = await new SchemaGenerationService().GenerateAsync(source.ParsedDocument, settings.GenerationOptions, template, token).ConfigureAwait(false);
+        foreach (var diagnostic in result.Diagnostics)
+            CommandOutput.Diagnostic(new(diagnostic.Code, Enum.Parse<MappingSeverity>(diagnostic.Severity),
+                diagnostic.Template ?? diagnostic.SourcePath, diagnostic.Message));
+        if (!result.IsSuccessful) return result.Diagnostics.Any(d => d.Code == "GEN_OPTIONS") ? ExitCodes.Invocation : ExitCodes.InvalidDocument;
+        token.ThrowIfCancellationRequested();
+        if (settings.Output is null) Console.Write(result.Content);
+        else ContractDocumentWriter.Write(settings.Output, result.Content!, overwrite: false);
+        return ExitCodes.Success;
     }
 }

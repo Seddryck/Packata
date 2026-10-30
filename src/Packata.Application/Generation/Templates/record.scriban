@@ -1,0 +1,12 @@
+#nullable enable
+{{ for imported_namespace in model.target.imports }}using {{ imported_namespace }};
+{{ end }}
+{{ if model.target.namespace }}namespace {{ model.target.namespace }};
+{{ end }}
+{{ for declaration in model.target.declarations }}public sealed record {{ declaration.name }}
+{
+{{ for field in declaration.fields }}    [JsonPropertyName({{ field.target.source_name_literal }})]
+    public {{ field.target.required_keyword }}{{ field.target.type_expression }} {{ field.generated_name }} { get; init; }{{ field.target.initializer }}
+{{ end }}}
+
+{{ end }}

@@ -97,6 +97,8 @@ packata data preview datapackage.json --asset customers --output-format csv -o c
 | `--endpoint <ID>` | Required | Exact CSV endpoint identifier |
 | `--output-format <FORMAT>` | `json` only; `json` | Standalone Table Dialect JSON |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+
+
 | `--overwrite` | Off | Requires `--output`; permits replacing output but never the source |
 
 All shown positional arguments are required. Use `--help` for command help.
@@ -570,6 +572,34 @@ GitHub annotations, validation line/column mapping and MCP registration remain s
 | `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
 | `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema` | Target representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+
+Code generation uses one of `--record`, `--datatable`, `--polars`, or `--template <PATH>`
+instead of `--output-format`. For generation, `--asset` may be omitted when one eligible
+asset exists. `--engine <ENGINE>` overrides a custom template's engine; recognized suffixes
+such as `.scriban` and `.hbs` otherwise select Didot's engine, with Scriban as the fallback
+for `bar.template.cs`. Relative templates resolve from the descriptor directory.
+`--type-mapping <PROFILE>` optionally prepares `csharp-record`, `csharp-datatable`, or
+`csharp-polars` expressions for a custom template. Built-ins fix their engine/profile.
+`--namespace <NAMESPACE>` and `--type-name <NAME>` customize generated names.
+Repeat `--define <KEY=VALUE>` for user variables; duplicate keys are errors. Values parse
+as null, boolean, integer, decimal, then string, and appear only under `model.variables`.
+`--mapping-fallback <POLICY>` defaults to `reject`; explicit `object`, `string`, and
+`logical-type` fallbacks retain visible diagnostics. These options conflict with plain
+JSON Schema export.
+
+```console
+packata schema export sales.odcs.yaml --asset orders --record --namespace Sales > Orders.cs
+packata schema export sales.odcs.yaml --asset orders --datatable --output OrdersTable.cs
+packata schema export sales.odcs.yaml --asset orders --polars > OrdersPolars.cs
+packata schema export sales.odcs.yaml --template bar.template.cs --define author=Sales
+packata schema export sales.odcs.yaml --template bar.hbs --engine scriban --type-mapping csharp-record
+```
+
+Only complete generated text goes to stdout; diagnostics go to stderr. No partial output
+is published after mapping/render errors. Exit codes remain 0 success, 1 descriptor/asset/
+mapping/template failure, 2 invalid selectors/options, 3 template/output I/O failure, and
+130 cancellation. See [schema generation]({{ '/reference/dotnet/schema-generation/' | relative_url }})
+for the context, target limits and runnable templates.
 
 All shown positional arguments are required. Use `--help` for command help.
 
