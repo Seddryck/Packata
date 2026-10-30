@@ -11,6 +11,23 @@ namespace Packata.LanguageServer.Testing;
 [TestFixture]
 public sealed class ResourcePreviewTests
 {
+    [Test]
+    public async Task Preview_ProjectsTheSharedApplicationSampleAsync()
+    {
+        var text = Package("orders.csv", "    schema:\n      fields:\n        - name: id\n          type: integer\n");
+        var inspection = Packata.Application.ContractInspector.Inspect(text, baseUri: new Uri(DocumentUri, "."));
+        var contract = inspection.Mapping.RequireValue();
+        var request = Packata.Application.DataPreviewService.SelectRequest(contract, contract.Assets[0]);
+        var readers = Packata.ResourceReaders.ResourceReaderFactory.Create(_ => { }, new TrackingResolver("id\n1\n2\n3\n"));
+        var application = await new Packata.Application.DataPreviewService(readers).ReadAsync(request, new(2));
+        var editor = await ReadAsync(text, new TrackingResolver("id\n1\n2\n3\n"), 2);
+        Assert.That(editor.Diagnostic, Is.Null);
+        Assert.That(editor.Columns.Select(column => (column.Name, column.Type)),
+            Is.EqualTo(application.Columns.Select(column => (column.Name, column.Type))));
+        Assert.That(Newtonsoft.Json.Linq.JToken.DeepEquals(Newtonsoft.Json.Linq.JToken.FromObject(editor.Rows),
+            Newtonsoft.Json.Linq.JToken.FromObject(application.Rows)), Is.True);
+    }
+
     private static readonly Uri DocumentUri = new("file:///workspace/nested/datapackage.yaml");
     private static string Package(string path, string extra = "") => $"resources:\n  - name: orders\n    path: '{path}'\n{extra}";
     private static DocumentSnapshot Snapshot(string text, Uri? uri = null) => new(uri ?? DocumentUri, text, 1);

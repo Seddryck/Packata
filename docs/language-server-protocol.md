@@ -4,7 +4,11 @@ Packata uses the same host separation as Expressif.LanguageServer: a TypeScript 
 
 `ContractInspector.Inspect` accepts descriptor text or reusable `ContractSyntax`, format options, a base URI and cancellation. It returns the native document, source syntax, canonical mapping and diagnostics before host presentation. `Validation.DescriptorValidation.Validate` runs the selected offline validation layers and retains syntax for diagnostic locations. Neither workflow resolves credentials, acquires connectors or reads referenced resource data. `ContractJson` owns redaction and JSON projection without exposing mutable serializer settings.
 
-The CLI owns argument parsing, local/HTTP/archive acquisition, output destinations and exit codes. The LanguageServer owns synchronized document versions, discovery, caching, source ranges, trees and LSP publication. Domain libraries retain their models, mapping and validation rules; neither host references the other. Resource previews remain explicit host operations.
+`DataPreviewService` coordinates explicit preview through an injected `IDataEndpointReaderFactory`. Both hosts share binding resolution, typed column projection, bounded sampling, null handling, cancellation and reader disposal. Reader factories supply each host's capabilities: CLI supports archives, databases and category decoding; LanguageServer retains its permitted file formats, authentication restrictions and stale-selection checks. Preview target discovery and inspection never open resource data.
+
+The CLI owns argument parsing, local/HTTP/archive acquisition, output destinations and exit codes. The LanguageServer owns synchronized document versions, discovery, caching, source ranges, trees and LSP publication. Domain libraries retain their models, mapping and validation rules; neither host references the other.
+
+The current shared application services cover inspection, validation and data preview. Existing CLI-only schema/dialect inference, descriptor updates, schema/dialect export, contract diff/compatibility/satisfaction and quality execution/OORS reporting are candidates for later application orchestration. Config/connector management and the interactive asset workflow remain CLI UX; document synchronization, workspace discovery, source navigation and protocol negotiation remain LanguageServer responsibilities. The feature audit and scope are recorded in [issue #681](https://github.com/Seddryck/Packata/issues/681).
 
 ## Session and capabilities
 

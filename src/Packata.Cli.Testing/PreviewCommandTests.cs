@@ -21,7 +21,12 @@ public sealed class PreviewCommandTests
         var source = await ContractSource.LoadAsync(path, "auto", CancellationToken.None);
         var contract = source.Map().RequireValue();
         var sample = await PreviewService.ReadAsync(PreviewService.CreateFactory(source.BaseUri), PreviewService.Request(contract, contract.Assets[0]), 20, null, CancellationToken.None);
+        var request = Packata.Application.DataPreviewService.SelectRequest(contract, contract.Assets[0]);
+        var expected = await new Packata.Application.DataPreviewService(PreviewService.CreateFactory(source.BaseUri))
+            .ReadAsync(request, new(20));
         Assert.That(sample.Columns, Is.EqualTo(new[] { "id", "name" }));
+        Assert.That(sample.Columns, Is.EqualTo(expected.Columns.Select(column => column.Name)));
+        Assert.That(JToken.DeepEquals(JToken.FromObject(sample.Rows), JToken.FromObject(expected.Rows)), Is.True);
     }
     [TestCase("contract.yaml", CliWorkspace.Odcs)]
     [TestCase("datapackage.json", CliWorkspace.PackageJson)]
