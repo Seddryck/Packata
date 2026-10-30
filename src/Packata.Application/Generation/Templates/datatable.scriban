@@ -1,0 +1,16 @@
+#nullable enable
+{{ for imported_namespace in model.target.imports }}using {{ imported_namespace }};
+{{ end }}
+{{ if model.target.namespace }}namespace {{ model.target.namespace }};
+{{ end }}
+public static class {{ model.target.name }}
+{
+    public static DataTable Create()
+    {
+        var table = new DataTable();
+{{ for field in model.fields }}{{ column_index = for.index }}        var column{{ column_index }} = table.Columns.Add({{ field.target.source_name_literal }}, typeof({{ field.target.runtime_type_expression }}));
+        column{{ for.index }}.AllowDBNull = {{ field.target.allow_dbnull }};
+{{ for entry in field.target.metadata }}        column{{ column_index }}.ExtendedProperties[{{ entry.key }}] = {{ entry.value }};
+{{ end }}{{ end }}        return table;
+    }
+}

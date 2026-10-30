@@ -31,6 +31,9 @@ For typed quality declarations, compilation, execution outcomes and backend limi
 
 ## Mapping and extension points
 
+For built-in and custom Didot schema-code generation, see
+[Schema code generation]({{ '/reference/dotnet/schema-generation/' | relative_url }}).
+
 For field-aware CLR/DbType resolution, explicit fallback policies, representation limits,
 and compatibility with `Map`/`Register`, see
 [Field type mapping]({{ '/reference/dotnet/type-mapping/' | relative_url }}).

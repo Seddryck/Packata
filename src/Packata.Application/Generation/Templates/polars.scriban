@@ -1,0 +1,12 @@
+#nullable enable
+{{ for imported_namespace in model.target.imports }}using {{ imported_namespace }};
+{{ end }}
+{{ if model.target.namespace }}namespace {{ model.target.namespace }};
+{{ end }}
+public static class {{ model.target.name }}
+{
+    public static PolarsSchema Create() => PolarsSchema.From(new Dictionary<string, DataType>
+    {
+{{ for field in model.fields }}        [{{ field.target.source_name_literal }}] = {{ field.target.type_expression }},
+{{ end }}    });
+}

@@ -1,0 +1,42 @@
+using Didot.Core;
+
+namespace Packata.Application.Generation;
+
+public static class GenerationCatalogService
+{
+    public static GenerationCatalog Catalog { get; } = new(1, 1,
+    [
+        new("record", "C# record", "csharp-record", "scriban", "csharp", true,
+            "C# 11 required properties and nullable annotations describe initialization; they do not validate dataset values."),
+        new("datatable", "DataTable", "csharp-datatable", "scriban", "csharp", true,
+            "AllowDBNull is enforced; requiredness, constraints, categories and parameters are retained as metadata."),
+        new("polars", "Polars.NET", "csharp-polars", "scriban", "csharp", true,
+            "Polars.NET 1.0.1; schema types do not enforce field requiredness, nullability or contract quality rules.")
+    ], ["csharp-record", "csharp-datatable", "csharp-polars"],
+        TemplateEngineFactory.Default.AllSupportedExtensions().Select(s => s.TrimStart('.')).Order().ToArray(), "scriban",
+    ["Generation reads descriptor metadata only; it never reads rows, compiles or executes generated code.",
+     "Didot rendering is synchronous and cannot be interrupted once entered; cancelled results are discarded.",
+     "Only the supplied template is available; filesystem/network includes are not registered."]);
+
+    internal static string Engine(TemplateInput template, string? requested)
+    {
+        if (requested is not null)
+        {
+            var engine = requested.Trim().TrimStart('.').ToLowerInvariant();
+            engine = engine switch { "handlebars" => "hbs", "dotliquid" => "liquid", "stringtemplate" => "st", "smartformat" => "smart", _ => engine };
+            if (!TemplateEngineFactory.Default.Exists(engine)) throw new ArgumentException("Unknown Didot engine. Use an engine from the generation options catalog.");
+            return engine;
+        }
+        var suffix = Path.GetExtension(template.Identity).ToLowerInvariant();
+        return suffix.Length > 0 && TemplateEngineFactory.Default.Exists(suffix) ? suffix.TrimStart('.') : Catalog.DefaultEngine;
+    }
+
+    internal static TemplateInput BuiltIn(string target)
+    {
+        using var stream = typeof(GenerationCatalogService).Assembly.GetManifestResourceStream(
+            $"Packata.Application.Generation.Templates.{target}.scriban")
+            ?? throw new InvalidOperationException("Bundled generation template is missing.");
+        using var reader = new StreamReader(stream);
+        return new($"builtin:{target}:v1.scriban", reader.ReadToEnd(), 1);
+    }
+}

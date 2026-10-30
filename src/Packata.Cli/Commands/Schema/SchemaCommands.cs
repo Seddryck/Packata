@@ -10,7 +10,7 @@ internal static class SchemaCommands
         {
             schema.SetDescription("Infer and export resource structure from contract assets.");
             schema.AddCommand<ExportCommand>("export")
-                .WithDescription("Export an asset as JSON Schema Draft 2020-12.")
+                .WithDescription("Export JSON Schema or generate schema code using Didot templates.")
                 .WithExample(["schema", "export", "sales.odcs.yaml", "--output-format", "json-schema", "--asset", "orders"]);
             schema.AddCommand<InferCommand>("infer")
                 .WithDescription("Infer the schema of a bound CSV, Excel, Parquet, or database asset.")
