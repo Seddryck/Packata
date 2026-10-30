@@ -213,6 +213,11 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         if (property.PrimaryKey) constraints.Add(new("primaryKey", true));
         if (property.Unique == true) constraints.Add(new("unique", true));
         AddRangeAndLengthConstraints(property.LogicalType, constraints);
+        // Expose declared type parameters canonically; do not copy native-model defaults.
+        if (property.DeclaredLogicalTypeOptions is { } options)
+            foreach (var key in new[] { "timezone", "defaultTimezone", "integerWidth", "signed", "precision" })
+                if (options.TryGetValue(key, out var value) && !constraints.Any(c => c.Kind == key))
+                    constraints.Add(new(key, MetadataSnapshot.CopyValue(value)));
         if (property.Enum is { Count: > 0 })
             constraints.Add(new("enum", property.Enum.Select(value => MetadataSnapshot.CopyValue(value.Value)).ToArray()));
         return constraints;

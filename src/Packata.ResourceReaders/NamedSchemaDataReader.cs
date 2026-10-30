@@ -8,7 +8,7 @@ internal sealed class NamedSchemaDataReader(IDataReader inner, DataSchema schema
 {
     private readonly string[] _names = schema.Fields.Select(field => field.Name).ToArray();
     private readonly Type[] _types = schema.Fields
-        .Select(field => new RuntimeTypeMapper().Map(field.LogicalType, field.Format)).ToArray();
+        .Select(field => new RuntimeTypeMapper().Resolve(field, TypeMappingOptions.LegacyCompatibility).RuntimeType!).ToArray();
 
     public object this[int i] => GetValue(i);
     public object this[string name] => GetValue(GetOrdinal(name));

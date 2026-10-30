@@ -31,6 +31,10 @@ For typed quality declarations, compilation, execution outcomes and backend limi
 
 ## Mapping and extension points
 
+For field-aware CLR/DbType resolution, explicit fallback policies, representation limits,
+and compatibility with `Map`/`Register`, see
+[Field type mapping]({{ '/reference/dotnet/type-mapping/' | relative_url }}).
+
 Call `ToCanonicalContract()` to map a native document into the shared model. The returned
 `MappingResult<DataContract>` includes `Diagnostics`, `IsSuccessful` and `Value`. You can
 also report diagnostics and require a value in one chain with `ReportDiagnostics(...).RequireValue()`.

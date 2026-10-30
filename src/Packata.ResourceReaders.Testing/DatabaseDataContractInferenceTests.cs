@@ -14,6 +14,40 @@ namespace Packata.ResourceReaders.Testing;
 
 public class DatabaseDataContractInferenceTests
 {
+    [Test]
+    public void Map_preserves_integer_domains_and_view_decimal_parameters()
+    {
+        var nativeTypes = new[] { DbType.SByte, DbType.Byte, DbType.Int16, DbType.UInt16,
+            DbType.Int32, DbType.UInt32, DbType.Int64, DbType.UInt64 };
+        var formats = new[] { "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64" };
+        var columns = nativeTypes.Select((type, index) => new MetadataColumn("value" + index, index, type, false)).ToArray();
+        var coverage = Enum.GetValues<SchemaFeature>().ToDictionary(x => x, _ => MetadataCoverage.Available);
+        var metadata = new SchemaMetadata([new MetadataTable(new("numbers"), columns)], coverage, [])
+        {
+            Views = [new MetadataView(new("amounts"),
+                [new MetadataColumn("amount", 0, DbType.Decimal, true) { Precision = 38, Scale = 10 }], null, [])]
+        };
+        var inspection = new SchemaInspector().Map(metadata, Basic);
+        var contract = new DatabaseDataContractInference(new() { DiscoveryOptions = Basic })
+            .Map(inspection, new ConnectionLocation("mssql"), "database").RequireContract();
+        var fields = contract.Assets.Single(a => a.Name == "numbers").Schema!.Fields;
+        for (var index = 0; index < nativeTypes.Length; index++)
+        {
+            Assert.That(fields[index].Format, Is.EqualTo(formats[index]));
+            Assert.That(Core.FieldTypeResolver.Resolve(fields[index], Core.TypeMappingOptions.Strict).DatabaseType,
+                Is.EqualTo(nativeTypes[index]));
+        }
+        var amount = Core.FieldTypeResolver.Resolve(contract.Assets.Single(a => a.Name == "amounts").Schema!.Fields[0],
+            Core.TypeMappingOptions.Strict);
+        Assert.That(amount.Parameters.Precision, Is.EqualTo(38));
+        Assert.That(amount.Parameters.Scale, Is.EqualTo(10));
+        Assert.That(amount.RuntimeType, Is.Null);
+        Assert.That(amount.DatabaseType, Is.EqualTo(DbType.Decimal));
+        Assert.That(amount.Nullable, Is.True);
+        Assert.That(amount.Required, Is.False);
+        Assert.That(fields.All(field => !field.Nullable), Is.True);
+    }
+
     private static readonly DiscoveryOptions Basic = new()
     {
         Features =
@@ -150,6 +184,8 @@ public class DatabaseDataContractInferenceTests
             Assert.That(orders.Schema.Relationships.Single().TargetAsset,
                 Is.EqualTo(contract.Assets.Single(asset => asset.Name == "customer").Id));
             Assert.That(amount.Constraints.Single(x => x.Kind == "minimum").Value, Is.EqualTo(0m));
+            Assert.That(Core.FieldTypeResolver.Resolve(amount, Core.TypeMappingOptions.Strict).Parameters.Precision, Is.EqualTo(10));
+            Assert.That(Core.FieldTypeResolver.Resolve(amount, Core.TypeMappingOptions.Strict).Parameters.Scale, Is.EqualTo(2));
             Assert.That(code.Constraints.Single(x => x.Kind == "unique").Value, Is.EqualTo(true));
             Assert.That(((ConnectionLocation)contract.Endpoints.Single().Location).Namespace, Is.EqualTo("sales"));
         });

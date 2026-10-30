@@ -20,7 +20,7 @@ internal static class InlineDataReader
         {
             var mapper = new RuntimeTypeMapper();
             foreach (var field in fields)
-                table.Columns.Add(field.Name, mapper.Map(field.LogicalType, field.Format));
+                table.Columns.Add(field.Name, mapper.Resolve(field, TypeMappingOptions.LegacyCompatibility).RuntimeType!);
         }
         else if (rows.FirstOrDefault() is object first)
         {

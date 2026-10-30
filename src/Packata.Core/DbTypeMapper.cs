@@ -1,40 +1,39 @@
-﻿using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Packata.Core.Contracts;
 
 namespace Packata.Core;
+
+/// <summary>Compatibility adapter over shared interpretation; dialect rendering belongs to provisioning.</summary>
 public class DbTypeMapper : BaseTypeMapper<DbType>
 {
-    public DbTypeMapper()
-        :base() { }
-
     protected override DbType DefaultMapping => DbType.Object;
 
     protected override bool TryMapFormat(string type, string? format, out DbType mapping)
     {
         mapping = DbType.DateTimeOffset;
-        return type == "datetime" && DateTimeFormatConverter.HasOffset(format);
+        return TypeMappingCatalog.HasOffset(type, format);
     }
 
     protected override void Initialize()
     {
-        Register("string", null, DbType.String);
-        Register("boolean", null, DbType.Boolean);
-        Register("number", "fp32", DbType.Single);
-        Register("number", "fp64", DbType.Double);
-        Register("number", null, DbType.Decimal);
-        Register("integer", "i16", DbType.Int16);
-        Register("integer", "i32", DbType.Int32);
-        Register("integer", "i64", DbType.Int64);
-        Register("integer", null, DbType.Int32);
-        Register("date", null, DbType.Date);
-        Register("time", null, DbType.Time);
-        Register("datetime", null, DbType.DateTime);
-        Register("timestamp", null, DbType.DateTimeOffset);
-        Register("year", null, DbType.Int32);
-        Register("yearmonth", null, DbType.String);
+        foreach (var entry in TypeMappingCatalog.Entries.Where(TypeMappingCatalog.IsLegacyEntry))
+            RegisterDefault(entry.LogicalType, entry.Format, entry.DatabaseType);
+    }
+
+    public FieldTypeResolution Resolve(DataField field, TypeMappingOptions options)
+        => ApplyRegistrations(FieldTypeResolver.Resolve(field, options), options);
+
+    private FieldTypeResolution ApplyRegistrations(FieldTypeResolution result, TypeMappingOptions options)
+    {
+        var field = result.Field;
+        var items = result.Items is null ? null : ApplyRegistrations(result.Items, options);
+        var children = result.Children.Select(child => ApplyRegistrations(child, options)).ToArray();
+        result = result.WithNested(items, children);
+        if (options.PreserveLegacyRepresentation)
+            return result.DatabaseType == Map(field.LogicalType, field.Format) ? result
+                : result.WithDatabase(Map(field.LogicalType, field.Format), "LegacyRepresentation");
+        if (TryGetResolutionMapping(result, DbType.DateTimeOffset, out var custom))
+            return result.WithDatabase(custom, "CustomRegistration");
+        return result;
     }
 }

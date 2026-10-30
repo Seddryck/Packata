@@ -30,6 +30,8 @@ public abstract class SchemaBaseProperty : SchemaElement
     /// </summary>
     protected Dictionary<string, object>? LogicalTypeOptions { get; set; }
 
+    internal IReadOnlyDictionary<string, object>? DeclaredLogicalTypeOptions => LogicalTypeOptions;
+
     private ILogicalType? _cached;
     public ILogicalType? LogicalType
         => _cached ??= ResolveLogicalType(LogicalTypeDiscriminator, LogicalTypeOptions);

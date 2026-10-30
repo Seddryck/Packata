@@ -22,6 +22,24 @@ namespace Packata.Provisioners.Testing.Database;
 public class DubUrlProvisionerTests
 {
     [Test]
+    public void PlanSchema_keeps_injected_type_registrations_and_large_database_decimals()
+    {
+        var mapper = new Core.DbTypeMapper();
+        mapper.Register("custom", DbType.String);
+        var fixture = CreateFixture(dbTypeMapper: mapper);
+        Schema? rendered = null;
+        fixture.Renderer.Setup(x => x.Render(It.IsAny<Schema>()))
+            .Callback<Schema>(value => rendered = value).Returns("CREATE TABLE");
+        fixture.Provisioner.PlanSchema(Contract(new DataSchema([
+            new("label", "custom"),
+            new("occurred", "datetime", Format: "%Y-%m-%dT%H:%M:%S%z"),
+            new("amount", "number", Constraints: [new("precision", 38), new("scale", 10)])])));
+        Assert.That(rendered!.Tables["Customer"].Columns["label"].Type, Is.EqualTo(DbType.String));
+        Assert.That(rendered.Tables["Customer"].Columns["amount"].Type, Is.EqualTo(DbType.Decimal));
+        Assert.That(rendered.Tables["Customer"].Columns["occurred"].Type, Is.EqualTo(DbType.DateTimeOffset));
+    }
+
+    [Test]
     public void PlanSchema_renders_schema_and_preserves_diagnostics_without_deploying()
     {
         var fixture = CreateFixture();
@@ -477,7 +495,7 @@ public class DubUrlProvisionerTests
         return new DataContract(new("contract"), new(), [asset], [], new());
     }
 
-    private static Fixture CreateFixture(string connectionUrl = "mssql://./mydb")
+    private static Fixture CreateFixture(string connectionUrl = "mssql://./mydb", Core.DbTypeMapper? dbTypeMapper = null)
     {
         var typeMapper = new Mock<IDbTypeMapper>();
         var functionMapper = new Mock<ISqlFunctionMapper>();
@@ -507,7 +525,7 @@ public class DubUrlProvisionerTests
         var bulkFactory = new Mock<BulkCopyEngineFactory>();
         bulkFactory.Setup(x => x.Create(connection.Object)).Returns(bulkCopy.Object);
         var provisioner = new DubUrlProvisioner(connection.Object, renderer.Object, deployer.Object,
-            bulkCopyEngineFactory: bulkFactory.Object, capabilities: new FixedCapabilities(new(true, true, true)));
+            dbTypeMapper: dbTypeMapper, bulkCopyEngineFactory: bulkFactory.Object, capabilities: new FixedCapabilities(new(true, true, true)));
         return new(provisioner, connection, renderer, deployer, bulkFactory, bulkCopy);
     }
 
