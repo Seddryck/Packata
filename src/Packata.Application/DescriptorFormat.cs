@@ -24,7 +24,8 @@ public static class DescriptorFormat
     /// <summary>A hint for broken or oversized buffers, never used to deserialize a valid mapping.</summary>
     public static string Recover(string text, Uri? source = null)
     {
-        var path = source is null ? string.Empty : source.IsFile ? source.LocalPath : source.AbsolutePath;
+        var path = string.Empty;
+        if (source is not null) path = source.IsFile ? source.LocalPath : source.AbsolutePath;
         return path.Contains("odcs", StringComparison.OrdinalIgnoreCase)
             || Path.GetFileName(path).StartsWith("contract", StringComparison.OrdinalIgnoreCase)
             || text.Contains("apiVersion", StringComparison.Ordinal) ? "odcs" : "datapackage";

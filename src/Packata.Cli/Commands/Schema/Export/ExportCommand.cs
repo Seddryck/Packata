@@ -11,7 +11,7 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
         try
         {
             using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var result = ContractExportService.JsonSchema(source.Document!, settings.Asset!, cancellationToken);
+            var result = ContractExportService.JsonSchema(source.ParsedDocument, settings.Asset ?? throw new ArgumentException("An asset is required."), cancellationToken);
             foreach (var diagnostic in result.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!result.IsSuccessful) return ExitCodes.InvalidDocument;
             var content = result.Content + Environment.NewLine;

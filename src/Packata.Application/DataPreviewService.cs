@@ -52,16 +52,7 @@ public sealed class DataPreviewService(IDataEndpointReaderFactory readers)
         var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
         if (!hasRow && names.Length == 0 && request.Schema is { Fields.Count: > 0 } schema)
             names = schema.Fields.Select(field => field.Name).ToArray();
-        var selected = options.Columns ?? names;
-        // Positional viewers can retain repeated headers; named projection must always be unique.
-        var ordinals = options.Columns is null && !options.RequireUniqueColumnNames
-            ? Enumerable.Range(0, names.Length).ToArray()
-            : selected.Select(name =>
-            {
-                var matches = Enumerable.Range(0, names.Length).Where(index => names[index] == name).ToArray();
-                return matches.Length == 1 ? matches[0] : throw new DataPreviewSelectionException(DataPreviewSelectionFailure.Column,
-                    $"Column '{name}' is unknown or ambiguous. Select exact, unique field names.");
-            }).ToArray();
+        var ordinals = SelectColumns(names, options);
         var columns = ordinals.Select(index => new DataPreviewColumn(names[index],
             DeclaredType(request.Schema, names[index]) ?? (hasRow ? reader.GetFieldType(index)?.Name : null) ?? "unknown")).ToArray();
         var rows = new List<object?[]>();
@@ -74,6 +65,19 @@ public sealed class DataPreviewService(IDataEndpointReaderFactory readers)
         }
         cancellationToken.ThrowIfCancellationRequested();
         return new(columns, rows);
+    }
+
+    private static int[] SelectColumns(string[] names, DataPreviewOptions options)
+    {
+        // Positional viewers can retain repeated headers; named projection must always be unique.
+        if (options.Columns is null && !options.RequireUniqueColumnNames)
+            return Enumerable.Range(0, names.Length).ToArray();
+        return (options.Columns ?? names).Select(name =>
+        {
+            var matches = Enumerable.Range(0, names.Length).Where(index => names[index] == name).ToArray();
+            return matches.Length == 1 ? matches[0] : throw new DataPreviewSelectionException(DataPreviewSelectionFailure.Column,
+                $"Column '{name}' is unknown or ambiguous. Select exact, unique field names.");
+        }).ToArray();
     }
 
     private static string? DeclaredType(DataSchema? schema, string name)

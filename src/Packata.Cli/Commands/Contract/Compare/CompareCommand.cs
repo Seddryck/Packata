@@ -75,7 +75,7 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
         private async Task<CompatibilityInput?> Load(string location, string format)
         {
             using var document = await ContractSource.LoadAsync(location, format, cancellationToken).ConfigureAwait(false);
-            var prepared = ContractComparisonService.Prepare(document.Document!, cancellationToken);
+            var prepared = ContractComparisonService.Prepare(document.ParsedDocument, cancellationToken);
             foreach (var diagnostic in prepared.ValidationDiagnostics)
                 diagnostics.Add(new(input, source, diagnostic.Code, diagnostic.Severity, diagnostic.SourcePath, diagnostic.Message));
             return prepared.Input;

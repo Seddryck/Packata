@@ -21,7 +21,7 @@ public sealed record InferenceInput(DataContract Contract, IInferenceStreamSourc
 
 public sealed record ContractInferenceOptions
 {
-    public InferenceOption SuppliedOptions { get; init; }
+    public InferenceOptions SuppliedOptions { get; init; }
     public int MaximumRecords { get; init; } = 1000;
     public long? MaximumBytes { get; init; }
     public string Culture { get; init; } = string.Empty;
@@ -33,15 +33,26 @@ public sealed record ContractInferenceOptions
 
     public void Validate()
     {
-        if ((SuppliedOptions & ~InferenceCapabilities.AllOptions) != 0) throw new ArgumentOutOfRangeException(nameof(SuppliedOptions));
+        if ((SuppliedOptions & ~InferenceCapabilities.AllOptions) != 0)
+            throw new ArgumentOutOfRangeException(paramName: null, message: "SuppliedOptions contains unknown inference options.");
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(MaximumRecords);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(StagingMaximumBytes);
-        if (MaximumBytes <= 0) throw new ArgumentOutOfRangeException(nameof(MaximumBytes));
+        ValidateSampling();
+        ValidateWorksheet();
+    }
+
+    private void ValidateSampling()
+    {
+        if (MaximumBytes <= 0) throw new ArgumentOutOfRangeException(paramName: null, message: "MaximumBytes must be positive when specified.");
         if (Header.ToLowerInvariant() is not ("auto" or "present" or "absent"))
-            throw new ArgumentException("Header mode must be auto, present or absent.", nameof(Header));
+            throw new ArgumentException("Header mode must be auto, present or absent.");
+        if (!string.IsNullOrWhiteSpace(Culture)) _ = System.Globalization.CultureInfo.GetCultureInfo(Culture);
+    }
+
+    private void ValidateWorksheet()
+    {
         if (SheetNumber <= 0 || (SheetNumber is not null && SheetName is not null) || (SheetName is not null && string.IsNullOrWhiteSpace(SheetName)))
             throw new ArgumentException("Select a nonempty worksheet name or a positive worksheet number.");
-        if (!string.IsNullOrWhiteSpace(Culture)) _ = System.Globalization.CultureInfo.GetCultureInfo(Culture);
     }
 }
 

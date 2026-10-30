@@ -162,7 +162,7 @@ public static class ContractInferenceService
             || string.Equals(candidate.Id, original.Id, StringComparison.Ordinal)).ToArray();
         if (exact.Length == 1) return exact[0];
 
-        var unqualified = physicalName.Split('.').Last();
+        var unqualified = physicalName.Split('.')[^1];
         var byName = contract.Assets.Where(candidate =>
             string.Equals(candidate.Name, unqualified, StringComparison.OrdinalIgnoreCase)).ToArray();
         return byName.Length == 1

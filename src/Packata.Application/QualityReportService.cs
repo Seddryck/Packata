@@ -15,11 +15,13 @@ namespace Packata.Application;
 /// <summary>OORS is the only wire model. Packata execution details use vendor-attributed extensions.</summary>
 public static class QualityReportService
 {
+    private const string VersionProperty = "version";
     public const string ApiVersion = "v0.8.0";
     public const int MaximumOutputCharacters = 4096;
     private static readonly Lazy<JsonSchema> Schema = new(() =>
     {
-        using var stream = typeof(QualityReportService).Assembly.GetManifestResourceStream("Packata.Application.OorsSchema")!;
+        using var stream = typeof(QualityReportService).Assembly.GetManifestResourceStream("Packata.Application.OorsSchema")
+            ?? throw new InvalidOperationException("The embedded OORS schema is unavailable.");
         using var reader = new StreamReader(stream);
         return JsonSchema.FromText(reader.ReadToEnd());
     });
@@ -35,7 +37,7 @@ public static class QualityReportService
             ["source"] = new JObject { ["process"] = source.Process, ["runId"] = report.Id, ["vendor"] = "packata" },
             ["run"] = new JObject { ["state"] = "completed" },
             ["contract"] = Object(("contractId", contract.Identity.Id), ("standard", "ODCS"),
-                ("version", contract.Identity.Version), ("server", Server(report, contract))),
+                (VersionProperty, contract.Identity.Version), ("server", Server(report, contract))),
             ["customProperties"] = DocumentProperties(report, contract, specification, source, filters),
             ["results"] = Results(report.Results)
         };
@@ -51,7 +53,7 @@ public static class QualityReportService
         Add(properties, "runTiming", Timing(report.StartedAt, report.FinishedAt, report.Duration));
         Add(properties, "contractProvenance", Object(("name", contract.Identity.Name), ("specification", specification.TrimStart('v')),
             ("source", SafeSource(source.Source)), ("fingerprint", Fingerprint(source.OriginalText))));
-        Add(properties, "runner", new JObject { ["name"] = "packata", ["version"] = source.RunnerVersion });
+        Add(properties, "runner", new JObject { ["name"] = "packata", [VersionProperty] = source.RunnerVersion });
         Add(properties, "engines", new JArray(report.Engines.Select(Engine)));
         var applied = Object(("id", Array(filters.Id)), ("asset", Array(filters.Asset)), ("field", Array(filters.Field)),
             ("type", Array(filters.Type)), ("dimension", Array(filters.Dimension)));
@@ -60,9 +62,9 @@ public static class QualityReportService
         return properties;
     }
 
-    private static JObject Engine(QualityEngineInfo engine) => Object(("id", engine.Id), ("version", engine.Version),
+    private static JObject Engine(QualityEngineInfo engine) => Object(("id", engine.Id), (VersionProperty, engine.Version),
         ("types", new JArray(engine.Types)), ("runtime", engine.Runtime is null ? null
-            : new JObject { ["name"] = engine.Runtime.Name, ["version"] = engine.Runtime.Version }));
+            : new JObject { ["name"] = engine.Runtime.Name, [VersionProperty] = engine.Runtime.Version }));
 
     private static JObject Summary(QualityRunReport report)
     {
@@ -75,10 +77,10 @@ public static class QualityReportService
     private static JArray Results(IReadOnlyList<QualityRunResult> entries)
     {
         var duplicateIds = entries.Where(r => r.Rule.SourceId is not null).GroupBy(r => r.Rule.SourceId, StringComparer.Ordinal)
-            .Where(g => g.Count() > 1).Select(g => g.Key!).ToHashSet(StringComparer.Ordinal);
+            .Where(g => g.Count() > 1).Select(g => g.Key ?? throw new InvalidOperationException("A rule ID is required.")).ToHashSet(StringComparer.Ordinal);
         // Reserve native IDs before deriving IDs, including collisions between a native ID and a contract path.
         var used = entries.Where(r => r.Rule.SourceId is not null && !duplicateIds.Contains(r.Rule.SourceId))
-            .Select(r => r.Rule.SourceId!).ToHashSet(StringComparer.Ordinal);
+            .Select(r => r.Rule.SourceId ?? throw new InvalidOperationException("A rule ID is required.")).ToHashSet(StringComparer.Ordinal);
         var results = new JArray();
         for (var index = 0; index < entries.Count; index++)
         {
@@ -89,7 +91,8 @@ public static class QualityReportService
             {
                 var basis = rule.SourcePath ?? $"rule/{index}";
                 id = basis;
-                for (var suffix = 1; !used.Add(id); suffix++) id = $"{basis}#{suffix}";
+                var suffix = 1;
+                while (!used.Add(id)) id = $"{basis}#{suffix++}";
             }
             results.Add(Result(result, id));
         }
@@ -100,7 +103,8 @@ public static class QualityReportService
     {
         var servers = report.Results.Select(r => r.Execution?.Descriptor.EndpointId).OfType<string>().Distinct().ToArray();
         // A single declared server also applies to descriptive rules with no execution descriptor.
-        return servers.Length == 1 ? servers[0] : contract.Endpoints.Count == 1 ? contract.Endpoints[0].Id : null;
+        if (servers.Length == 1) return servers[0];
+        return contract.Endpoints.Count == 1 ? contract.Endpoints[0].Id : null;
     }
 
     private static JObject Result(QualityRunResult result, string id)
@@ -199,7 +203,7 @@ public static class QualityReportService
     public static void Stamp(JObject document, DateTimeOffset start, DateTimeOffset end, TimeSpan elapsed)
     {
         document["observedAt"] = Timestamp(end);
-        document["customProperties"]!.Single(p => (string?)p["property"] == "runTiming")["value"] = Timing(start, end, elapsed);
+        (document["customProperties"] ?? throw new InvalidDataException("Report properties are required.")).Single(p => (string?)p["property"] == "runTiming")["value"] = Timing(start, end, elapsed);
     }
 
     public static string SafeSource(string source)
@@ -219,7 +223,7 @@ public static class QualityReportService
         JToken Canonical(YamlNode node) => node switch
         {
             YamlMappingNode map => new JObject(map.Children.OrderBy(p => ((YamlScalarNode)p.Key).Value, StringComparer.Ordinal)
-                .Select(p => new JProperty(((YamlScalarNode)p.Key).Value!, Canonical(p.Value)))),
+                .Select(p => new JProperty(((YamlScalarNode)p.Key).Value ?? throw new InvalidDataException("A mapping key is required."), Canonical(p.Value)))),
             YamlSequenceNode sequence => new JArray(sequence.Children.Select(Canonical)),
             YamlScalarNode scalar => Object(("tag", scalar.Tag.ToString()), ("style", scalar.Style.ToString()), ("value", scalar.Value)),
             _ => throw new InvalidOperationException("Unsupported contract node.")

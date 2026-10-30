@@ -24,8 +24,8 @@ public sealed class InferenceBoundaryTests
     {
         var settings = new InferSettings { Source = "unused", Asset = "orders" };
         var options = InferenceService.Options(settings, ["--header=auto", "--maximum-records", "1000"]);
-        Assert.That(options.SuppliedOptions, Is.EqualTo(Packata.Application.InferenceOption.Header | Packata.Application.InferenceOption.MaximumRecords));
+        Assert.That(options.SuppliedOptions, Is.EqualTo(Packata.Application.InferenceOptions.Header | Packata.Application.InferenceOptions.MaximumRecords));
         Assert.That(options.Header, Is.EqualTo("auto"));
-        Assert.That(InferenceService.Options(settings).SuppliedOptions, Is.EqualTo(Packata.Application.InferenceOption.None));
+        Assert.That(InferenceService.Options(settings).SuppliedOptions, Is.EqualTo(Packata.Application.InferenceOptions.None));
     }
 }

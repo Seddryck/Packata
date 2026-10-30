@@ -49,7 +49,7 @@ internal sealed class SatisfiesCommand : AsyncCommand<SatisfiesSettings>
         private async Task<SatisfactionInput?> Load(string location)
         {
             using var document = await ContractSource.LoadAsync(location, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var prepared = ContractComparisonService.Prepare(document.Document!, cancellationToken);
+            var prepared = ContractComparisonService.Prepare(document.ParsedDocument, cancellationToken);
             foreach (var diagnostic in prepared.ValidationDiagnostics)
                 diagnostics.Add(new(role, location, diagnostic.Code, diagnostic.Severity, diagnostic.SourcePath, diagnostic.Message));
             return prepared.Input is null ? null : ContractComparisonService.SatisfactionInput(prepared.Input, location);

@@ -9,16 +9,16 @@ public sealed class BoundaryRegressionTests
     public const string Odcs = "apiVersion: v3.2.0\nkind: DataContract\nid: contract\nversion: 1.0.0\nstatus: draft\nschema: []\n";
     private const string Package = "resources:\n  - name: orders\n    path: orders.csv\n  - name: customers\n    path: customers.csv\n";
 
-    [TestCase("csv", InferenceOption.SheetName)]
-    [TestCase("tsv", InferenceOption.SheetNumber)]
-    [TestCase("psv", InferenceOption.SheetName)]
-    [TestCase("xlsx", InferenceOption.Culture)]
-    [TestCase("xls", InferenceOption.DialectInference)]
-    [TestCase("parquet", InferenceOption.MaximumRecords)]
-    [TestCase("parquet", InferenceOption.MaximumBytes)]
-    [TestCase("parquet", InferenceOption.Header)]
-    [TestCase("pqt", InferenceOption.Culture)]
-    public async Task ExplicitUnsupportedOptions_FailBeforeOpeningStreams(string format, InferenceOption option)
+    [TestCase("csv", InferenceOptions.SheetName)]
+    [TestCase("tsv", InferenceOptions.SheetNumber)]
+    [TestCase("psv", InferenceOptions.SheetName)]
+    [TestCase("xlsx", InferenceOptions.Culture)]
+    [TestCase("xls", InferenceOptions.DialectInference)]
+    [TestCase("parquet", InferenceOptions.MaximumRecords)]
+    [TestCase("parquet", InferenceOptions.MaximumBytes)]
+    [TestCase("parquet", InferenceOptions.Header)]
+    [TestCase("pqt", InferenceOptions.Culture)]
+    public async Task ExplicitUnsupportedOptions_FailBeforeOpeningStreams(string format, InferenceOptions option)
     {
         var contract = ContractInspector.Inspect(Package).Mapping.RequireValue();
         var endpoint = contract.Endpoints[0] with { Format = new(format), Location = new PathLocation(["orders." + format]) };
@@ -54,10 +54,10 @@ public sealed class BoundaryRegressionTests
         Assert.That(streams.Opens, Is.Zero);
     }
 
-    [TestCase("csv", InferenceOption.MaximumRecords | InferenceOption.Culture | InferenceOption.Header | InferenceOption.DialectInference)]
-    [TestCase("xlsx", InferenceOption.MaximumRecords | InferenceOption.MaximumBytes | InferenceOption.Header | InferenceOption.SheetName)]
-    [TestCase("parquet", InferenceOption.None)]
-    public void SupportedOptionSetsAndDefaultsRemainValid(string format, InferenceOption supplied)
+    [TestCase("csv", InferenceOptions.MaximumRecords | InferenceOptions.Culture | InferenceOptions.Header | InferenceOptions.DialectInference)]
+    [TestCase("xlsx", InferenceOptions.MaximumRecords | InferenceOptions.MaximumBytes | InferenceOptions.Header | InferenceOptions.SheetName)]
+    [TestCase("parquet", InferenceOptions.None)]
+    public void SupportedOptionSetsAndDefaultsRemainValid(string format, InferenceOptions supplied)
         => Assert.DoesNotThrow(() => InferenceCapabilities.Validate(format, new() { SuppliedOptions = supplied }));
 
     [TestCase("apiVersion: v3.2.0\nschema: []", "odcs")]

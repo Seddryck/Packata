@@ -54,10 +54,10 @@ internal sealed class DiffCommand : AsyncCommand<ContractComparisonSettings>
         private async Task<DataContract?> Load(string location, string format)
         {
             using var document = await ContractSource.LoadAsync(location, format, cancellationToken).ConfigureAwait(false);
-            var prepared = ContractComparisonService.Prepare(document.Document!, cancellationToken);
+            var prepared = ContractComparisonService.Prepare(document.ParsedDocument, cancellationToken);
             foreach (var diagnostic in prepared.ValidationDiagnostics) Add(diagnostic);
             if (!prepared.Valid) return null;
-            var mapped = prepared.Mapping!;
+            var mapped = prepared.Mapping ?? throw new InvalidOperationException("The comparison mapping is unavailable.");
             foreach (var diagnostic in mapped.Diagnostics) Add(diagnostic);
             if (mapped.Value is null && mapped.Diagnostics.All(x => x.Severity != MappingSeverity.Error))
                 Add(new("CLI012", MappingSeverity.Error, "$", "The contract could not be mapped to the canonical model."));

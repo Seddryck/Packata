@@ -7,12 +7,12 @@ namespace Packata.Cli;
 /// <summary>Adapts command options and invocation-owned resource access to application inference.</summary>
 internal static class InferenceService
 {
-    private static readonly IReadOnlyDictionary<string, InferenceOption> OptionNames = new Dictionary<string, InferenceOption>
+    private static readonly IReadOnlyDictionary<string, InferenceOptions> OptionNames = new Dictionary<string, InferenceOptions>
     {
-        ["--maximum-records"] = InferenceOption.MaximumRecords, ["--maximum-bytes"] = InferenceOption.MaximumBytes,
-        ["--culture"] = InferenceOption.Culture, ["--header"] = InferenceOption.Header,
-        ["--no-dialect-inference"] = InferenceOption.DialectInference,
-        ["--sheet-name"] = InferenceOption.SheetName, ["--sheet-number"] = InferenceOption.SheetNumber
+        ["--maximum-records"] = InferenceOptions.MaximumRecords, ["--maximum-bytes"] = InferenceOptions.MaximumBytes,
+        ["--culture"] = InferenceOptions.Culture, ["--header"] = InferenceOptions.Header,
+        ["--no-dialect-inference"] = InferenceOptions.DialectInference,
+        ["--sheet-name"] = InferenceOptions.SheetName, ["--sheet-number"] = InferenceOptions.SheetNumber
     };
 
     internal static async Task<InferenceSelection> InferFileAsync(ContractDocument document, DataAsset asset,
@@ -56,7 +56,7 @@ internal static class InferenceService
     {
         SuppliedOptions = OptionNames.Where(pair => arguments?.Any(argument => argument == pair.Key
             || argument.StartsWith(pair.Key + "=", StringComparison.Ordinal)) == true)
-            .Aggregate(InferenceOption.None, (options, pair) => options | pair.Value),
+            .Aggregate(InferenceOptions.None, (options, pair) => options | pair.Value),
         MaximumRecords = settings.MaximumRecords, MaximumBytes = settings.MaximumBytes,
         Header = settings.Header, Culture = settings.Culture, NoDialectInference = settings.NoDialectInference,
         SheetName = settings.SheetName, SheetNumber = settings.SheetNumber, StagingMaximumBytes = settings.StagingMaximumBytes

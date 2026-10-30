@@ -11,6 +11,13 @@ public sealed record ContractDocumentUpdate(string Content, IReadOnlyList<string
 
 public static class DescriptorUpdateService
 {
+    private const string ResourcesProperty = "resources";
+    private const string DialectProperty = "dialect";
+    private const string DelimitedType = "delimited";
+    private const string SchemaProperty = "schema";
+    private const string FieldsProperty = "fields";
+    private const string FormatProperty = "format";
+    private const string FalseValue = "false";
     private const string SheetNameOption = "sheetName";
     private const string SheetNumberOption = "sheetNumber";
     public static ContractDocumentUpdate UpdateDialect(EditableContract document, string assetId, string endpointId,
@@ -30,26 +37,7 @@ public static class DescriptorUpdateService
             "Reserialization can change comments, whitespace and quoting. YAML anchors, aliases, explicit tags and merge keys must be expanded before saving. Review the enriched copy before adopting it; field definitions and unrelated values are preserved."
         };
         if (document.Kind == DescriptorDocumentKind.DataPackageJson)
-        {
-            // Reject duplicate keys, then retain JSON number lexemes and date strings through JsonNode.
-            _ = JObject.Parse(document.OriginalText, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });
-            var root = System.Text.Json.Nodes.JsonNode.Parse(document.OriginalText, documentOptions: new()
-            {
-                CommentHandling = System.Text.Json.JsonCommentHandling.Skip, AllowTrailingCommas = true
-            })!;
-            var resource = (root["resources"] as System.Text.Json.Nodes.JsonArray)?
-                .OfType<System.Text.Json.Nodes.JsonObject>().Single(item => (string?)item["name"] == assetId)
-                ?? throw new InvalidDataException("The Data Package document has no resources array.");
-            var dialect = resource["dialect"] as System.Text.Json.Nodes.JsonObject ?? new();
-            if (resource["dialect"] is not null && resource["dialect"] is not System.Text.Json.Nodes.JsonObject)
-                throw new NotSupportedException("External dialect references cannot be updated; inline the dialect first.");
-            if (resource["dialect"] is null) resource["dialect"] = dialect;
-            dialect["type"] = "delimited";
-            foreach (var name in DataPackageDialectOptions)
-                if (options.TryGetValue(name, out var value))
-                    dialect[name] = System.Text.Json.JsonSerializer.SerializeToNode(value);
-            return new(root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, warnings);
-        }
+            return UpdateJsonDialect(document, assetId, options, warnings);
         EnsureSimpleYaml(document.OriginalText);
         var yaml = LoadYaml(document.OriginalText);
         var mapping = Root(yaml);
@@ -61,13 +49,36 @@ public static class DescriptorUpdateService
         }
         else
         {
-            var resource = FindByScalar(Sequence(mapping, "resources"), "name", assetId)
+            var resource = FindByScalar(Sequence(mapping, ResourcesProperty), "name", assetId)
                 ?? throw new InvalidDataException($"Resource '{assetId}' was not found.");
-            var dialect = Mapping(resource, "dialect", create: true)!;
-            SetScalar(dialect, "type", "delimited");
+            var dialect = CreateMapping(resource, DialectProperty);
+            SetScalar(dialect, "type", DelimitedType);
             ApplyYamlDialect(dialect, options, DataPackageDialectOptions);
         }
         return new(SaveYaml(yaml), warnings);
+    }
+
+    private static ContractDocumentUpdate UpdateJsonDialect(EditableContract document, string assetId,
+        IReadOnlyDictionary<string, object?> options, IReadOnlyList<string> warnings)
+    {
+        // Reject duplicate keys, then retain JSON number lexemes and date strings through JsonNode.
+        _ = JObject.Parse(document.OriginalText, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });
+        var root = System.Text.Json.Nodes.JsonNode.Parse(document.OriginalText, documentOptions: new()
+        {
+            CommentHandling = System.Text.Json.JsonCommentHandling.Skip, AllowTrailingCommas = true
+        }) ?? throw new InvalidDataException("A JSON mapping is required.");
+        var resource = (root[ResourcesProperty] as System.Text.Json.Nodes.JsonArray)?
+            .OfType<System.Text.Json.Nodes.JsonObject>().Single(item => (string?)item["name"] == assetId)
+            ?? throw new InvalidDataException("The Data Package document has no resources array.");
+        var dialect = resource[DialectProperty] as System.Text.Json.Nodes.JsonObject ?? new();
+        if (resource[DialectProperty] is not null && resource[DialectProperty] is not System.Text.Json.Nodes.JsonObject)
+            throw new NotSupportedException("External dialect references cannot be updated; inline the dialect first.");
+        if (resource[DialectProperty] is null) resource[DialectProperty] = dialect;
+        dialect["type"] = DelimitedType;
+        foreach (var name in DataPackageDialectOptions)
+            if (options.TryGetValue(name, out var value))
+                dialect[name] = System.Text.Json.JsonSerializer.SerializeToNode(value);
+        return new(root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, warnings);
     }
 
     private static void EnsureSimpleYaml(string content)
@@ -76,7 +87,7 @@ public static class DescriptorUpdateService
         while (parser.MoveNext())
         {
             if (parser.Current is AnchorAlias
-                || parser.Current is NodeEvent node && (!node.Anchor.IsEmpty || !node.Tag.IsEmpty)
+                || (parser.Current is NodeEvent node && (!node.Anchor.IsEmpty || !node.Tag.IsEmpty))
                 || parser.Current is Scalar { Value: "<<" })
                 throw new NotSupportedException("Dialect updates require YAML without anchors, aliases, explicit tags or merge keys. Expand these constructs in a copy before saving.");
         }
@@ -139,6 +150,12 @@ public static class DescriptorUpdateService
             throw new InvalidOperationException($"Excel inference did not observe authored fields {string.Join(", ", missing)}. Update refused to preserve their metadata; inspect the worksheet/header selection.");
     }
 
+    private static DataSchema RequiredSchema(DataAsset asset) => asset.Schema
+        ?? throw new InvalidDataException("Inference did not return an asset schema.");
+
+    private static DataFormat RequiredFormat(DataEndpoint endpoint) => endpoint.Format
+        ?? throw new InvalidDataException("Inference did not return an endpoint format.");
+
     private static string UpdateDataPackageJson(
         string content,
         string assetId,
@@ -147,31 +164,31 @@ public static class DescriptorUpdateService
         ICollection<string> warnings)
     {
         var root = JObject.Parse(content);
-        var resources = root["resources"] as JArray
+        var resources = root[ResourcesProperty] as JArray
             ?? throw new InvalidDataException("The Data Package document has no resources array.");
         var resource = resources.OfType<JObject>().SingleOrDefault(item => (string?)item["name"] == assetId)
             ?? throw new InvalidDataException($"Resource '{assetId}' was not found in the source document.");
 
-        var schema = resource["schema"] as JObject;
+        var schema = resource[SchemaProperty] as JObject;
         if (schema is null)
         {
             schema = new JObject();
-            resource["schema"] = schema;
+            resource[SchemaProperty] = schema;
         }
-        schema["fields"] = MergeJsonFields(schema["fields"] as JArray, inferredAsset.Schema!.Fields, warnings);
+        schema[FieldsProperty] = MergeJsonFields(schema[FieldsProperty] as JArray, RequiredSchema(inferredAsset).Fields, warnings);
         if (inferredEndpoint.Kind == EndpointKind.Database)
-            ApplyJsonPrimaryKey(schema, inferredAsset.Schema.PrimaryKey);
+            ApplyJsonPrimaryKey(schema, RequiredSchema(inferredAsset).PrimaryKey);
         if (HasDialect(inferredEndpoint))
         {
-            var dialect = resource["dialect"] as JObject;
+            var dialect = resource[DialectProperty] as JObject;
             if (dialect is null)
             {
                 dialect = new JObject();
-                resource["dialect"] = dialect;
+                resource[DialectProperty] = dialect;
             }
-            dialect["type"] = IsExcel(inferredEndpoint) ? "spreadsheet" : "delimited";
+            dialect["type"] = IsExcel(inferredEndpoint) ? "spreadsheet" : DelimitedType;
             if (IsExcel(inferredEndpoint)) dialect.Remove(SheetNumberOption);
-            ApplyJsonDialect(dialect, inferredEndpoint.Format!.Options);
+            ApplyJsonDialect(dialect, RequiredFormat(inferredEndpoint).Options);
         }
         return root.ToString(Formatting.Indented) + Environment.NewLine;
     }
@@ -189,7 +206,7 @@ public static class DescriptorUpdateService
     {
         var byName = (existing ?? []).OfType<JObject>()
             .Where(field => field["name"]?.Type == JTokenType.String)
-            .GroupBy(field => (string)field["name"]!, StringComparer.Ordinal)
+            .GroupBy(field => field["name"]?.Value<string>() ?? throw new InvalidDataException("A field name is required."), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
         var result = new JArray();
         foreach (var field in inferred)
@@ -198,7 +215,7 @@ public static class DescriptorUpdateService
                 ? (JObject)current.DeepClone()
                 : new JObject { ["name"] = field.Name };
             node["type"] = ToDataPackageType(field.LogicalType, warnings);
-            if (field.Format is null) node.Remove("format"); else node["format"] = field.Format;
+            if (field.Format is null) node.Remove(FormatProperty); else node[FormatProperty] = field.Format;
             var constraints = node["constraints"] as JObject ?? new JObject();
             constraints["required"] = field.Required;
             node["constraints"] = constraints;
@@ -225,24 +242,24 @@ public static class DescriptorUpdateService
     {
         var yaml = LoadYaml(content);
         var root = Root(yaml);
-        var resources = Sequence(root, "resources");
+        var resources = Sequence(root, ResourcesProperty);
         var resource = FindByScalar(resources, "name", assetId)
             ?? throw new InvalidDataException($"Resource '{assetId}' was not found in the source document.");
-        var schema = Mapping(resource, "schema", create: true)!;
-        Set(schema, "fields", MergeDataPackageYamlFields(Sequence(schema, "fields", create: true),
-            inferredAsset.Schema!.Fields, warnings));
+        var schema = CreateMapping(resource, SchemaProperty);
+        Set(schema, FieldsProperty, MergeDataPackageYamlFields(Sequence(schema, FieldsProperty, create: true),
+            RequiredSchema(inferredAsset).Fields, warnings));
         if (inferredEndpoint.Kind == EndpointKind.Database)
         {
-            if (inferredAsset.Schema.PrimaryKey.Count == 0) Remove(schema, "primaryKey");
+            if (RequiredSchema(inferredAsset).PrimaryKey.Count == 0) Remove(schema, "primaryKey");
             else Set(schema, "primaryKey", new YamlSequenceNode(
-                inferredAsset.Schema.PrimaryKey.Select(key => new YamlScalarNode(key))));
+                RequiredSchema(inferredAsset).PrimaryKey.Select(key => new YamlScalarNode(key))));
         }
         if (HasDialect(inferredEndpoint))
         {
-            var dialect = Mapping(resource, "dialect", create: true)!;
-            SetScalar(dialect, "type", IsExcel(inferredEndpoint) ? "spreadsheet" : "delimited");
+            var dialect = CreateMapping(resource, DialectProperty);
+            SetScalar(dialect, "type", IsExcel(inferredEndpoint) ? "spreadsheet" : DelimitedType);
             if (IsExcel(inferredEndpoint)) Remove(dialect, SheetNumberOption);
-            ApplyYamlDialect(dialect, inferredEndpoint.Format!.Options, DataPackageDialectOptions);
+            ApplyYamlDialect(dialect, RequiredFormat(inferredEndpoint).Options, DataPackageDialectOptions);
         }
         return SaveYaml(yaml);
     }
@@ -257,11 +274,11 @@ public static class DescriptorUpdateService
     {
         var yaml = LoadYaml(content);
         var root = Root(yaml);
-        var schemas = Sequence(root, "schema");
+        var schemas = Sequence(root, SchemaProperty);
         var schema = FindByScalar(schemas, "name", assetId)
             ?? throw new InvalidDataException($"Schema asset '{assetId}' was not found in the source document.");
         Set(schema, "properties", MergeOdcsYamlFields(Sequence(schema, "properties", create: true),
-            inferredAsset.Schema!.Fields, inferredAsset.Schema.PrimaryKey,
+            RequiredSchema(inferredAsset).Fields, RequiredSchema(inferredAsset).PrimaryKey,
             inferredEndpoint.Kind == EndpointKind.Database, warnings));
 
         if (HasDialect(inferredEndpoint))
@@ -269,7 +286,7 @@ public static class DescriptorUpdateService
             var servers = Sequence(root, "servers");
             var server = FindByScalar(servers, "server", endpointId)
                 ?? throw new InvalidDataException($"Server '{endpointId}' was not found in the source document.");
-            ApplyOdcsDialect(server, inferredEndpoint.Format!.Options, warnings);
+            ApplyOdcsDialect(server, RequiredFormat(inferredEndpoint).Options, warnings);
         }
         return SaveYaml(yaml);
     }
@@ -287,9 +304,9 @@ public static class DescriptorUpdateService
             SetScalar(node, "name", field.Name);
             SetScalar(node, "type", ToDataPackageType(field.LogicalType, warnings));
             Remove(node, "logicalType");
-            if (field.Format is null) Remove(node, "format"); else SetScalar(node, "format", field.Format);
-            var constraints = Mapping(node, "constraints", create: true)!;
-            SetScalar(constraints, "required", field.Required ? "true" : "false");
+            if (field.Format is null) Remove(node, FormatProperty); else SetScalar(node, FormatProperty, field.Format);
+            var constraints = CreateMapping(node, "constraints");
+            SetScalar(constraints, "required", field.Required ? "true" : FalseValue);
             result.Add(node);
         }
         return result;
@@ -309,16 +326,16 @@ public static class DescriptorUpdateService
             var node = byName.TryGetValue(field.Name, out var current) ? current : new YamlMappingNode();
             SetScalar(node, "name", field.Name);
             SetScalar(node, "logicalType", ToOdcsType(field.LogicalType, warnings));
-            SetScalar(node, "required", field.Required ? "true" : "false");
+            SetScalar(node, "required", field.Required ? "true" : FalseValue);
             if (applyDatabaseFacets) ApplyOdcsDatabaseFacets(node, field, primaryKey);
             if (field.Format is not null)
             {
-                var options = Mapping(node, "logicalTypeOptions", create: true)!;
-                SetScalar(options, "format", field.Format);
+                var options = CreateMapping(node, "logicalTypeOptions");
+                SetScalar(options, FormatProperty, field.Format);
             }
             else if (Mapping(node, "logicalTypeOptions") is { } options)
             {
-                Remove(options, "format");
+                Remove(options, FormatProperty);
                 if (options.Children.Count == 0) Remove(node, "logicalTypeOptions");
             }
             result.Add(node);
@@ -334,7 +351,7 @@ public static class DescriptorUpdateService
         if (field.PhysicalType is null) Remove(node, "physicalType");
         else SetScalar(node, "physicalType", field.PhysicalType);
         var primaryKeyPosition = IndexOf(primaryKey, field.Name);
-        SetScalar(node, "primaryKey", primaryKeyPosition >= 0 ? "true" : "false");
+        SetScalar(node, "primaryKey", primaryKeyPosition >= 0 ? "true" : FalseValue);
         if (primaryKeyPosition < 0) Remove(node, "primaryKeyPosition");
         else SetScalar(node, "primaryKeyPosition", (primaryKeyPosition + 1).ToString());
     }
@@ -350,7 +367,7 @@ public static class DescriptorUpdateService
         existing.Children.OfType<YamlMappingNode>()
             .Select(node => (Node: node, Name: Scalar(node, "name")))
             .Where(item => item.Name is not null)
-            .GroupBy(item => item.Name!, StringComparer.Ordinal)
+            .GroupBy(item => item.Name ?? throw new InvalidDataException("A field name is required."), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Node, StringComparer.Ordinal);
 
     private static void ApplyYamlDialect(
@@ -441,15 +458,21 @@ public static class DescriptorUpdateService
         return writer.ToString();
     }
 
-    private static YamlMappingNode? Mapping(YamlMappingNode parent, string key, bool create = false)
+    private static YamlMappingNode CreateMapping(YamlMappingNode parent, string key)
+    {
+        var mapping = Mapping(parent, key);
+        if (mapping is not null) return mapping;
+        mapping = new YamlMappingNode();
+        Set(parent, key, mapping);
+        return mapping;
+    }
+
+    private static YamlMappingNode? Mapping(YamlMappingNode parent, string key)
     {
         if (parent.Children.TryGetValue(new YamlScalarNode(key), out var value))
             return value as YamlMappingNode
                 ?? throw new InvalidDataException($"YAML property '{key}' must be a mapping.");
-        if (!create) return null;
-        var mapping = new YamlMappingNode();
-        Set(parent, key, mapping);
-        return mapping;
+        return null;
     }
 
     private static YamlSequenceNode Sequence(YamlMappingNode parent, string key, bool create = false)
@@ -487,7 +510,7 @@ public static class DescriptorUpdateService
     private static string? ScalarValue(object? value) => value switch
     {
         null => null,
-        bool boolean => boolean ? "true" : "false",
+        bool boolean => boolean ? "true" : FalseValue,
         char character => character.ToString(),
         _ => value.ToString()
     };

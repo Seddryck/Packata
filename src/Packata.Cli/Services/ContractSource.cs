@@ -21,6 +21,9 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
     }
     internal Packata.Application.ContractDocument? Document { get; init; }
 
+    internal Packata.Application.ContractDocument ParsedDocument => Document
+        ?? throw new InvalidOperationException("The descriptor has not been parsed.");
+
     internal CompatibilityInput CompatibilityInput() => ContractComparisonService.CreateInput(Document ?? throw new InvalidOperationException("The descriptor has not been parsed."));
 
     public MappingResult<DataContract> Map(CancellationToken cancellationToken = default) =>
@@ -122,5 +125,4 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         var document = Packata.Application.ContractDocument.Parse(text, format, baseUri);
         return new(source, baseUri, document.NativeDocument) { Document = document, OriginalText = text };
     }
-
 }

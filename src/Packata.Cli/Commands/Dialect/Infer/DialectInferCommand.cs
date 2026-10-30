@@ -42,7 +42,7 @@ internal sealed class DialectInferCommand : AsyncCommand<DialectInferSettings>
                 DialectUpdateFailure.Ambiguous => " Specify --header or use --accept-ambiguous after reviewing candidates.",
                 _ => string.Empty
             };
-            Console.Error.WriteLine(InferencePresenter.SafeText(error.Message + hint));
+            await Console.Error.WriteLineAsync(InferencePresenter.SafeText(error.Message + hint)).ConfigureAwait(false);
             return 1;
         }
         catch (Exception error)

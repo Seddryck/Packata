@@ -25,7 +25,7 @@ public static class SelectedValidation
         if (selected.Contains(SchemaId)) layers |= ValidationLayers.Schema;
         if (selected.Contains("semantic")) layers |= ValidationLayers.Semantic;
         if (TooLarge(snapshot.Text))
-            return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, false, SyntaxDiagnostics(snapshot.Text),
+            return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, false, SyntaxDiagnostics(snapshot.Text, cancellationToken),
                 Validators.Select(option => new ValidationCheck(option.Id, option.Label, selected.Contains(option.Id) ? "Blocked" : "NotSelected",
                     Reason: "Document exceeds the 4 MiB size limit.")).ToArray(), Format(snapshot));
         var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."), cancellationToken);

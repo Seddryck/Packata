@@ -80,5 +80,4 @@ public sealed class QualityExecutionService(IEnumerable<QualityEngine> engines, 
             return readers.OpenAsync(DataPreviewService.SelectRequest(contract, asset), cancellationToken);
         }
     }
-
 }

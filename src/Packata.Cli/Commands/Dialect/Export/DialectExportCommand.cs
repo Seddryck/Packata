@@ -11,11 +11,11 @@ internal sealed class DialectExportCommand : AsyncCommand<DialectExportSettings>
         {
             ValidateOutputPath(settings);
             using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var result = ContractExportService.Dialect(source.Document!, settings.Endpoint, cancellationToken);
+            var result = ContractExportService.Dialect(source.ParsedDocument, settings.Endpoint, cancellationToken);
             foreach (var diagnostic in result.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!result.IsSuccessful) return ExitCodes.InvalidDocument;
             cancellationToken.ThrowIfCancellationRequested();
-            WriteOutput(settings, result.Content!);
+            WriteOutput(settings, result.Content ?? throw new InvalidOperationException("The export content is unavailable."));
             return ExitCodes.Success;
         }
         catch (Exception exception)

@@ -45,8 +45,6 @@ public static class DescriptorValidation
         cancellationToken.ThrowIfCancellationRequested();
         if (format is not ("auto" or "odcs" or "datapackage")) throw new ArgumentException("Unknown input format.", nameof(format));
         if (layers == ValidationLayers.None || (layers & ~DefaultLayers) != 0) throw new ArgumentOutOfRangeException(nameof(layers));
-        var findings = new List<ValidationFinding>();
-        var results = new List<LayerValidation>();
         var selected = new[] { ValidationLayers.Schema, ValidationLayers.Semantic }.Where(layer => layers.HasFlag(layer)).ToArray();
         JsonObject root;
         var syntaxCheck = DescriptorSyntaxValidation.Validate(text, cancellationToken);
@@ -54,26 +52,28 @@ public static class DescriptorValidation
         try
         {
             if (!syntaxCheck.Valid) throw new FormatException();
+            syntax = syntaxCheck.Syntax ?? throw new FormatException();
             root = Read(syntaxCheck);
         }
         catch (Exception exception) when (exception is YamlException or FormatException or JsonException or ArgumentException)
         {
-            foreach (var layer in selected)
-            {
-                findings.Add(new(layer, "VAL_PARSE", MappingSeverity.Error, "$", "A single, bounded YAML/JSON mapping with unique string keys is required."));
-                results.Add(new(layer, ValidationState.Skipped, "Parsing prerequisite failed."));
-            }
             cancellationToken.ThrowIfCancellationRequested();
-            return new(results, findings)
-            {
-                Syntax = syntax, SyntaxDiagnostics = syntaxCheck.Diagnostics,
-                Format = syntax is null ? format == "auto" ? null : format : DescriptorFormat.Identify(syntax.Root, format)
-            };
+            return ParsingFailure(syntaxCheck, format, selected);
         }
 
-        var report = Execute(root, syntax!, format, selected, baseUri, cancellationToken);
+        var report = Execute(root, syntax, format, selected, baseUri, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        return report with { Syntax = syntax, Format = DescriptorFormat.Identify(syntax!.Root, format) };
+        return report with { Syntax = syntax, Format = DescriptorFormat.Identify(syntax.Root, format) };
+    }
+
+    private static DescriptorValidationReport ParsingFailure(SyntaxValidationResult syntaxCheck, string format, ValidationLayers[] selected)
+    {
+        var findings = selected.Select(layer => new ValidationFinding(layer, "VAL_PARSE", MappingSeverity.Error, "$",
+            "A single, bounded YAML/JSON mapping with unique string keys is required.")).ToArray();
+        var results = selected.Select(layer => new LayerValidation(layer, ValidationState.Skipped, "Parsing prerequisite failed.")).ToArray();
+        var detected = format == "auto" ? null : format;
+        if (syntaxCheck.Syntax is { } syntax) detected = DescriptorFormat.Identify(syntax.Root, format);
+        return new(results, findings) { Syntax = syntaxCheck.Syntax, SyntaxDiagnostics = syntaxCheck.Diagnostics, Format = detected };
     }
 
     private static DescriptorValidationReport Execute(JsonObject root, ContractSyntax syntax, string format, ValidationLayers[] selected, Uri? baseUri, CancellationToken cancellationToken)
@@ -170,7 +170,7 @@ public static class DescriptorValidation
 
     private static JsonObject Read(SyntaxValidationResult syntaxCheck)
     {
-        return syntaxCheck.JsonRoot ?? Convert(syntaxCheck.Syntax!.Root) as JsonObject
+        return syntaxCheck.JsonRoot ?? Convert((syntaxCheck.Syntax ?? throw new FormatException()).Root) as JsonObject
             ?? throw new FormatException("A mapping is required.");
     }
 
