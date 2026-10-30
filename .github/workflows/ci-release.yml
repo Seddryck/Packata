@@ -261,13 +261,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up .NET SDKs
+      - name: Set up .NET SDK
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: |
-            8.0.427
-            9.0.320
-            10.0.403
+          dotnet-version: 10.0.403
 
       - name: Restore library package dependencies
         run: dotnet restore Packata.Libraries.slnf
@@ -279,7 +276,8 @@ jobs:
           path: src
 
       - name: Install schema generator
-        run: dotnet tool install --global Schemathief-cli --version 0.3.0
+        # Schemathief 0.3.0 targets net8.0/net9.0; use the .NET 10 runtime bundled with the SDK.
+        run: dotnet tool install --global Schemathief-cli --version 0.3.0 --allow-roll-forward
 
       - name: Generate schema release asset
         id: schema
