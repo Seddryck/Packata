@@ -14,3 +14,4 @@ docs/samples/quickstart/customers.csv text eol=lf
 
 # Official schema artifacts are pinned byte-for-byte, including their SHA-256.
 src/Packata.Documents/Validation/Schemas/*.json -text
+docs/profiles/**/*.json -text

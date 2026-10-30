@@ -9,6 +9,7 @@ export type CheckState = 'Passed' | 'Failed' | 'NotSelected' | 'Blocked' | 'Canc
 export interface ValidationCheck { id: string; label: string; state: CheckState; errors: number; reason?: string }
 export interface ValidationReport {
   schemaVersion: number; uri: string; version: number | null; valid: boolean; format: string;
+  profile?: { uri: string; label: string; format: string };
   checks: ValidationCheck[];
   diagnostics: { code: string; severity: string; sourcePath: string; message: string; layer: string;
     range?: { start: Position; end: Position } }[];

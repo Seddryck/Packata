@@ -17,7 +17,7 @@ public sealed record LayerValidation(ValidationLayers Layer, ValidationState Sta
 {
     public bool Executed => State != ValidationState.Skipped;
 }
-public sealed record DescriptorValidationReport(IReadOnlyList<LayerValidation> Layers, IReadOnlyList<ValidationFinding> Diagnostics)
+public sealed record DescriptorValidationReport(IReadOnlyList<LayerValidation> Layers, IReadOnlyList<ValidationFinding> Diagnostics, DescriptorProfile? Profile = null)
 {
     public bool Valid => Layers.Count > 0 && Layers.All(layer => layer.State == ValidationState.Passed)
         && Diagnostics.All(finding => finding.Severity != MappingSeverity.Error);
@@ -28,8 +28,6 @@ public static class DescriptorValidation
 {
     // Deliberately explicit: adding an enum member must not change default behavior.
     public const ValidationLayers DefaultLayers = ValidationLayers.Schema | ValidationLayers.Semantic;
-    private static readonly Lazy<JsonSchema> OdcsSchema = new(() => LoadSchema("odcs-v3.2.0.json", Dialect.Draft201909));
-    private static readonly Lazy<JsonSchema> PackageSchema = new(() => LoadSchema("datapackage.json", Dialect.Draft07));
 
     public static DescriptorValidationReport Validate(string text, string format = "auto",
         ValidationLayers layers = DefaultLayers, Uri? baseUri = null)
@@ -59,6 +57,7 @@ public static class DescriptorValidation
         var findings = new List<ValidationFinding>();
         var results = new List<LayerValidation>();
         var odcs = format == "odcs" || (format == "auto" && (root.ContainsKey("kind") || root.ContainsKey("apiVersion")));
+        var profile = DescriptorProfiles.Select(root, odcs);
         var selectionIssue = SelectionIssue(root, format, odcs);
         foreach (var layer in selected)
         {
@@ -75,10 +74,10 @@ public static class DescriptorValidation
                 continue;
             }
             var start = findings.Count;
-            EvaluateLayer(layer, root, text, format, odcs, baseUri, findings);
+            EvaluateLayer(layer, root, text, format, profile ?? throw new InvalidOperationException("Profile selection failed."), baseUri, findings);
             results.Add(Outcome(layer, findings.Skip(start).ToArray()));
         }
-        return new(results.AsReadOnly(), findings.Distinct().ToArray());
+        return new(results.AsReadOnly(), findings.Distinct().ToArray(), profile);
     }
 
     private static LayerValidation Outcome(ValidationLayers layer, ValidationFinding[] current)
@@ -89,23 +88,23 @@ public static class DescriptorValidation
     {
         if (format == "auto" && odcs && root.ContainsKey("resources")) return "Ambiguous contract standard; select --input-format explicitly.";
         if (odcs && Text(root["apiVersion"]) != "v3.2.0") return "An explicit apiVersion of v3.2.0 is required; other ODCS versions are unsupported.";
-        if (!odcs && root.ContainsKey("$schema") && Text(root["$schema"]) != "https://datapackage.org/profiles/2.0/datapackage.json")
-            return "Only the Data Package v2 profile is supported; omit $schema or declare https://datapackage.org/profiles/2.0/datapackage.json.";
+        if (!odcs && DescriptorProfiles.Select(root, odcs) is null)
+            return "Unsupported Data Package profile URI. Select the official v2.0 profile or Packata Category Tables 1.0.0; profiles are never downloaded from the descriptor.";
         return null;
     }
 
     private static void EvaluateLayer(ValidationLayers layer, JsonObject root, string text, string format,
-        bool odcs, Uri? baseUri, List<ValidationFinding> findings)
+        DescriptorProfile profile, Uri? baseUri, List<ValidationFinding> findings)
     {
         if (layer == ValidationLayers.Schema)
         {
-            var evaluation = (odcs ? OdcsSchema : PackageSchema).Value.Evaluate(JsonSerializer.SerializeToElement(root),
+            var evaluation = DescriptorProfiles.Schema(profile).Evaluate(JsonSerializer.SerializeToElement(root),
                 new EvaluationOptions { OutputFormat = OutputFormat.List, RequireFormatValidation = true });
             SchemaFindings(evaluation, findings);
             return;
         }
-        if (odcs) OdcsSemanticValidation.Validate(root, findings);
-        NativeSemantics(text, format, baseUri, findings, odcs);
+        if (profile.Format == "odcs") OdcsSemanticValidation.Validate(root, findings);
+        NativeSemantics(text, format, baseUri, findings, profile.Format == "odcs");
     }
 
     private static void NativeSemantics(string text, string format, Uri? baseUri, List<ValidationFinding> findings, bool odcs)
@@ -135,14 +134,6 @@ public static class DescriptorValidation
         "ODCS004" => "Unsupported SLA declaration; retained without evaluation.",
         _ => "Quality declaration has normalization limitations; no rule was executed."
     };
-
-    private static JsonSchema LoadSchema(string file, Dialect dialect)
-    {
-        using var stream = typeof(DescriptorValidation).Assembly.GetManifestResourceStream($"Packata.Documents.Validation.Schemas.{file}")
-            ?? throw new InvalidOperationException("The pinned schema resource is missing.");
-        using var reader = new StreamReader(stream);
-        return JsonSchema.FromText(reader.ReadToEnd(), new BuildOptions { Dialect = dialect });
-    }
 
     private static void SchemaFindings(EvaluationResults evaluation, List<ValidationFinding> findings)
     {
