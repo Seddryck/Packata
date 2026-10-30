@@ -1,6 +1,5 @@
 using Packata.Application;
 using Packata.Application.Validation;
-using YamlDotNet.Core;
 
 namespace Packata.LanguageServer.Core;
 
@@ -30,7 +29,7 @@ public static class SelectedValidation
                 Validators.Select(option => new ValidationCheck(option.Id, option.Label, selected.Contains(option.Id) ? "Blocked" : "NotSelected",
                     Reason: "Document exceeds the 4 MiB size limit.")).ToArray(), Format(snapshot));
         var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."), cancellationToken);
-        var diagnostics = Diagnostics(snapshot.Text, report);
+        var diagnostics = Diagnostics(report);
         var checks = Validators.Select(option => Check(option, selected, report)).ToArray();
         var format = report.Format ?? DescriptorFormat.Recover(snapshot.Text, snapshot.Uri);
         return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, report.Valid, diagnostics, checks, format, report.Profile);
@@ -39,36 +38,29 @@ public static class SelectedValidation
     private static bool ValidSelection(IReadOnlyList<string> selected)
         => selected.Count > 0 && selected.Distinct().Count() == selected.Count && selected.All(id => Validators.Any(option => option.Id == id));
 
-    private static DocumentDiagnostic[] Diagnostics(string text, DescriptorValidationReport report)
+    private static DocumentDiagnostic[] Diagnostics(DescriptorValidationReport report)
     {
+        if (report.SyntaxDiagnostics.Count > 0) return ProjectSyntax(report.SyntaxDiagnostics);
         var index = report.Syntax is null ? null : new SourceIndex(report.Syntax.Root);
         var diagnostics = report.Diagnostics.Select(finding => new DocumentDiagnostic(finding.Code,
             finding.Severity.ToString(), ContractJson.Redact(finding.SourcePath), ContractJson.Redact(finding.Message),
             FindingRange(index, finding.SourcePath), finding.Code == "VAL_PARSE" ? "Syntax" : finding.Layer.ToString())).ToArray();
-        if (report.Diagnostics.Any(d => d.Code == "VAL_PARSE") && SyntaxDiagnostics(text) is { Length: > 0 } syntax) diagnostics = syntax;
         return diagnostics.Distinct().ToArray();
     }
 
-    public static DocumentDiagnostic[] SyntaxDiagnostics(string text)
+    public static DocumentDiagnostic[] SyntaxDiagnostics(string text, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (TooLarge(text)) return [new("VAL_SIZE", "Error", "$", "Document exceeds the 4 MiB size limit; checks are blocked.", null, "Syntax")];
-        try
-        {
-            ContractDocument.ParseRoot(text);
-            if (text.TrimStart().StartsWith('{')) System.Text.Json.JsonDocument.Parse(text).Dispose();
-            return [];
-        }
-        catch (Exception error) when (error is YamlException or FormatException or ArgumentException or System.Text.Json.JsonException)
-        {
-            SourceRange? range = null;
-            if (error is YamlException yaml && yaml.Start.Line > 0)
-            {
-                var position = new Position((int)yaml.Start.Line - 1, (int)Math.Max(0, yaml.Start.Column - 1));
-                range = new(position, position);
-            }
-            return [new("VAL_PARSE", "Error", "$", "Invalid YAML/JSON syntax; validation checks are blocked.", range, "Syntax")];
-        }
+        return ProjectSyntax(DescriptorSyntaxValidation.Validate(text, cancellationToken).Diagnostics);
     }
+
+    private static DocumentDiagnostic[] ProjectSyntax(IReadOnlyList<SyntaxDiagnostic> diagnostics) => diagnostics.Select(value =>
+        {
+            var position = value.Location is { } location ? new Position(location.Line - 1, location.Column - 1) : null;
+            return new DocumentDiagnostic(value.Code, value.Severity.ToString(), value.SourcePath, value.Message,
+                position is null ? null : new SourceRange(position, position), "Syntax");
+        }).ToArray();
 
     private static ValidationCheck Check(ValidatorOption option, IReadOnlyList<string> selected, DescriptorValidationReport report)
     {

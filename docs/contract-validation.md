@@ -122,6 +122,19 @@ var semantics = DescriptorValidation.Validate(originalText, format: "odcs",
 // report.Valid requires every selected layer to complete and pass.
 ```
 
+For background syntax checks, use
+`Packata.Application.Validation.DescriptorSyntaxValidation.Validate(originalText, cancellationToken)`.
+It checks a single bounded YAML mapping and strict JSON syntax for JSON-shaped
+input without deserializing native models, evaluating schemas/semantics or
+accessing resource data. Its result contains reusable `Syntax` and safe
+`Diagnostics`; optional parser locations use one-based line/column coordinates.
+Editor hosts project those coordinates into their range representation and apply
+their own document-size limits. `ContractSyntax.Parse` alone supplies a bounded
+YAML representation and does not enforce strict JSON grammar.
+
+Layered validation reuses this syntax result and exposes its parser findings as
+`report.SyntaxDiagnostics`, so hosts can project errors without reparsing source.
+
 Each layer reports its `State`, whether it `Executed`, and its `Prerequisites`
 (`Satisfied` or `Failed`). A semantic layer can partially execute and fail a
 structural prerequisite; it then reports `State=Failed`, `Executed=true`, and

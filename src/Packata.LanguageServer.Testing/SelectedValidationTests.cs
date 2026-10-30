@@ -5,6 +5,46 @@ namespace Packata.LanguageServer.Testing;
 
 public sealed class SelectedValidationTests
 {
+    [TestCase("{resources: []}")]
+    [TestCase("{\"resources\":[],}")]
+    [TestCase("resources: []")]
+    [TestCase("name: private-test-value\nschema: [")]
+    public void SyntaxDiagnostics_ProjectApplicationResultsAndLocations(string text)
+    {
+        var application = Packata.Application.Validation.DescriptorSyntaxValidation.Validate(text);
+        var editor = SelectedValidation.SyntaxDiagnostics(text);
+        Assert.That(editor.Select(value => (value.Code, value.Severity, value.SourcePath, value.Message)),
+            Is.EqualTo(application.Diagnostics.Select(value => (value.Code, value.Severity.ToString(), value.SourcePath, value.Message))));
+        if (application.Diagnostics.FirstOrDefault()?.Location is { } location)
+        {
+            Assert.That(editor.Single().Range!.Start.Line, Is.EqualTo(location.Line - 1));
+            Assert.That(editor.Single().Range!.Start.Character, Is.EqualTo(location.Column - 1));
+        }
+        Assert.That(editor.All(value => value.Layer == "Syntax"), Is.True);
+    }
+
+    [Test]
+    public async Task BackgroundSyntax_UsesUnsavedBuffersWithoutEnablingValidationLayersAsync()
+    {
+        const string text = "apiVersion: unsupported\nkind: DataContract\nschema: still-editing\n";
+        var store = new DocumentStore();
+        store.Update(Uri, text, 21);
+        var result = await new ContractService(store).SyntaxAsync(Uri, CancellationToken.None);
+        Assert.That(result.Valid, Is.True);
+        Assert.That(result.Version, Is.EqualTo(21));
+        Assert.That(result.Diagnostics, Is.Empty);
+        Assert.That(Packata.Application.Validation.DescriptorValidation.Validate(text).Valid, Is.False);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => new ContractService(store).SyntaxAsync(Uri, new(true)));
+    }
+
+    [Test]
+    public void EditorSizePolicy_RemainsOutsideApplicationSyntaxValidation()
+    {
+        var text = "description: " + new string('x', ContractService.MaximumDocumentBytes);
+        Assert.That(SelectedValidation.SyntaxDiagnostics(text).Single().Code, Is.EqualTo("VAL_SIZE"));
+        Assert.That(Packata.Application.Validation.DescriptorSyntaxValidation.Validate(text).Valid, Is.True);
+    }
+
     [TestCase("apiVersion: v3.2.0\nid: contract\nversion: 1.0.0\nstatus: draft\nschema: []", "odcs")]
     [TestCase("kind: DataContract\nschema: []", "odcs")]
     [TestCase("resources: []", "datapackage")]

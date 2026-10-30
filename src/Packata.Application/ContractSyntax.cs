@@ -12,5 +12,6 @@ public sealed class ContractSyntax
     public string Format => DescriptorFormat.Identify(Root);
     public bool Recognized => ContractDocument.Recognizes(Root);
 
+    /// <summary>Parses source as a bounded YAML representation; use DescriptorSyntaxValidation for strict JSON syntax checking.</summary>
     public static ContractSyntax Parse(string text) => new(text, ContractDocument.ParseRoot(text));
 }

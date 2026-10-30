@@ -26,6 +26,7 @@ public sealed record DescriptorValidationReport(IReadOnlyList<LayerValidation> L
     /// <summary>Source syntax retained for host-specific diagnostic locations.</summary>
     public ContractSyntax? Syntax { get; init; }
     public string? Format { get; init; }
+    public IReadOnlyList<SyntaxDiagnostic> SyntaxDiagnostics { get; init; } = [];
 
     public bool Valid => Layers.Count > 0 && Layers.All(layer => layer.State == ValidationState.Passed
         && layer.Prerequisites == ValidationPrerequisiteStatus.Satisfied)
@@ -48,11 +49,12 @@ public static class DescriptorValidation
         var results = new List<LayerValidation>();
         var selected = new[] { ValidationLayers.Schema, ValidationLayers.Semantic }.Where(layer => layers.HasFlag(layer)).ToArray();
         JsonObject root;
-        ContractSyntax? syntax = null;
+        var syntaxCheck = DescriptorSyntaxValidation.Validate(text, cancellationToken);
+        var syntax = syntaxCheck.Syntax;
         try
         {
-            syntax = ContractSyntax.Parse(text);
-            root = Read(syntax);
+            if (!syntaxCheck.Valid) throw new FormatException();
+            root = Read(syntaxCheck);
         }
         catch (Exception exception) when (exception is YamlException or FormatException or JsonException or ArgumentException)
         {
@@ -63,12 +65,15 @@ public static class DescriptorValidation
             }
             cancellationToken.ThrowIfCancellationRequested();
             return new(results, findings)
-            { Syntax = syntax, Format = syntax is null ? format == "auto" ? null : format : DescriptorFormat.Identify(syntax.Root, format) };
+            {
+                Syntax = syntax, SyntaxDiagnostics = syntaxCheck.Diagnostics,
+                Format = syntax is null ? format == "auto" ? null : format : DescriptorFormat.Identify(syntax.Root, format)
+            };
         }
 
-        var report = Execute(root, syntax, format, selected, baseUri, cancellationToken);
+        var report = Execute(root, syntax!, format, selected, baseUri, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        return report with { Syntax = syntax, Format = DescriptorFormat.Identify(syntax.Root, format) };
+        return report with { Syntax = syntax, Format = DescriptorFormat.Identify(syntax!.Root, format) };
     }
 
     private static DescriptorValidationReport Execute(JsonObject root, ContractSyntax syntax, string format, ValidationLayers[] selected, Uri? baseUri, CancellationToken cancellationToken)
@@ -163,12 +168,10 @@ public static class DescriptorValidation
 
     internal static string? Text(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
 
-    private static JsonObject Read(ContractSyntax syntax)
+    private static JsonObject Read(SyntaxValidationResult syntaxCheck)
     {
-        var text = syntax.Text;
-        if (text.TrimStart().StartsWith('{') || text.TrimStart().StartsWith('['))
-            return JsonNode.Parse(text) as JsonObject ?? throw new FormatException();
-        return Convert(syntax.Root) as JsonObject ?? throw new FormatException("A mapping is required.");
+        return syntaxCheck.JsonRoot ?? Convert(syntaxCheck.Syntax!.Root) as JsonObject
+            ?? throw new FormatException("A mapping is required.");
     }
 
     private static JsonNode? Convert(YamlNode node) => node switch

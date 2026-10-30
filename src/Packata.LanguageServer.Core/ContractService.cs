@@ -121,7 +121,7 @@ public sealed class ContractService(DocumentStore documents)
     public async Task<ValidationResult> SyntaxAsync(Uri uri, CancellationToken token)
     {
         var snapshot = await documents.ReadAsync(uri, token);
-        var diagnostics = SelectedValidation.SyntaxDiagnostics(snapshot.Text);
+        var diagnostics = SelectedValidation.SyntaxDiagnostics(snapshot.Text, token);
         return new(1, uri.AbsoluteUri, snapshot.Version, diagnostics.Length == 0, diagnostics);
     }
 
