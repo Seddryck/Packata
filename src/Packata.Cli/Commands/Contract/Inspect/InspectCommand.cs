@@ -1,4 +1,5 @@
 using Spectre.Console.Cli;
+using Packata.Application;
 
 namespace Packata.Cli;
 
@@ -8,15 +9,9 @@ internal sealed class InspectCommand : AsyncCommand<InspectSettings>
     {
         try
         {
-            var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var mapped = ContractSelection.Map(source);
-            var contract = mapped.Value!;
-            if (settings.Asset is not null)
-            {
-                var asset = ContractSelection.Asset(contract, settings.Asset);
-                var endpointIds = asset.EndpointBindings.Select(binding => binding.EndpointId).ToHashSet(StringComparer.Ordinal);
-                contract = contract with { Assets = [asset], Endpoints = contract.Endpoints.Where(endpoint => endpointIds.Contains(endpoint.Id)).ToArray() };
-            }
+            using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
+            var mapped = ContractInspector.Inspect(source.Document!, cancellationToken, new(settings.Asset)).Mapping;
+            var contract = mapped.Value ?? throw new ContractOperationException("CLI012", "$", "The contract could not be mapped to the canonical model.");
             var result = CommandOutput.RedactedJson(new { schemaVersion = 1, source = settings.Source, contract, diagnostics = mapped.Diagnostics });
             using var output = new OutputDestination(settings.Output);
             if (settings.OutputFormat == "json") CommandOutput.Json(result, output.Writer);

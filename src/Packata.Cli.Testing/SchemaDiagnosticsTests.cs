@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Schema;
 using NUnit.Framework;
-using Packata.Documents.Validation;
+using Packata.Application.Validation;
 
 namespace Packata.Cli.Testing;
 

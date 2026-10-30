@@ -1,6 +1,28 @@
 # Packata language-server protocol
 
-Packata uses the same host separation as Expressif.LanguageServer: a TypeScript `vscode-languageclient`, a persistent .NET OmniSharp language server, and services that call Packata libraries directly. The CLI is an independent host of the shared `Packata.Documents` parser, validator, and redacted JSON projection.
+Packata uses the same host separation as Expressif.LanguageServer: a TypeScript `vscode-languageclient`, a persistent .NET OmniSharp language server, and services that call Packata libraries directly. The CLI and LanguageServer independently host `Packata.Application`, which replaces `Packata.Documents` and coordinates descriptor inspection and validation.
+
+`ContractInspector.Inspect` accepts descriptor text or reusable `ContractSyntax`, format options, a base URI and cancellation. It returns the native document, source syntax, canonical mapping and diagnostics before host presentation. `Validation.DescriptorValidation.Validate` runs the selected offline validation layers and retains syntax for diagnostic locations. Neither workflow resolves credentials, acquires connectors or reads referenced resource data. `ContractJson` owns redaction and JSON projection without exposing mutable serializer settings.
+
+Background syntax checks call `Validation.DescriptorSyntaxValidation.Validate`, which owns bounded YAML/strict JSON checking and safe parser diagnostics without enabling schema or semantic validation. Layered validation reuses the same syntax result. LSP retains document-size policy, document versions and conversion of one-based parser positions into editor ranges. CLI preview delegates exact asset-ID selection to the application selector and renders its typed failures as `CLI010`/`CLI011`.
+
+Pass `options: new ContractInspectionOptions(AssetId: "orders")` to inspect one asset and its bound endpoints. Application performs the projection while retaining the complete source document and original mapping diagnostics. `DescriptorFormat` provides shared standard identification for inspection, validation, editor menus and native-tree fallback, including partial documents. Validation layers expose structured prerequisite status; editor adapters translate it into labels such as `Blocked`.
+
+`DataPreviewService` coordinates explicit preview through an injected `IDataEndpointReaderFactory`. Both hosts share binding resolution, typed column projection, bounded sampling, null handling, cancellation and reader disposal. Reader factories supply each host's capabilities: CLI supports archives, databases and category decoding; LanguageServer retains its permitted file formats, authentication restrictions and stale-selection checks. Preview target discovery and inspection never open resource data.
+
+The CLI owns argument parsing, local/HTTP/archive acquisition, output destinations and exit codes. The LanguageServer owns synchronized document versions, discovery, caching, source ranges, trees and LSP publication. Domain libraries retain their models, mapping and validation rules; neither host references the other.
+
+Application services also cover schema/dialect inference, descriptor updates, standalone path normalization, schema/dialect export, contract diff/compatibility/satisfaction and quality execution/OORS reporting. These APIs accept explicit inputs and cancellation; file inference uses an injected `IInferenceStreamSource`, database inference receives a resolved connection, and quality execution receives reader and SQL connection capabilities. Export and update operations return content and diagnostics without choosing destinations or writing files. Config/connector management, acquisition lifetimes, read-only database policy and the interactive asset workflow remain CLI responsibilities; document synchronization, workspace discovery, source navigation and protocol negotiation remain LanguageServer responsibilities. The feature audit and scope are recorded in [issue #681](https://github.com/Seddryck/Packata/issues/681).
+
+Application validates inference options against the resolved file format before opening streams. Non-default option values are checked automatically. Set `ContractInferenceOptions.SuppliedOptions` when an explicitly supplied value equals its default (for example, `Header=auto`); CLI translates flags into this semantic metadata. Unsupported combinations produce `UnsupportedInferenceOptionsException`, whose option identifiers can be rendered by any host.
+
+| Application API | Responsibility |
+| --- | --- |
+| `ContractInferenceService`, `DialectInferenceService` | CSV/Excel/Parquet/database inference, dialect sampling and save policies |
+| `DescriptorUpdateService`, `StandaloneContractService` | Metadata-preserving descriptor updates and standalone locator normalization |
+| `ContractExportService` | Canonical mapping, output selection and JSON Schema/Table Dialect content |
+| `ContractComparisonService` | Native validation/provenance, diff, compatibility and producer/consumer satisfaction |
+| `QualityExecutionService`, `QualityReportService` | Rule preparation/filtering, engine composition, execution and offline-validated OORS reports |
 
 ## Session and capabilities
 

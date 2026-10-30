@@ -3,7 +3,7 @@ using Json.More;
 using Json.Schema;
 using Packata.Core.Contracts;
 
-namespace Packata.Documents.Validation;
+namespace Packata.Application.Validation;
 
 /// <summary>Projects assertions without treating rejected alternatives as unconditional failures.</summary>
 internal sealed class SchemaDiagnostics(JsonElement schema, DescriptorProfile profile)

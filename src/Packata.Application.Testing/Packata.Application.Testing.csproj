@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Packata.ResourceReaders.Testing/ExcelWorkbookFixture.cs" Link="ExcelWorkbookFixture.cs" />
+    <None Include="../Packata.ResourceReaders.Testing/Resources/iris.parquet" Link="Resources/iris.parquet" CopyToOutputDirectory="PreserveNewest" />
+    <PackageReference Include="Moq" Version="4.21.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="NUnit" Version="5.0.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="6.3.1" />
+    <ProjectReference Include="../Packata.Application/Packata.Application.csproj" />
+  </ItemGroup>
+</Project>

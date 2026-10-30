@@ -5,16 +5,18 @@ using Newtonsoft.Json.Serialization;
 
 using System.Text.RegularExpressions;
 
-namespace Packata.Documents;
+namespace Packata.Application;
 
 public static class ContractJson
 {
-    public static readonly JsonSerializerSettings JsonSettings = new()
+    private static JsonSerializerSettings CreateSettings() => new()
     {
         ContractResolver = new CamelCasePropertyNamesContractResolver(),
         Converters = { new StringEnumConverter() },
         Formatting = Formatting.Indented
     };
+
+    public static string Serialize(object value) => JsonConvert.SerializeObject(value, CreateSettings());
 
     public static string Redact(string value)
     {
@@ -26,7 +28,7 @@ public static class ContractJson
 
     public static JToken RedactedJson(object value)
     {
-        var token = JToken.FromObject(value, JsonSerializer.Create(JsonSettings));
+        var token = JToken.FromObject(value, JsonSerializer.Create(CreateSettings()));
         Scrub(token);
         return token;
     }

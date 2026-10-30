@@ -1,4 +1,5 @@
 using Packata.Core.Contracts;
+using Packata.Application;
 using Spectre.Console.Cli;
 
 namespace Packata.Cli;
@@ -27,7 +28,7 @@ internal sealed class DiffCommand : AsyncCommand<ContractComparisonSettings>
                 input = "comparison";
                 source = settings.Baseline + " -> " + settings.Candidate;
                 cancellationToken.ThrowIfCancellationRequested();
-                var diff = baseline.Diff(candidate);
+                var diff = ContractComparisonService.Diff(baseline, candidate, cancellationToken);
                 var result = DiffPresenter.Result(settings.Baseline, settings.Candidate, diff, diagnostics);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!settings.Quiet)
@@ -52,11 +53,11 @@ internal sealed class DiffCommand : AsyncCommand<ContractComparisonSettings>
 
         private async Task<DataContract?> Load(string location, string format)
         {
-            var document = await ContractSource.LoadAsync(location, format, cancellationToken).ConfigureAwait(false);
-            var validation = ContractValidation.Validate(document);
-            foreach (var diagnostic in validation) Add(diagnostic);
-            if (validation.Any(x => x.Severity == MappingSeverity.Error)) return null;
-            var mapped = document.Map();
+            using var document = await ContractSource.LoadAsync(location, format, cancellationToken).ConfigureAwait(false);
+            var prepared = ContractComparisonService.Prepare(document.ParsedDocument, cancellationToken);
+            foreach (var diagnostic in prepared.ValidationDiagnostics) Add(diagnostic);
+            if (!prepared.Valid) return null;
+            var mapped = prepared.Mapping ?? throw new InvalidOperationException("The comparison mapping is unavailable.");
             foreach (var diagnostic in mapped.Diagnostics) Add(diagnostic);
             if (mapped.Value is null && mapped.Diagnostics.All(x => x.Severity != MappingSeverity.Error))
                 Add(new("CLI012", MappingSeverity.Error, "$", "The contract could not be mapped to the canonical model."));

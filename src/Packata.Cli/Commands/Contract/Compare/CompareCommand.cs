@@ -1,4 +1,5 @@
 using Packata.Core.Contracts;
+using Packata.Application;
 using Spectre.Console.Cli;
 
 namespace Packata.Cli;
@@ -29,7 +30,7 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
                 if (candidate is null) return Write(null, ExitCodes.InvalidDocument);
                 input = "comparison";
                 source = settings.Baseline + " -> " + settings.Candidate;
-                var result = ContractCompatibility.Compare(baseline, candidate, cancellationToken);
+                var result = ContractComparisonService.Compare(baseline, candidate, cancellationToken);
                 AddDiagnostics(result);
                 return Write(result, ResultExitCode(result));
             }
@@ -73,14 +74,11 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
 
         private async Task<CompatibilityInput?> Load(string location, string format)
         {
-            var document = await ContractSource.LoadAsync(location, format, cancellationToken).ConfigureAwait(false);
-            var validation = ContractValidation.Validate(document);
-            foreach (var diagnostic in validation)
+            using var document = await ContractSource.LoadAsync(location, format, cancellationToken).ConfigureAwait(false);
+            var prepared = ContractComparisonService.Prepare(document.ParsedDocument, cancellationToken);
+            foreach (var diagnostic in prepared.ValidationDiagnostics)
                 diagnostics.Add(new(input, source, diagnostic.Code, diagnostic.Severity, diagnostic.SourcePath, diagnostic.Message));
-            if (validation.Any(x => x.Severity == MappingSeverity.Error)) return null;
-            var comparisonInput = document.CompatibilityInput();
-            cancellationToken.ThrowIfCancellationRequested();
-            return comparisonInput;
+            return prepared.Input;
         }
 
         private int Write(CompatibilityResult? result, int exitCode)

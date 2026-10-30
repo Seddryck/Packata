@@ -1,4 +1,5 @@
 using Packata.Core.Contracts;
+using Packata.Application;
 using Spectre.Console.Cli;
 
 namespace Packata.Cli;
@@ -33,7 +34,7 @@ internal sealed class SatisfiesCommand : AsyncCommand<SatisfiesSettings>
                 var consumer = await Load(settings.Consumer).ConfigureAwait(false);
                 if (consumer is null) return Write(null, 2);
                 role = "analysis";
-                var result = ContractSatisfactionEvaluator.EvaluateSatisfaction(producer, consumer, SatisfactionPolicy.Default, cancellationToken);
+                var result = ContractComparisonService.Satisfies(producer, consumer, cancellationToken: cancellationToken);
                 diagnostics.AddRange(result.Diagnostics);
                 return Write(result, ResultExitCode(result, settings.Unknown));
             }
@@ -48,13 +49,10 @@ internal sealed class SatisfiesCommand : AsyncCommand<SatisfiesSettings>
         private async Task<SatisfactionInput?> Load(string location)
         {
             using var document = await ContractSource.LoadAsync(location, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var validation = ContractValidation.Validate(document);
-            foreach (var diagnostic in validation)
+            var prepared = ContractComparisonService.Prepare(document.ParsedDocument, cancellationToken);
+            foreach (var diagnostic in prepared.ValidationDiagnostics)
                 diagnostics.Add(new(role, location, diagnostic.Code, diagnostic.Severity, diagnostic.SourcePath, diagnostic.Message));
-            if (validation.Any(x => x.Severity == MappingSeverity.Error)) return null;
-            var input = document.CompatibilityInput();
-            cancellationToken.ThrowIfCancellationRequested();
-            return new(input.Contract, input.Standard, location, input.Diagnostics, input.Descriptor);
+            return prepared.Input is null ? null : ContractComparisonService.SatisfactionInput(prepared.Input, location);
         }
 
         private int Write(ContractSatisfaction? result, int code)

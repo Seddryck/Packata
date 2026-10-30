@@ -1,8 +1,6 @@
-using System.Data;
-using System.Data.Common;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
-using Packata.Documents;
+using Packata.Application;
 using Packata.ResourceReaders;
 using Packata.ResourceReaders.Excel;
 using Packata.Storages;
@@ -34,16 +32,16 @@ public static class ResourcePreview
                     "No unambiguous endpoint binding. Select or configure a single server in the descriptor."), null);
             for (var bindingIndex = 0; bindingIndex < asset.EndpointBindings.Count; bindingIndex++)
             {
-                var binding = asset.EndpointBindings[bindingIndex];
-                var endpoints = contract.Endpoints.Where(value => value.Id == binding.EndpointId).ToArray();
-                var endpoint = endpoints.Length == 1 ? endpoints[0] : null;
-                if (endpoint?.Location is PathLocation paths)
+                DataEndpointReadRequest? request;
+                try
                 {
-                    try { endpoint = endpoint with { Location = new PathLocation(paths.Paths.Select(path => Resolve(baseUri, path).AbsoluteUri).ToArray()) }; }
-                    catch (UriFormatException) { endpoint = null; }
+                    request = DataPreviewService.SelectRequest(contract, asset, bindingIndex);
+                    if (request.Endpoint.Location is PathLocation paths)
+                        request = request with { Endpoint = request.Endpoint with
+                        { Location = new PathLocation(paths.Paths.Select(path => Resolve(baseUri, path).AbsoluteUri).ToArray()) } };
                 }
-                var request = endpoint is null ? null : new DataEndpointReadRequest(endpoint, asset.Schema,
-                    binding.AssetPath ?? asset.PhysicalName ?? asset.Name, contract);
+                catch (Exception error) when (error is DataPreviewSelectionException or UriFormatException) { request = null; }
+                var endpoint = request?.Endpoint;
                 var reason = request is null ? "The endpoint binding cannot be resolved uniquely."
                     : Eligibility(request, baseUri);
                 // Authentication declarations can be native properties omitted by canonical mapping.
@@ -115,8 +113,9 @@ public static class ResourcePreview
             var baseUri = new Uri(snapshot.Uri, ".");
             if (EncodingSize(snapshot.Text) > ContractService.MaximumDocumentBytes)
                 return Failure("PREVIEW_DOCUMENT", "The descriptor exceeds the supported document size.");
-            var document = ContractDocument.Parse(snapshot.Text, baseUri: baseUri);
-            var contract = document.Map().Value;
+            var inspection = ContractInspector.Inspect(snapshot.Text, baseUri: baseUri, cancellationToken: token);
+            var document = inspection.Document;
+            var contract = inspection.Mapping.Value;
             if (contract is null) return Failure("PREVIEW_DOCUMENT", "The descriptor cannot be mapped for preview.");
             var selections = Selections(document, contract, baseUri).Where(value => value.Target.SourcePath == sourcePath).ToArray();
             if (bindingIndex is null && selections.Length > 1)
@@ -131,23 +130,10 @@ public static class ResourcePreview
             var resolver = new PreviewStreams(baseUri, streams ?? new DefaultEndpointStreamResolver(),
                 format.Name is "xls" or "xlsx");
             var factory = ResourceReaderFactory.Create(options => options.AddExcel(), resolver);
-            using var reader = await factory.OpenAsync(request, token).ConfigureAwait(false);
-            var hasRow = await NextAsync(reader, token).ConfigureAwait(false);
-            var columns = Enumerable.Range(0, reader.FieldCount).Select(i => new PreviewColumn(reader.GetName(i),
-                DeclaredType(request.Schema, reader.GetName(i))
-                ?? (hasRow ? reader.GetFieldType(i)?.Name : null) ?? "unknown")).ToArray();
-            if (!hasRow && columns.Length == 0 && request.Schema is { } schema)
-                columns = schema.Fields.Select(field => new PreviewColumn(field.Name, field.LogicalType ?? field.PhysicalType ?? "unknown")).ToArray();
-            var rows = new List<object?[]>();
-            while (hasRow)
-            {
-                token.ThrowIfCancellationRequested();
-                rows.Add(Enumerable.Range(0, reader.FieldCount).Select(i => reader.IsDBNull(i) ? null : reader.GetValue(i)).ToArray());
-                if (rows.Count == limit) break;
-                hasRow = await NextAsync(reader, token).ConfigureAwait(false);
-            }
-            token.ThrowIfCancellationRequested();
-            return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, limit, columns, rows);
+            var sample = await new DataPreviewService(factory).ReadAsync(request,
+                new(limit, RequireUniqueColumnNames: false), token).ConfigureAwait(false);
+            return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, limit,
+                sample.Columns.Select(column => new PreviewColumn(column.Name, column.Type)).ToArray(), sample.Rows);
         }
         catch (OperationCanceledException) { throw; }
         catch (NotSupportedException) { return Failure("PREVIEW_FORMAT", "The resource format or layout is unsupported for preview."); }
@@ -156,20 +142,7 @@ public static class ResourcePreview
         catch (Exception) { return Failure("PREVIEW_PARSE", "Unable to parse the resource. Check its format, dialect and declared types."); }
     }
 
-    private static async ValueTask<bool> NextAsync(IDataReader reader, CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        var result = reader is DbDataReader asyncReader ? await asyncReader.ReadAsync(token).ConfigureAwait(false) : reader.Read();
-        token.ThrowIfCancellationRequested();
-        return result;
-    }
-
     private static int EncodingSize(string text) => System.Text.Encoding.UTF8.GetByteCount(text);
-    private static string? DeclaredType(DataSchema? schema, string name)
-    {
-        var field = schema?.Fields.FirstOrDefault(value => value.Name == name);
-        return field?.LogicalType ?? field?.PhysicalType;
-    }
 
     private sealed class PreviewStreams(Uri baseUri, IEndpointStreamResolver inner, bool seekable) : IEndpointStreamResolver
     {

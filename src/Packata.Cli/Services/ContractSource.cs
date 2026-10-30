@@ -1,9 +1,7 @@
 using Packata.Core.Contracts;
 using Packata.Core.Storage;
-using Packata.DataPackage.Mapping;
-using Packata.OpenDataContract.Mapping;
+using Packata.Application;
 using Packata.Storages;
-using YamlDotNet.RepresentationModel;
 
 namespace Packata.Cli;
 
@@ -21,22 +19,15 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         return new[] { ".zip", ".tar", ".tar.gz", ".tar.br" }
             .Any(suffix => path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
     }
-    internal YamlMappingNode? DescriptorRoot { get; init; }
+    internal Packata.Application.ContractDocument? Document { get; init; }
 
-    internal CompatibilityInput CompatibilityInput()
-    {
-        var mapped = Map();
-        return new(mapped.Value, NativeDocument is Packata.DataPackage.DataPackage
-            ? ContractStandard.DataPackage : ContractStandard.Odcs, mapped.Diagnostics,
-            DescriptorRoot is null ? null : Tree(DescriptorRoot));
-    }
+    internal Packata.Application.ContractDocument ParsedDocument => Document
+        ?? throw new InvalidOperationException("The descriptor has not been parsed.");
 
-    public MappingResult<DataContract> Map() => NativeDocument switch
-    {
-        Packata.DataPackage.DataPackage package => package.ToCanonicalContract(),
-        Packata.OpenDataContract.DataContract contract => contract.ToCanonicalContract(),
-        _ => throw new NotSupportedException()
-    };
+    internal CompatibilityInput CompatibilityInput() => ContractComparisonService.CreateInput(Document ?? throw new InvalidOperationException("The descriptor has not been parsed."));
+
+    public MappingResult<DataContract> Map(CancellationToken cancellationToken = default) =>
+        ContractInspector.Inspect(Document ?? throw new InvalidOperationException("The descriptor has not been parsed."), cancellationToken).Mapping;
 
     public static async Task<ContractSource> LoadAsync(string source, string format, CancellationToken cancellationToken, bool retainArchive = false, bool rawOnly = false)
     {
@@ -131,20 +122,7 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
     internal static ContractSource Parse(string source, Uri baseUri, string descriptor, string text, string format, bool rawOnly = false)
     {
         if (rawOnly) return new(source, baseUri, text) { OriginalText = text };
-        var document = Packata.Documents.ContractDocument.Parse(text, format, baseUri);
-        return new(source, baseUri, document.NativeDocument) { DescriptorRoot = document.Root, OriginalText = text };
+        var document = Packata.Application.ContractDocument.Parse(text, format, baseUri);
+        return new(source, baseUri, document.NativeDocument) { Document = document, OriginalText = text };
     }
-
-    // Transport-only projection; source coverage and all compatibility rules live in Core.
-    private static object? Tree(YamlNode node) => node switch
-    {
-        YamlMappingNode map => Tree(map),
-        YamlSequenceNode sequence => sequence.Children.Select(Tree).ToArray(),
-        YamlScalarNode scalar => scalar.Value,
-        _ => null
-    };
-
-    private static IReadOnlyDictionary<string, object?> Tree(YamlMappingNode map)
-        => map.Children.ToDictionary(pair => ((YamlScalarNode)pair.Key).Value ?? string.Empty,
-            pair => Tree(pair.Value), StringComparer.Ordinal);
 }

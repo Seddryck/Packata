@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json;
 using Json.Schema;
 
-namespace Packata.Documents.Validation;
+namespace Packata.Application.Validation;
 
 public sealed record DescriptorProfile(string Uri, string Label, string Format);
 
@@ -41,7 +41,7 @@ public static class DescriptorProfiles
 
     private static string ReadResource(string file)
     {
-        using var stream = typeof(DescriptorProfiles).Assembly.GetManifestResourceStream($"Packata.Documents.Validation.Schemas.{file}")
+        using var stream = typeof(DescriptorProfiles).Assembly.GetManifestResourceStream($"Packata.Application.Validation.Schemas.{file}")
             ?? throw new InvalidOperationException("The pinned profile resource is missing.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();

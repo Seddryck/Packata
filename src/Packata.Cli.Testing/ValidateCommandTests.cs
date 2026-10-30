@@ -10,6 +10,22 @@ namespace Packata.Cli.Testing;
 [TestFixture]
 public sealed class ValidateCommandTests
 {
+    [TestCase("not-an-array", "Failed", "Failed", true)]
+    [TestCase("[]", "Passed", "Satisfied", true)]
+    [TestCase("[", "Skipped", "Failed", false)]
+    public async Task JsonLayerResults_ExposeApplicationPrerequisites(string schema, string state, string prerequisites, bool executed)
+    {
+        using var workspace = new CliWorkspace();
+        var text = "apiVersion: v3.2.0\nkind: DataContract\nid: contract\nversion: 1.0.0\nstatus: draft\nschema: " + schema;
+        var path = workspace.Write("contract.yaml", text);
+        var result = await CliWorkspace.Run("contract", "validate", path, "--semantic", "--output-format", "json");
+        var layer = JObject.Parse(result.Output)["layers"]!.Single();
+        Assert.That((string?)layer["state"], Is.EqualTo(state));
+        Assert.That((string?)layer["prerequisites"], Is.EqualTo(prerequisites));
+        Assert.That((bool?)layer["executed"], Is.EqualTo(executed));
+        Assert.That(result.ExitCode, Is.EqualTo(state == "Passed" ? 0 : 1));
+    }
+
     [TestCase("contract.yaml", CliWorkspace.Odcs)]
     [TestCase("datapackage.json", CliWorkspace.PackageJson)]
     [TestCase("datapackage.yaml", CliWorkspace.PackageYaml)]
@@ -19,6 +35,8 @@ public sealed class ValidateCommandTests
         var path = workspace.Write(name, text);
         var result = await CliWorkspace.Run("contract", "validate", path, "--output-format", "json");
         var json = JObject.Parse(result.Output);
+        var application = Packata.Application.Validation.DescriptorValidation.Validate(text, baseUri: new Uri(new Uri(path), "."));
+        var expected = Packata.Application.ContractJson.RedactedJson(new { application.Diagnostics, application.Layers, application.Profile });
         Assert.Multiple(() =>
         {
             Assert.That(result.ExitCode, Is.Zero, result.Error);
@@ -26,6 +44,9 @@ public sealed class ValidateCommandTests
             Assert.That((int?)json["schemaVersion"], Is.EqualTo(1));
             Assert.That(result.Error, Is.Empty);
             Assert.That(File.ReadAllText(path), Is.EqualTo(text));
+            Assert.That(JToken.DeepEquals(json["diagnostics"], expected["diagnostics"]), Is.True);
+            Assert.That(JToken.DeepEquals(json["layers"], expected["layers"]), Is.True);
+            Assert.That(JToken.DeepEquals(json["profile"], expected["profile"]), Is.True);
         });
     }
 

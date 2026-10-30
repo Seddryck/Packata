@@ -113,7 +113,7 @@ enum membership, foreign-key rows, quality results, or SLA observations in a dat
 
 ## Library entry point
 
-The CLI and .NET hosts share `Packata.Documents.Validation.DescriptorValidation`:
+The CLI and .NET hosts share `Packata.Application.Validation.DescriptorValidation`:
 
 ```csharp
 var report = DescriptorValidation.Validate(originalText, format: "odcs");
@@ -121,6 +121,33 @@ var semantics = DescriptorValidation.Validate(originalText, format: "odcs",
     layers: ValidationLayers.Semantic);
 // report.Valid requires every selected layer to complete and pass.
 ```
+
+For background syntax checks, use
+`Packata.Application.Validation.DescriptorSyntaxValidation.Validate(originalText, cancellationToken)`.
+It checks a single bounded YAML mapping and strict JSON syntax for JSON-shaped
+input without deserializing native models, evaluating schemas/semantics or
+accessing resource data. Its result contains reusable `Syntax` and safe
+`Diagnostics`; optional parser locations use one-based line/column coordinates.
+Editor hosts project those coordinates into their range representation and apply
+their own document-size limits. `ContractSyntax.Parse` alone supplies a bounded
+YAML representation and does not enforce strict JSON grammar.
+
+Layered validation reuses this syntax result and exposes its parser findings as
+`report.SyntaxDiagnostics`, so hosts can project errors without reparsing source.
+
+Each layer reports its `State`, whether it `Executed`, and its `Prerequisites`
+(`Satisfied` or `Failed`). A semantic layer can partially execute and fail a
+structural prerequisite; it then reports `State=Failed`, `Executed=true`, and
+`Prerequisites=Failed`. A skipped layer has `Executed=false` and failed
+prerequisites. Editor hosts use this structured status to show blocked checks;
+they do not derive execution eligibility from diagnostic codes. Ordinary failed
+checks can have satisfied prerequisites.
+
+`report.Format` and `ContractSyntax.Format` use the same `DescriptorFormat`
+classifier as native parsing and inspection. In auto mode, either `kind` or
+`apiVersion` identifies ODCS, including partially authored documents. Explicit
+format overrides remain authoritative. Broken-buffer recovery hints are also
+provided by Application through `DescriptorFormat.Detect`/`Recover`.
 
 Pass original source text, not a serialized native model. The older
 `ContractDocument.Validate(object)` remains a native-model helper; it cannot prove

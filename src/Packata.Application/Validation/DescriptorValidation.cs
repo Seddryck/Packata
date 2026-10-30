@@ -7,19 +7,29 @@ using Packata.Core.Contracts;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
-namespace Packata.Documents.Validation;
+namespace Packata.Application.Validation;
 
 [Flags]
 public enum ValidationLayers { None = 0, Schema = 1, Semantic = 2 }
 public enum ValidationState { Passed, Failed, Skipped }
+public enum ValidationPrerequisiteStatus { Satisfied, Failed }
 public sealed record ValidationFinding(ValidationLayers Layer, string Code, MappingSeverity Severity, string SourcePath, string Message);
 public sealed record LayerValidation(ValidationLayers Layer, ValidationState State, string? Reason = null)
 {
     public bool Executed => State != ValidationState.Skipped;
+    /// <summary>Partial execution may still fail a declaration prerequisite; hosts must not infer this from diagnostic codes.</summary>
+    public ValidationPrerequisiteStatus Prerequisites { get; init; } = State == ValidationState.Skipped
+        ? ValidationPrerequisiteStatus.Failed : ValidationPrerequisiteStatus.Satisfied;
 }
 public sealed record DescriptorValidationReport(IReadOnlyList<LayerValidation> Layers, IReadOnlyList<ValidationFinding> Diagnostics, DescriptorProfile? Profile = null)
 {
-    public bool Valid => Layers.Count > 0 && Layers.All(layer => layer.State == ValidationState.Passed)
+    /// <summary>Source syntax retained for host-specific diagnostic locations.</summary>
+    public ContractSyntax? Syntax { get; init; }
+    public string? Format { get; init; }
+    public IReadOnlyList<SyntaxDiagnostic> SyntaxDiagnostics { get; init; } = [];
+
+    public bool Valid => Layers.Count > 0 && Layers.All(layer => layer.State == ValidationState.Passed
+        && layer.Prerequisites == ValidationPrerequisiteStatus.Satisfied)
         && Diagnostics.All(finding => finding.Severity != MappingSeverity.Error);
 }
 
@@ -30,37 +40,52 @@ public static class DescriptorValidation
     public const ValidationLayers DefaultLayers = ValidationLayers.Schema | ValidationLayers.Semantic;
 
     public static DescriptorValidationReport Validate(string text, string format = "auto",
-        ValidationLayers layers = DefaultLayers, Uri? baseUri = null)
+        ValidationLayers layers = DefaultLayers, Uri? baseUri = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (format is not ("auto" or "odcs" or "datapackage")) throw new ArgumentException("Unknown input format.", nameof(format));
         if (layers == ValidationLayers.None || (layers & ~DefaultLayers) != 0) throw new ArgumentOutOfRangeException(nameof(layers));
-        var findings = new List<ValidationFinding>();
-        var results = new List<LayerValidation>();
         var selected = new[] { ValidationLayers.Schema, ValidationLayers.Semantic }.Where(layer => layers.HasFlag(layer)).ToArray();
         JsonObject root;
-        try { root = Read(text); }
+        var syntaxCheck = DescriptorSyntaxValidation.Validate(text, cancellationToken);
+        ContractSyntax syntax;
+        try
+        {
+            if (!syntaxCheck.Valid) throw new FormatException();
+            syntax = syntaxCheck.Syntax ?? throw new FormatException();
+            root = Read(syntaxCheck);
+        }
         catch (Exception exception) when (exception is YamlException or FormatException or JsonException or ArgumentException)
         {
-            foreach (var layer in selected)
-            {
-                findings.Add(new(layer, "VAL_PARSE", MappingSeverity.Error, "$", "A single, bounded YAML/JSON mapping with unique string keys is required."));
-                results.Add(new(layer, ValidationState.Skipped, "Parsing prerequisite failed."));
-            }
-            return new(results, findings);
+            cancellationToken.ThrowIfCancellationRequested();
+            return ParsingFailure(syntaxCheck, format, selected);
         }
 
-        return Execute(root, text, format, selected, baseUri);
+        var report = Execute(root, syntax, format, selected, baseUri, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return report with { Syntax = syntax, Format = DescriptorFormat.Identify(syntax.Root, format) };
     }
 
-    private static DescriptorValidationReport Execute(JsonObject root, string text, string format, ValidationLayers[] selected, Uri? baseUri)
+    private static DescriptorValidationReport ParsingFailure(SyntaxValidationResult syntaxCheck, string format, ValidationLayers[] selected)
+    {
+        var findings = selected.Select(layer => new ValidationFinding(layer, "VAL_PARSE", MappingSeverity.Error, "$",
+            "A single, bounded YAML/JSON mapping with unique string keys is required.")).ToArray();
+        var results = selected.Select(layer => new LayerValidation(layer, ValidationState.Skipped, "Parsing prerequisite failed.")).ToArray();
+        var detected = format == "auto" ? null : format;
+        if (syntaxCheck.Syntax is { } syntax) detected = DescriptorFormat.Identify(syntax.Root, format);
+        return new(results, findings) { Syntax = syntaxCheck.Syntax, SyntaxDiagnostics = syntaxCheck.Diagnostics, Format = detected };
+    }
+
+    private static DescriptorValidationReport Execute(JsonObject root, ContractSyntax syntax, string format, ValidationLayers[] selected, Uri? baseUri, CancellationToken cancellationToken)
     {
         var findings = new List<ValidationFinding>();
         var results = new List<LayerValidation>();
-        var odcs = format == "odcs" || (format == "auto" && (root.ContainsKey("kind") || root.ContainsKey("apiVersion")));
+        var odcs = DescriptorFormat.Identify(syntax.Root, format) == "odcs";
         var profile = DescriptorProfiles.Select(root, odcs);
         var selectionIssue = SelectionIssue(root, format, odcs);
         foreach (var layer in selected)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (layer == ValidationLayers.Semantic && results.Any(result => result.Layer == ValidationLayers.Schema && result.State != ValidationState.Passed))
             {
                 results.Add(new(layer, ValidationState.Skipped, "Schema validation failed; semantic validation requires a schema-valid descriptor."));
@@ -74,15 +99,19 @@ public static class DescriptorValidation
                 continue;
             }
             var start = findings.Count;
-            EvaluateLayer(layer, root, text, format, profile ?? throw new InvalidOperationException("Profile selection failed."), baseUri, findings);
+            EvaluateLayer(layer, root, syntax, format, profile ?? throw new InvalidOperationException("Profile selection failed."), baseUri, findings);
             results.Add(Outcome(layer, findings.Skip(start).ToArray()));
         }
         return new(results.AsReadOnly(), findings.Distinct().ToArray(), profile);
     }
 
     private static LayerValidation Outcome(ValidationLayers layer, ValidationFinding[] current)
-        => new(layer, current.Any(f => f.Severity == MappingSeverity.Error) ? ValidationState.Failed : ValidationState.Passed,
-            current.Any(f => f.Code is "VAL_PREREQUISITE" or "SEM_STRUCTURE") ? "Some declaration checks could not complete because structural prerequisites failed." : null);
+    {
+        var prerequisiteFailed = current.Any(f => f.Code is "VAL_PREREQUISITE" or "SEM_STRUCTURE");
+        return new(layer, current.Any(f => f.Severity == MappingSeverity.Error) ? ValidationState.Failed : ValidationState.Passed,
+            prerequisiteFailed ? "Some declaration checks could not complete because structural prerequisites failed." : null)
+        { Prerequisites = prerequisiteFailed ? ValidationPrerequisiteStatus.Failed : ValidationPrerequisiteStatus.Satisfied };
+    }
 
     private static string? SelectionIssue(JsonObject root, string format, bool odcs)
     {
@@ -93,7 +122,7 @@ public static class DescriptorValidation
         return null;
     }
 
-    private static void EvaluateLayer(ValidationLayers layer, JsonObject root, string text, string format,
+    private static void EvaluateLayer(ValidationLayers layer, JsonObject root, ContractSyntax syntax, string format,
         DescriptorProfile profile, Uri? baseUri, List<ValidationFinding> findings)
     {
         if (layer == ValidationLayers.Schema)
@@ -106,14 +135,14 @@ public static class DescriptorValidation
             return;
         }
         if (profile.Format == "odcs") OdcsSemanticValidation.Validate(root, findings);
-        NativeSemantics(text, format, baseUri, findings, profile.Format == "odcs");
+        NativeSemantics(syntax, format, baseUri, findings, profile.Format == "odcs");
     }
 
-    private static void NativeSemantics(string text, string format, Uri? baseUri, List<ValidationFinding> findings, bool odcs)
+    private static void NativeSemantics(ContractSyntax syntax, string format, Uri? baseUri, List<ValidationFinding> findings, bool odcs)
     {
         try
         {
-            var document = ContractDocument.Parse(text, format, baseUri);
+            var document = ContractDocument.Parse(syntax, format, baseUri);
             foreach (var finding in ContractDocument.Validate(document.NativeDocument))
                 findings.Add(new(ValidationLayers.Semantic, finding.Code, finding.Severity, finding.SourcePath,
                     ContractJson.Redact(finding.Message)));
@@ -139,12 +168,10 @@ public static class DescriptorValidation
 
     internal static string? Text(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
 
-    private static JsonObject Read(string text)
+    private static JsonObject Read(SyntaxValidationResult syntaxCheck)
     {
-        var root = ContractDocument.ParseRoot(text); // Bounds, duplicate YAML keys and cycles.
-        if (text.TrimStart().StartsWith('{') || text.TrimStart().StartsWith('['))
-            return JsonNode.Parse(text) as JsonObject ?? throw new FormatException();
-        return Convert(root) as JsonObject ?? throw new FormatException("A mapping is required.");
+        return syntaxCheck.JsonRoot ?? Convert((syntaxCheck.Syntax ?? throw new FormatException()).Root) as JsonObject
+            ?? throw new FormatException("A mapping is required.");
     }
 
     private static JsonNode? Convert(YamlNode node) => node switch

@@ -1,5 +1,5 @@
 using Packata.Core.Contracts;
-using Packata.Documents;
+using Packata.Application;
 using YamlDotNet.RepresentationModel;
 
 namespace Packata.LanguageServer.Core;

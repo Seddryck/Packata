@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Packata.Core.Contracts;
 
-namespace Packata.Documents.Validation;
+namespace Packata.Application.Validation;
 
 /// <summary>Declaration checks only. Never resolves remote references or opens dataset endpoints.</summary>
 internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFinding> findings)

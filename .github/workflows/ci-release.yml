@@ -84,6 +84,8 @@ jobs:
           cache-dependency-path: vscode-extension/package-lock.json
       - name: Test language-server services and stdio protocol
         run: dotnet test src/Packata.LanguageServer.Testing/Packata.LanguageServer.Testing.csproj --configuration Release --framework net10.0 --nologo
+      - name: Test shared application workflows
+        run: dotnet test src/Packata.Application.Testing/Packata.Application.Testing.csproj --configuration Release --framework net10.0 --nologo
       - name: Restore extension dependencies
         working-directory: vscode-extension
         run: npm ci --ignore-scripts

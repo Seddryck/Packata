@@ -1,7 +1,5 @@
-using Packata.Documents;
-using Packata.Documents.Validation;
-using YamlDotNet.Core;
-using YamlDotNet.RepresentationModel;
+using Packata.Application;
+using Packata.Application.Validation;
 
 namespace Packata.LanguageServer.Core;
 
@@ -17,58 +15,52 @@ public static class SelectedValidation
 
     public static ValidationOptions Options(DocumentSnapshot snapshot) => new(1, Format(snapshot), Validators);
 
-    public static ValidationResult Validate(DocumentSnapshot snapshot, IReadOnlyList<string>? selected = null)
+    public static ValidationResult Validate(DocumentSnapshot snapshot, IReadOnlyList<string>? selected = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         selected ??= [SchemaId, "semantic"];
         if (!ValidSelection(selected))
             throw new ArgumentException("Select at least one available validation check.", nameof(selected));
-        var format = Format(snapshot);
         var layers = ValidationLayers.None;
         if (selected.Contains(SchemaId)) layers |= ValidationLayers.Schema;
         if (selected.Contains("semantic")) layers |= ValidationLayers.Semantic;
         if (TooLarge(snapshot.Text))
-            return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, false, SyntaxDiagnostics(snapshot.Text),
+            return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, false, SyntaxDiagnostics(snapshot.Text, cancellationToken),
                 Validators.Select(option => new ValidationCheck(option.Id, option.Label, selected.Contains(option.Id) ? "Blocked" : "NotSelected",
-                    Reason: "Document exceeds the 4 MiB size limit.")).ToArray(), format);
-        var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."));
-        var diagnostics = Diagnostics(snapshot.Text, report);
+                    Reason: "Document exceeds the 4 MiB size limit.")).ToArray(), Format(snapshot));
+        var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."), cancellationToken);
+        var diagnostics = Diagnostics(report);
         var checks = Validators.Select(option => Check(option, selected, report)).ToArray();
+        var format = report.Format ?? DescriptorFormat.Recover(snapshot.Text, snapshot.Uri);
         return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, report.Valid, diagnostics, checks, format, report.Profile);
     }
 
     private static bool ValidSelection(IReadOnlyList<string> selected)
         => selected.Count > 0 && selected.Distinct().Count() == selected.Count && selected.All(id => Validators.Any(option => option.Id == id));
 
-    private static DocumentDiagnostic[] Diagnostics(string text, DescriptorValidationReport report)
+    private static DocumentDiagnostic[] Diagnostics(DescriptorValidationReport report)
     {
-        var index = Index(text);
+        if (report.SyntaxDiagnostics.Count > 0) return ProjectSyntax(report.SyntaxDiagnostics);
+        var index = report.Syntax is null ? null : new SourceIndex(report.Syntax.Root);
         var diagnostics = report.Diagnostics.Select(finding => new DocumentDiagnostic(finding.Code,
             finding.Severity.ToString(), ContractJson.Redact(finding.SourcePath), ContractJson.Redact(finding.Message),
             FindingRange(index, finding.SourcePath), finding.Code == "VAL_PARSE" ? "Syntax" : finding.Layer.ToString())).ToArray();
-        if (report.Diagnostics.Any(d => d.Code == "VAL_PARSE") && SyntaxDiagnostics(text) is { Length: > 0 } syntax) diagnostics = syntax;
         return diagnostics.Distinct().ToArray();
     }
 
-    public static DocumentDiagnostic[] SyntaxDiagnostics(string text)
+    public static DocumentDiagnostic[] SyntaxDiagnostics(string text, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (TooLarge(text)) return [new("VAL_SIZE", "Error", "$", "Document exceeds the 4 MiB size limit; checks are blocked.", null, "Syntax")];
-        try
-        {
-            ContractDocument.ParseRoot(text);
-            if (text.TrimStart().StartsWith('{')) System.Text.Json.JsonDocument.Parse(text).Dispose();
-            return [];
-        }
-        catch (Exception error) when (error is YamlException or FormatException or ArgumentException or System.Text.Json.JsonException)
-        {
-            SourceRange? range = null;
-            if (error is YamlException yaml && yaml.Start.Line > 0)
-            {
-                var position = new Position((int)yaml.Start.Line - 1, (int)Math.Max(0, yaml.Start.Column - 1));
-                range = new(position, position);
-            }
-            return [new("VAL_PARSE", "Error", "$", "Invalid YAML/JSON syntax; validation checks are blocked.", range, "Syntax")];
-        }
+        return ProjectSyntax(DescriptorSyntaxValidation.Validate(text, cancellationToken).Diagnostics);
     }
+
+    private static DocumentDiagnostic[] ProjectSyntax(IReadOnlyList<SyntaxDiagnostic> diagnostics) => diagnostics.Select(value =>
+        {
+            var position = value.Location is { } location ? new Position(location.Line - 1, location.Column - 1) : null;
+            return new DocumentDiagnostic(value.Code, value.Severity.ToString(), value.SourcePath, value.Message,
+                position is null ? null : new SourceRange(position, position), "Syntax");
+        }).ToArray();
 
     private static ValidationCheck Check(ValidatorOption option, IReadOnlyList<string> selected, DescriptorValidationReport report)
     {
@@ -76,8 +68,7 @@ public static class SelectedValidation
         var layer = option.Id == SchemaId ? ValidationLayers.Schema : ValidationLayers.Semantic;
         var outcome = report.Layers.Single(result => result.Layer == layer);
         var errors = report.Diagnostics.Count(d => d.Layer == layer && d.Severity == Packata.Core.Contracts.MappingSeverity.Error);
-        var prerequisiteFailed = report.Diagnostics.Any(d => d.Layer == layer && d.Code is "VAL_PREREQUISITE" or "SEM_STRUCTURE");
-        var state = outcome.State == ValidationState.Skipped || prerequisiteFailed ? "Blocked" : outcome.State.ToString();
+        var state = outcome.Prerequisites == ValidationPrerequisiteStatus.Failed ? "Blocked" : outcome.State.ToString();
         return new(option.Id, option.Label, state, errors, outcome.Reason);
     }
 
@@ -94,22 +85,9 @@ public static class SelectedValidation
         return null;
     }
 
-    private static SourceIndex? Index(string text)
-    {
-        if (TooLarge(text)) return null;
-        try { return new(ContractDocument.ParseRoot(text)); }
-        catch (Exception error) when (error is YamlException or FormatException or ArgumentException) { return null; }
-    }
-
     private static bool TooLarge(string text) => System.Text.Encoding.UTF8.GetByteCount(text) > ContractService.MaximumDocumentBytes;
 
-    private static string Format(DocumentSnapshot snapshot)
-    {
-        var index = Index(snapshot.Text);
-        if (index is not null)
-            return index.Find("/kind") is not null || index.Find("/apiVersion") is not null ? "odcs" : DataPackageFormat;
-        return snapshot.Uri.LocalPath.Contains("odcs", StringComparison.OrdinalIgnoreCase) ||
-            Path.GetFileName(snapshot.Uri.LocalPath).StartsWith("contract", StringComparison.OrdinalIgnoreCase) ||
-            snapshot.Text.Contains("apiVersion", StringComparison.Ordinal) ? "odcs" : DataPackageFormat;
-    }
+    private static string Format(DocumentSnapshot snapshot) => TooLarge(snapshot.Text)
+        ? DescriptorFormat.Recover(snapshot.Text, snapshot.Uri)
+        : DescriptorFormat.Detect(snapshot.Text, snapshot.Uri);
 }

@@ -52,10 +52,15 @@ public sealed class ContractServiceTests
         var uri = new Uri("file:///workspace/folder/unsaved.yaml");
         store.Update(uri, text, 7);
         var result = await new ContractService(store).InspectAsync(uri, CancellationToken.None);
+        var application = Packata.Application.ContractInspector.Inspect(text, baseUri: new Uri(uri, "."));
         Assert.Multiple(() =>
         {
             Assert.That(result.Recognized, Is.True);
             Assert.That(result.Format, Is.EqualTo(format));
+            Assert.That(JToken.DeepEquals(result.Contract, Packata.Application.ContractJson.RedactedJson(application.Mapping.Value!)), Is.True);
+            Assert.That(result.Diagnostics.Select(value => (value.Code, value.Severity, value.SourcePath, value.Message)),
+                Is.EqualTo(application.Mapping.Diagnostics.Select(value => (value.Code, value.Severity.ToString(),
+                    Packata.Application.ContractJson.Redact(value.SourcePath), Packata.Application.ContractJson.Redact(value.Message)))));
             Assert.That(result.Version, Is.EqualTo(7));
             Assert.That(result.BaseUri, Is.EqualTo("file:///workspace/folder/"));
             Assert.That(result.Contract!["assets"]![0]!["id"]!.Value<string>(), Is.EqualTo(asset));
@@ -215,7 +220,7 @@ public sealed class ContractServiceTests
         var field = CanonicalFields(result.Tree!).Single();
         var range = field.Location!.Range;
         Assert.That(Flatten(result.NativeTree!).Single(node => node.SourcePath == "/resources/0/schema/fields/0").Location!.Range, Is.EqualTo(range));
-        var syntax = new SourceIndex(Packata.Documents.ContractDocument.Parse(text).Root).Find("/resources/0/schema/fields/0")!;
+        var syntax = new SourceIndex(Packata.Application.ContractDocument.Parse(text).Root).Find("/resources/0/schema/fields/0")!;
         Assert.That(text[range.Start.Character..range.End.Character], Does.StartWith("{\"name\":\"id\""), Newtonsoft.Json.JsonConvert.SerializeObject(new { range, syntax.Start, syntax.End, expected = text.IndexOf("{\"name\":\"id\"", StringComparison.Ordinal) }));
     }
 
@@ -227,7 +232,7 @@ public sealed class ContractServiceTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(root, "orders.csv"), "id,amount\n1,12\n");
-            var parsed = Packata.Documents.ContractDocument.Parse(Package, baseUri: new Uri(root + Path.DirectorySeparatorChar));
+            var parsed = Packata.Application.ContractDocument.Parse(Package, baseUri: new Uri(root + Path.DirectorySeparatorChar));
             var native = (Packata.DataPackage.DataPackage)parsed.NativeDocument;
             await using var stream = await native.Resources[0].Paths[0].OpenAsync();
             using var reader = new StreamReader(stream);

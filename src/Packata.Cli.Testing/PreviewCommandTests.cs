@@ -12,6 +12,30 @@ namespace Packata.Cli.Testing;
 [TestFixture]
 public sealed class PreviewCommandTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Preview_UsesSharedAssetSelectionAndPreservesCliDiagnosticsBeforeOpeningData(bool duplicate)
+    {
+        using var workspace = new CliWorkspace();
+        var json = JObject.Parse(CliWorkspace.PackageJson);
+        if (duplicate) ((JArray)json["resources"]!).Add(json["resources"]![0]!.DeepClone());
+        var path = workspace.Write("datapackage.json", json.ToString());
+        using var source = await ContractSource.LoadAsync(path, "auto", default);
+        var contract = source.Map().RequireValue();
+        var assetId = duplicate ? "customers" : "missing";
+        var error = Assert.Throws<Packata.Application.ContractAssetSelectionException>(() => ContractSelection.Asset(contract, assetId));
+        Assert.That(error!.Ambiguous, Is.EqualTo(duplicate));
+        var expected = Assert.Throws<Packata.Application.ContractAssetSelectionException>(() =>
+            Packata.Application.ContractInferenceService.SelectAsset(contract, assetId));
+        Assert.That(error.Message, Is.EqualTo(expected!.Message));
+        // The referenced CSV does not exist; selection must fail before resource access.
+        var result = await CliWorkspace.Run("data", "preview", path, "--asset", assetId, "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(1));
+        Assert.That(result.Output, Is.Empty);
+        Assert.That(result.Error, Does.Contain(duplicate ? "CLI011" : "CLI010").And.Contain(error.Message));
+        if (!duplicate) Assert.That(ContractSelection.Asset(contract, "customers"), Is.SameAs(contract.Assets[0]));
+    }
+
     [Test]
     public async Task Preview_CsvServiceReadsCanonicalHeaders()
     {
@@ -21,7 +45,12 @@ public sealed class PreviewCommandTests
         var source = await ContractSource.LoadAsync(path, "auto", CancellationToken.None);
         var contract = source.Map().RequireValue();
         var sample = await PreviewService.ReadAsync(PreviewService.CreateFactory(source.BaseUri), PreviewService.Request(contract, contract.Assets[0]), 20, null, CancellationToken.None);
+        var request = Packata.Application.DataPreviewService.SelectRequest(contract, contract.Assets[0]);
+        var expected = await new Packata.Application.DataPreviewService(PreviewService.CreateFactory(source.BaseUri))
+            .ReadAsync(request, new(20));
         Assert.That(sample.Columns, Is.EqualTo(new[] { "id", "name" }));
+        Assert.That(sample.Columns, Is.EqualTo(expected.Columns.Select(column => column.Name)));
+        Assert.That(JToken.DeepEquals(JToken.FromObject(sample.Rows), JToken.FromObject(expected.Rows)), Is.True);
     }
     [TestCase("contract.yaml", CliWorkspace.Odcs)]
     [TestCase("datapackage.json", CliWorkspace.PackageJson)]
