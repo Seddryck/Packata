@@ -101,6 +101,12 @@
         "icon": "$(checklist)",
         "command": "packata.runLastValidation",
         "category": "Packata"
+      },
+      {
+        "command": "packata.preview",
+        "title": "Preview Resource Data…",
+        "category": "Packata",
+        "icon": "$(table)"
       }
     ],
     "menus": {
@@ -124,18 +130,23 @@
         },
         {
           "command": "packata.inspect",
-          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset)",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset)",
           "group": "2_contract"
         },
         {
           "command": "packata.validate",
-          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset)",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset)",
           "group": "2_contract"
         },
         {
           "command": "packata.copyPath",
           "when": "view == packata.contracts",
           "group": "3_copy"
+        },
+        {
+          "command": "packata.preview",
+          "when": "view == packata.contracts && viewItem == previewAsset",
+          "group": "2_contract"
         }
       ],
       "explorer/context": [

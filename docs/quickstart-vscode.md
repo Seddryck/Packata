@@ -28,5 +28,8 @@ action with its scope tooltip, repeats them. Edits mark results outdated; rerunn
 replaces their diagnostics. See the [VS Code reference]({{ '/reference/vscode/' | relative_url }})
 for blocked checks, cancellation and execution errors.
 
-To preview data, use the [CLI Quickstart]({{ '/quickstart/cli/' | relative_url }}).
-Editor data preview remains tracked separately in [#451](https://github.com/Seddryck/Packata/issues/451).
+To preview a local or public/pre-signed HTTP/HTTPS CSV, TSV, PSV or Excel resource,
+run **Packata: Preview Resource Data…** or right-click a supported asset in the tree.
+Select a resource and a positive maximum number of data rows (default **20**).
+The table shows columns, types and the bounded sample; loading can be canceled.
+See the [preview scope and transfer limits]({{ '/reference/vscode/' | relative_url }}#resource-previews).

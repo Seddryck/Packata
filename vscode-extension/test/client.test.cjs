@@ -21,6 +21,85 @@ const inspection = (version = 1) => ({ schemaVersion: 1, uri: 'file:///contract.
   } });
 const discovery = (...contracts) => ({ schemaVersion: 1, contracts });
 
+function previewHarness(options = {}) {
+  const errors = [], panels = [], calls = [];
+  const target = { sourcePath: '/resources/0', bindingIndex: 0, label: 'orders', supported: true, selectionKey: 'opaque-key' };
+  const inspected = { ...inspection(), previewTargets: options.targets ?? [target] };
+  const token = { isCancellationRequested: false };
+  const mock = {
+    window: {
+      activeTextEditor: { document: { uri: { toString: () => inspected.uri } } },
+      showErrorMessage: message => errors.push(message), showWarningMessage: message => errors.push(message),
+      showQuickPick: async items => options.cancelSelection ? undefined : items.at(-1),
+      showInputBox: async prompt => { calls.push({ prompt }); return Object.hasOwn(options, 'input') ? options.input : '20'; },
+      withProgress: async (settings, work) => { assert.equal(settings.cancellable, true); return work({}, token); },
+      createWebviewPanel: (kind, title, position, settings) => { const panel = { webview: {}, settings }; panels.push(panel); return panel; }
+    },
+    workspace: { textDocuments: [] }, ProgressLocation: { Notification: 15 }, ViewColumn: { Beside: 2 }
+  };
+  const preview = load('preview.ts', { vscode: mock });
+  const request = async (command, args, cancellation) => {
+    calls.push({ command, args, cancellation });
+    if (command === 'packata.contract.inspect') return inspected;
+    if (options.cancelRequest) { token.isCancellationRequested = true; throw new Error('private-signature'); }
+    return { schemaVersion: 1, uri: inspected.uri, version: 1, limit: args.limit, columns: [{ name: 'id', type: 'integer' }],
+      rows: [[1]], ...(options.result ?? {}) };
+  };
+  return { preview, request, calls, errors, panels, target };
+}
+
+test('preview validates positive integer limits and escapes all table contents without scripts', () => {
+  const { preview } = previewHarness();
+  for (const invalid of ['', '0', '-1', '1.5', 'NaN', '1e3', '2147483648']) assert.ok(preview.rowLimitError(invalid));
+  for (const valid of ['1', '20', '123']) assert.equal(preview.rowLimitError(valid), undefined);
+  const html = preview.previewHtml({ rows: [['<script>alert(1)</script>']], columns: [{ name: '<img>', type: 'string' }], limit: 1 });
+  assert.ok(!html.includes('<script>')); assert.ok(!html.includes('<img>'));
+  assert.ok(html.includes('&lt;script&gt;')); assert.ok(html.includes("default-src 'none'"));
+});
+
+test('preview prompts with default 20 before reading and passes the selected binding and limit', async () => {
+  const harness = previewHarness({ input: '3' });
+  await harness.preview.previewResource(harness.request);
+  assert.equal(harness.calls[1].prompt.value, '20');
+  const read = harness.calls[2];
+  assert.equal(read.command, 'packata.resource.preview');
+  assert.equal(read.args.limit, 3); assert.equal(read.args.bindingIndex, 0);
+  assert.equal(read.args.selectionKey, 'opaque-key'); assert.ok(read.cancellation);
+  assert.equal(harness.panels.length, 1); assert.equal(harness.panels[0].settings.enableScripts, false);
+});
+
+test('preview rejects invalid input, canceled prompts and unsupported direct invocation without resource reads', async () => {
+  for (const options of [{ input: '0' }, { input: undefined }, { targets: [{ sourcePath: '/resources/0', supported: false, reason: 'Unsupported resource.' }] }]) {
+    const harness = previewHarness(options);
+    await harness.preview.previewResource(harness.request);
+    assert.ok(!harness.calls.some(call => call.command === 'packata.resource.preview'));
+    assert.equal(harness.panels.length, 0);
+  }
+});
+
+test('preview requires explicit selection between bindings and does not switch a selected unsupported asset', async () => {
+  const targets = [0, 1].map(bindingIndex => ({ sourcePath: '/resources/0', bindingIndex, label: 'orders', supported: true }));
+  const selected = previewHarness({ targets });
+  await selected.preview.previewResource(selected.request);
+  assert.equal(selected.calls.find(call => call.command === 'packata.resource.preview').args.bindingIndex, 1);
+  const canceled = previewHarness({ targets, cancelSelection: true });
+  await canceled.preview.previewResource(canceled.request);
+  assert.ok(!canceled.calls.some(call => call.command === 'packata.resource.preview'));
+  const other = previewHarness({ targets: [...targets, { sourcePath: '/resources/1', supported: false, reason: 'Unsupported resource.' }] });
+  await other.preview.previewResource(other.request, { contract: inspection(), node: { kind: 'asset', sourcePath: '/resources/1' } });
+  assert.ok(!other.calls.some(call => call.command === 'packata.resource.preview'));
+  assert.equal(other.errors[0], 'Unsupported resource.');
+});
+
+test('preview cancellation is quiet and sanitized server failures do not create a table', async () => {
+  const canceled = previewHarness({ cancelRequest: true });
+  await canceled.preview.previewResource(canceled.request);
+  assert.equal(canceled.errors.length, 0); assert.equal(canceled.panels.length, 0);
+  const failed = previewHarness({ result: { diagnostic: { message: 'Unable to parse the resource.' } } });
+  await failed.preview.previewResource(failed.request);
+  assert.equal(failed.errors[0], 'Unable to parse the resource.'); assert.equal(failed.panels.length, 0);
+});
+
 test('packaging resolves an absolute SDK executable without searching PATH', async () => {
   const { resolveDotnet } = await import('../scripts/package.mjs');
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'packata sdk '));
@@ -292,13 +371,33 @@ test('invalid/partial descriptors stay visible and mapping warnings remain expli
   const root = tree.getTreeItem(tree.getChildren()[0]);
   assert.equal(root.iconPath.id, 'error'); assert.match(root.tooltip, /Invalid descriptor/);
 });
-test('manifest contributes native navigation/context menus without unsupported preview/execution commands', () => {
+test('manifest contributes native navigation and gates resource preview to supported assets', () => {
   const manifest = require('../package.json');
   assert.equal(manifest.contributes.views.packata[0].id, 'packata.contracts');
   assert.equal(manifest.contributes.viewsContainers.activitybar[0].id, 'packata');
   assert.equal(manifest.capabilities.untrustedWorkspaces.supported, false);
   assert.ok(manifest.contributes.menus['view/item/context'].some(item => item.command === 'packata.validate'));
-  assert.ok(!manifest.contributes.commands.some(item => /preview|executeQuality/.test(item.command)));
+  assert.ok(!manifest.contributes.commands.some(item => /executeQuality/.test(item.command)));
+  assert.ok(manifest.contributes.commands.some(item => item.command === 'packata.preview'));
+  assert.equal(manifest.contributes.menus['view/item/context'].find(item => item.command === 'packata.preview').when,
+    'view == packata.contracts && viewItem == previewAsset');
+});
+
+test('both tree projections activate preview only for metadata-approved resource assets', () => {
+  const { ContractTree } = load('tree.ts', { vscode });
+  const contract = inspection();
+  contract.previewTargets = [{ sourcePath: '/resources/0', supported: true }, { sourcePath: '/resources/1', supported: false }];
+  const assets = [0, 1].map(index => ({ id: 'asset-' + index, label: 'asset', kind: 'asset',
+    logicalPath: '/assets/' + index, sourcePath: '/resources/' + index, children: [] }));
+  contract.tree.children = assets; contract.nativeTree = { ...contract.tree, id: 'native-root', children: assets };
+  const state = new protocol.ContractState(); state.apply(state.begin(), discovery(contract), new Map());
+  const tree = new ContractTree(state);
+  for (const mode of ['native', 'canonical']) {
+    tree.mode = mode; tree.refresh();
+    const children = tree.getChildren(tree.getChildren()[0]);
+    assert.equal(tree.getTreeItem(children[0]).contextValue, 'previewAsset');
+    assert.equal(tree.getTreeItem(children[1]).contextValue, 'asset');
+  }
 });
 
 test('workspace preference defaults to canonical and survives recreation without crossing workspaces', async () => {

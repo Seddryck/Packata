@@ -1,12 +1,29 @@
 using OmniSharp.Extensions.JsonRpc;
 using OmniSharp.Extensions.LanguageServer.Protocol.Workspace;
 using Packata.LanguageServer.Core;
+using Newtonsoft.Json.Linq;
 
 namespace Packata.LanguageServer.Handlers;
 
 public sealed record DocumentRequest(string Uri, int SchemaVersion = 1);
 public sealed record ValidationRequest(string Uri, int SchemaVersion = 1, string[]? Checks = null);
 public sealed record DiscoveryRequest(string[] WorkspaceFolders, int SchemaVersion = 1);
+public sealed record PreviewRequest(string Uri, string SourcePath, JToken? Limit = null, int? BindingIndex = null,
+    string? SelectionKey = null, int SchemaVersion = 1);
+
+public sealed class PreviewHandler(ContractService contracts, ISerializer serializer)
+    : ExecuteTypedResponseCommandHandlerBase<PreviewRequest, PreviewResult>("packata.resource.preview", serializer)
+{
+    public override Task<PreviewResult> Handle(PreviewRequest request, CancellationToken cancellationToken)
+    {
+        // JSON.NET may coerce fractional numbers or strings into integer properties. Require an
+        // actual integer token so invalid limits cannot accidentally initiate resource access.
+        var limit = request.Limit is null ? ResourcePreview.DefaultLimit
+            : request.Limit.Type == JTokenType.Integer && int.TryParse(request.Limit.ToString(), out var value) ? value : 0;
+        return ProtocolVersion.RunAsync(request.SchemaVersion, () => contracts.PreviewAsync(WorkspaceUri.Parse(request.Uri),
+            request.SourcePath, cancellationToken, limit, request.BindingIndex, request.SelectionKey));
+    }
+}
 
 internal static class ProtocolVersion
 {

@@ -20,6 +20,7 @@ public static class Program
             .WithHandler<InspectHandler>()
             .WithHandler<ValidateHandler>()
             .WithHandler<ValidationOptionsHandler>()
+            .WithHandler<PreviewHandler>()
             .WithHandler<ProtocolHandler>()
             .WithHandler<DiscoverHandler>());
         await server.WaitForExit;

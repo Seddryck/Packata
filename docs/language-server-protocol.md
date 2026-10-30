@@ -16,7 +16,7 @@ Shutdown follows the LSP `shutdown` request / `exit` notification sequence. The 
 
 Use `textDocument/didOpen` with URI, version and full contents, then `didChange` with increasing versions and full replacement contents, and `didClose` when the buffer is released. Older or equal versions are ignored. A synchronized buffer takes precedence over its saved file. On close, diagnostics are cleared and later inspection reads disk again. Save notifications are not needed because changes already carry current text. Workspace folders are supplied to discovery; the VS Code client triggers discovery after workspace-folder and watched-file changes.
 
-Every inspection/validation result identifies its URI and document version (`null` for disk-only descriptors). Relative resource references keep the original descriptor's base URI in the shared document context, even when the text is unsaved. Neither discovery, inspection, nor validation opens resource data. Future preview requests can reuse this context and the same connection.
+Every inspection/validation result identifies its URI and document version (`null` for disk-only descriptors). Relative resource references keep the original descriptor's base URI in the shared document context, even when the text is unsaved. Neither discovery, inspection, nor validation opens resource data. Explicit preview requests reuse this context and the same connection.
 
 Canonical node logical paths and native source paths have different purposes. Tree nodes carry stable IDs, canonical logical paths and optional `location: {uri,range}` values derived from actual YAML/JSON syntax tokens. A logical path alone is not a location. Collection ranges may end at their last represented token rather than a closing delimiter. Nodes without a reliable mapping remain inspectable and do not receive a fabricated reveal command. Clients discard stale replies and refuse navigation using a location from an older open-document version.
 
@@ -60,6 +60,32 @@ An inspection result has this shape (contract contents omitted here for readabil
 `contract` is the shared canonical `Packata.Core.Contracts.DataContract` representation, projected as camel-case JSON with string enums and credential redaction. The server-generated tree provides editor-independent grouping and source mappings; it is not a second contract parser. Real results include the populated canonical contract and tree. A node has `id`, `label`, `kind`, `logicalPath`, optional `description`/`location`, and `children`. Asset IDs are name-based (occurrence suffixes disambiguate duplicates); fields include their occurrence index. Consumers should treat IDs as opaque.
 
 Inspection includes mapping diagnostics and does not certify successful validation. Unsupported or malformed recognized documents have no canonical contract/tree and include a safe diagnostic. Well-formed source can still provide the native projection described below. Unrelated documents return `recognized:false` with no diagnostics.
+
+## Resource preview
+
+Inspection includes metadata-only `previewTargets`: `{sourcePath,bindingIndex,label,
+supported,reason,selectionKey}`. Match `sourcePath` to an asset node in either tree
+projection. Only supported targets receive an active preview action. `selectionKey`
+is an opaque fingerprint; return it to reject changed descriptors rather than silently
+previewing another resource. Missing or ambiguous bindings remain diagnostic targets.
+
+Send `packata.resource.preview` with `{schemaVersion:1,uri,sourcePath,limit:20,
+bindingIndex:0,selectionKey}` after the user selects a positive integer limit. Omitted
+`limit` defaults to 20. Invalid limits fail before descriptor or resource access.
+The response is `{schemaVersion:1,uri,version,limit,columns:[{name,type}],rows,
+diagnostic}`. A diagnostic-bearing result has empty columns and rows and a fixed,
+sanitized message; it never includes an exception dump or resource URL. Headers do
+not count toward the row limit. No extra row is read to detect truncation.
+
+CSV/TSV/PSV and XLS/XLSX file endpoints support local paths and public/pre-signed
+HTTP/HTTPS URLs through the existing transport. Custom authentication headers,
+interactive authentication, database endpoints and native cloud schemes are
+unsupported and rejected before resource access. Parquet is unavailable because
+its current reader decodes full row groups. Unsupported formats return diagnostics.
+Relative paths resolve against the original descriptor directory or HTTP base URI.
+Cancellation propagates into acquisition and reads; owned streams/readers and any
+Excel staging files are disposed on all exit paths. Row limits do not bound bytes:
+buffering, metadata reads and bounded disk staging can still occur.
 
 ## Validation and diagnostics
 

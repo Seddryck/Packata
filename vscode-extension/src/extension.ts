@@ -5,6 +5,7 @@ import { resolveServer } from './serverPath';
 import { ContractTree, TreeEntry, restoreViewState } from './tree';
 import { ViewMode, ViewPreference } from './viewMode';
 import { ValidationUi } from './validationUi';
+import { previewResource } from './preview';
 
 let client: LanguageClient | undefined;
 
@@ -82,6 +83,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   async function request<T>(command: string, args: object, outer?: vscode.CancellationToken): Promise<T> {
     compatible();
+    if (!connection.initializeResult?.capabilities.executeCommandProvider?.commands.includes(command)) {
+      throw new Error('The server does not advertise this Packata operation. Update the extension and server together.');
+    }
     // Initial visible-buffer notifications are asynchronous in vscode-languageclient. Await
     // them before custom workspace operations, especially immediately after reconnecting.
     await Promise.all(pendingOpenNotifications);
@@ -159,6 +163,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   );
   command('packata.refresh', refresh);
+  command('packata.preview', entry => previewResource(request, entry));
   command('packata.restart', async () => { state.clear(); tree.validation.clear(); tree.refresh(); await connection.restart(); await Promise.all(pendingOpenNotifications); compatible(); schedule(); });
   command('packata.copyPath', entry => entry && vscode.env.clipboard.writeText(tree.mode === 'native' ? entry.node.sourcePath ?? entry.node.logicalPath : entry.node.logicalPath));
   command('packata.openSource', async entry => vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.parse(uri(entry)))));

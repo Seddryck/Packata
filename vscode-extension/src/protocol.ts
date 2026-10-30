@@ -1,3 +1,4 @@
+import type { PreviewTarget } from './preview';
 export interface Position { line: number; character: number }
 export interface Location { uri: string; range: { start: Position; end: Position } }
 export interface ContractNode {
@@ -7,6 +8,7 @@ export interface ContractNode {
 export interface Inspection {
   schemaVersion: number; uri: string; version: number | null; baseUri: string; recognized: boolean;
   format?: string; contract?: unknown; diagnostics: { code?: string; severity: string; sourcePath?: string; message: string }[]; tree?: ContractNode; nativeTree?: ContractNode;
+  previewTargets?: PreviewTarget[];
 }
 export interface Discovery { schemaVersion: number; contracts: Inspection[] }
 export interface Validation { schemaVersion: number; uri: string; version: number | null; valid: boolean; diagnostics: unknown[] }
