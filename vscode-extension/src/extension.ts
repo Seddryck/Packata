@@ -6,6 +6,7 @@ import { ContractTree, TreeEntry, restoreViewState } from './tree';
 import { ViewMode, ViewPreference } from './viewMode';
 import { ValidationUi } from './validationUi';
 import { previewResource } from './preview';
+import { generateSchemaCode } from './generation';
 
 let client: LanguageClient | undefined;
 
@@ -77,6 +78,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   let refreshCancellation: vscode.CancellationTokenSource | undefined;
   let generation = 0;
   let documentEpoch = 0;
+  let serverSession = 0;
   const reportedDiagnostics = new Map<string, string>();
   const versions = () => new Map(vscode.workspace.textDocuments.map(document => [document.uri.toString(), document.version]));
   const compatible = () => requireCapabilities(connection.initializeResult?.capabilities.executeCommandProvider?.commands);
@@ -164,6 +166,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
   command('packata.refresh', refresh);
   command('packata.preview', entry => previewResource(request, entry));
+  command('packata.generateSchemaCode', entry => generateSchemaCode(request, entry, () => serverSession, () => view.selection[0]?.node.id));
   command('packata.restart', async () => { state.clear(); tree.validation.clear(); tree.refresh(); await connection.restart(); await Promise.all(pendingOpenNotifications); compatible(); schedule(); });
   command('packata.copyPath', entry => entry && vscode.env.clipboard.writeText(tree.mode === 'native' ? entry.node.sourcePath ?? entry.node.logicalPath : entry.node.logicalPath));
   command('packata.openSource', async entry => vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.parse(uri(entry)))));
@@ -208,6 +211,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (entry) void view.reveal(entry, { select: true, focus: false, expand: false }).then(undefined, () => undefined);
     }),
     connection.onDidChangeState(event => {
+      ++serverSession;
       if (event.newState === State.Running) { tree.validation.clear(); schedule(); }
       else { state.clear(); tree.refresh(); failure('Packata language server is disconnected. Restart it to refresh contracts.'); }
     }),

@@ -8,6 +8,21 @@ namespace Packata.LanguageServer.Handlers;
 public sealed record DocumentRequest(string Uri, int SchemaVersion = 1);
 public sealed record ValidationRequest(string Uri, int SchemaVersion = 1, string[]? Checks = null);
 public sealed record DiscoveryRequest(string[] WorkspaceFolders, int SchemaVersion = 1);
+public sealed record SchemaGenerationOptionsRequest(string Uri, string? SelectionKey = null, int SchemaVersion = 1);
+
+public sealed class SchemaGenerationOptionsHandler(SchemaGenerationOperations generation, ISerializer serializer)
+    : ExecuteTypedResponseCommandHandlerBase<SchemaGenerationOptionsRequest, GenerationOptionsResult>("packata.schema.export.options", serializer)
+{
+    public override Task<GenerationOptionsResult> Handle(SchemaGenerationOptionsRequest request, CancellationToken cancellationToken)
+        => ProtocolVersion.RunAsync(request.SchemaVersion, () => generation.OptionsAsync(WorkspaceUri.Parse(request.Uri), request.SelectionKey, cancellationToken));
+}
+
+public sealed class SchemaGenerationHandler(SchemaGenerationOperations generation, ISerializer serializer)
+    : ExecuteTypedResponseCommandHandlerBase<SchemaGenerationRequest, SchemaGenerationResponse>("packata.schema.export", serializer)
+{
+    public override Task<SchemaGenerationResponse> Handle(SchemaGenerationRequest request, CancellationToken cancellationToken)
+        => ProtocolVersion.RunAsync(request.SchemaVersion, () => generation.GenerateAsync(request, cancellationToken));
+}
 public sealed record PreviewRequest(string Uri, string SourcePath, JToken? Limit = null, int? BindingIndex = null,
     string? SelectionKey = null, int SchemaVersion = 1);
 

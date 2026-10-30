@@ -107,3 +107,35 @@ See [the protocol contract](../docs/language-server-protocol.md) for request/res
 Use **Packata: View as: Canonical / Native** from the command palette or the Data Contracts toolbar. Canonical is the default and shows assets, columns and constraints. Native shows the descriptor's original ODCS or Data Package v2 property names and hierarchy, including extension properties and empty values. The choice is saved per workspace and applies to every workspace folder.
 
 Both projections come from the language server and follow unsaved edits. Switching preserves corresponding expanded/selected source nodes, with a nearest-parent fallback, and never rewrites the descriptor. Canonical also includes **Source properties (including unmapped)** so information outside the canonical mapping remains accessible. Mapping diagnostics appear on contract tooltips and in Problems/output; constraints, quality declarations and SLA commitments remain distinct. Credential values remain redacted in either view.
+
+## Generate schema code
+
+Run **Packata: Generate Schema Code…** from the Command Palette or a contract/asset context
+menu in either explorer projection. Select an eligible asset when prompted, then **C#
+record**, **DataTable**, **Polars.NET**, or **Custom template…**. The catalog comes from
+Application through the server, so its targets, engines and mapping profiles match CLI.
+Use **Generate** for defaults or customize namespace/type name. Custom templates allow an
+engine override, optional mapping profile and repeatable user variables. Recognized engine
+suffixes retain their meaning; otherwise Scriban is the default, including `.template.cs`.
+
+Generation runs under cancellable progress and opens complete output in an editable
+**untitled** document named for the generated type (C# for built-ins). Inspect it and use
+normal **Save As**. Generation never saves, overwrites or edits the descriptor/template.
+Existing output files require normal editor confirmation when explicitly saved. Source
+and template paths are excluded from automatic output filename association.
+
+Current unsaved descriptor and open-template contents are captured for each request. A
+source/template edit, changed selection, server restart or cancellation prevents obsolete
+output from opening. For multiple roots, the template picker uses the source descriptor's
+owning folder. Unsupported mappings and template errors are actionable findings; **View
+findings** navigates only to actual supplied ranges. Generation findings do not replace
+contract validation Problems. Didot rendering itself is synchronous; cancellation discards
+its result after rendering completes.
+
+Requiredness, value nullability, categories and target representation have distinct meaning.
+DataTable and Polars schemas do not enforce every contract constraint, and category codes
+are never replaced automatically by labels/enums. See the repository's
+[shared generation reference](https://seddryck.github.io/Packata/reference/dotnet/schema-generation/)
+for context version 1, examples and target limits. The feature is disabled in untrusted or
+virtual workspaces and reports missing generation capabilities on older servers. It reads
+no rows, uses no database connections, and never compiles or executes generated output.

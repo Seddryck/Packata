@@ -19,7 +19,7 @@ internal static class GenerationData
         _ => null
     };
 
-    internal static string Literal(string? text) => JsonConvert.ToString(text ?? "", '"', StringEscapeHandling.EscapeNonAscii);
+    internal static string Literal(string? text) => JsonConvert.ToString(ContractJson.Redact(text ?? ""), '"', StringEscapeHandling.EscapeNonAscii);
 
     internal static IReadOnlyDictionary<string, object?> Variables(IReadOnlyList<string>? definitions)
     {

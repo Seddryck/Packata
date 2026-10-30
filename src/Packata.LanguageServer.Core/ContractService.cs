@@ -57,7 +57,7 @@ public sealed class ContractService(DocumentStore documents)
             mapped.Value is null ? null : ContractJson.RedactedJson(mapped.Value), diagnostics,
             mapped.Value is null ? null : new ContractTreeBuilder(document, snapshot.Uri).Build(mapped.Value),
             new ContractTreeBuilder(document, snapshot.Uri).BuildNative(),
-            mapped.Value is null ? [] : ResourcePreview.Targets(document, mapped.Value, new Uri(baseUri)));
+            mapped.Value is null ? [] : ResourcePreview.Targets(document, mapped.Value, new Uri(baseUri)), SchemaGenerationOperations.Key(snapshot.Text));
         token.ThrowIfCancellationRequested();
         return new(snapshot, inspection, document);
     }

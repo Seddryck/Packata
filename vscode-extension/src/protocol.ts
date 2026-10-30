@@ -9,6 +9,7 @@ export interface Inspection {
   schemaVersion: number; uri: string; version: number | null; baseUri: string; recognized: boolean;
   format?: string; contract?: unknown; diagnostics: { code?: string; severity: string; sourcePath?: string; message: string }[]; tree?: ContractNode; nativeTree?: ContractNode;
   previewTargets?: PreviewTarget[];
+  generationKey?: string;
 }
 export interface Discovery { schemaVersion: number; contracts: Inspection[] }
 export interface Validation { schemaVersion: number; uri: string; version: number | null; valid: boolean; diagnostics: unknown[] }

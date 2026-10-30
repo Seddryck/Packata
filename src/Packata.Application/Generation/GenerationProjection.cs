@@ -7,7 +7,8 @@ namespace Packata.Application.Generation;
 internal sealed class GenerationProjection(GenerationOptions options, string? profile,
     List<GenerationDiagnostic> diagnostics, CancellationToken token)
 {
-    private readonly HashSet<string> _typeNames = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _typeNames = new(["System", "Polars", "DataTable", "PolarsSchema", "DataType",
+        "TimeUnit", "Dictionary", "JsonPropertyName", "Create"], StringComparer.Ordinal);
     private readonly List<Dictionary<string, object?>> _declarations = [];
 
     internal Dictionary<string, object?> Build(DataContract contract, DataAsset asset)
@@ -34,7 +35,7 @@ internal sealed class GenerationProjection(GenerationOptions options, string? pr
 
     private Dictionary<string, object?>[] Fields(IReadOnlyList<FieldTypeResolution> fields, string owner)
     {
-        var used = new HashSet<string>([owner.TrimStart('@')], StringComparer.Ordinal);
+        var used = new HashSet<string>([owner.TrimStart('@'), "Clone", "EqualityContract", "Equals", "GetHashCode", "ToString", "PrintMembers"], StringComparer.Ordinal);
         return fields.Select(field => Field(field, CSharpNames.Unique(field.Field.Name, used), owner)).ToArray();
     }
 
