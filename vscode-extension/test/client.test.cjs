@@ -147,7 +147,7 @@ function validationUiFixture(saved, catalog = validationOptions()) {
   const document = { uri, version: 1 };
   const values = new Map(saved ? [['validationChecks.v1.odcs', saved]] : []);
   const picks = [], calls = [], messages = [], summaries = [], commands = new Map();
-  const controls = { cancelProgress: false, failValidation: false };
+  const controls = { cancelProgress: false, failValidation: false, profile: undefined };
   const disposable = () => ({ dispose() {} });
   const status = { show() {}, hide() {}, dispose() {} };
   const mock = { Uri, StatusBarAlignment: { Right: 1 }, ProgressLocation: { Notification: 1 },
@@ -176,7 +176,7 @@ function validationUiFixture(saved, catalog = validationOptions()) {
     calls.push({ command, args });
     if (command === 'packata.validation.options') return catalog;
     if (controls.failValidation) throw new Error('Sensitive transport payload');
-    return { schemaVersion: 1, uri: uri.toString(), version: 1, valid: true, format: 'odcs', diagnostics: [],
+    return { schemaVersion: 1, uri: uri.toString(), version: 1, valid: true, format: 'odcs', diagnostics: [], profile: controls.profile,
       checks: catalog.validators.map(option => ({ id: option.id, label: option.label,
         state: args.checks.includes(option.id) ? 'Passed' : 'NotSelected', errors: 0 })) };
   };
@@ -185,6 +185,14 @@ function validationUiFixture(saved, catalog = validationOptions()) {
   return { ui, picks, calls, values, messages, summaries, tree, uri, status, document, commands, controls };
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test('validation output identifies the exact profile returned by the server', async () => {
+  const f = validationUiFixture(['schema']);
+  f.controls.profile = { uri: 'https://example.invalid/profile.json', label: 'Recipe profile', format: 'datapackage' };
+  await f.ui.run(undefined, false);
+  assert.ok(f.summaries.includes('Profile: Recipe profile (https://example.invalid/profile.json)'));
+  f.ui.dispose();
+});
 
 test('native picker cancellation and empty acceptance never run or change remembered scope', async () => {
   const f = validationUiFixture(['semantic']);

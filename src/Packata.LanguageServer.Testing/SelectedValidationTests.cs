@@ -5,6 +5,17 @@ namespace Packata.LanguageServer.Testing;
 
 public sealed class SelectedValidationTests
 {
+    [Test]
+    public void RecipeProfile_IsSelectedForUnsavedYaml()
+    {
+        var profile = Packata.Documents.Validation.DescriptorProfiles.CategoryTablesUri;
+        var source = $"$schema: {profile}\nresources:\n  - name: members\n    path: absent.csv\n    schema:\n      fields:\n        - name: code\n          type: string\n          categories:\n            resource: codes\n            package: registry-name\n";
+        var result = SelectedValidation.Validate(new(Uri, source, 8));
+        Assert.That(result.Valid, Is.True, string.Join(";", result.Diagnostics));
+        Assert.That(result.Profile!.Uri, Is.EqualTo(profile));
+        Assert.That(result.Version, Is.EqualTo(8));
+    }
+
     private static readonly Uri Uri = new("file:///workspace/orders.odcs.yaml");
 
     [TestCase(ContractServiceTests.Odcs, "odcs")]

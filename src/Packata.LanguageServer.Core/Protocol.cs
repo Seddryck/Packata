@@ -11,7 +11,8 @@ public sealed record ContractNode(string Id, string Label, string Kind, string L
 public sealed record Inspection(int SchemaVersion, string Uri, int? Version, string BaseUri, bool Recognized,
     string? Format, JToken? Contract, IReadOnlyList<DocumentDiagnostic> Diagnostics, ContractNode? Tree, ContractNode? NativeTree = null);
 public sealed record ValidationResult(int SchemaVersion, string Uri, int? Version, bool Valid,
-    IReadOnlyList<DocumentDiagnostic> Diagnostics, IReadOnlyList<ValidationCheck>? Checks = null, string? Format = null);
+    IReadOnlyList<DocumentDiagnostic> Diagnostics, IReadOnlyList<ValidationCheck>? Checks = null, string? Format = null,
+    Packata.Documents.Validation.DescriptorProfile? Profile = null);
 public sealed record ValidationCheck(string Id, string Label, string State, int Errors = 0, string? Reason = null);
 public sealed record ValidatorOption(string Id, string Label, string Description, string[] Formats, string[] BlockedBySelected);
 public sealed record ValidationOptions(int SchemaVersion, string Format, IReadOnlyList<ValidatorOption> Validators);
