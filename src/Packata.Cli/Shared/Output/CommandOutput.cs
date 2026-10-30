@@ -11,6 +11,8 @@ internal static class CommandOutput
     public static MappingDiagnostic Failure(Exception exception) => exception switch
     {
         ContractOperationException operation => operation.Diagnostic,
+        Packata.Application.ContractAssetSelectionException selection =>
+            new(selection.Ambiguous ? "CLI011" : "CLI010", MappingSeverity.Error, "$.assets", selection.Message),
         OperationCanceledException => new("CLI130", MappingSeverity.Error, "$", "Operation cancelled."),
         IOException or UnauthorizedAccessException or HttpRequestException =>
             new("CLI003", MappingSeverity.Error, "$", "Unable to read the source or write output. Check locations and access permissions."),

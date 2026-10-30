@@ -8,7 +8,15 @@ Packata uses the same host separation as Expressif.LanguageServer: a TypeScript 
 
 The CLI owns argument parsing, local/HTTP/archive acquisition, output destinations and exit codes. The LanguageServer owns synchronized document versions, discovery, caching, source ranges, trees and LSP publication. Domain libraries retain their models, mapping and validation rules; neither host references the other.
 
-The current shared application services cover inspection, validation and data preview. Existing CLI-only schema/dialect inference, descriptor updates, schema/dialect export, contract diff/compatibility/satisfaction and quality execution/OORS reporting are candidates for later application orchestration. Config/connector management and the interactive asset workflow remain CLI UX; document synchronization, workspace discovery, source navigation and protocol negotiation remain LanguageServer responsibilities. The feature audit and scope are recorded in [issue #681](https://github.com/Seddryck/Packata/issues/681).
+Application services also cover schema/dialect inference, descriptor updates, standalone path normalization, schema/dialect export, contract diff/compatibility/satisfaction and quality execution/OORS reporting. These APIs accept explicit inputs and cancellation; file inference uses an injected `IInferenceStreamSource`, database inference receives a resolved connection, and quality execution receives reader and SQL connection capabilities. Export and update operations return content and diagnostics without choosing destinations or writing files. Config/connector management, acquisition lifetimes, read-only database policy and the interactive asset workflow remain CLI responsibilities; document synchronization, workspace discovery, source navigation and protocol negotiation remain LanguageServer responsibilities. The feature audit and scope are recorded in [issue #681](https://github.com/Seddryck/Packata/issues/681).
+
+| Application API | Responsibility |
+| --- | --- |
+| `ContractInferenceService`, `DialectInferenceService` | CSV/Excel/Parquet/database inference, dialect sampling and save policies |
+| `DescriptorUpdateService`, `StandaloneContractService` | Metadata-preserving descriptor updates and standalone locator normalization |
+| `ContractExportService` | Canonical mapping, output selection and JSON Schema/Table Dialect content |
+| `ContractComparisonService` | Native validation/provenance, diff, compatibility and producer/consumer satisfaction |
+| `QualityExecutionService`, `QualityReportService` | Rule preparation/filtering, engine composition, execution and offline-validated OORS reports |
 
 ## Session and capabilities
 

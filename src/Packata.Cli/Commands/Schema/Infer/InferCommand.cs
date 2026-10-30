@@ -63,10 +63,10 @@ internal sealed class InferCommand : AsyncCommand<InferSettings>
     }
 
     private static void WriteOutput(ContractDocument document, DataAsset asset, DataEndpoint endpoint,
-        InferenceService.InferenceSelection inference, InferSettings settings, CancellationToken cancellationToken)
+        Packata.Application.ContractInferenceService.InferenceSelection inference, InferSettings settings, CancellationToken cancellationToken)
     {
         if (!settings.Write && settings.Output is null) return;
-        var update = ContractDocumentUpdater.Update(document, asset, endpoint, inference.Asset, inference.Endpoint);
+        var update = ContractDocumentUpdater.Update(document, asset, endpoint, inference.Asset, inference.Endpoint, cancellationToken);
         foreach (var warning in update.Warnings)
             AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
         var target = settings.Write ? document.SourcePath : Path.GetFullPath(settings.Output ?? throw new InvalidOperationException("Output is required."));

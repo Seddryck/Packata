@@ -1,5 +1,5 @@
 using Packata.Core.Contracts;
-using Packata.ResourceReaders;
+using Packata.Application;
 using PocketCsvReader;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -20,34 +20,12 @@ internal sealed class DialectInferCommand : AsyncCommand<DialectInferSettings>
             using var document = await ContractDocument.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
             var asset = InferenceService.SelectAsset(document.Contract, settings.Asset);
             var endpoint = InferenceService.SelectEndpoint(document.Contract, asset);
-            InferenceService.ValidateCsvEndpoint(asset, endpoint);
-            var resolved = new DataFormatResolver().Resolve(endpoint);
-            var effective = endpoint with { Format = (endpoint.Format ?? new DataFormat(resolved.Name)) with
-                { Name = resolved.Name, Compression = resolved.Compression } };
-            var options = InferenceService.CreateOptions(settings.InferenceSettings(), effective);
-            await using var stream = await document.OpenAssetStreamAsync(asset, effective, cancellationToken).ConfigureAwait(false);
-            var result = new CsvInference(options).Infer(stream);
-            cancellationToken.ThrowIfCancellationRequested();
-            var shared = document.Contract.Assets.Where(item => item.EndpointBindings.Any(binding => binding.EndpointId == endpoint.Id))
-                .Select(item => item.Id).ToArray();
-            Report(document, result, shared, settings);
+            var inference = await DialectInferenceService.InferAsync(InferenceService.Input(document), asset, endpoint,
+                InferenceService.Options(settings.InferenceSettings()), cancellationToken).ConfigureAwait(false);
+            Report(document, inference.Result, inference.SharedAssets.ToArray(), settings);
             if (!settings.Write && settings.Output is null) return 0;
-            if (shared.Length > 1 && !settings.AllowSharedEndpoint)
-                throw new InvalidOperationException("Shared endpoint update refused. Review the affected assets and use --allow-shared-endpoint to acknowledge the change.");
-            if (result.SampledRecordCount < 2 || result.Diagnostics.Any(item => item.Code is "dialect.unresolved" or "records.inconsistent-width" or "sample.byte-limit"))
-                throw new InvalidOperationException("Insufficient or incomplete sample for saving a dialect. Increase sampling limits or correct the resource and retry.");
-            if (!settings.AcceptAmbiguous && result.Diagnostics.Any(item => item.Code is "dialect.ambiguous" or "header.ambiguous"))
-                throw new InvalidOperationException("Ambiguous detection: review the candidates, specify --header where needed, or use --accept-ambiguous to save them explicitly.");
-
-            // Only these detector-supported settings may change. Defaults for all other options are never persisted.
-            var dialect = result.Dialect;
-            var detected = new Dictionary<string, object?>
-            {
-                ["delimiter"] = dialect.Delimiter, ["quoteChar"] = dialect.QuoteChar,
-                ["lineTerminator"] = dialect.LineTerminator, ["header"] = dialect.Header,
-                ["headerRows"] = dialect.HeaderRows
-            };
-            var update = ContractDocumentUpdater.UpdateDialect(document, asset.Id, endpoint.Id, detected);
+            var update = inference.PrepareUpdate(ContractDocumentUpdater.Input(document), asset.Id, endpoint.Id,
+                settings.AllowSharedEndpoint, settings.AcceptAmbiguous, cancellationToken);
             foreach (var warning in update.Warnings) Warning(warning);
             cancellationToken.ThrowIfCancellationRequested();
             var target = settings.Write ? document.SourcePath : Path.GetFullPath(settings.Output!);
@@ -56,6 +34,17 @@ internal sealed class DialectInferCommand : AsyncCommand<DialectInferSettings>
             return 0;
         }
         catch (OperationCanceledException) { Console.Error.WriteLine("Dialect inference was cancelled."); return 2; }
+        catch (DialectUpdateException error)
+        {
+            var hint = error.Failure switch
+            {
+                DialectUpdateFailure.SharedEndpoint => " Use --allow-shared-endpoint to acknowledge the change.",
+                DialectUpdateFailure.Ambiguous => " Specify --header or use --accept-ambiguous after reviewing candidates.",
+                _ => string.Empty
+            };
+            Console.Error.WriteLine(InferencePresenter.SafeText(error.Message + hint));
+            return 1;
+        }
         catch (Exception error)
         {
             Console.Error.WriteLine(InferencePresenter.SafeText(error.Message));

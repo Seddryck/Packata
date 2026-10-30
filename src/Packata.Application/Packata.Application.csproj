@@ -7,5 +7,12 @@
     <EmbeddedResource Include="../../docs/profiles/category-tables/1.0.0/datapackage.json" LogicalName="Packata.Application.Validation.Schemas.category-tables-v1.0.0.json" />
     <ProjectReference Include="../Packata.DataPackage/Packata.DataPackage.csproj" />
     <ProjectReference Include="../Packata.OpenDataContract/Packata.OpenDataContract.csproj" />
+    <ProjectReference Include="../Packata.ResourceReaders/Packata.ResourceReaders.csproj" />
+    <ProjectReference Include="../Packata.ResourceReaders.Excel/Packata.ResourceReaders.Excel.csproj" />
+    <ProjectReference Include="../Packata.ResourceReaders.Parquet/Packata.ResourceReaders.Parquet.csproj" />
+    <ProjectReference Include="../Packata.ResourceReaders.Database/Packata.ResourceReaders.Database.csproj" />
+    <ProjectReference Include="../Packata.Rules.Sql/Packata.Rules.Sql.csproj" />
+    <ProjectReference Include="../Packata.Rules.Expressif/Packata.Rules.Expressif.csproj" />
+    <EmbeddedResource Update="Validation/Schemas/oors-json-schema-v0.8.0.json" LogicalName="Packata.Application.OorsSchema" />
   </ItemGroup>
 </Project>

@@ -2,7 +2,7 @@ using Packata.Core.Contracts;
 using Packata.Core.Execution;
 using Packata.Core.Reading;
 using Packata.Database;
-using Packata.Rules.Expressif;
+using Packata.Application;
 using Packata.Rules.Sql;
 using Spectre.Console.Cli;
 
@@ -36,11 +36,9 @@ internal sealed class QualityCommand : AsyncCommand<QualitySettings>
             CliDatabase.ParsePairs(settings.Connectors, "--connector");
             using var database = CreateDatabase(source, contract, selected, settings);
             var readers = CreateReaders(source, database);
-            var engines = CreateEngines(database is null ? null : new SqlConnections(database, settings.SqlReadOnlyCredentials));
-            var runner = new QualityRun(engines);
-            RuleExecutionContext Context(DataQualityRule rule) => new(start,
-                Data: new ContractDataSource(contract, readers, source.Source));
-            var report = await runner.ExecuteAsync(contract, settings.Filters, Context, cancellationToken, clock, start, timestamp).ConfigureAwait(false);
+            var engines = QualityExecutionService.CreateEngines(database is null ? null : new SqlConnections(database, settings.SqlReadOnlyCredentials));
+            var service = new QualityExecutionService(engines, readers, clock);
+            var report = await service.RunAsync(contract, settings.Filters, source.Source, cancellationToken, start, timestamp).ConfigureAwait(false);
             WriteReport(report, contract, source, settings, clock, timestamp, cancellationToken);
             return report.ExitCode;
         }
@@ -54,22 +52,16 @@ internal sealed class QualityCommand : AsyncCommand<QualitySettings>
 
     private static DataContract? ValidateContract(ContractSource source)
     {
-        if (source.NativeDocument is not Packata.OpenDataContract.DataContract)
-            throw new ArgumentException("quality run requires an ODCS contract.");
-        var validation = ContractValidation.Validate(source);
-        foreach (var diagnostic in validation) CommandOutput.Diagnostic(diagnostic);
-        if (validation.Any(d => d.Severity == MappingSeverity.Error)) return null;
-        var mapped = source.Map();
-        if (!mapped.IsSuccessful) throw new InvalidOperationException("The contract cannot be processed.");
-        return mapped.RequireValue();
+        var preparation = QualityExecutionService.Prepare(source.Document ?? throw new InvalidOperationException("The descriptor has not been parsed."));
+        foreach (var diagnostic in preparation.Diagnostics) CommandOutput.Diagnostic(diagnostic);
+        return preparation.Contract;
     }
 
     private static IReadOnlyList<DataQualityRule> SelectRules(DataContract contract, QualityFilters filters)
     {
-        try { return QualityRun.Select(contract, filters); }
-        catch (ArgumentException) { throw new ContractOperationException("QUALITY002", "$", "No quality rules match the supplied filters."); }
+        try { return QualityExecutionService.SelectRules(contract, filters); }
+        catch (QualitySelectionException error) { throw new ContractOperationException("QUALITY002", "$", error.Message); }
     }
-
     private static CliDatabase? CreateDatabase(ContractSource source, DataContract contract,
         IReadOnlyList<DataQualityRule> selected, QualitySettings settings)
         => selected.Any(r => r.Definition is not TextQuality) && contract.Endpoints.Any(e => e.Location is ConnectionLocation)
@@ -102,39 +94,6 @@ internal sealed class QualityCommand : AsyncCommand<QualitySettings>
         _ => "Unable to complete the quality run or produce a valid OORS report. Check the contract, bindings and output destination."
     };
 
-    internal static QualityEngine[] CreateEngines(ISqlRuleConnectionSource? connections) =>
-    [
-        new(new("packata.rules.sql", Version(typeof(SqlQualityCompiler)), ["sql"]), new SqlQualityCompiler(connections ?? new UnavailableSql())),
-        new(new("packata.rules.expressif", Version(typeof(LibraryQualityCompiler)), ["library", "custom"],
-            new("expressif", typeof(global::Expressif.Expression).Assembly.GetName().Version?.ToString() ?? "unknown")), new ExpressifCompiler())
-    ];
-    private static string Version(Type type) => type.Assembly.GetName().Version?.ToString() ?? "unknown";
-    private sealed class ExpressifCompiler : IRuleCompiler<DataQualityRule>
-    {
-        public CompilationResult Compile(DataQualityRule rule, RuleCompilationContext context)
-        {
-            if (rule.Definition is CustomQuality custom && string.Equals(custom.Engine, "expressif", StringComparison.OrdinalIgnoreCase))
-                return new([], [new(rule.ExecutionId, CompilationFindingKind.Invalid, "EXPRESSIF_PAYLOAD", "The Expressif rule payload is invalid.")]);
-            return rule.Definition is LibraryQuality ? new LibraryQualityCompiler().Compile(rule, context)
-                : new ExpressifQualityCompiler().Compile(rule, context);
-        }
-    }
-    private sealed class UnavailableSql : ISqlRuleConnectionSource
-    {
-        public ValueTask<SqlRuleSession> OpenAsync(DataEndpoint endpoint, CancellationToken cancellationToken)
-            => throw new InvalidOperationException("No database connection is available.");
-    }
-    private sealed class ContractDataSource(DataContract contract, IDataEndpointReaderFactory readers, string snapshot) : IRuleDataSource
-    {
-        public string SnapshotId => snapshot;
-        public bool IsReplayable => true;
-        public bool IsComplete => true;
-        public ValueTask<System.Data.IDataReader> OpenAsync(QualityTarget target, string? endpointId, CancellationToken cancellationToken)
-        {
-            var asset = ContractSelection.Asset(contract, target.AssetId);
-            return readers.OpenAsync(PreviewService.Request(contract, asset), cancellationToken);
-        }
-    }
     private sealed class SqlConnections(CliDatabase database, bool readOnlyCredentials) : ISqlRuleConnectionSource
     {
         public async ValueTask<SqlRuleSession> OpenAsync(DataEndpoint endpoint, CancellationToken cancellationToken)

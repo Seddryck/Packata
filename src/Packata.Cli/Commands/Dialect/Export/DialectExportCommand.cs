@@ -1,4 +1,4 @@
-using Packata.DataPackage.Export;
+using Packata.Application;
 using Spectre.Console.Cli;
 
 namespace Packata.Cli;
@@ -10,15 +10,12 @@ internal sealed class DialectExportCommand : AsyncCommand<DialectExportSettings>
         try
         {
             ValidateOutputPath(settings);
-            var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var mapped = ContractSelection.Map(source);
-            foreach (var diagnostic in mapped.Diagnostics) CommandOutput.Diagnostic(diagnostic);
-            if (!mapped.IsSuccessful) return ExitCodes.InvalidDocument;
-            var result = new CsvDialectExporter().Export(mapped.Value!, settings.Endpoint);
+            using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
+            var result = ContractExportService.Dialect(source.Document!, settings.Endpoint, cancellationToken);
             foreach (var diagnostic in result.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!result.IsSuccessful) return ExitCodes.InvalidDocument;
             cancellationToken.ThrowIfCancellationRequested();
-            WriteOutput(settings, result.Value!);
+            WriteOutput(settings, result.Content!);
             return ExitCodes.Success;
         }
         catch (Exception exception)

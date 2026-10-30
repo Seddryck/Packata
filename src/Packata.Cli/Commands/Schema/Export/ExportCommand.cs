@@ -1,4 +1,4 @@
-using System.Text;
+using Packata.Application;
 using Packata.Core.Contracts;
 using Spectre.Console.Cli;
 
@@ -10,14 +10,11 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
     {
         try
         {
-            var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var mapped = ContractSelection.Map(source);
-            foreach (var diagnostic in mapped.Diagnostics) CommandOutput.Diagnostic(diagnostic);
-            if (!mapped.IsSuccessful) return ExitCodes.InvalidDocument;
-            var schema = ContractSelection.Asset(mapped.Value!, settings.Asset!).ToJsonSchema();
-            using var stream = new MemoryStream();
-            schema.Serialize(stream);
-            var content = Encoding.UTF8.GetString(stream.ToArray()) + Environment.NewLine;
+            using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
+            var result = ContractExportService.JsonSchema(source.Document!, settings.Asset!, cancellationToken);
+            foreach (var diagnostic in result.Diagnostics) CommandOutput.Diagnostic(diagnostic);
+            if (!result.IsSuccessful) return ExitCodes.InvalidDocument;
+            var content = result.Content + Environment.NewLine;
             cancellationToken.ThrowIfCancellationRequested();
             if (settings.Output is null) Console.Write(content);
             else
