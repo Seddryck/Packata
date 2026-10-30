@@ -4,7 +4,7 @@ Navigate ODCS v3.2 and Frictionless Data Package v2 contracts in the **Packata �
 
 Open buffers take precedence over saved descriptors, including unsaved edits. Constraints, quality declarations, and SLA commitments remain separate. Source quality declarations are labelled as such; the extension does not execute quality rules. No empty quality/SLA sections are invented. Mapping diagnostics remain visible even when some source information cannot be represented canonically; use Open Source to inspect the complete descriptor.
 
-Inspection is distinct from validation. A successful tree load does not display a passing validation status. Explicit validation reports through VS Code Problems, using the same server diagnostic collection as automatic document checks. Resource preview is tracked separately by [#451](https://github.com/Seddryck/Packata/issues/451).
+Inspection is distinct from validation. A successful tree load does not display a passing validation status. Explicit validation reports through VS Code Problems, using the same server diagnostic collection as automatic document checks. **Packata: Preview Resource Data…** explicitly reads a bounded sample from supported file resources.
 
 ## Select validation checks
 
@@ -39,6 +39,28 @@ Install the VSIX for your platform with **Extensions: Install from VSIX**. Each 
 | darwin-arm64 | osx-arm64 | macOS Apple Silicon |
 
 Requires VS Code 1.137 or later and a trusted local workspace. Musl/Alpine, Intel macOS, remote virtual filesystems, and other architectures are not currently packaged. Remote VS Code sessions can run the extension on a supported workspace host.
+
+## Resource preview
+
+Run **Packata: Preview Resource Data…** from an open descriptor, or right-click a
+supported asset in either tree projection. Select the resource binding and a positive
+maximum number of data rows, default **20**. Column names, declared/detected types
+and rows appear in a table. Headers are excluded from the limit. Loading supports
+cancellation, and failures show sanitized diagnostics.
+
+Supported formats are CSV, TSV, PSV and Excel (XLS/XLSX), using the existing Packata
+readers and descriptor dialect settings. Resources must be local files or HTTP/HTTPS
+file URLs. Public and pre-signed URLs use the existing transport without custom
+authentication headers or interactive login. Database endpoints, native cloud schemes
+and declared custom authentication requirements have no active tree preview action.
+Parquet and other formats are currently unsupported for bounded editor preview.
+Ambiguous bindings require a diagnostic or explicit selection; relative paths resolve
+against the original descriptor, including unsaved buffers.
+
+The selected limit bounds data rows read, not bytes transferred. Input buffering,
+format metadata and Excel disk staging may still be necessary. Non-seekable staging
+is bounded to 256 MiB. Completion, failures and cancellation release owned readers,
+streams and temporary files. Discovery, inspection and refresh never read resource data.
 
 ## Development
 

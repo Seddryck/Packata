@@ -10,6 +10,30 @@ namespace Packata.LanguageServer.Testing;
 public sealed class StdioTests
 {
     [Test]
+    public async Task PreviewCommandUsesPersistentUnsavedDocumentAndReturnsSanitizedDiagnosticsAsync()
+    {
+        await using var client = await StdioClient.StartAsync();
+        Assert.That(client.Commands, Does.Contain("packata.resource.preview"));
+        const string uri = "file:///workspace/preview.yaml";
+        await client.NotifyAsync("textDocument/didOpen", new { textDocument = new { uri, languageId = "yaml", version = 1,
+            text = "resources:\n  - name: blocked\n    path: s3://private-bucket/secret.csv?sig=private-signature\n" } });
+        var inspection = await client.CommandAsync("packata.contract.inspect", new { uri });
+        Assert.That((bool?)inspection["previewTargets"]?[0]?["supported"], Is.False);
+        var invalid = await client.CommandAsync("packata.resource.preview", new { uri, sourcePath = "/resources/0", limit = 0 });
+        Assert.That((string?)invalid["diagnostic"]?["code"], Is.EqualTo("PREVIEW_LIMIT"));
+        foreach (var limit in new object[] { -1, 1.5, "2", 2147483648L, true })
+        {
+            var rejected = await client.CommandAsync("packata.resource.preview", new { uri, sourcePath = "/resources/0", limit });
+            Assert.That((string?)rejected["diagnostic"]?["code"], Is.EqualTo("PREVIEW_LIMIT"));
+        }
+        var unsupported = await client.CommandAsync("packata.resource.preview", new { uri, sourcePath = "/resources/0" });
+        Assert.That((int?)unsupported["limit"], Is.EqualTo(20));
+        Assert.That((string?)unsupported["diagnostic"]?["code"], Is.EqualTo("PREVIEW_UNSUPPORTED"));
+        Assert.That(unsupported.ToString(), Does.Not.Contain("private-signature").And.Not.Contain("private-bucket"));
+        await client.StopAsync();
+    }
+
+    [Test]
     public async Task DiskDiscovery_ReturnsVersionedPayloadsWithoutOpeningReferencedDataAsync()
     {
         var root = Path.Combine(Path.GetTempPath(), "packata-stdio-" + Guid.NewGuid());

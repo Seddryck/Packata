@@ -64,6 +64,7 @@ export class ContractTree implements vscode.TreeDataProvider<TreeEntry> {
     const { node, contract } = entry;
     const item = new vscode.TreeItem(node.label, node.children.length ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
     item.id = node.id; item.description = node.description; item.contextValue = node.kind;
+    if (node.kind === 'asset' && contract.previewTargets?.some(target => target.sourcePath === node.sourcePath && target.supported)) item.contextValue = 'previewAsset';
     item.tooltip = `${node.label}\n${node.description ?? ''}\n${vscode.Uri.parse(contract.uri).fsPath}\n${node.logicalPath}\nSource: ${node.sourcePath ?? 'unmapped'}`;
     const icons: Record<string, string> = { contract: 'file-code', asset: 'database', field: 'symbol-field', constraint: 'symbol-ruler', quality: 'checklist', endpoint: 'plug', sla: 'clock', governance: 'organization', group: 'folder' };
     item.iconPath = new vscode.ThemeIcon(icons[node.kind] ?? 'symbol-property');

@@ -14,6 +14,7 @@ Install a platform-specific VSIX as described in the [extension README](https://
 | **Packata: Validate…** | Choose Schema, Semantic or both for the active or right-clicked YAML/JSON descriptor. |
 | **Packata: Run Last Validation** | Repeat this workspace's confirmed scope for the document format, or open the picker if none is available. |
 | **Packata: Inspect Contract** | Inspect the current buffer without certifying validation. |
+| **Packata: Preview Resource Data…** | Select a file resource and a positive maximum number of data rows (default 20). |
 | **Packata: Refresh Contracts** | Rediscover contracts across workspace folders. |
 | **Packata: Restart Language Server** | Restart and resynchronize open buffers. |
 
@@ -31,7 +32,35 @@ not enable schema. Cancellation and execution errors report incomplete validatio
 
 Problems use `Packata · Schema`, `Packata · Semantic`, or `Packata · Syntax` categories
 with source navigation where available. Reruns replace prior diagnostics; edits mark
-results outdated. No dataset reads, quality execution or SLA compliance evaluation occurs.
+results outdated. Validation does not read datasets or execute quality rules or SLA evaluations.
+
+## Resource previews
+
+Open an ODCS or Data Package JSON/YAML descriptor and run **Packata: Preview Resource Data…**,
+or right-click a supported asset in either Packata tree projection. Choose the resource
+binding when prompted, then enter a positive row limit; the default is **20**. A table
+shows column names, declared or detected types, and up to that many data rows. Headers
+do not count. Loading is cancellable; access, unsupported-format and parsing failures
+produce sanitized messages. Source edits during selection require a new selection.
+
+Preview supports **CSV, TSV, PSV and Excel (XLS/XLSX)** using Packata's existing readers
+and descriptor dialect settings. Only local files and HTTP/HTTPS file URLs are eligible.
+Public and pre-signed URLs use the existing HTTP transport without custom authentication
+headers or interactive login. Database endpoints, native cloud-storage schemes and
+declared custom authentication requirements have no active tree preview action.
+Other formats, including Parquet (whose reader requires full row-group decoding), are
+currently unavailable for bounded editor preview.
+
+Relative references resolve against the original descriptor location, including unsaved
+buffers. Ambiguous or missing endpoint bindings produce a diagnostic; Packata never
+silently chooses another server. Inspection, discovery and tree refresh read metadata
+only; resource access starts with an explicit preview request after row-limit selection.
+
+The limit bounds **data rows read**, not transferred bytes. Readers may buffer input;
+Excel may require metadata reads or temporary disk staging, bounded to 256 MiB for
+non-seekable inputs. Readers, streams and staging files are released on completion,
+failure or cancellation. Dataset values appear in the table; diagnostics omit source
+excerpts, credentials and sensitive URL components.
 
 See the [VS Code quickstart]({{ '/quickstart/vscode/' | relative_url }}) and
 [language-server protocol](https://github.com/Seddryck/Packata/blob/main/docs/language-server-protocol.md).

@@ -18,6 +18,7 @@
     <InternalsVisibleTo Include="Packata.ResourceReaders.Excel" />
     <InternalsVisibleTo Include="Packata.ResourceReaders.Parquet" />
     <InternalsVisibleTo Include="packata" />
+    <InternalsVisibleTo Include="Packata.LanguageServer.Core" />
     <InternalsVisibleTo Include="Packata.ResourceReaders.Ndjson" />
     <InternalsVisibleTo Include="Packata.ResourceReaders.FixedWidth" />
     <InternalsVisibleTo Include="Packata.ResourceReaders.KeyValue" />

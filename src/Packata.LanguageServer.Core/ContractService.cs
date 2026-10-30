@@ -62,7 +62,8 @@ public sealed class ContractService(DocumentStore documents)
         var inspection = new Inspection(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, true, document.Format,
             mapped.Value is null ? null : ContractJson.RedactedJson(mapped.Value), diagnostics,
             mapped.Value is null ? null : new ContractTreeBuilder(document, snapshot.Uri).Build(mapped.Value),
-            new ContractTreeBuilder(document, snapshot.Uri).BuildNative());
+            new ContractTreeBuilder(document, snapshot.Uri).BuildNative(),
+            mapped.Value is null ? [] : ResourcePreview.Targets(document, mapped.Value, new Uri(baseUri)));
         token.ThrowIfCancellationRequested();
         return new(snapshot, inspection, document);
     }
@@ -114,6 +115,14 @@ public sealed class ContractService(DocumentStore documents)
 
     public async Task<ValidationOptions> ValidationOptionsAsync(Uri uri, CancellationToken token)
         => SelectedValidation.Options(await documents.ReadAsync(uri, token));
+
+    public async Task<PreviewResult> PreviewAsync(Uri uri, string sourcePath, CancellationToken token,
+        int limit = ResourcePreview.DefaultLimit, int? bindingIndex = null, string? selectionKey = null)
+    {
+        if (limit <= 0) return new(1, uri.AbsoluteUri, null, limit, [], [],
+            new("PREVIEW_LIMIT", "Error", "$", "The row limit must be a positive integer.", null));
+        return await ResourcePreview.ReadAsync(await documents.ReadAsync(uri, token), sourcePath, limit, bindingIndex, token, selectionKey: selectionKey);
+    }
 
     public async Task<ValidationResult> SyntaxAsync(Uri uri, CancellationToken token)
     {
