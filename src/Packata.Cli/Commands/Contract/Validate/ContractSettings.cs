@@ -25,3 +25,14 @@ internal class ContractSettings : ContractSourceSettings
     }
 
 }
+
+internal sealed class ValidateSettings : ContractSettings
+{
+    [CommandOption("--schema")]
+    [Description("Validate the original descriptor against its official JSON Schema.")]
+    public bool Schema { get; init; }
+
+    [CommandOption("--semantic")]
+    [Description("Validate declaration semantics without accessing datasets or endpoints.")]
+    public bool Semantic { get; init; }
+}

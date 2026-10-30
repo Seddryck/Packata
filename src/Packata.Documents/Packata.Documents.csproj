@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="JsonSchema.Net" Version="9.4.1" />
+    <EmbeddedResource Include="Validation/Schemas/*.json" />
     <ProjectReference Include="../Packata.DataPackage/Packata.DataPackage.csproj" />
     <ProjectReference Include="../Packata.OpenDataContract/Packata.OpenDataContract.csproj" />
   </ItemGroup>

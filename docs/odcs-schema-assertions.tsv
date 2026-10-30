@@ -1,0 +1,904 @@
+schemaPath	keyword	constraint
+/type	type	"object"
+/properties	properties	(subschema; see pinned artifact)
+/properties/version/type	type	"string"
+/properties/kind/type	type	"string"
+/properties/kind/enum	enum	["DataContract"]
+/properties/apiVersion/type	type	"string"
+/properties/apiVersion/enum	enum	["v3.2.0","v3.1.0","v3.0.2","v3.0.1","v3.0.0","v2.2.2","v2.2.1","v2.2.0"]
+/properties/id/type	type	"string"
+/properties/name/type	type	"string"
+/properties/tenant/type	type	"string"
+/properties/tags/$ref	$ref	"#/$defs/Tags"
+/properties/status/type	type	"string"
+/properties/servers/type	type	"array"
+/properties/servers/items	items	(subschema; see pinned artifact)
+/properties/servers/items/$ref	$ref	"#/$defs/Server"
+/properties/dataProduct/type	type	"string"
+/properties/description/type	type	"object"
+/properties/description/properties	properties	(subschema; see pinned artifact)
+/properties/description/properties/usage/type	type	"string"
+/properties/description/properties/purpose/type	type	"string"
+/properties/description/properties/limitations/type	type	"string"
+/properties/description/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/properties/description/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/properties/domain/type	type	"string"
+/properties/context/$ref	$ref	"#/$defs/Context"
+/properties/schema/type	type	"array"
+/properties/schema/items	items	(subschema; see pinned artifact)
+/properties/schema/items/$ref	$ref	"#/$defs/SchemaObject"
+/properties/support/$ref	$ref	"#/$defs/Support"
+/properties/price/$ref	$ref	"#/$defs/Pricing"
+/properties/team/oneOf	oneOf	(subschema; see pinned artifact)
+/properties/team/oneOf/0/$ref	$ref	"#/$defs/Team"
+/properties/team/oneOf/1/type	type	"array"
+/properties/team/oneOf/1/items	items	(subschema; see pinned artifact)
+/properties/team/oneOf/1/items/$ref	$ref	"#/$defs/TeamMember"
+/properties/roles/type	type	"array"
+/properties/roles/items	items	(subschema; see pinned artifact)
+/properties/roles/items/$ref	$ref	"#/$defs/Role"
+/properties/slaDefaultElement/type	type	"string"
+/properties/slaProperties/type	type	"array"
+/properties/slaProperties/items	items	(subschema; see pinned artifact)
+/properties/slaProperties/items/$ref	$ref	"#/$defs/ServiceLevelAgreementProperty"
+/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/properties/contractCreatedTs/type	type	"string"
+/properties/contractCreatedTs/format	format	"date-time"
+/required	required	["version","apiVersion","kind","id"]
+/additionalProperties	additionalProperties	false
+/unevaluatedProperties	unevaluatedProperties	false
+/$defs/Context/oneOf	oneOf	(subschema; see pinned artifact)
+/$defs/Context/oneOf/0/type	type	"string"
+/$defs/Context/oneOf/1/type	type	"object"
+/$defs/Context/oneOf/1/properties	properties	(subschema; see pinned artifact)
+/$defs/Context/oneOf/1/properties/instructions/type	type	"string"
+/$defs/Context/oneOf/1/properties/verifiedStatements/type	type	"array"
+/$defs/Context/oneOf/1/properties/verifiedStatements/items	items	(subschema; see pinned artifact)
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/type	type	"object"
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/properties	properties	(subschema; see pinned artifact)
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/properties/id/type	type	"string"
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/properties/question/type	type	"string"
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/properties/answer/type	type	"string"
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/properties/tags/type	type	"array"
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/properties/tags/items	items	(subschema; see pinned artifact)
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/properties/tags/items/type	type	"string"
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/required	required	["question"]
+/$defs/Context/oneOf/1/properties/verifiedStatements/items/additionalProperties	additionalProperties	false
+/$defs/Context/oneOf/1/properties/constraints/type	type	"array"
+/$defs/Context/oneOf/1/properties/constraints/items	items	(subschema; see pinned artifact)
+/$defs/Context/oneOf/1/properties/constraints/items/type	type	"object"
+/$defs/Context/oneOf/1/properties/constraints/items/properties	properties	(subschema; see pinned artifact)
+/$defs/Context/oneOf/1/properties/constraints/items/properties/id/type	type	"string"
+/$defs/Context/oneOf/1/properties/constraints/items/properties/constraint/type	type	"string"
+/$defs/Context/oneOf/1/properties/constraints/items/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/$defs/Context/oneOf/1/properties/constraints/items/properties/tags/type	type	"array"
+/$defs/Context/oneOf/1/properties/constraints/items/properties/tags/items	items	(subschema; see pinned artifact)
+/$defs/Context/oneOf/1/properties/constraints/items/properties/tags/items/type	type	"string"
+/$defs/Context/oneOf/1/properties/constraints/items/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/$defs/Context/oneOf/1/properties/constraints/items/required	required	["constraint"]
+/$defs/Context/oneOf/1/properties/constraints/items/additionalProperties	additionalProperties	false
+/$defs/Context/oneOf/1/additionalProperties	additionalProperties	false
+/$defs/ShorthandReference/type	type	"string"
+/$defs/ShorthandReference/pattern	pattern	"^[A-Za-z_][A-Za-z0-9_\\-]*(\\.[A-Za-z_][A-Za-z0-9_\\-]*)+$"
+/$defs/FullyQualifiedReference/type	type	"string"
+/$defs/FullyQualifiedReference/pattern	pattern	"^(?:(?:https?:\\/\\/)?[A-Za-z0-9._\\-\\/]+\\.ya?ml#)?\\/?[A-Za-z_][A-Za-z0-9_]*\\/[^\\s.#/\\\\@!%&^]+(?:\\/[A-Za-z_][A-Za-z0-9_]*\\/[^\\s.#/\\\\@!%&^]+)*$"
+/$defs/StableId/type	type	"string"
+/$defs/StableId/pattern	pattern	"^[^\\s.#/\\\\@!%&^]+$"
+/$defs/Port/type	type	["integer","string"]
+/$defs/Server/type	type	"object"
+/$defs/Server/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/Server/properties/server/type	type	"string"
+/$defs/Server/properties/type/type	type	"string"
+/$defs/Server/properties/type/enum	enum	["api","athena","azure","bigquery","btrieve","clickhouse","databricks","denodo","dremio","duckdb","exasol","fastobjects","glue","hana","cloudsql","db2","hive","iceberg","impala","informix","ingres","kafka","kinesis","local","mysql","oracle","poet","postgresql","postgres","presto","pubsub","redshift","s3","sftp","snowflake","sqlserver","synapse","teradata","trino","vectorwise","versant","vertica","zen","custom"]
+/$defs/Server/properties/description/type	type	"string"
+/$defs/Server/properties/environment/type	type	"string"
+/$defs/Server/properties/roles/type	type	"array"
+/$defs/Server/properties/roles/items	items	(subschema; see pinned artifact)
+/$defs/Server/properties/roles/items/$ref	$ref	"#/$defs/Role"
+/$defs/Server/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/$defs/Server/allOf	allOf	(subschema; see pinned artifact)
+/$defs/Server/allOf/0/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/0/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/0/if/properties/type/const	const	"api"
+/$defs/Server/allOf/0/if/required	required	["type"]
+/$defs/Server/allOf/0/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/0/then/$ref	$ref	"#/$defs/ServerSource/ApiServer"
+/$defs/Server/allOf/1/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/1/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/1/if/properties/type/const	const	"athena"
+/$defs/Server/allOf/1/if/required	required	["type"]
+/$defs/Server/allOf/1/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/1/then/$ref	$ref	"#/$defs/ServerSource/AthenaServer"
+/$defs/Server/allOf/2/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/2/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/2/if/properties/type/const	const	"azure"
+/$defs/Server/allOf/2/if/required	required	["type"]
+/$defs/Server/allOf/2/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/2/then/$ref	$ref	"#/$defs/ServerSource/AzureServer"
+/$defs/Server/allOf/3/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/3/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/3/if/properties/type/const	const	"bigquery"
+/$defs/Server/allOf/3/if/required	required	["type"]
+/$defs/Server/allOf/3/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/3/then/$ref	$ref	"#/$defs/ServerSource/BigQueryServer"
+/$defs/Server/allOf/4/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/4/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/4/if/properties/type/const	const	"btrieve"
+/$defs/Server/allOf/4/if/required	required	["type"]
+/$defs/Server/allOf/4/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/4/then/$ref	$ref	"#/$defs/ServerSource/ZenServer"
+/$defs/Server/allOf/5/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/5/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/5/if/properties/type/const	const	"clickhouse"
+/$defs/Server/allOf/5/if/required	required	["type"]
+/$defs/Server/allOf/5/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/5/then/$ref	$ref	"#/$defs/ServerSource/ClickHouseServer"
+/$defs/Server/allOf/6/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/6/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/6/if/properties/type/const	const	"databricks"
+/$defs/Server/allOf/6/if/required	required	["type"]
+/$defs/Server/allOf/6/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/6/then/$ref	$ref	"#/$defs/ServerSource/DatabricksServer"
+/$defs/Server/allOf/7/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/7/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/7/if/properties/type/const	const	"denodo"
+/$defs/Server/allOf/7/if/required	required	["type"]
+/$defs/Server/allOf/7/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/7/then/$ref	$ref	"#/$defs/ServerSource/DenodoServer"
+/$defs/Server/allOf/8/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/8/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/8/if/properties/type/const	const	"dremio"
+/$defs/Server/allOf/8/if/required	required	["type"]
+/$defs/Server/allOf/8/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/8/then/$ref	$ref	"#/$defs/ServerSource/DremioServer"
+/$defs/Server/allOf/9/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/9/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/9/if/properties/type/const	const	"duckdb"
+/$defs/Server/allOf/9/if/required	required	["type"]
+/$defs/Server/allOf/9/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/9/then/$ref	$ref	"#/$defs/ServerSource/DuckdbServer"
+/$defs/Server/allOf/10/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/10/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/10/if/properties/type/const	const	"exasol"
+/$defs/Server/allOf/10/if/required	required	["type"]
+/$defs/Server/allOf/10/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/10/then/$ref	$ref	"#/$defs/ServerSource/ExasolServer"
+/$defs/Server/allOf/11/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/11/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/11/if/properties/type/const	const	"fastobjects"
+/$defs/Server/allOf/11/if/required	required	["type"]
+/$defs/Server/allOf/11/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/11/then/$ref	$ref	"#/$defs/ServerSource/PoetServer"
+/$defs/Server/allOf/12/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/12/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/12/if/properties/type/const	const	"glue"
+/$defs/Server/allOf/12/if/required	required	["type"]
+/$defs/Server/allOf/12/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/12/then/$ref	$ref	"#/$defs/ServerSource/GlueServer"
+/$defs/Server/allOf/13/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/13/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/13/if/properties/type/const	const	"cloudsql"
+/$defs/Server/allOf/13/if/required	required	["type"]
+/$defs/Server/allOf/13/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/13/then/$ref	$ref	"#/$defs/ServerSource/GoogleCloudSqlServer"
+/$defs/Server/allOf/14/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/14/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/14/if/properties/type/const	const	"db2"
+/$defs/Server/allOf/14/if/required	required	["type"]
+/$defs/Server/allOf/14/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/14/then/$ref	$ref	"#/$defs/ServerSource/IBMDB2Server"
+/$defs/Server/allOf/15/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/15/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/15/if/properties/type/const	const	"hive"
+/$defs/Server/allOf/15/if/required	required	["type"]
+/$defs/Server/allOf/15/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/15/then/$ref	$ref	"#/$defs/ServerSource/HiveServer"
+/$defs/Server/allOf/16/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/16/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/16/if/properties/type/const	const	"impala"
+/$defs/Server/allOf/16/if/required	required	["type"]
+/$defs/Server/allOf/16/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/16/then/$ref	$ref	"#/$defs/ServerSource/ImpalaServer"
+/$defs/Server/allOf/17/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/17/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/17/if/properties/type/const	const	"informix"
+/$defs/Server/allOf/17/if/required	required	["type"]
+/$defs/Server/allOf/17/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/17/then/$ref	$ref	"#/$defs/ServerSource/InformixServer"
+/$defs/Server/allOf/18/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/18/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/18/if/properties/type/const	const	"ingres"
+/$defs/Server/allOf/18/if/required	required	["type"]
+/$defs/Server/allOf/18/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/18/then/$ref	$ref	"#/$defs/ServerSource/IngresServer"
+/$defs/Server/allOf/19/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/19/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/19/if/properties/type/const	const	"zen"
+/$defs/Server/allOf/19/if/required	required	["type"]
+/$defs/Server/allOf/19/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/19/then/$ref	$ref	"#/$defs/ServerSource/ZenServer"
+/$defs/Server/allOf/20/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/20/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/20/if/properties/type/const	const	"custom"
+/$defs/Server/allOf/20/if/required	required	["type"]
+/$defs/Server/allOf/20/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/20/then/$ref	$ref	"#/$defs/ServerSource/CustomServer"
+/$defs/Server/allOf/21/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/21/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/21/if/properties/type/const	const	"kafka"
+/$defs/Server/allOf/21/if/required	required	["type"]
+/$defs/Server/allOf/21/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/21/then/$ref	$ref	"#/$defs/ServerSource/KafkaServer"
+/$defs/Server/allOf/22/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/22/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/22/if/properties/type/const	const	"kinesis"
+/$defs/Server/allOf/22/if/required	required	["type"]
+/$defs/Server/allOf/22/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/22/then/$ref	$ref	"#/$defs/ServerSource/KinesisServer"
+/$defs/Server/allOf/23/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/23/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/23/if/properties/type/const	const	"local"
+/$defs/Server/allOf/23/if/required	required	["type"]
+/$defs/Server/allOf/23/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/23/then/$ref	$ref	"#/$defs/ServerSource/LocalServer"
+/$defs/Server/allOf/24/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/24/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/24/if/properties/type/const	const	"mysql"
+/$defs/Server/allOf/24/if/required	required	["type"]
+/$defs/Server/allOf/24/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/24/then/$ref	$ref	"#/$defs/ServerSource/MySqlServer"
+/$defs/Server/allOf/25/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/25/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/25/if/properties/type/const	const	"oracle"
+/$defs/Server/allOf/25/if/required	required	["type"]
+/$defs/Server/allOf/25/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/25/then/$ref	$ref	"#/$defs/ServerSource/OracleServer"
+/$defs/Server/allOf/26/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/26/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/26/if/properties/type/const	const	"poet"
+/$defs/Server/allOf/26/if/required	required	["type"]
+/$defs/Server/allOf/26/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/26/then/$ref	$ref	"#/$defs/ServerSource/PoetServer"
+/$defs/Server/allOf/27/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/27/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/27/if/properties/type/const	const	"hana"
+/$defs/Server/allOf/27/if/required	required	["type"]
+/$defs/Server/allOf/27/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/27/then/$ref	$ref	"#/$defs/ServerSource/HanaServer"
+/$defs/Server/allOf/28/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/28/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/28/if/properties/type/const	const	"iceberg"
+/$defs/Server/allOf/28/if/required	required	["type"]
+/$defs/Server/allOf/28/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/28/then/$ref	$ref	"#/$defs/ServerSource/IcebergServer"
+/$defs/Server/allOf/29/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/29/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/29/if/properties/type/const	const	"postgresql"
+/$defs/Server/allOf/29/if/required	required	["type"]
+/$defs/Server/allOf/29/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/29/then/$ref	$ref	"#/$defs/ServerSource/PostgresServer"
+/$defs/Server/allOf/30/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/30/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/30/if/properties/type/const	const	"postgres"
+/$defs/Server/allOf/30/if/required	required	["type"]
+/$defs/Server/allOf/30/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/30/then/$ref	$ref	"#/$defs/ServerSource/PostgresServer"
+/$defs/Server/allOf/31/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/31/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/31/if/properties/type/const	const	"presto"
+/$defs/Server/allOf/31/if/required	required	["type"]
+/$defs/Server/allOf/31/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/31/then/$ref	$ref	"#/$defs/ServerSource/PrestoServer"
+/$defs/Server/allOf/32/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/32/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/32/if/properties/type/const	const	"pubsub"
+/$defs/Server/allOf/32/if/required	required	["type"]
+/$defs/Server/allOf/32/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/32/then/$ref	$ref	"#/$defs/ServerSource/PubSubServer"
+/$defs/Server/allOf/33/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/33/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/33/if/properties/type/const	const	"redshift"
+/$defs/Server/allOf/33/if/required	required	["type"]
+/$defs/Server/allOf/33/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/33/then/$ref	$ref	"#/$defs/ServerSource/RedshiftServer"
+/$defs/Server/allOf/34/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/34/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/34/if/properties/type/const	const	"s3"
+/$defs/Server/allOf/34/if/required	required	["type"]
+/$defs/Server/allOf/34/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/34/then/$ref	$ref	"#/$defs/ServerSource/S3Server"
+/$defs/Server/allOf/35/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/35/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/35/if/properties/type/const	const	"sftp"
+/$defs/Server/allOf/35/if/required	required	["type"]
+/$defs/Server/allOf/35/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/35/then/$ref	$ref	"#/$defs/ServerSource/SftpServer"
+/$defs/Server/allOf/36/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/36/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/36/if/properties/type/const	const	"snowflake"
+/$defs/Server/allOf/36/if/required	required	["type"]
+/$defs/Server/allOf/36/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/36/then/$ref	$ref	"#/$defs/ServerSource/SnowflakeServer"
+/$defs/Server/allOf/37/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/37/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/37/if/properties/type/const	const	"sqlserver"
+/$defs/Server/allOf/37/if/required	required	["type"]
+/$defs/Server/allOf/37/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/37/then/$ref	$ref	"#/$defs/ServerSource/SqlserverServer"
+/$defs/Server/allOf/38/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/38/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/38/if/properties/type/const	const	"synapse"
+/$defs/Server/allOf/38/if/required	required	["type"]
+/$defs/Server/allOf/38/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/38/then/$ref	$ref	"#/$defs/ServerSource/SynapseServer"
+/$defs/Server/allOf/39/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/39/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/39/if/properties/type/const	const	"teradata"
+/$defs/Server/allOf/39/if/required	required	["type"]
+/$defs/Server/allOf/39/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/39/then/$ref	$ref	"#/$defs/ServerSource/TeradataServer"
+/$defs/Server/allOf/40/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/40/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/40/if/properties/type/const	const	"trino"
+/$defs/Server/allOf/40/if/required	required	["type"]
+/$defs/Server/allOf/40/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/40/then/$ref	$ref	"#/$defs/ServerSource/TrinoServer"
+/$defs/Server/allOf/41/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/41/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/41/if/properties/type/const	const	"vectorwise"
+/$defs/Server/allOf/41/if/required	required	["type"]
+/$defs/Server/allOf/41/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/41/then/$ref	$ref	"#/$defs/ServerSource/VectorwiseServer"
+/$defs/Server/allOf/42/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/42/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/42/if/properties/type/const	const	"versant"
+/$defs/Server/allOf/42/if/required	required	["type"]
+/$defs/Server/allOf/42/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/42/then/$ref	$ref	"#/$defs/ServerSource/VersantServer"
+/$defs/Server/allOf/43/if	if	(subschema; see pinned artifact)
+/$defs/Server/allOf/43/if/properties	properties	(subschema; see pinned artifact)
+/$defs/Server/allOf/43/if/properties/type/const	const	"vertica"
+/$defs/Server/allOf/43/if/required	required	["type"]
+/$defs/Server/allOf/43/then	then	(subschema; see pinned artifact)
+/$defs/Server/allOf/43/then/$ref	$ref	"#/$defs/ServerSource/VerticaServer"
+/$defs/Server/required	required	["server","type"]
+/$defs/Server/unevaluatedProperties	unevaluatedProperties	false
+/$defs/SchemaElement/type	type	"object"
+/$defs/SchemaElement/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaElement/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/SchemaElement/properties/name/type	type	"string"
+/$defs/SchemaElement/properties/physicalType/type	type	"string"
+/$defs/SchemaElement/properties/description/type	type	"string"
+/$defs/SchemaElement/properties/businessName/type	type	"string"
+/$defs/SchemaElement/properties/deprecated/type	type	"boolean"
+/$defs/SchemaElement/properties/synonyms/$ref	$ref	"#/$defs/Synonyms"
+/$defs/SchemaElement/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/$defs/SchemaElement/properties/tags/$ref	$ref	"#/$defs/Tags"
+/$defs/SchemaElement/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/$defs/SchemaObject/type	type	"object"
+/$defs/SchemaObject/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaObject/properties/logicalType/type	type	"string"
+/$defs/SchemaObject/properties/logicalType/enum	enum	["object"]
+/$defs/SchemaObject/properties/physicalName/type	type	"string"
+/$defs/SchemaObject/properties/dataGranularityDescription/type	type	"string"
+/$defs/SchemaObject/properties/properties/type	type	"array"
+/$defs/SchemaObject/properties/properties/items	items	(subschema; see pinned artifact)
+/$defs/SchemaObject/properties/properties/items/$ref	$ref	"#/$defs/SchemaProperty"
+/$defs/SchemaObject/properties/relationships/type	type	"array"
+/$defs/SchemaObject/properties/relationships/items	items	(subschema; see pinned artifact)
+/$defs/SchemaObject/properties/relationships/items/$ref	$ref	"#/$defs/RelationshipSchemaLevel"
+/$defs/SchemaObject/properties/quality/$ref	$ref	"#/$defs/DataQualityChecks"
+/$defs/SchemaObject/properties/context/$ref	$ref	"#/$defs/Context"
+/$defs/SchemaObject/allOf	allOf	(subschema; see pinned artifact)
+/$defs/SchemaObject/allOf/0/$ref	$ref	"#/$defs/SchemaElement"
+/$defs/SchemaObject/required	required	["name"]
+/$defs/SchemaObject/unevaluatedProperties	unevaluatedProperties	false
+/$defs/SchemaBaseProperty/type	type	"object"
+/$defs/SchemaBaseProperty/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/properties/primaryKey/type	type	"boolean"
+/$defs/SchemaBaseProperty/properties/primaryKeyPosition/type	type	"integer"
+/$defs/SchemaBaseProperty/properties/logicalType/type	type	"string"
+/$defs/SchemaBaseProperty/properties/logicalType/enum	enum	["string","date","timestamp","time","number","integer","object","array","boolean","map","vector"]
+/$defs/SchemaBaseProperty/properties/logicalTypeOptions/type	type	"object"
+/$defs/SchemaBaseProperty/properties/physicalType/type	type	"string"
+/$defs/SchemaBaseProperty/properties/physicalName/type	type	"string"
+/$defs/SchemaBaseProperty/properties/required/type	type	"boolean"
+/$defs/SchemaBaseProperty/properties/unique/type	type	"boolean"
+/$defs/SchemaBaseProperty/properties/semanticType/type	type	"string"
+/$defs/SchemaBaseProperty/properties/semanticType/enum	enum	["column","measure","dimension"]
+/$defs/SchemaBaseProperty/properties/partitioned/type	type	"boolean"
+/$defs/SchemaBaseProperty/properties/partitionKeyPosition/type	type	"integer"
+/$defs/SchemaBaseProperty/properties/classification/type	type	"string"
+/$defs/SchemaBaseProperty/properties/encryptedName/type	type	"string"
+/$defs/SchemaBaseProperty/properties/transformSourceObjects/type	type	"array"
+/$defs/SchemaBaseProperty/properties/transformSourceObjects/items	items	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/properties/transformSourceObjects/items/type	type	"string"
+/$defs/SchemaBaseProperty/properties/transformLogic/type	type	"string"
+/$defs/SchemaBaseProperty/properties/transformDescription/type	type	"string"
+/$defs/SchemaBaseProperty/properties/examples/type	type	"array"
+/$defs/SchemaBaseProperty/properties/examples/items	items	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/properties/examples/items/$ref	$ref	"#/$defs/AnyType"
+/$defs/SchemaBaseProperty/properties/enum/type	type	"array"
+/$defs/SchemaBaseProperty/properties/enum/minItems	minItems	1
+/$defs/SchemaBaseProperty/properties/enum/uniqueItems	uniqueItems	true
+/$defs/SchemaBaseProperty/properties/enum/items	items	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/properties/enum/items/$ref	$ref	"#/$defs/EnumValue"
+/$defs/SchemaBaseProperty/properties/criticalDataElement/type	type	"boolean"
+/$defs/SchemaBaseProperty/properties/relationships/type	type	"array"
+/$defs/SchemaBaseProperty/properties/relationships/items	items	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/properties/relationships/items/$ref	$ref	"#/$defs/RelationshipPropertyLevel"
+/$defs/SchemaBaseProperty/properties/quality/$ref	$ref	"#/$defs/DataQualityChecks"
+/$defs/SchemaBaseProperty/allOf	allOf	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/0/$ref	$ref	"#/$defs/SchemaElement"
+/$defs/SchemaBaseProperty/allOf/1/if	if	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/1/if/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/1/if/properties/logicalType/const	const	"string"
+/$defs/SchemaBaseProperty/allOf/1/then	then	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/1/then/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/1/then/properties/logicalTypeOptions/type	type	"object"
+/$defs/SchemaBaseProperty/allOf/1/then/properties/logicalTypeOptions/additionalProperties	additionalProperties	false
+/$defs/SchemaBaseProperty/allOf/1/then/properties/logicalTypeOptions/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/1/then/properties/logicalTypeOptions/properties/minLength/type	type	"integer"
+/$defs/SchemaBaseProperty/allOf/1/then/properties/logicalTypeOptions/properties/minLength/minimum	minimum	0
+/$defs/SchemaBaseProperty/allOf/1/then/properties/logicalTypeOptions/properties/maxLength/type	type	"integer"
+/$defs/SchemaBaseProperty/allOf/1/then/properties/logicalTypeOptions/properties/maxLength/minimum	minimum	0
+/$defs/SchemaBaseProperty/allOf/1/then/properties/logicalTypeOptions/properties/pattern/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/1/then/properties/logicalTypeOptions/properties/format/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/2/if	if	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/2/if/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/2/if/properties/logicalType/const	const	"date"
+/$defs/SchemaBaseProperty/allOf/2/then	then	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/2/then/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/2/then/properties/logicalTypeOptions/type	type	"object"
+/$defs/SchemaBaseProperty/allOf/2/then/properties/logicalTypeOptions/additionalProperties	additionalProperties	false
+/$defs/SchemaBaseProperty/allOf/2/then/properties/logicalTypeOptions/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/2/then/properties/logicalTypeOptions/properties/format/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/2/then/properties/logicalTypeOptions/properties/exclusiveMaximum/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/2/then/properties/logicalTypeOptions/properties/maximum/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/2/then/properties/logicalTypeOptions/properties/exclusiveMinimum/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/2/then/properties/logicalTypeOptions/properties/minimum/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/3/if	if	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/3/if/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/3/if/anyOf/0/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/3/if/anyOf/0/properties/logicalType/const	const	"timestamp"
+/$defs/SchemaBaseProperty/allOf/3/if/anyOf/1/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/3/if/anyOf/1/properties/logicalType/const	const	"time"
+/$defs/SchemaBaseProperty/allOf/3/then	then	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/3/then/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/type	type	"object"
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/additionalProperties	additionalProperties	false
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/properties/format/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/properties/exclusiveMaximum/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/properties/maximum/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/properties/exclusiveMinimum/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/properties/minimum/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/properties/timezone/type	type	"boolean"
+/$defs/SchemaBaseProperty/allOf/3/then/properties/logicalTypeOptions/properties/defaultTimezone/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/4/if	if	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/4/if/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/4/if/anyOf/0/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/4/if/anyOf/0/properties/logicalType/const	const	"integer"
+/$defs/SchemaBaseProperty/allOf/4/then	then	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/4/then/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/type	type	"object"
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/additionalProperties	additionalProperties	false
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/properties/multipleOf/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/properties/multipleOf/exclusiveMinimum	exclusiveMinimum	0
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/properties/maximum/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/properties/exclusiveMaximum/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/properties/minimum/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/properties/exclusiveMinimum/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/properties/format/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/4/then/properties/logicalTypeOptions/properties/format/enum	enum	["i8","i16","i32","i64","i128","u8","u16","u32","u64","u128"]
+/$defs/SchemaBaseProperty/allOf/5/if	if	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/5/if/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/5/if/anyOf/0/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/5/if/anyOf/0/properties/logicalType/const	const	"number"
+/$defs/SchemaBaseProperty/allOf/5/then	then	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/5/then/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/type	type	"object"
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/additionalProperties	additionalProperties	false
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/properties/multipleOf/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/properties/multipleOf/exclusiveMinimum	exclusiveMinimum	0
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/properties/maximum/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/properties/exclusiveMaximum/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/properties/minimum/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/properties/exclusiveMinimum/type	type	"number"
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/properties/format/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/5/then/properties/logicalTypeOptions/properties/format/enum	enum	["f32","f64"]
+/$defs/SchemaBaseProperty/allOf/6/if	if	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/6/if/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/6/if/properties/logicalType/const	const	"object"
+/$defs/SchemaBaseProperty/allOf/6/then	then	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/6/then/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/type	type	"object"
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/additionalProperties	additionalProperties	false
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties/maxProperties/type	type	"integer"
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties/maxProperties/minimum	minimum	0
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties/minProperties/type	type	"integer"
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties/minProperties/minimum	minimum	0
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties/required/type	type	"array"
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties/required/items	items	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties/required/items/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties/required/minItems	minItems	1
+/$defs/SchemaBaseProperty/allOf/6/then/properties/logicalTypeOptions/properties/required/uniqueItems	uniqueItems	true
+/$defs/SchemaBaseProperty/allOf/6/then/properties/properties/type	type	"array"
+/$defs/SchemaBaseProperty/allOf/6/then/properties/properties/items	items	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/6/then/properties/properties/items/$ref	$ref	"#/$defs/SchemaProperty"
+/$defs/SchemaBaseProperty/allOf/7/if	if	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/7/if/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/7/if/properties/logicalType/const	const	"array"
+/$defs/SchemaBaseProperty/allOf/7/then	then	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/7/then/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/7/then/properties/logicalTypeOptions/type	type	"object"
+/$defs/SchemaBaseProperty/allOf/7/then/properties/logicalTypeOptions/additionalProperties	additionalProperties	false
+/$defs/SchemaBaseProperty/allOf/7/then/properties/logicalTypeOptions/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/7/then/properties/logicalTypeOptions/properties/maxItems/type	type	"integer"
+/$defs/SchemaBaseProperty/allOf/7/then/properties/logicalTypeOptions/properties/maxItems/minimum	minimum	0
+/$defs/SchemaBaseProperty/allOf/7/then/properties/logicalTypeOptions/properties/minItems/type	type	"integer"
+/$defs/SchemaBaseProperty/allOf/7/then/properties/logicalTypeOptions/properties/minItems/minimum	minimum	0
+/$defs/SchemaBaseProperty/allOf/7/then/properties/logicalTypeOptions/properties/uniqueItems/type	type	"boolean"
+/$defs/SchemaBaseProperty/allOf/7/then/properties/items/$ref	$ref	"#/$defs/SchemaItemProperty"
+/$defs/SchemaBaseProperty/allOf/8/if	if	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/8/if/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/8/if/properties/logicalType/const	const	"map"
+/$defs/SchemaBaseProperty/allOf/8/if/required	required	["logicalType"]
+/$defs/SchemaBaseProperty/allOf/8/then	then	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/8/then/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/8/then/properties/map/type	type	"object"
+/$defs/SchemaBaseProperty/allOf/8/then/properties/map/additionalProperties	additionalProperties	false
+/$defs/SchemaBaseProperty/allOf/8/then/properties/map/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/8/then/properties/map/properties/key/$ref	$ref	"#/$defs/SchemaItemProperty"
+/$defs/SchemaBaseProperty/allOf/8/then/properties/map/properties/value/$ref	$ref	"#/$defs/SchemaItemProperty"
+/$defs/SchemaBaseProperty/allOf/8/then/properties/map/required	required	["key","value"]
+/$defs/SchemaBaseProperty/allOf/8/then/required	required	["map"]
+/$defs/SchemaBaseProperty/allOf/9/if	if	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/9/if/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/9/if/properties/logicalType/const	const	"vector"
+/$defs/SchemaBaseProperty/allOf/9/if/required	required	["logicalType"]
+/$defs/SchemaBaseProperty/allOf/9/then	then	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/9/then/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/type	type	"object"
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/additionalProperties	additionalProperties	false
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties/dimensions/type	type	"integer"
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties/dimensions/minimum	minimum	1
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties/elementType/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties/elementType/enum	enum	["bfloat16","binary","float16","float32","float64","int8","uint8"]
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties/distanceMetric/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties/distanceMetric/enum	enum	["cosine","dotProduct","euclidean","hamming","manhattan"]
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties/embeddingModel/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties/embeddingModelVersion/type	type	"string"
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/properties/normalized/type	type	"boolean"
+/$defs/SchemaBaseProperty/allOf/9/then/properties/logicalTypeOptions/required	required	["dimensions"]
+/$defs/SchemaBaseProperty/unevaluatedProperties	unevaluatedProperties	false
+/$defs/SchemaProperty/type	type	"object"
+/$defs/SchemaProperty/$ref	$ref	"#/$defs/SchemaBaseProperty"
+/$defs/SchemaProperty/required	required	["name"]
+/$defs/SchemaProperty/unevaluatedProperties	unevaluatedProperties	false
+/$defs/SchemaItemProperty/type	type	"object"
+/$defs/SchemaItemProperty/$ref	$ref	"#/$defs/SchemaBaseProperty"
+/$defs/SchemaItemProperty/properties	properties	(subschema; see pinned artifact)
+/$defs/SchemaItemProperty/properties/properties/type	type	"array"
+/$defs/SchemaItemProperty/properties/properties/items	items	(subschema; see pinned artifact)
+/$defs/SchemaItemProperty/properties/properties/items/$ref	$ref	"#/$defs/SchemaProperty"
+/$defs/SchemaItemProperty/unevaluatedProperties	unevaluatedProperties	false
+/$defs/Tags/type	type	"array"
+/$defs/Tags/items	items	(subschema; see pinned artifact)
+/$defs/Tags/items/type	type	"string"
+/$defs/DataQuality/type	type	"object"
+/$defs/DataQuality/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQuality/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/DataQuality/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/$defs/DataQuality/properties/businessImpact/type	type	"string"
+/$defs/DataQuality/properties/customProperties/type	type	"array"
+/$defs/DataQuality/properties/customProperties/items	items	(subschema; see pinned artifact)
+/$defs/DataQuality/properties/customProperties/items/$ref	$ref	"#/$defs/CustomProperty"
+/$defs/DataQuality/properties/description/type	type	"string"
+/$defs/DataQuality/properties/dimension/type	type	"string"
+/$defs/DataQuality/properties/dimension/enum	enum	["accuracy","completeness","conformity","consistency","coverage","timeliness","uniqueness"]
+/$defs/DataQuality/properties/method/type	type	"string"
+/$defs/DataQuality/properties/name/type	type	"string"
+/$defs/DataQuality/properties/schedule/type	type	"string"
+/$defs/DataQuality/properties/scheduler/type	type	"string"
+/$defs/DataQuality/properties/severity/type	type	"string"
+/$defs/DataQuality/properties/tags/$ref	$ref	"#/$defs/Tags"
+/$defs/DataQuality/properties/type/type	type	"string"
+/$defs/DataQuality/properties/type/enum	enum	["text","library","sql","custom"]
+/$defs/DataQuality/properties/unit/type	type	"string"
+/$defs/DataQuality/allOf	allOf	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/0/if	if	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/0/if/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/0/if/anyOf/0/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/0/if/anyOf/0/properties/type/const	const	"library"
+/$defs/DataQuality/allOf/0/if/anyOf/0/required	required	["type"]
+/$defs/DataQuality/allOf/0/if/anyOf/1/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/0/if/anyOf/1/properties/metric/type	type	"string"
+/$defs/DataQuality/allOf/0/if/anyOf/1/required	required	["metric"]
+/$defs/DataQuality/allOf/0/then	then	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/0/then/$ref	$ref	"#/$defs/DataQualityLibrary"
+/$defs/DataQuality/allOf/1/if	if	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/1/if/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/1/if/properties/type/const	const	"sql"
+/$defs/DataQuality/allOf/1/if/required	required	["type"]
+/$defs/DataQuality/allOf/1/then	then	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/1/then/$ref	$ref	"#/$defs/DataQualitySql"
+/$defs/DataQuality/allOf/2/if	if	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/2/if/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/2/if/properties/type/const	const	"custom"
+/$defs/DataQuality/allOf/2/if/required	required	["type"]
+/$defs/DataQuality/allOf/2/then	then	(subschema; see pinned artifact)
+/$defs/DataQuality/allOf/2/then/$ref	$ref	"#/$defs/DataQualityCustom"
+/$defs/DataQuality/unevaluatedProperties	unevaluatedProperties	false
+/$defs/DataQualityChecks/type	type	"array"
+/$defs/DataQualityChecks/items	items	(subschema; see pinned artifact)
+/$defs/DataQualityChecks/items/$ref	$ref	"#/$defs/DataQuality"
+/$defs/DataQualityOperators/type	type	"object"
+/$defs/DataQualityOperators/oneOf	oneOf	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/0/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/0/required	required	["mustBe"]
+/$defs/DataQualityOperators/oneOf/1/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/1/required	required	["mustNotBe"]
+/$defs/DataQualityOperators/oneOf/2/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/2/properties/mustBeGreaterThan/type	type	"number"
+/$defs/DataQualityOperators/oneOf/2/required	required	["mustBeGreaterThan"]
+/$defs/DataQualityOperators/oneOf/3/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/3/properties/mustBeGreaterOrEqualTo/type	type	"number"
+/$defs/DataQualityOperators/oneOf/3/required	required	["mustBeGreaterOrEqualTo"]
+/$defs/DataQualityOperators/oneOf/4/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/4/properties/mustBeLessThan/type	type	"number"
+/$defs/DataQualityOperators/oneOf/4/required	required	["mustBeLessThan"]
+/$defs/DataQualityOperators/oneOf/5/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/5/properties/mustBeLessOrEqualTo/type	type	"number"
+/$defs/DataQualityOperators/oneOf/5/required	required	["mustBeLessOrEqualTo"]
+/$defs/DataQualityOperators/oneOf/6/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/6/properties/mustBeBetween/type	type	"array"
+/$defs/DataQualityOperators/oneOf/6/properties/mustBeBetween/minItems	minItems	2
+/$defs/DataQualityOperators/oneOf/6/properties/mustBeBetween/maxItems	maxItems	2
+/$defs/DataQualityOperators/oneOf/6/properties/mustBeBetween/uniqueItems	uniqueItems	true
+/$defs/DataQualityOperators/oneOf/6/properties/mustBeBetween/items	items	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/6/properties/mustBeBetween/items/type	type	"number"
+/$defs/DataQualityOperators/oneOf/6/required	required	["mustBeBetween"]
+/$defs/DataQualityOperators/oneOf/7/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/7/properties/mustNotBeBetween/type	type	"array"
+/$defs/DataQualityOperators/oneOf/7/properties/mustNotBeBetween/minItems	minItems	2
+/$defs/DataQualityOperators/oneOf/7/properties/mustNotBeBetween/maxItems	maxItems	2
+/$defs/DataQualityOperators/oneOf/7/properties/mustNotBeBetween/uniqueItems	uniqueItems	true
+/$defs/DataQualityOperators/oneOf/7/properties/mustNotBeBetween/items	items	(subschema; see pinned artifact)
+/$defs/DataQualityOperators/oneOf/7/properties/mustNotBeBetween/items/type	type	"number"
+/$defs/DataQualityOperators/oneOf/7/required	required	["mustNotBeBetween"]
+/$defs/DataQualityLibrary/type	type	"object"
+/$defs/DataQualityLibrary/allOf	allOf	(subschema; see pinned artifact)
+/$defs/DataQualityLibrary/allOf/0/$ref	$ref	"#/$defs/DataQualityOperators"
+/$defs/DataQualityLibrary/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityLibrary/properties/metric/type	type	"string"
+/$defs/DataQualityLibrary/properties/metric/enum	enum	["nullValues","missingValues","invalidValues","duplicateValues","rowCount"]
+/$defs/DataQualityLibrary/properties/rule/type	type	"string"
+/$defs/DataQualityLibrary/properties/arguments/type	type	"object"
+/$defs/DataQualityLibrary/required	required	["metric"]
+/$defs/DataQualitySql/type	type	"object"
+/$defs/DataQualitySql/allOf	allOf	(subschema; see pinned artifact)
+/$defs/DataQualitySql/allOf/0/$ref	$ref	"#/$defs/DataQualityOperators"
+/$defs/DataQualitySql/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualitySql/properties/query/type	type	"string"
+/$defs/DataQualitySql/required	required	["query"]
+/$defs/DataQualityCustom/type	type	"object"
+/$defs/DataQualityCustom/properties	properties	(subschema; see pinned artifact)
+/$defs/DataQualityCustom/properties/engine/type	type	"string"
+/$defs/DataQualityCustom/properties/implementation/oneOf	oneOf	(subschema; see pinned artifact)
+/$defs/DataQualityCustom/properties/implementation/oneOf/0/type	type	"string"
+/$defs/DataQualityCustom/properties/implementation/oneOf/1/type	type	"object"
+/$defs/DataQualityCustom/required	required	["engine","implementation"]
+/$defs/AuthoritativeDefinitions/type	type	"array"
+/$defs/AuthoritativeDefinitions/items	items	(subschema; see pinned artifact)
+/$defs/AuthoritativeDefinitions/items/type	type	"object"
+/$defs/AuthoritativeDefinitions/items/properties	properties	(subschema; see pinned artifact)
+/$defs/AuthoritativeDefinitions/items/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/AuthoritativeDefinitions/items/properties/url/type	type	"string"
+/$defs/AuthoritativeDefinitions/items/properties/type/type	type	"string"
+/$defs/AuthoritativeDefinitions/items/properties/description/type	type	"string"
+/$defs/AuthoritativeDefinitions/items/required	required	["url","type"]
+/$defs/AuthoritativeDefinitions/items/additionalProperties	additionalProperties	false
+/$defs/Support/type	type	"array"
+/$defs/Support/items	items	(subschema; see pinned artifact)
+/$defs/Support/items/$ref	$ref	"#/$defs/SupportItem"
+/$defs/SupportItem/type	type	"object"
+/$defs/SupportItem/properties	properties	(subschema; see pinned artifact)
+/$defs/SupportItem/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/SupportItem/properties/channel/type	type	"string"
+/$defs/SupportItem/properties/url/type	type	"string"
+/$defs/SupportItem/properties/description/type	type	"string"
+/$defs/SupportItem/properties/tool/type	type	"string"
+/$defs/SupportItem/properties/scope/type	type	"string"
+/$defs/SupportItem/properties/invitationUrl/type	type	"string"
+/$defs/SupportItem/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/$defs/SupportItem/required	required	["channel"]
+/$defs/SupportItem/additionalProperties	additionalProperties	false
+/$defs/Pricing/type	type	"object"
+/$defs/Pricing/properties	properties	(subschema; see pinned artifact)
+/$defs/Pricing/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/Pricing/properties/priceAmount/type	type	"number"
+/$defs/Pricing/properties/priceCurrency/type	type	"string"
+/$defs/Pricing/properties/priceUnit/type	type	"string"
+/$defs/Pricing/additionalProperties	additionalProperties	false
+/$defs/TeamMember/type	type	"object"
+/$defs/TeamMember/additionalProperties	additionalProperties	false
+/$defs/TeamMember/properties	properties	(subschema; see pinned artifact)
+/$defs/TeamMember/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/TeamMember/properties/username/type	type	"string"
+/$defs/TeamMember/properties/name/type	type	"string"
+/$defs/TeamMember/properties/description/type	type	"string"
+/$defs/TeamMember/properties/role/type	type	"string"
+/$defs/TeamMember/properties/dateIn/type	type	"string"
+/$defs/TeamMember/properties/dateIn/format	format	"date"
+/$defs/TeamMember/properties/dateOut/type	type	"string"
+/$defs/TeamMember/properties/dateOut/format	format	"date"
+/$defs/TeamMember/properties/replacedByUsername/type	type	"string"
+/$defs/TeamMember/properties/tags/$ref	$ref	"#/$defs/Tags"
+/$defs/TeamMember/properties/customProperties/type	type	"array"
+/$defs/TeamMember/properties/customProperties/items	items	(subschema; see pinned artifact)
+/$defs/TeamMember/properties/customProperties/items/$ref	$ref	"#/$defs/CustomProperty"
+/$defs/TeamMember/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/$defs/TeamMember/required	required	["username"]
+/$defs/Team/type	type	"object"
+/$defs/Team/additionalProperties	additionalProperties	false
+/$defs/Team/properties	properties	(subschema; see pinned artifact)
+/$defs/Team/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/Team/properties/name/type	type	"string"
+/$defs/Team/properties/description/type	type	"string"
+/$defs/Team/properties/members/type	type	"array"
+/$defs/Team/properties/members/items	items	(subschema; see pinned artifact)
+/$defs/Team/properties/members/items/$ref	$ref	"#/$defs/TeamMember"
+/$defs/Team/properties/tags/$ref	$ref	"#/$defs/Tags"
+/$defs/Team/properties/customProperties/type	type	"array"
+/$defs/Team/properties/customProperties/items	items	(subschema; see pinned artifact)
+/$defs/Team/properties/customProperties/items/$ref	$ref	"#/$defs/CustomProperty"
+/$defs/Team/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/$defs/Role/type	type	"object"
+/$defs/Role/properties	properties	(subschema; see pinned artifact)
+/$defs/Role/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/Role/properties/role/type	type	"string"
+/$defs/Role/properties/description/type	type	"string"
+/$defs/Role/properties/access/type	type	"string"
+/$defs/Role/properties/firstLevelApprovers/type	type	"string"
+/$defs/Role/properties/secondLevelApprovers/type	type	"string"
+/$defs/Role/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/$defs/Role/required	required	["role"]
+/$defs/Role/additionalProperties	additionalProperties	false
+/$defs/ServiceLevelAgreementProperty/type	type	"object"
+/$defs/ServiceLevelAgreementProperty/properties	properties	(subschema; see pinned artifact)
+/$defs/ServiceLevelAgreementProperty/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/ServiceLevelAgreementProperty/properties/property/type	type	"string"
+/$defs/ServiceLevelAgreementProperty/properties/value/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/ServiceLevelAgreementProperty/properties/value/anyOf/0/type	type	"string"
+/$defs/ServiceLevelAgreementProperty/properties/value/anyOf/1/type	type	"number"
+/$defs/ServiceLevelAgreementProperty/properties/value/anyOf/2/type	type	"integer"
+/$defs/ServiceLevelAgreementProperty/properties/value/anyOf/3/type	type	"boolean"
+/$defs/ServiceLevelAgreementProperty/properties/value/anyOf/4/type	type	"null"
+/$defs/ServiceLevelAgreementProperty/properties/valueExt/$ref	$ref	"#/$defs/AnyNonCollectionType"
+/$defs/ServiceLevelAgreementProperty/properties/unit/type	type	"string"
+/$defs/ServiceLevelAgreementProperty/properties/element/type	type	"string"
+/$defs/ServiceLevelAgreementProperty/properties/driver/type	type	"string"
+/$defs/ServiceLevelAgreementProperty/properties/description/type	type	"string"
+/$defs/ServiceLevelAgreementProperty/properties/scheduler/type	type	"string"
+/$defs/ServiceLevelAgreementProperty/properties/schedule/type	type	"string"
+/$defs/ServiceLevelAgreementProperty/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/$defs/ServiceLevelAgreementProperty/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/$defs/ServiceLevelAgreementProperty/required	required	["property","value"]
+/$defs/ServiceLevelAgreementProperty/additionalProperties	additionalProperties	false
+/$defs/CustomProperties/type	type	"array"
+/$defs/CustomProperties/items	items	(subschema; see pinned artifact)
+/$defs/CustomProperties/items/$ref	$ref	"#/$defs/CustomProperty"
+/$defs/EnumValue/type	type	"object"
+/$defs/EnumValue/properties	properties	(subschema; see pinned artifact)
+/$defs/EnumValue/properties/value/$ref	$ref	"#/$defs/AnyNonCollectionType"
+/$defs/EnumValue/properties/label/type	type	"string"
+/$defs/EnumValue/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/EnumValue/properties/description/type	type	"string"
+/$defs/EnumValue/properties/customProperties/type	type	"array"
+/$defs/EnumValue/properties/customProperties/items	items	(subschema; see pinned artifact)
+/$defs/EnumValue/properties/customProperties/items/$ref	$ref	"#/$defs/CustomProperty"
+/$defs/EnumValue/properties/authoritativeDefinitions/$ref	$ref	"#/$defs/AuthoritativeDefinitions"
+/$defs/EnumValue/properties/tags/$ref	$ref	"#/$defs/Tags"
+/$defs/EnumValue/required	required	["value"]
+/$defs/EnumValue/additionalProperties	additionalProperties	false
+/$defs/Synonyms/type	type	"array"
+/$defs/Synonyms/items	items	(subschema; see pinned artifact)
+/$defs/Synonyms/items/$ref	$ref	"#/$defs/Synonym"
+/$defs/Synonym/type	type	"object"
+/$defs/Synonym/properties	properties	(subschema; see pinned artifact)
+/$defs/Synonym/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/Synonym/properties/synonym/type	type	"string"
+/$defs/Synonym/properties/description/type	type	"string"
+/$defs/Synonym/properties/locale/type	type	"string"
+/$defs/Synonym/properties/source/type	type	"string"
+/$defs/Synonym/properties/status/type	type	"string"
+/$defs/Synonym/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/$defs/Synonym/required	required	["synonym"]
+/$defs/Synonym/additionalProperties	additionalProperties	false
+/$defs/CustomProperty/type	type	"object"
+/$defs/CustomProperty/properties	properties	(subschema; see pinned artifact)
+/$defs/CustomProperty/properties/id/$ref	$ref	"#/$defs/StableId"
+/$defs/CustomProperty/properties/property/type	type	"string"
+/$defs/CustomProperty/properties/value/$ref	$ref	"#/$defs/AnyType"
+/$defs/CustomProperty/properties/description/type	type	"string"
+/$defs/CustomProperty/properties/vendor/type	type	"string"
+/$defs/CustomProperty/required	required	["property","value"]
+/$defs/CustomProperty/additionalProperties	additionalProperties	false
+/$defs/AnyType/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/AnyType/anyOf/0/type	type	"string"
+/$defs/AnyType/anyOf/1/type	type	"number"
+/$defs/AnyType/anyOf/2/type	type	"integer"
+/$defs/AnyType/anyOf/3/type	type	"boolean"
+/$defs/AnyType/anyOf/4/type	type	"null"
+/$defs/AnyType/anyOf/5/type	type	"array"
+/$defs/AnyType/anyOf/6/type	type	"object"
+/$defs/AnyNonCollectionType/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/AnyNonCollectionType/anyOf/0/type	type	"string"
+/$defs/AnyNonCollectionType/anyOf/1/type	type	"number"
+/$defs/AnyNonCollectionType/anyOf/2/type	type	"integer"
+/$defs/AnyNonCollectionType/anyOf/3/type	type	"boolean"
+/$defs/AnyNonCollectionType/anyOf/4/type	type	"null"
+/$defs/RelationshipBase/type	type	"object"
+/$defs/RelationshipBase/properties	properties	(subschema; see pinned artifact)
+/$defs/RelationshipBase/properties/id/type	type	"string"
+/$defs/RelationshipBase/properties/type/type	type	"string"
+/$defs/RelationshipBase/properties/type/enum	enum	["foreignKey"]
+/$defs/RelationshipBase/properties/from/oneOf	oneOf	(subschema; see pinned artifact)
+/$defs/RelationshipBase/properties/from/oneOf/0/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/RelationshipBase/properties/from/oneOf/0/anyOf/0/$ref	$ref	"#/$defs/ShorthandReference"
+/$defs/RelationshipBase/properties/from/oneOf/0/anyOf/1/$ref	$ref	"#/$defs/FullyQualifiedReference"
+/$defs/RelationshipBase/properties/from/oneOf/1/type	type	"array"
+/$defs/RelationshipBase/properties/from/oneOf/1/items	items	(subschema; see pinned artifact)
+/$defs/RelationshipBase/properties/from/oneOf/1/items/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/RelationshipBase/properties/from/oneOf/1/items/anyOf/0/$ref	$ref	"#/$defs/ShorthandReference"
+/$defs/RelationshipBase/properties/from/oneOf/1/items/anyOf/1/$ref	$ref	"#/$defs/FullyQualifiedReference"
+/$defs/RelationshipBase/properties/from/oneOf/1/minItems	minItems	1
+/$defs/RelationshipBase/properties/to/oneOf	oneOf	(subschema; see pinned artifact)
+/$defs/RelationshipBase/properties/to/oneOf/0/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/RelationshipBase/properties/to/oneOf/0/anyOf/0/$ref	$ref	"#/$defs/ShorthandReference"
+/$defs/RelationshipBase/properties/to/oneOf/0/anyOf/1/$ref	$ref	"#/$defs/FullyQualifiedReference"
+/$defs/RelationshipBase/properties/to/oneOf/1/type	type	"array"
+/$defs/RelationshipBase/properties/to/oneOf/1/items	items	(subschema; see pinned artifact)
+/$defs/RelationshipBase/properties/to/oneOf/1/items/anyOf	anyOf	(subschema; see pinned artifact)
+/$defs/RelationshipBase/properties/to/oneOf/1/items/anyOf/0/$ref	$ref	"#/$defs/ShorthandReference"
+/$defs/RelationshipBase/properties/to/oneOf/1/items/anyOf/1/$ref	$ref	"#/$defs/FullyQualifiedReference"
+/$defs/RelationshipBase/properties/to/oneOf/1/minItems	minItems	1
+/$defs/RelationshipBase/properties/customProperties/$ref	$ref	"#/$defs/CustomProperties"
+/$defs/RelationshipSchemaLevel/type	type	"object"
+/$defs/RelationshipSchemaLevel/allOf	allOf	(subschema; see pinned artifact)
+/$defs/RelationshipSchemaLevel/allOf/0/$ref	$ref	"#/$defs/RelationshipBase"
+/$defs/RelationshipSchemaLevel/allOf/1/required	required	["from","to"]
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf	oneOf	(subschema; see pinned artifact)
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/0/properties	properties	(subschema; see pinned artifact)
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/0/properties/from/type	type	"string"
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/0/properties/to/type	type	"string"
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/1/properties	properties	(subschema; see pinned artifact)
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/1/properties/from/type	type	"array"
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/1/properties/from/items	items	(subschema; see pinned artifact)
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/1/properties/from/items/type	type	"string"
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/1/properties/from/minItems	minItems	1
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/1/properties/to/type	type	"array"
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/1/properties/to/items	items	(subschema; see pinned artifact)
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/1/properties/to/items/type	type	"string"
+/$defs/RelationshipSchemaLevel/allOf/2/oneOf/1/properties/to/minItems	minItems	1
+/$defs/RelationshipSchemaLevel/unevaluatedProperties	unevaluatedProperties	false
+/$defs/RelationshipPropertyLevel/type	type	"object"
+/$defs/RelationshipPropertyLevel/allOf	allOf	(subschema; see pinned artifact)
+/$defs/RelationshipPropertyLevel/allOf/0/$ref	$ref	"#/$defs/RelationshipBase"
+/$defs/RelationshipPropertyLevel/allOf/1/type	type	"object"
+/$defs/RelationshipPropertyLevel/allOf/1/required	required	["to"]
+/$defs/RelationshipPropertyLevel/allOf/2/not	not	(subschema; see pinned artifact)
+/$defs/RelationshipPropertyLevel/allOf/2/not/required	required	["from"]
+/$defs/RelationshipPropertyLevel/unevaluatedProperties	unevaluatedProperties	false
+/$defs/Relationship/oneOf	oneOf	(subschema; see pinned artifact)
+/$defs/Relationship/oneOf/0/$ref	$ref	"#/$defs/RelationshipSchemaLevel"
+/$defs/Relationship/oneOf/1/$ref	$ref	"#/$defs/RelationshipPropertyLevel"

@@ -10,8 +10,8 @@ Packata supports Data Package v2 and ODCS 3.2.0 through distinct native models. 
 
 | Layer | Data Package v2 | ODCS 3.2.0 |
 | --- | --- | --- |
-| Native input | JSON and YAML | YAML |
-| Descriptor validation | Descriptor, resources, fields, licenses/contributors, structured constraints and Table Dialect | YAML/semantic schema constraints; CLI also checks identity, version, status, kind and API version |
+| Native input | JSON and YAML | YAML and JSON |
+| Descriptor validation | Official v2 JSON Schema plus existing declaration checks | Official 3.2.0 JSON Schema plus semantic declaration and Packata binding checks |
 | Canonical mapping | Resources, schemas, keys/relationships, endpoints, metadata and namespaced extensions | Schema/properties, servers, relationships, governance, custom metadata, SLA/lifecycle commitments |
 | Execution | Registered readers and provisioners operate on mapped capabilities | Same shared stack; ambiguous multiple servers do not gain guessed bindings |
 
@@ -26,6 +26,9 @@ automatically load values, and a metric definition does not cause a metric to be
 Keep the native document when your workflow needs source-only metadata.
 
 ## ODCS
+
+See [descriptor validation]({{ '/standards/validation/' | relative_url }}) for the
+implemented semantic checks, schema differences, supported version and layer selection.
 
 The ODCS model retains context blocks, schema and server variants, nested logical types,
 temporal options and relationships. It also retains teams, roles, pricing, support channels,

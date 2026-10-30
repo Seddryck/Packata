@@ -34,6 +34,9 @@ This checks the descriptor, so a valid result does not tell you whether the CSV
 exists or its values match the schema.
 
 Add `--output-format json` when you need a machine-readable validation report.
+The default runs schema validation followed by semantic declaration checks.
+Use `--schema` or `--semantic` to select one layer, or both flags for both layers.
+See the [semantic checklist and limitations]({{ '/standards/validation/' | relative_url }}).
 See the [validation reference]({{ '/cli/' | relative_url }}#validate-a-contract)
 for supported sources, options and exit codes.
 

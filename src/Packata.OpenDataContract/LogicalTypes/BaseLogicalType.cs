@@ -18,12 +18,25 @@ public abstract class BaseLogicalType<T> : ILogicalType where T : struct
 
         if (dict.TryGetValue("format", out var fmt) && fmt is string fmtStr)
             Format = fmtStr;
-        if (dict.TryGetValue("exclusiveMaximum", out var exclusiveMaximum) && exclusiveMaximum is string isExclusiveMaximum)
-            ExclusiveMaximum = Convert.ToBoolean(isExclusiveMaximum);
-        if (dict.TryGetValue("exclusiveMinimum", out var exclusiveMinimum) && exclusiveMinimum is string isExclusiveMinimum)
-            ExclusiveMinimum = Convert.ToBoolean(isExclusiveMinimum);
         Maximum = ConvertValue(dict.GetValueOrDefault("maximum"));
         Minimum = ConvertValue(dict.GetValueOrDefault("minimum"));
+        (Minimum, ExclusiveMinimum) = Bound(dict, "exclusiveMinimum", Minimum, minimum: true);
+        (Maximum, ExclusiveMaximum) = Bound(dict, "exclusiveMaximum", Maximum, minimum: false);
+    }
+
+    private (T? Value, bool Exclusive) Bound(Dictionary<string, object> options, string key, T? inclusive, bool minimum)
+    {
+        if (!options.TryGetValue(key, out var raw)) return (inclusive, false);
+        // Retain legacy native-model boolean options; descriptor schema validation rejects them.
+        if (raw is bool boolean) return (inclusive, boolean);
+        if (raw is string text && bool.TryParse(text, out var flag)) return (inclusive, flag);
+        var exclusive = ConvertValue(Convert.ToString(raw, System.Globalization.CultureInfo.InvariantCulture));
+        if (exclusive is null) return (inclusive, false);
+        var comparison = inclusive is null ? 0 : Comparer<T>.Default.Compare(exclusive.Value, inclusive.Value);
+        var tighter = comparison <= 0;
+        if (minimum) tighter = comparison >= 0;
+        return inclusive is null || tighter
+            ? (exclusive, true) : (inclusive, false);
     }
 
     protected abstract T? ConvertValue(object? value);

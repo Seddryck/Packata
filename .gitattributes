@@ -11,3 +11,6 @@
 
 # The sample descriptor explicitly declares LF as its CSV record terminator.
 docs/samples/quickstart/customers.csv text eol=lf
+
+# Official schema artifacts are pinned byte-for-byte, including their SHA-256.
+src/Packata.Documents/Validation/Schemas/*.json -text
