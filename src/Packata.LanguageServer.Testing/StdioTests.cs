@@ -10,6 +10,23 @@ namespace Packata.LanguageServer.Testing;
 public sealed class StdioTests
 {
     [Test]
+    public async Task GenerationCommandsAdvertiseCapabilitiesAndReturnContentInsideFramesAsync()
+    {
+        await using var client = await StdioClient.StartAsync();
+        Assert.That(client.Commands, Does.Contain("packata.schema.export.options").And.Contain("packata.schema.export"));
+        const string uri = "file:///workspace/generation.yaml";
+        await client.NotifyAsync("textDocument/didOpen", new { textDocument = new { uri, languageId = "yaml", version = 1,
+            text = "resources:\n  - name: orders\n    schema:\n      fields:\n        - name: id\n          type: integer\n" } });
+        var options = await client.CommandAsync("packata.schema.export.options", new { uri });
+        Assert.That(options["catalog"]?["targets"], Has.Count.EqualTo(3));
+        var generated = await client.CommandAsync("packata.schema.export", new { uri, version = 1,
+            selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", target = "record" } });
+        Assert.That((bool?)generated["result"]?["isSuccessful"], Is.True, generated.ToString());
+        Assert.That((string?)generated["result"]?["content"], Does.Contain("record Orders"));
+        await client.StopAsync();
+    }
+
+    [Test]
     public async Task PreviewCommandUsesPersistentUnsavedDocumentAndReturnsSanitizedDiagnosticsAsync()
     {
         await using var client = await StdioClient.StartAsync();

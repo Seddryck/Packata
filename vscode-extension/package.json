@@ -107,6 +107,12 @@
         "title": "Preview Resource Data…",
         "category": "Packata",
         "icon": "$(table)"
+      },
+      {
+        "command": "packata.generateSchemaCode",
+        "category": "Packata",
+        "icon": "$(code)",
+        "title": "Generate Schema Code…"
       }
     ],
     "menus": {
@@ -146,6 +152,11 @@
         {
           "command": "packata.preview",
           "when": "view == packata.contracts && viewItem == previewAsset",
+          "group": "2_contract"
+        },
+        {
+          "command": "packata.generateSchemaCode",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset)",
           "group": "2_contract"
         }
       ],

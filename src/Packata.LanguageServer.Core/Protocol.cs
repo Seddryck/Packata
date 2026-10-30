@@ -10,7 +10,7 @@ public sealed record ContractNode(string Id, string Label, string Kind, string L
     string? Description, SourceLocation? Location, IReadOnlyList<ContractNode> Children, string? SourcePath = null);
 public sealed record Inspection(int SchemaVersion, string Uri, int? Version, string BaseUri, bool Recognized,
     string? Format, JToken? Contract, IReadOnlyList<DocumentDiagnostic> Diagnostics, ContractNode? Tree, ContractNode? NativeTree = null,
-    IReadOnlyList<PreviewTarget>? PreviewTargets = null);
+    IReadOnlyList<PreviewTarget>? PreviewTargets = null, string? GenerationKey = null);
 public sealed record ValidationResult(int SchemaVersion, string Uri, int? Version, bool Valid,
     IReadOnlyList<DocumentDiagnostic> Diagnostics, IReadOnlyList<ValidationCheck>? Checks = null, string? Format = null,
     Packata.Application.Validation.DescriptorProfile? Profile = null);

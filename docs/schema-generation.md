@@ -78,8 +78,10 @@ Records require C# **11+**, nullable annotations enabled and .NET **8+**. Fields
 objects receive deterministic named records, arrays use element projections, and
 `JsonPropertyName` preserves original source names. Invalid identifier characters become
 underscores, leading digits gain an underscore, keywords are escaped, and collisions
-receive `_2`, `_3`, etc. Namespace segments follow the same escaping. Required initialization
-and nullable annotations do not enforce contract constraints or validate all serializers.
+receive `_2`, `_3`, etc. Target imports, factory methods and synthesized record members
+are also reserved for collision handling. Namespace segments follow the same escaping.
+Required initialization and nullable annotations do not enforce contract constraints or
+validate all serializers.
 
 DataTable output is a C# factory using underlying CLR column types and independent
 `AllowDBNull`. It retains requiredness, constraints, value domains, decimal parameters

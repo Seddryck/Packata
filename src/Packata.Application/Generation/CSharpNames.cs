@@ -17,6 +17,7 @@ internal static class CSharpNames
 
     internal static string Identifier(string text, bool type = false)
     {
+        text = ContractJson.Redact(text);
         var builder = new StringBuilder();
         foreach (var character in text.TrimStart('@'))
             builder.Append(char.IsLetterOrDigit(character) || character == '_' ? character : '_');

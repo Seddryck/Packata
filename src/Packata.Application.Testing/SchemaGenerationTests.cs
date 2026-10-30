@@ -187,6 +187,77 @@ public class SchemaGenerationTests
             => throw new AssertionException("Mapping failure must not invoke rendering.");
     }
 
+    [TestCase("record", "System")]
+    [TestCase("datatable", "Create")]
+    [TestCase("polars", "DataType")]
+    public async Task Generated_names_avoid_target_import_and_synthesized_member_collisions(string target, string name)
+    {
+        var source = Descriptor.Replace("name: id", "name: Clone").Replace("name: a-b", "name: ToString");
+        var result = await new SchemaGenerationService().GenerateAsync(source, new(Target: target, TypeName: name));
+        Assert.That(result.IsSuccessful, Is.True, string.Join("\n", result.Diagnostics));
+        Compile(result.Content!);
+        if (target == "record") Assert.That(result.Content, Does.Contain("Clone_2").And.Contain("ToString_2"));
+    }
+
+    [TestCase(false, false)]
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public async Task Generated_targets_preserve_all_required_nullable_combinations(bool required, bool nullable)
+    {
+        var source = $"""
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: sample
+            schema:
+              - name: orders
+                properties:
+                  - name: value
+                    logicalType: integer
+                    required: {required.ToString().ToLowerInvariant()}
+                    nullable: {nullable.ToString().ToLowerInvariant()}
+            """;
+        var service = new SchemaGenerationService();
+        var tableCode = await service.GenerateAsync(source, new(Target: "datatable"));
+        Assert.That(tableCode.IsSuccessful, Is.True, string.Join("\n", tableCode.Diagnostics));
+        using var table = (DataTable)Compile(tableCode.Content!).GetType("Orders")!.GetMethod("Create")!.Invoke(null, null)!;
+        Assert.That(table.Columns[0].DataType, Is.EqualTo(typeof(int)));
+        Assert.That(table.Columns[0].AllowDBNull, Is.EqualTo(nullable));
+        Assert.That(table.Columns[0].ExtendedProperties["packata.required"], Is.EqualTo(required));
+        var record = await service.GenerateAsync(source, new(Target: "record"));
+        Assert.That(record.Content, Does.Contain("public " + (required ? "required " : "") + "int" + (nullable ? "?" : "") + " value"));
+        Compile(record.Content!);
+    }
+
+    [Test]
+    public async Task Categories_remain_codes_with_labels_and_ambiguity_is_actionable()
+    {
+        const string source = """
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: categories
+            schema:
+              - name: orders
+                properties:
+                  - name: code
+                    logicalType: integer
+                    enum:
+                      - value: 1
+                        label: Low
+                      - value: 2
+                        label: High
+            """;
+        var service = new SchemaGenerationService();
+        var result = await service.GenerateAsync(source, new(Target: "record"));
+        Assert.That(result.IsSuccessful, Is.True, string.Join("\n", result.Diagnostics));
+        Assert.That(ContractJson.Serialize(result.Context!), Does.Contain("Low").And.Contain("allowed_values"));
+        Assert.That(result.Content, Does.Contain("int code").And.Not.Contain("enum "));
+        var multiple = source + "\n  - name: another\n    properties:\n      - name: id\n        logicalType: string\n";
+        var ambiguous = await service.GenerateAsync(multiple, new(Target: "record"));
+        Assert.That(ambiguous.Content, Is.Null);
+        Assert.That(ambiguous.Diagnostics.Any(d => d.Code == "GEN_ASSET" && d.Message.Contains("--asset")), Is.True);
+    }
+
     private sealed class CancellingRenderer(CancellationTokenSource cancellation) : ISchemaTemplateRenderer
     {
         public Task<string> RenderAsync(TemplateInput template, string engine, IReadOnlyDictionary<string, object?> context, CancellationToken cancellationToken)

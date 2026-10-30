@@ -45,12 +45,16 @@ export async function validateVsix(filename, target) {
   });
   for (const name of ['extension/package.json', 'extension/dist/extension.js',
     `extension/server/${definition.executable}`, `extension/server/${definition.runtime}`,
-    'extension/server/Packata.LanguageServer.dll', 'extension/server/Packata.LanguageServer.runtimeconfig.json']) {
+    'extension/server/Packata.LanguageServer.dll', 'extension/server/Packata.LanguageServer.runtimeconfig.json',
+    'extension/server/Packata.Application.dll', 'extension/server/Didot.Core.dll',
+    'extension/server/Scriban.dll', 'extension/server/Handlebars.dll', 'extension/server/DotLiquid.dll',
+    'extension/server/Morestachio.dll', 'extension/server/SmartFormat.dll', 'extension/server/Antlr4.StringTemplate.dll']) {
     if (!entries.has(name)) throw new Error(`VSIX is missing ${name}`);
   }
   if ([...entries].some(name => name.startsWith('extension/node_modules/') || name.includes('/test/') || name.endsWith('.pdb'))) {
     throw new Error('VSIX contains development-only files.');
   }
+  if (entries.has('extension/server/Polars.CSharp.dll')) throw new Error('Schema text generation must not package the Polars execution runtime.');
 }
 
 export async function pack(target, version) {

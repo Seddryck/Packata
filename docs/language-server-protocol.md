@@ -159,3 +159,66 @@ Inspection and discovery now also return `nativeTree` (an additive version-1 fie
 Both projections carry optional `sourcePath` JSON Pointers and syntax-derived `location` values. `logicalPath` is canonical in canonical nodes and the native JSON Pointer in native nodes. Stable opaque IDs use unique source names for named sequence items, falling back to occurrence indices for unnamed/duplicate items. Clients match source paths across projections, then fall back to the closest corresponding parent. Well-formed source that fails native deserialization can still return `nativeTree` with diagnostics and a null canonical tree; malformed, cyclic, oversized or excessively deep syntax provides diagnostics without a fabricated tree.
 
 The extension stores its Canonical/Native preference in VS Code workspace state, shared by all workspace folders. Switching uses the already synchronized inspection snapshot; ordinary refresh/version/cancellation handling updates both projections together. Source navigation reinspects the current buffer and searches both trees for the selected opaque ID.
+
+## Schema/code generation (payload version 1)
+
+`packata.schema.export.options` and `packata.schema.export` are advertised in
+`executeCommandProvider.commands`. Clients check both before offering generation; older
+servers continue inspection/validation and report generation unavailable. The options
+response carries the shared `SchemaGenerationService.Catalog` (context version 1), not a
+separate server/client catalog. All target selection, mapping and Didot rendering delegate
+to `Packata.Application` directly; neither host launches a CLI or implements template rules.
+
+Options request: `{ uri, selectionKey?, schemaVersion: 1 }`. Response:
+`{ schemaVersion, uri, version, selectionKey, catalog, assets, diagnostics }`.
+Each asset has canonical `id`, display `name`, native `sourcePath`, eligibility and reason.
+The optional expected selection key detects stale explorer nodes in either projection.
+`Inspection.generationKey` provides the key for tree selections. It is a SHA-256 source
+snapshot token, distinct from preview binding selection keys.
+
+Generation request:
+
+```json
+{
+  "schemaVersion": 1,
+  "uri": "file:///workspace/second/contract.yaml",
+  "version": 3,
+  "selectionKey": "<options response key>",
+  "sourcePath": "/schema/0",
+  "options": { "assetId": "orders", "target": "record", "namespace": "Sales", "typeName": "Orders" }
+}
+```
+
+For custom templates omit `target` and supply
+`template: { uri, text?, version? }`. `uri` is an explicitly selected absolute local file
+URI. Open templates use explicit UTF-16 editor text/version snapshots, even for `.cs`,
+`.hbs`, or `.scriban` buffers outside the descriptor synchronization selector. Closed
+files can omit text; the server reads only that selected file. Namespace/type-name,
+engine override, optional mapping profile and `defines: ["key=value"]` use the same
+Application options/validation as CLI. Relative CLI template paths resolve from the
+source descriptor directory; the editor uses an absolute picker result in that source's
+owning workspace folder, including multi-root workspaces.
+
+The response is `{ schemaVersion, uri, version, selectionKey, result, findings }`.
+`result` retains the Application content, language, suggested filename, canonical asset,
+template identity/version, success flag and structured diagnostics; the complete template
+context is not duplicated into the transport response. `findings` optionally projects
+actual descriptor ranges and Didot template line/column locations. No precise location
+is invented when unavailable. Generation does not publish into the contract-validation
+Problems collection.
+
+The server checks descriptor version/key before preparation and rereads its snapshot after
+rendering. It checks synchronized template versions or closed-template text as applicable.
+The client also rejects changed or closed source/template buffers, changed tree selections,
+server-session changes and cancelled replies. Explicit unsynchronized template snapshots
+are authoritative for that request and revalidated by the client before opening output.
+Invalid contracts, mapping/template errors and inaccessible templates are structured
+findings with no generated artifact. Malformed protocol versions remain JSON-RPC errors.
+Cancellation remains cancellation; Didot's synchronous render cannot be interrupted once
+entered, so its output is discarded when cancellation is observed afterwards.
+
+Generation reads metadata and selected templates only. It does not read rows, contact
+servers/databases, acquire connectors, resolve credentials, compile or execute output.
+The VSIX bundles Application, Didot's managed engines and embedded templates; no installed
+Packata/Didot command or Polars native runtime is required. LSP stdout contains framed
+responses only. Source/context credential redaction follows `ContractJson`.

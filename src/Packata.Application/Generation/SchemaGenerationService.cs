@@ -50,6 +50,15 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         TemplateInput? template = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        try { return await GenerateDocumentAsync(document, options, template, cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception) { return Failure("GEN_DOCUMENT", "The descriptor cannot be prepared for schema generation. Inspect its mapping and type declarations."); }
+    }
+
+    private async Task<GenerationResult> GenerateDocumentAsync(ContractDocument document, GenerationOptions options,
+        TemplateInput? template, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         string? profile;
         string engine;
         try
@@ -129,7 +138,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
 
     private static GenerationDiagnostic TemplateFailure(Exception error, TemplateInput template)
     {
-        var location = Regex.Match(error.Message, @"\((\d+),\s*(\d+)\)");
+        var location = Regex.Match(error.Message, @"\((\d+),\s*(\d+)\)", RegexOptions.None, TimeSpan.FromSeconds(1));
         var message = ContractJson.Redact(error.Message);
         if (message.Length > 2000) message = message[..2000];
         return new("GEN_TEMPLATE", "Error", "$template", message, Template: template.Identity,
