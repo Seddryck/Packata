@@ -86,8 +86,16 @@ upstream PR #1081](https://github.com/frictionlessdata/datapackage/blob/3b9efb7b
 This identifies the recipe revision supported by Packata; it does not claim that
 resource references are part of the published DPv2.0 standard.
 
+For schema validation, opt in with the Packata Category Tables 1.0.0 `$schema`
+shown below. Its [published profile](https://raw.githubusercontent.com/Seddryck/Packata/profile-category-tables-v1.0.0/docs/profiles/category-tables/1.0.0/datapackage.json)
+has the same URI as its `$id`. Packata embeds those exact bytes and resolves the
+profile offline in the library, CLI and VS Code. The official
+`https://datapackage.org/profiles/2.0/datapackage.json` still rejects reference
+objects; omitting `$schema` selects that strict official profile.
+
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/Seddryck/Packata/profile-category-tables-v1.0.0/docs/profiles/category-tables/1.0.0/datapackage.json",
   "resources": [
     {
       "name": "survey",

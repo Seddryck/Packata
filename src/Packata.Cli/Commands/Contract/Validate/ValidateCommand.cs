@@ -10,6 +10,7 @@ internal sealed class ValidateCommand : AsyncCommand<ValidateSettings>
     {
         IReadOnlyList<ValidationFinding> diagnostics;
         IReadOnlyList<LayerValidation> layers;
+        DescriptorProfile? profile = null;
         var selected = ValidationLayers.None;
         if (settings.Schema) selected |= ValidationLayers.Schema;
         if (settings.Semantic) selected |= ValidationLayers.Semantic;
@@ -21,6 +22,7 @@ internal sealed class ValidateCommand : AsyncCommand<ValidateSettings>
             var report = DescriptorValidation.Validate(document.OriginalText, settings.InputFormat, selected, document.BaseUri);
             diagnostics = report.Diagnostics;
             layers = report.Layers;
+            profile = report.Profile;
             exitCode = report.Valid ? ExitCodes.Success : ExitCodes.InvalidDocument;
         }
         catch (Exception exception)
@@ -34,7 +36,7 @@ internal sealed class ValidateCommand : AsyncCommand<ValidateSettings>
 
         try
         {
-            Write(settings, exitCode == ExitCodes.Success, diagnostics, layers);
+            Write(settings, exitCode == ExitCodes.Success, diagnostics, layers, profile);
             return exitCode;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -44,14 +46,15 @@ internal sealed class ValidateCommand : AsyncCommand<ValidateSettings>
         }
     }
 
-    private static void Write(ContractSettings settings, bool valid, IReadOnlyList<ValidationFinding> diagnostics, IReadOnlyList<LayerValidation> layers)
+    private static void Write(ContractSettings settings, bool valid, IReadOnlyList<ValidationFinding> diagnostics, IReadOnlyList<LayerValidation> layers, DescriptorProfile? profile)
     {
         using var output = new OutputDestination(settings.Output);
         if (settings.OutputFormat == "json")
-            CommandOutput.Json(CommandOutput.RedactedJson(new { schemaVersion = 1, source = settings.Source, valid, layers, diagnostics }), output.Writer);
+            CommandOutput.Json(CommandOutput.RedactedJson(new { schemaVersion = 1, source = settings.Source, valid, profile, layers, diagnostics }), output.Writer);
         else
         {
             output.Writer.WriteLine(valid ? "Contract is valid." : "Contract is invalid.");
+            if (profile is not null) output.Writer.WriteLine($"Profile: {profile.Label} ({profile.Uri})");
             foreach (var layer in layers) output.Writer.WriteLine($"{layer.Layer}: {layer.State}{(layer.Reason is null ? "" : " — " + layer.Reason)}");
             foreach (var diagnostic in diagnostics) CommandOutput.Diagnostic(new(diagnostic.Code, diagnostic.Severity, diagnostic.SourcePath, $"[{diagnostic.Layer}] {diagnostic.Message}"));
         }

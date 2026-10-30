@@ -100,6 +100,7 @@ export class ValidationUi implements vscode.Disposable {
       this.tree.validation.set(key, { version: result.version, valid: result.valid, summary: message });
       this.tree.refresh();
       this.summary.clear(); this.summary.appendLine(uri.fsPath);
+      if (result.profile) this.summary.appendLine(`Profile: ${result.profile.label} (${result.profile.uri})`);
       for (const check of result.checks) this.summary.appendLine(`${check.label.padEnd(16)}${checkLabel(check)}${check.reason ? ' · ' + check.reason : ''}`);
       this.summary.show(true);
       void vscode.window.showInformationMessage(`${vscode.workspace.asRelativePath(uri)} · ${message}`);

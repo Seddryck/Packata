@@ -33,7 +33,7 @@ public static class SelectedValidation
         var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."));
         var diagnostics = Diagnostics(snapshot.Text, report);
         var checks = Validators.Select(option => Check(option, selected, report)).ToArray();
-        return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, report.Valid, diagnostics, checks, format);
+        return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, report.Valid, diagnostics, checks, format, report.Profile);
     }
 
     private static bool ValidSelection(IReadOnlyList<string> selected)

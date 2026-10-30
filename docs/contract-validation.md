@@ -41,13 +41,21 @@ numbers and unsupported explicit tags are rejected. JSON input uses JSON syntax.
 | Standard | Selection and pinned artifact |
 | --- | --- |
 | ODCS | Only an explicit `apiVersion: v3.2.0` is supported. Missing or other versions fail selection, even though the companion schema lists older versions. Contract `version` is independent. Uses the unmodified [official companion schema](https://github.com/bitol-io/open-data-contract-standard/blob/f0bdad95346905d500be5ef4b2c2d9b1d95223b7/schema/odcs-json-schema-v3.2.0.json), release commit `f0bdad95346905d500be5ef4b2c2d9b1d95223b7`, Draft 2019-09, with format assertions explicitly enabled. |
-| Data Package | Defaults to the supported v2 profile when `$schema` is absent; an explicit `$schema` must be `https://datapackage.org/profiles/2.0/datapackage.json`. The [official v2 profile](https://datapackage.org/profiles/2.0/datapackage.json) is embedded as downloaded, using Draft 7 and format assertions. |
+| Data Package | Defaults to the strict official v2 profile when `$schema` is absent. The [official v2 profile](https://datapackage.org/profiles/2.0/datapackage.json) is embedded as downloaded, using Draft 7 and format assertions. |
+| Packata Category Tables 1.0.0 | Explicit `$schema: https://raw.githubusercontent.com/Seddryck/Packata/profile-category-tables-v1.0.0/docs/profiles/category-tables/1.0.0/datapackage.json` selects the self-contained Draft 7 compatibility profile. It adds reference objects and category field maps while retaining inline categories and other v2 assertions. See the [complete recipe example]({{ '/datapackage-categories/' | relative_url }}#category-tables-recipe). |
 
 The embedded artifacts are offline resources. Descriptor `$schema`, references,
 and endpoint declarations cannot trigger schema downloads. Automatic detection
 uses ODCS `kind`/`apiVersion` or Data Package content; mixed ODCS markers and
 `resources` are ambiguous. `--input-format odcs|datapackage` overrides detection,
 but does not supply required source fields or a missing ODCS specification version.
+
+An unknown or malformed `$schema` fails selection. Reports include `profile`
+(`uri`, `label`, `format`) for the selected artifact, also shown in CLI text and
+the VS Code validation output. The recipe profile checks descriptor structure;
+semantic checks additionally verify local resource/field bindings, type agreement,
+required and unique codes, unique string labels and label encoding prerequisites.
+Neither layer reads lookup rows or resolves external packages.
 
 ## Semantic checks
 

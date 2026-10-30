@@ -1,0 +1,26 @@
+[
+  {
+    "id": "datapackage",
+    "uri": "https://datapackage.org/profiles/2.0/datapackage.json",
+    "label": "Data Package v2.0",
+    "format": "datapackage",
+    "file": "datapackage.json",
+    "dialect": "draft7"
+  },
+  {
+    "id": "category-tables",
+    "uri": "https://raw.githubusercontent.com/Seddryck/Packata/profile-category-tables-v1.0.0/docs/profiles/category-tables/1.0.0/datapackage.json",
+    "label": "Packata Category Tables 1.0.0",
+    "format": "datapackage",
+    "file": "category-tables-v1.0.0.json",
+    "dialect": "draft7"
+  },
+  {
+    "id": "odcs",
+    "uri": "https://raw.githubusercontent.com/bitol-io/open-data-contract-standard/f0bdad95346905d500be5ef4b2c2d9b1d95223b7/schema/odcs-json-schema-v3.2.0.json",
+    "label": "ODCS v3.2.0",
+    "format": "odcs",
+    "file": "odcs-v3.2.0.json",
+    "dialect": "draft2019-09"
+  }
+]

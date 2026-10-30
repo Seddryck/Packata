@@ -1,0 +1,10 @@
+{
+  "categoryTable": {
+    "if": { "required": ["categoryFieldMap"] },
+    "then": { "required": ["schema"], "properties": { "type": { "const": "table" } } }
+  },
+  "categoryReference": {
+    "if": { "required": ["categories"], "properties": { "categories": { "type": "object" } } },
+    "then": { "required": ["type"], "properties": { "type": { "enum": ["string", "integer"] } } }
+  }
+}
