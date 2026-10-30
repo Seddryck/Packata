@@ -40,7 +40,7 @@ public sealed class ValidateCommandTests
         {
             Assert.That(result.ExitCode, Is.EqualTo(1));
             Assert.That((bool?)json["valid"], Is.False);
-            Assert.That((string?)json["diagnostics"]![0]!["sourcePath"], Is.EqualTo("$.resources"));
+            Assert.That(json["diagnostics"]!.Any(d => (string?)d["sourcePath"] == "$/resources"), Is.True);
             Assert.That((string?)json["diagnostics"]![0]!["severity"], Is.EqualTo("Error"));
         });
     }
@@ -52,18 +52,70 @@ public sealed class ValidateCommandTests
         var source = workspace.Write("invalid.yaml", "kind: Other\nschema: []\n");
         var result = await CliWorkspace.Run("contract", "validate", source, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(1));
-        Assert.That(JObject.Parse(result.Output)["diagnostics"]!.Count(), Is.GreaterThanOrEqualTo(4));
+        Assert.That((string?)JObject.Parse(result.Output)["diagnostics"]![0]!["code"], Is.EqualTo("VAL_VERSION"));
     }
 
     [Test]
     public async Task Validate_FormatOverrideWorksForExtensionlessDocument()
     {
         using var workspace = new CliWorkspace();
-        var source = workspace.Write("descriptor", CliWorkspace.Odcs.Replace("kind: DataContract\n", ""));
+        var source = workspace.Write("descriptor", CliWorkspace.Odcs);
         var result = await CliWorkspace.Run("contract", "validate", source, "--input-format", "odcs");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(result.Output, Does.Contain("valid"));
         Assert.That(result.Output.Contains('\u001b'), Is.False);
+    }
+
+    [TestCase("", false)]
+    [TestCase("--schema", false)]
+    [TestCase("--semantic", false)]
+    [TestCase("--schema|--semantic", false)]
+    [TestCase("--semantic|--schema", false)]
+    [TestCase("", true)]
+    [TestCase("--schema", true)]
+    [TestCase("--semantic", true)]
+    [TestCase("--schema|--semantic", true)]
+    [TestCase("--semantic|--schema", true)]
+    public async Task Validate_AdditiveLayerFlagsSelectExactlyTheRequestedChecks(string flags, bool json)
+    {
+        using var workspace = new CliWorkspace();
+        var text = json ? """{"apiVersion":"v3.2.0","kind":"DataContract","id":"c","version":"1.0.0","status":"draft","schema":[]}""" : CliWorkspace.Odcs;
+        var source = workspace.Write("contract.yaml", text);
+        var args = new List<string> { "contract", "validate", source, "--output-format", "json" };
+        args.AddRange(flags.Split('|', StringSplitOptions.RemoveEmptyEntries));
+        var result = await CliWorkspace.Run(args.ToArray());
+        var layers = (JArray)JObject.Parse(result.Output)["layers"]!;
+        Assert.That(result.ExitCode, Is.Zero, result.Output + result.Error);
+        var expected = flags is "--schema" ? new[] { "Schema" } : flags is "--semantic" ? new[] { "Semantic" } : new[] { "Schema", "Semantic" };
+        Assert.That(layers.Select(l => (string?)l["layer"]), Is.EqualTo(expected));
+        Assert.That(layers.All(l => (bool?)l["executed"] == true && (string?)l["state"] == "Passed"), Is.True);
+    }
+
+    [Test]
+    public async Task Validate_SchemaFailureSkipsSemanticAndDoesNotLeakValues()
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", CliWorkspace.Odcs + "\ncontractCreatedTs: DO-NOT-EMIT\n");
+        var result = await CliWorkspace.Run("contract", "validate", source, "--output-format", "json");
+        var report = JObject.Parse(result.Output);
+        Assert.That(result.ExitCode, Is.EqualTo(1));
+        Assert.That((string?)report["layers"]![0]!["state"], Is.EqualTo("Failed"));
+        Assert.That((string?)report["layers"]![1]!["state"], Is.EqualTo("Skipped"));
+        Assert.That(result.Output + result.Error, Does.Not.Contain("DO-NOT-EMIT"));
+    }
+
+    [Test]
+    public async Task Validate_SemanticOnlyPrerequisiteFailureCannotSucceed()
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", "schema: broken\napiVersion: v3.2.0\nkind: DataContract\nid: c\nversion: 1.0.0\nstatus: draft");
+        var result = await CliWorkspace.Run("contract", "validate", source, "--semantic", "--output-format", "json");
+        var report = JObject.Parse(result.Output);
+        Assert.That(result.ExitCode, Is.EqualTo(1));
+        Assert.That(report["layers"]!.Count(), Is.EqualTo(1));
+        Assert.That((string?)report["layers"]![0]!["layer"], Is.EqualTo("Semantic"));
+        Assert.That((string?)report["layers"]![0]!["reason"], Does.Contain("prerequisites"));
+        Assert.That(report["diagnostics"]!.Any(d => (string?)d["code"] == "SEM_STRUCTURE"), Is.True);
     }
 
     [Test]

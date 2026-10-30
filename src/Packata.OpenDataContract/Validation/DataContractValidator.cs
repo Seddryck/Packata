@@ -8,6 +8,7 @@ namespace Packata.OpenDataContract.Validation;
 
 internal static partial class DataContractValidator
 {
+    private static readonly HashSet<string> OpaquePayloads = ["customProperties", "implementation", "arguments", "examples"];
     public static void Validate(DataContract contract)
     {
         foreach (var schema in contract.Schema)
@@ -167,20 +168,26 @@ internal static partial class DataContractValidator
         if (TryGet(mapping, "synonyms") is not null && !synonymOwners.Contains(mapping))
             throw new YamlException($"The synonyms field at '{path}' is only permitted on schema objects and properties.");
 
-        if (TryGet(mapping, "encoding") is not null)
-        {
-            if (!serverOwners.Contains(mapping))
-                throw new YamlException($"The encoding field at '{path}' is only permitted on supported server definitions.");
-            var type = (TryGet(mapping, "type") as YamlScalarNode)?.Value;
-            if (type is not ("azure" or "glue" or "custom" or "kafka" or "kinesis" or "local" or "s3" or "sftp"))
-                throw new YamlException($"Server at '{path}' has type '{type}' which does not permit encoding.");
-        }
+        ValidateEncoding(mapping, path, serverOwners);
 
         foreach (var pair in mapping.Children)
         {
             var name = (pair.Key as YamlScalarNode)?.Value ?? "?";
+            // These values are opaque payloads, not ODCS declaration scopes. Vendor
+            // metadata may legitimately contain keys such as encoding or synonyms.
+            if (OpaquePayloads.Contains(name)) continue;
             ValidatePlacement(pair.Value, $"{path}/{name}", synonymOwners, serverOwners);
         }
+    }
+
+    private static void ValidateEncoding(YamlMappingNode mapping, string path, HashSet<YamlMappingNode> serverOwners)
+    {
+        if (TryGet(mapping, "encoding") is null) return;
+        if (!serverOwners.Contains(mapping))
+            throw new YamlException($"The encoding field at '{path}' is only permitted on supported server definitions.");
+        var type = (TryGet(mapping, "type") as YamlScalarNode)?.Value;
+        if (type is not ("azure" or "glue" or "custom" or "kafka" or "kinesis" or "local" or "s3" or "sftp"))
+            throw new YamlException($"Server at '{path}' has type '{type}' which does not permit encoding.");
     }
 
     private static YamlNode? TryGet(YamlMappingNode mapping, string key)

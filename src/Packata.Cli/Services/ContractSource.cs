@@ -38,7 +38,7 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         _ => throw new NotSupportedException()
     };
 
-    public static async Task<ContractSource> LoadAsync(string source, string format, CancellationToken cancellationToken, bool retainArchive = false)
+    public static async Task<ContractSource> LoadAsync(string source, string format, CancellationToken cancellationToken, bool retainArchive = false, bool rawOnly = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var uri = Uri.TryCreate(source, UriKind.Absolute, out var absolute) ? absolute : new Uri(Path.GetFullPath(source));
@@ -49,12 +49,12 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         using var http = uri.IsFile ? null : new HttpClient();
         using var cancellation = cancellationToken.Register(() => http?.CancelPendingRequests());
         return IsArchive(source)
-            ? await LoadArchiveAsync(source, uri, http, format, cancellationToken, retainArchive).ConfigureAwait(false)
-            : await LoadDocumentAsync(source, uri, http, format, cancellationToken).ConfigureAwait(false);
+            ? await LoadArchiveAsync(source, uri, http, format, cancellationToken, retainArchive, rawOnly).ConfigureAwait(false)
+            : await LoadDocumentAsync(source, uri, http, format, cancellationToken, rawOnly).ConfigureAwait(false);
     }
 
     private static async Task<ContractSource> LoadDocumentAsync(string source, Uri uri, HttpClient? http,
-        string format, CancellationToken cancellationToken)
+        string format, CancellationToken cancellationToken, bool rawOnly)
     {
         var baseUri = new Uri(uri, ".");
         using var httpContainer = uri.IsFile ? null : new HttpDataPackageContainer(baseUri, http, cancellationToken);
@@ -62,11 +62,11 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
             : await httpContainer!.OpenAsync(uri.Segments[^1] + uri.Query).ConfigureAwait(false);
         var text = await ReadTextAsync(stream, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
-        return Parse(source, new Uri(httpContainer?.ResponseUri ?? uri, "."), uri.AbsolutePath, text, format);
+        return Parse(source, new Uri(httpContainer?.ResponseUri ?? uri, "."), uri.AbsolutePath, text, format, rawOnly);
     }
 
     private static async Task<ContractSource> LoadArchiveAsync(string source, Uri uri, HttpClient? http,
-        string format, CancellationToken cancellationToken, bool retainArchive)
+        string format, CancellationToken cancellationToken, bool retainArchive, bool rawOnly)
     {
         var archive = await OpenArchiveAsync(uri, http, cancellationToken).ConfigureAwait(false);
         var retained = false;
@@ -76,7 +76,7 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
             await using var entry = await archive.OpenAsync(descriptor).ConfigureAwait(false);
             var text = await ReadTextAsync(entry, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            var result = Parse(source, new Uri(uri, "."), descriptor, text, format);
+            var result = Parse(source, new Uri(uri, "."), descriptor, text, format, rawOnly);
             if (retainArchive)
             {
                 result = result with { Archive = archive, ArchiveDescriptor = descriptor };
@@ -128,8 +128,9 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
         return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    internal static ContractSource Parse(string source, Uri baseUri, string descriptor, string text, string format)
+    internal static ContractSource Parse(string source, Uri baseUri, string descriptor, string text, string format, bool rawOnly = false)
     {
+        if (rawOnly) return new(source, baseUri, text) { OriginalText = text };
         var document = Packata.Documents.ContractDocument.Parse(text, format, baseUri);
         return new(source, baseUri, document.NativeDocument) { DescriptorRoot = document.Root, OriginalText = text };
     }

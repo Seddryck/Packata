@@ -183,6 +183,8 @@ for the dialect-only workflow.
 | Option / alias | Values / default | Meaning |
 | --- | --- | --- |
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
+| `--schema` | Selected with `--semantic` by default | Official source-descriptor JSON Schema validation |
+| `--semantic` | Selected with `--schema` by default | Declaration consistency and Packata binding checks |
 | `--output-format <FORMAT>` | `text`, `json`; `text` | Result representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
 
@@ -230,13 +232,19 @@ packata contract inspect https://example.test/package.tar.br --output-format jso
 packata contract diff baseline.zip candidate.tar --output-format json
 ```
 
-Packata checks Data Package descriptors against the library's descriptor rules.
-For ODCS contracts, it checks YAML syntax and semantic rules, including the required
-identity, version and status, the supported API version, and the document kind.
+With no layer flags, Packata runs the official source-descriptor schema first,
+then semantic declaration checks. Supplying either flag selects exactly the
+requested layers; both flags are additive and their order does not matter.
+Schema failure explicitly skips semantic validation. Semantic-only prerequisite
+failures cannot return success. Both JSON and YAML are supported for ODCS 3.2.0
+and Data Package v2. See [descriptor validation]({{ '/standards/validation/' | relative_url }})
+for the semantic checklist, pinned schemas, version policy and limitations.
 
 `--output-format text` is the default. Text diagnostics go to stderr. `--output-format json`
-writes a single object to stdout with `schemaVersion: 1`, `source`, `valid`, and
-`diagnostics`. Each diagnostic has `code`, `severity`, `sourcePath`, and `message`.
+writes a single object to stdout with `schemaVersion: 1`, `source`, `valid`,
+`layers`, and `diagnostics`. Selected layers report `state`, `executed` and an
+optional skip `reason`. Each diagnostic has `layer`, `code`, `severity`,
+`sourcePath`, and `message`. Success requires every selected layer to pass.
 Diagnostics do not include raw parser snippets or stack traces; connection secrets
 are redacted. Redirected output has no ANSI styling.
 
