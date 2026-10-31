@@ -25,6 +25,7 @@ The existing `packata infer` command remains available.
 | `schema export`, alias `export` | [JSON Schema](#export-a-dataset-schema) |
 | `schema infer`, alias `infer` | [Schema inference]({{ '/cli-inference/' | relative_url }}) |
 | `data preview` | [Read data](#preview-bound-data) |
+| `data validate` | [Structural validation]({{ '/dataset-validation/' | relative_url }}) |
 | `quality run` | [Quality execution and OORS reports]({{ '/cli-quality/' | relative_url }}) |
 | `dialect export` | [CSV dialect](#export-a-csv-dialect) |
 | `dialect infer` | [Infer CSV parsing settings](#infer-csv-parsing-settings) |
@@ -37,6 +38,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 
 | Commands | Codes |
 | --- | --- |
+| data validate | 0 structural checks pass; 1 completed violations or invalid contract; 2 invocation error; 3 read/execution error; 4 incomplete/unsupported checks; 130 cancellation |
 | validate, inspect, diff, schema export/export, dialect export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
 | contract satisfies | 0 gate passes; 1 Unsatisfied or default Unknown; 2 input/invocation/I/O/cancellation/analysis error or Unknown under error policy |
 | quality run | 0 pass or warning; 1 quality failure without errors; 2 command/contract/execution/report error, cancellation, no matches, or all skipped |
@@ -632,7 +634,9 @@ bounds, enums, array size and uniqueness, and object size and required propertie
 
 Requiredness and nullability are independent. A required field is added to its parent's
 `required` list. A nullable field allows null alongside its normal type. When nullability
-is omitted, it defaults to false.
+is omitted, it defaults to false. The schema's additional-property permission is exported
+as `additionalProperties`; native DPv2 partial overlap becomes an `anyOf` presence
+requirement. Tabular column ordering is outside this JSON object record representation.
 
 Conversion fails for unknown types, including maps and vectors, invalid constraints, temporal
 range constraints, and dataset-wide uniqueness or primary-key constraints. A schema for one

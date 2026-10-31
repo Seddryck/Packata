@@ -4,7 +4,7 @@ using YamlDotNet.Serialization;
 namespace Packata.OpenDataContract.Serialization.Yaml;
 
 /// <summary>Preserves scalar kinds for recognized extension values without changing other vendors' metadata.</summary>
-internal static class CategoryPropertyValues
+internal static class PackataPropertyValues
 {
     public static void Normalize(DataContract contract, string yaml)
     {
@@ -21,7 +21,7 @@ internal static class CategoryPropertyValues
     }
 
     private static bool Recognized(CustomProperties properties) => properties.Any(property =>
-        property.Vendor == "packata" && property.Property is "categories" or "categoryFieldMap");
+        property.Vendor == "packata" && property.Property is "categories" or "categoryFieldMap" or "allowAdditionalProperties" or "enforcePropertyOrder");
 
     private static bool RecognizedField(SchemaProperty field) => Recognized(field.CustomProperties) ||
         field.Properties.Any(RecognizedField) || (field.Items is not null && RecognizedField(field.Items));
@@ -46,7 +46,7 @@ internal static class CategoryPropertyValues
         for (var index = 0; index < properties.Count; index++)
         {
             var property = properties[index];
-            if (property.Vendor != "packata" || property.Property is not ("categories" or "categoryFieldMap") ||
+            if (property.Vendor != "packata" || property.Property is not ("categories" or "categoryFieldMap" or "allowAdditionalProperties" or "enforcePropertyOrder") ||
                 sequence.Children[index] is not YamlMappingNode node || Get(node, "value") is not { } value) continue;
             using var writer = new StringWriter();
             new YamlStream(new YamlDocument(value)).Save(writer, assignAnchors: false);

@@ -8,6 +8,21 @@ namespace Packata.OpenDataContract.Testing.Mapping;
 
 public class OpenDataContractMapperTests
 {
+    [TestCase("countries.odcs.yaml#/schema/countries/properties/iso_code")]
+    [TestCase("https://example.test/countries.odcs.yaml#/schema/countries/properties/iso_code")]
+    public void External_relationships_are_diagnosed_without_inventing_local_identifiers(string reference)
+    {
+        var relationship = new Relationship { Type = "foreignKey", To = reference };
+        var document = new DataContract { Schema = [new SchemaObject { Name = "members",
+            Properties = [new SchemaProperty { Name = "nationality", Relationships = [relationship] }]
+        }] };
+        var mapped = document.ToCanonicalContract();
+        Assert.That(mapped.RequireValue().Assets.Single().Schema!.Relationships, Is.Empty);
+        Assert.That(mapped.Diagnostics.Single().Code, Is.EqualTo("ODCS003"));
+        Assert.That(mapped.Diagnostics.Single().Severity, Is.EqualTo(MappingSeverity.Warning));
+        Assert.That(relationship.To, Is.EqualTo(reference));
+    }
+
     [Test]
     public void ToCanonicalContract_ReturnsCanonicalContract()
     {

@@ -12,6 +12,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         ArgumentNullException.ThrowIfNull(document);
 
         var diagnostics = new List<MappingDiagnostic>();
+        PropertyRequirementsMapper.CheckPlacements(document, diagnostics);
         var directory = DirectoryServer(document);
         var endpoints = MapEndpoints(document, directory, diagnostics);
         var canBindEndpoints = document.Servers.Count <= 1;
@@ -91,6 +92,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints,
         ICollection<MappingDiagnostic> diagnostics)
     {
+        var (allowAdditional, enforceOrder) = PropertyRequirementsMapper.Map(schema, diagnostics);
         var fields = schema.Properties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics, schema.Name, [property.Name])).ToArray();
         var primaryKey = schema.Properties
             .Where(x => x.PrimaryKey)
@@ -110,7 +112,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             schema.PhysicalName,
             schema.Description,
             MapAssetKind(schema.PhysicalType),
-            new DataSchema(fields, primaryKey, relationships),
+            new DataSchema(fields, primaryKey, relationships, AllowAdditionalProperties: allowAdditional, EnforcePropertyOrder: enforceOrder),
             endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray(),
             QualityRules: QualityMapper.Map(schema.Quality, new QualityTarget(schema.Name), $"schema/{schema.Name}/quality", diagnostics),
             Extensions: MapCustomProperties(schema.CustomProperties));
@@ -142,6 +144,9 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     {
         if (string.IsNullOrWhiteSpace(value))
             return defaultAsset is null ? null : (defaultAsset, defaultField);
+        // External/fragment references are unresolved by this mapper. Never split a file name
+        // containing dots into fabricated local asset and property identifiers.
+        if (value.Contains('#')) return null;
         var parts = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 4 && parts[0].Equals("schema", StringComparison.OrdinalIgnoreCase)
             && parts[2].Equals("properties", StringComparison.OrdinalIgnoreCase))

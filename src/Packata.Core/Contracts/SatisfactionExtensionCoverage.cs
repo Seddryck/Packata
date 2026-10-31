@@ -12,10 +12,17 @@ internal static class SatisfactionExtensionCoverage
     {
         "title" or "description" or "example" or "rdfType" or "homepage" or "sources" or "licenses" or "created" or "image" => true,
         "fieldsMatch" => value is "Exact" or "Equal" or "Subset" or "Superset" or "Partial",
+        "customProperties" => value is IEnumerable properties && properties.Cast<object?>().All(IsMappedPropertyRequirement),
         "profile" => value is "https://datapackage.org/profiles/1.0/datapackage.json"
             or "https://datapackage.org/profiles/1.0/dataresource.json" or "tabular-data-package" or "tabular-data-resource" or "data-package" or "data-resource",
         _ => false
     };
+
+    internal static bool IsMappedPropertyRequirement(object? value) => value is IReadOnlyDictionary<string, object?> property
+        && property.GetValueOrDefault("vendor") is "packata"
+        && property.Keys.All(key => key is "vendor" or "property" or "value" or "id" or "description")
+        && (property.GetValueOrDefault("property"), property.GetValueOrDefault("value")) is
+            ("allowAdditionalProperties" or "enforcePropertyOrder", bool);
 
     private static bool HasValue(object? value)
     {

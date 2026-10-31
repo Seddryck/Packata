@@ -124,7 +124,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         if (schema is null) return null;
         var fields = schema.Fields.Select((field, index) =>
             MapField(field, index, package, categoryTables, sourcePath, diagnostics) with
-            { Required = schema.FieldsMatch is Native.FieldsMatching.Exact or Native.FieldsMatching.Equal or Native.FieldsMatching.Subset }).ToArray();
+            { Required = schema.FieldsMatch is Native.FieldsMatching.Exact or Native.FieldsMatching.Equal or Native.FieldsMatching.Subset
+                || schema.PrimaryKey?.Contains(field.Name, StringComparer.Ordinal) == true }).ToArray();
         var relationships = (schema.ForeignKeys ?? []).Select(foreignKey =>
             MapRelationship(foreignKey, assetId, package, sourcePath, diagnostics)).ToArray();
 
@@ -136,14 +137,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 ["uniqueKeys"] = schema.UniqueKeys,
                 ["missingValues"] = schema.MissingValues,
                 ["metrics"] = schema.Metrics
-            }), FieldMatching: schema.FieldsMatch switch
-            {
-                Native.FieldsMatching.Exact => FieldMatching.OrderedExact,
-                Native.FieldsMatching.Equal => FieldMatching.Exact,
-                Native.FieldsMatching.Subset => FieldMatching.ByName,
-                Native.FieldsMatching.Superset => FieldMatching.ClosedOptional,
-                _ => FieldMatching.Partial
-            });
+            }), AllowAdditionalProperties: schema.FieldsMatch is Native.FieldsMatching.Subset or Native.FieldsMatching.Partial,
+            EnforcePropertyOrder: schema.FieldsMatch == Native.FieldsMatching.Exact);
     }
 
     private static DataField MapField(Native.Field field, int index, Native.DataPackage package,

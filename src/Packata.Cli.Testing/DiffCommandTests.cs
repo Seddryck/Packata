@@ -56,8 +56,10 @@ public sealed class DiffCommandTests
     public async Task PropertyChanges_AreDirectionalDeterministicAndMatchLibraryOrdering()
     {
         using var workspace = new CliWorkspace();
-        var baseline = workspace.Write("old.yaml", Odcs);
-        var candidate = workspace.Write("new.yaml", Odcs.Replace("logicalType: integer", "logicalType: number").Replace("name: old", "name: added"));
+        // An open unordered schema isolates property changes from closed-set/order changes.
+        var openRecord = Odcs.Replace("    properties:", "    customProperties:\n      - vendor: packata\n        property: allowAdditionalProperties\n        value: true\n      - vendor: packata\n        property: enforcePropertyOrder\n        value: false\n    properties:");
+        var baseline = workspace.Write("old.yaml", openRecord);
+        var candidate = workspace.Write("new.yaml", openRecord.Replace("logicalType: integer", "logicalType: number").Replace("name: old", "name: added"));
         var forward = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output-format", "json");
         var again = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output-format", "json");
         var reverse = await CliWorkspace.Run("contract", "diff", candidate, baseline, "--output-format", "json");
@@ -80,7 +82,7 @@ public sealed class DiffCommandTests
             Assert.That((string?)reversed[0]["kind"], Is.EqualTo("PropertyRemoved"));
             Assert.That(text.Output, Does.Contain("modified property schema.orders.properties.amount.type")
                 .And.Contain("previous: \"integer\"").And.Contain("current: \"number\""));
-            Assert.That(File.ReadAllText(baseline), Is.EqualTo(Odcs));
+            Assert.That(File.ReadAllText(baseline), Is.EqualTo(openRecord));
         });
     }
 

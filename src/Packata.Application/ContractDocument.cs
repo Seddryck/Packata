@@ -85,7 +85,7 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
         if (odcs.ApiVersion != "v3.2.0")
             diagnostics.Add(new("ODCSV003", MappingSeverity.Error, "$.apiVersion", "Supported ODCS apiVersion is v3.2.0."));
         diagnostics.AddRange(new OpenDataContractMapper().Map(odcs).Diagnostics
-            .Where(diagnostic => diagnostic.Code is "ODCS006" or "ODCS007"));
+            .Where(diagnostic => diagnostic.Code is "ODCS006" or "ODCS007" or "ODCS008"));
         return diagnostics;
     }
 
