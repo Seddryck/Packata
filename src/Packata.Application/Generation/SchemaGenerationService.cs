@@ -24,7 +24,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         try
         {
             ValidateSelection(options, template);
-            if (options.Operation == "generate") SelectTemplate(options, template);
+            if (options.Operation == "generate" && options.Target != "ddl") SelectTemplate(options, template);
             GenerationData.Variables(options.Defines);
             CSharpNames.Namespace(options.Namespace);
             return null;
@@ -55,6 +55,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             var error = ValidateOptions(options, template);
             if (error is not null) return Failure("GEN_OPTIONS", error);
             if (options.Operation == "export") return ExportDocument(document, options, cancellationToken);
+            if (options.Target == "ddl") return DdlGeneration.Generate(document, options, cancellationToken);
             return await GenerateDocumentAsync(document, options, template, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { throw; }
@@ -135,7 +136,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         {
             if (options.Target is not null || options.Language is not null || options.Dialect is not null || template is not null
                 || options.Engine is not null || options.Profile is not null || options.Namespace is not null || options.TypeName is not null
-                || options.Defines?.Count > 0 || options.Fallback != Packata.Core.TypeMappingFallback.Reject)
+                || options.Defines?.Count > 0 || options.Fallback != Packata.Core.TypeMappingFallback.Reject || options.DdlOptions is not null)
                 throw new ArgumentException("Export accepts --output-format and optional --profile; use schema generate for code and templates.");
             var target = Catalog.Targets.SingleOrDefault(t => t.Operation == "export" && t.Id == options.OutputFormat)
                 ?? throw new ArgumentException("Unknown or missing --output-format. Discover available schema export formats.");
@@ -146,6 +147,16 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         {
             if (options.OutputFormat is not null || options.CompatibilityProfile is not null)
                 throw new ArgumentException("Use schema export --output-format for schema documents; --profile is export-only.");
+            if (options.Target == "ddl")
+            {
+                if (template is not null || options.Engine is not null || options.Profile is not null || options.Namespace is not null || options.TypeName is not null || options.Defines?.Count > 0 || options.Fallback != Packata.Core.TypeMappingFallback.Reject)
+                    throw new ArgumentException("DDL does not accept templates or code-generation options.");
+                if (options.Language is not null && options.Language != "sql") throw new ArgumentException("DDL requires SQL; omit --language or supply --language sql.");
+                if (options.Dialect is null) throw new ArgumentException("DDL requires --dialect. Use an ID from the schema catalog.");
+                Packata.Provisioners.Database.OfflineSqlDialects.Resolve(options.Dialect);
+                return;
+            }
+            if (options.DdlOptions is not null) throw new ArgumentException("Relational options apply only to target ddl.");
             if (options.Dialect is not null) throw new ArgumentException("--dialect applies only to target ddl.");
             if (options.Target is not null && options.Language is null)
                 throw new ArgumentException("Bundled generation requires --target and --language (for example --target record --language csharp).");

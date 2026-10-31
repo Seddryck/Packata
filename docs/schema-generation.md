@@ -107,3 +107,19 @@ substitution occurs. Unknown types/formats and unsupported representations fail 
 rendering. Explicit mapping fallback is available and remains visible in diagnostics.
 Target expressions are prepared before Didot rendering; templates arrange them instead
 of reproducing source interpretation. Mapping describes representation, not row validation.
+
+## Offline SQL DDL
+
+Use schema metadata to generate SQL without a connection URL, credentials, connectors, or database access:
+
+```bash
+packata schema generate sales.odcs.yaml --target ddl --dialect postgresql -o schema.sql
+packata schema generate sales.odcs.yaml --target ddl --language sql --dialect sqlserver --asset orders
+packata schema generate datapackage.json --target ddl --dialect sqlite --constraints PrimaryKey,Required --no-descriptions
+```
+
+Bundled dialect IDs are ansi, access, db2, drill, duckdb, firebird, mysql, singlestore, oracle, cockroachdb, cratedb, postgresql, questdb, snowflake, sqlite, sqlserver, and teradata (DubUrl 0.46.1). These are metadata renderers; connectivity support does not determine their availability. The Application catalog exposes their IDs and display names. SQL submenu entries preselect the exact dialect; generic generation pickers request a dialect.
+
+Omitting --asset selects all assets with non-empty schemas. Selecting one asset never adds related tables. Foreign keys outside the selection, unresolved keys and duplicate physical columns are errors: no script is published. Unsupported checks, comments, native physical types and qualifiers produce structured warnings using the existing provisioning planner's fallback policy. Review warnings before deploying the script. Nested columns and unsupported logical types fail. The planner preserves physical identifiers, quoting, supported qualifiers, composite keys and supported constraints; it is not a migration engine. Rendering reads no records and executes no SQL.
+
+Default options match provisioning: all supported constraints and descriptions. --constraints accepts all, none, or comma-separated PrimaryKey,Required,Unique,Checks,ForeignKeys; --no-descriptions omits comments. Application callers can supply typed DdlOptions. Provisioning retains its deployment capability boundary and delegates metadata mapping/rendering to the same RelationalSchemaPlanner. Cancellation is checked before and after synchronous rendering; cancelled results are discarded before output.

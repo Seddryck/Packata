@@ -6,6 +6,9 @@ public static class GenerationCatalogService
 {
     public static GenerationCatalog Catalog { get; } = new(1, 1,
     [
+        new("ddl", "SQL DDL", "", "", "sql", false, "Metadata-only SQL; unsupported constraints are reported. Foreign keys outside a selection are errors.",
+            Category: "table-definition", Representation: "SQL", Extension: ".sql", ApplicableOptions: ["asset", "dialect", "output", "constraints", "no-descriptions"],
+            Dialects: Packata.Provisioners.Database.OfflineSqlDialects.Catalog.Select(d => new SchemaDialect(d.Id, d.Label)).ToArray(), WholeContract: true),
         new("json-schema", "JSON Schema", "", "", "json", false, "Draft 2020-12; preserves canonical JSON Schema semantics.",
             "export", "schema-document", "JSON", ".schema.json", ["asset"], []),
         new("record", "C# record", "csharp-record", "scriban", "csharp", true,
