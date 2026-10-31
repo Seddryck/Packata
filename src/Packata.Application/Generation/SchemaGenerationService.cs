@@ -106,6 +106,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
 
     private static (TemplateInput Template, string? Profile, string Engine) SelectTemplate(GenerationOptions options, TemplateInput? template)
     {
+        if (options.UnsupportedOptions is { Count: > 0 }) throw new ArgumentException("Unsupported generation options; use the generation catalog.");
         if (!Enum.IsDefined(options.Fallback)) throw new ArgumentException("Unknown mapping fallback policy.");
         if ((options.Target is null) == (template is null)) throw new ArgumentException("Select exactly one built-in target or custom template.");
         var target = options.Target is null ? null : Catalog.Targets.SingleOrDefault(t => t.Operation == "generate" && t.Id == options.Target && t.Language == options.Language)
