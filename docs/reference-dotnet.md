@@ -16,6 +16,7 @@ provide their signatures. Exhaustive generated API documentation is deferred.
 | Package | Purpose / public entry points |
 | --- | --- |
 | `Packata.Core` | Canonical contracts, `DataContract`, mapping/inference results, diagnostics, typed differences, `IDataEndpointReaderFactory`, `IDataContractProvisioner` |
+| `Packata.Arrow` | Optional [Arrow schema and record batch conversion]({{ '/reference/dotnet/arrow/' | relative_url }}): `ArrowSchemaMapper`, `ArrowRecordBatches`, `ArrowBatchOptions` |
 | `Packata.DataPackage` | Native v2 models, `DataPackageFactory`, JSON/YAML serializers and validators, `ToCanonicalContract`, `CsvDialectExporter` |
 | `Packata.OpenDataContract` | Native ODCS models, `DataContractFactory`, YAML serializer/validation, `ToCanonicalContract` |
 | `Packata.ResourceReaders` | `ResourceReaderFactory`, `CsvDataContractInference`, formats, custom providers and delimited dialect resolution |
