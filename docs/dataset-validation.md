@@ -23,9 +23,11 @@ identity ambiguous. Relative resource paths and archive resources use the same
 resolution as `data preview`. Multiple endpoint bindings require explicit resolution;
 the validator reports unavailable binding evidence instead of choosing one.
 
-ODCS defaults to exactly the declared properties in declaration order. Use the
-[Packata propertyMatching and propertyOrder extensions]({{ '/property-matching/' | relative_url }}) to relax
-either requirement. DPv2 uses its native `fieldsMatch`, defaulting to `exact`.
+ODCS defaults to forbidding undeclared properties and enforcing the relative order
+of present declared properties. A column is mandatory only when its property has
+`required: true`; omitted/false permits absence, independently of nullability. Use the
+[Packata property requirements]({{ '/property-matching/' | relative_url }})
+`allowAdditionalProperties` and `enforcePropertyOrder` booleans to change these policies. DPv2 uses its native `fieldsMatch`, defaulting to `exact`.
 Parquet native schema types are compared with declared logical types. CSV text
 does not provide authoritative logical-type metadata, so it does not receive
 a fabricated schema-type verdict from sampled values.
@@ -40,13 +42,13 @@ explicit rather than being treated as empty tables or passing checks.
 An external relationship such as `countries.odcs.yaml#/schema/countries/properties/id`
 does not prevent available local structural checks from running. It is retained as
 an unsupported compilation finding, so the overall report is incomplete (exit 4),
-even when local membership/order checks pass. The command does not automatically
+even when local presence/order checks pass. The command does not automatically
 open another contract or fetch external data. Other invalid declarations still stop
 the run before data access. Standalone `contract validate` keeps its strict offline
 validation behavior for unresolved external references.
 
 This is structural validation. It does not execute per-cell logical-type checks,
-requiredness, bounds, uniqueness, foreign-key value membership, authored quality
+missing/null cell constraints, bounds, uniqueness, foreign-key value membership, authored quality
 rules, or SLA checks. Those value rules belong to the separate constraint compiler
 (issue #597). A passed structural report is not a claim that all cell values are valid.
 

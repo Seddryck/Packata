@@ -22,7 +22,7 @@ internal static class SatisfactionExtensionCoverage
         && property.GetValueOrDefault("vendor") is "packata"
         && property.Keys.All(key => key is "vendor" or "property" or "value" or "id" or "description")
         && (property.GetValueOrDefault("property"), property.GetValueOrDefault("value")) is
-            ("propertyMatching", "equal" or "subset" or "superset" or "partial") or ("propertyOrder", "any" or "declared");
+            ("allowAdditionalProperties" or "enforcePropertyOrder", bool);
 
     private static bool HasValue(object? value)
     {

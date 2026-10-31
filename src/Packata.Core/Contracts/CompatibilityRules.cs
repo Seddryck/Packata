@@ -95,9 +95,9 @@ internal static class CompatibilityRules
 
         private void DatasetMatching(DataSchema? previous, DataSchema? current)
         {
-            if (previous?.PropertyMatching != current?.PropertyMatching)
-                Add("property-matching", CompatibilityClassification.Unknown, "Native field matching mode changed; safe containment requires set/order policy.");
-            if (previous?.PropertyOrder != current?.PropertyOrder)
+            if (previous?.AllowAdditionalProperties != current?.AllowAdditionalProperties)
+                Add("allow-additional-properties", CompatibilityClassification.Unknown, "Additional-property permission changed; safe containment requires schema policy.");
+            if (previous?.EnforcePropertyOrder != current?.EnforcePropertyOrder)
                 Add("property-order", CompatibilityClassification.Unknown, "Property ordering changed; containment requires an order policy.");
             if (SchemaPropertyComparison.ClosedSetChanged(previous, current))
                 Add("property-set", CompatibilityClassification.Unknown, "Closed property-set declarations changed; the open-record assumption cannot prove compatibility.");

@@ -35,7 +35,7 @@ public class DataValidateCommandTests
     [TestCase("id,name\n1\n", 0)]
     [TestCase("name,id\nAlice,1\n", 1)]
     [TestCase("id,name,note\n1,Alice,x\n", 1)]
-    [TestCase("id\n1\n", 1)]
+    [TestCase("id\n1\n", 0)]
     public async Task Csv_structure_uses_raw_headers_and_does_not_execute_value_checks(string csv, int expectedExit)
     {
         using var workspace = new CliWorkspace();
@@ -52,24 +52,64 @@ public class DataValidateCommandTests
         using var exclusive = File.Open(Path.Combine(workspace.Path, "orders.csv"), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
     }
 
-    [TestCase("equal", "any", "name,id\nAlice,1\n", 0)]
-    [TestCase("subset", "declared", "id,x,name\n1,x,Alice\n", 0)]
-    [TestCase("superset", "declared", "name\nAlice\n", 0)]
-    [TestCase("partial", "any", "other\nx\n", 1)]
-    public async Task Odcs_custom_settings_control_structural_checks(string matching, string order, string csv, int expected)
+    [TestCase(false, false, "name,id\nAlice,1\n", 0)]
+    [TestCase(true, true, "id,x,name\n1,x,Alice\n", 0)]
+    [TestCase(false, true, "name\nAlice\n", 0)]
+    [TestCase(true, false, "other\nx\n", 0)]
+    [TestCase(false, false, "other\nx\n", 1)]
+    [TestCase(true, true, "name,x,id\nAlice,x,1\n", 1)]
+    public async Task Odcs_custom_settings_control_structural_checks(bool additional, bool order, string csv, int expected)
     {
         using var workspace = new CliWorkspace();
-        var declaration = $"    customProperties:\n      - vendor: packata\n        property: propertyMatching\n        value: {matching}\n      - vendor: packata\n        property: propertyOrder\n        value: {order}\n";
+        var declaration = $"    customProperties:\n      - vendor: packata\n        property: allowAdditionalProperties\n        value: {additional.ToString().ToLowerInvariant()}\n      - vendor: packata\n        property: enforcePropertyOrder\n        value: {order.ToString().ToLowerInvariant()}\n";
         var source = workspace.Write("contract.yaml", Odcs.Replace("    properties:", declaration + "    properties:"));
         workspace.Write("orders.csv", csv);
         var result = await CliWorkspace.Run("data", "validate", source, "--asset", "orders", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(expected), result.Error + result.Output);
     }
 
+    [Test]
+    public async Task Required_header_presence_is_independent_of_optional_columns_and_values()
+    {
+        using var workspace = new CliWorkspace();
+        var descriptor = Odcs.Replace("        logicalType: integer", "        logicalType: integer\n        required: true");
+        var source = workspace.Write("contract.yaml", descriptor);
+        workspace.Write("orders.csv", "name\nAlice\n");
+        var missing = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        Assert.That(missing.ExitCode, Is.EqualTo(1), missing.Error + missing.Output);
+        Assert.That(missing.Output, Does.Contain("missingRequired"));
+        workspace.Write("orders.csv", "id\nnot-an-integer\n");
+        var present = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        Assert.That(present.ExitCode, Is.Zero, present.Error + present.Output);
+    }
+
+    [TestCase("true", 0)]
+    [TestCase("false", 1)]
+    [TestCase("\"true\"", 1)]
+    [TestCase("\"false\"", 1)]
+    [TestCase("1", 1)]
+    public async Task Boolean_extensions_preserve_yaml_scalar_kinds(string value, int expected)
+    {
+        using var workspace = new CliWorkspace();
+        var declaration = $"    customProperties:\n      - vendor: packata\n        property: allowAdditionalProperties\n        value: {value}\n";
+        var source = workspace.Write("contract.yaml", Odcs.Replace("    properties:", declaration + "    properties:"));
+        workspace.Write("orders.csv", "id,name,extra\n1,Alice,x\n");
+        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(expected), result.Error + result.Output);
+        if (value.StartsWith('"') || value == "1")
+        {
+            Assert.That(result.Error, Does.Contain("ODCS008"));
+            Assert.That(result.Output, Is.Empty);
+        }
+    }
+
     [TestCase("exact", "name,id\nAlice,1\n", 1)]
     [TestCase("equal", "name,id\nAlice,1\n", 0)]
     [TestCase("subset", "id,name,x\n1,Alice,x\n", 0)]
     [TestCase("superset", "id\n1\n", 0)]
+    [TestCase("equal", "id\n1\n", 1)]
+    [TestCase("subset", "id\n1\n", 1)]
+    [TestCase("partial", "id,x\n1,x\n", 0)]
     [TestCase("partial", "other\nx\n", 1)]
     public async Task DataPackage_native_matching_is_used(string mode, string csv, int expected)
     {
@@ -125,7 +165,7 @@ public class DataValidateCommandTests
         Assert.That((bool)report["passed"]!, Is.False);
         Assert.That(report["results"]!.Any(r => (string?)r["outcome"] == "Failed"), Is.True);
         var invalid = workspace.Write("invalid.yaml", Odcs.Replace("    properties:",
-            "    customProperties:\n      - vendor: packata\n        property: propertyOrder\n        value: invalid\n    properties:").Replace("orders.csv", "does-not-exist.csv"));
+            "    customProperties:\n      - vendor: packata\n        property: enforcePropertyOrder\n        value: invalid\n    properties:").Replace("orders.csv", "does-not-exist.csv"));
         var rejected = await CliWorkspace.Run("data", "validate", invalid, "--output-format", "json");
         Assert.That(rejected.ExitCode, Is.EqualTo(1), rejected.Error + rejected.Output);
         Assert.That(rejected.Error, Does.Contain("ODCS008"));
@@ -200,7 +240,7 @@ public class DataValidateCommandTests
     {
         using var workspace = new CliWorkspace();
         var descriptor = ExternalRelationship().Replace("    properties:",
-            "    customProperties:\n      - vendor: packata\n        property: propertyOrder\n        value: invalid\n    properties:");
+            "    customProperties:\n      - vendor: packata\n        property: enforcePropertyOrder\n        value: invalid\n    properties:");
         var source = workspace.Write("contract.yaml", descriptor);
         // No data file exists: malformed declarations must remain fatal before acquisition.
         var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");

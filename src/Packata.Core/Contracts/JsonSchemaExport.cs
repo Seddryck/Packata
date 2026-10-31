@@ -24,6 +24,10 @@ public static class JsonSchemaExport
         };
         if (asset.Description is not null) result["description"] = asset.Description;
         AddProperties(result, asset.Schema.Fields, asset.Name);
+        result["additionalProperties"] = asset.Schema.AllowAdditionalProperties;
+        if (NativeSchemaRequirements.RequiresOverlap(asset.Schema))
+            result["anyOf"] = asset.Schema.Fields.Select(field =>
+                new Dictionary<string, object?> { ["required"] = new[] { field.Name } }).ToArray();
         return result;
     }
 

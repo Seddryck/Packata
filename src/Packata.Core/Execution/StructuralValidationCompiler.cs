@@ -23,7 +23,7 @@ public sealed class StructuralValidationCompiler : IRuleCompiler<DataAsset>
         if (asset.Schema is not { } schema)
             return Invalid(asset, "SCHEMA_MISSING", "An explicit schema is required for structural validation.");
         if (!ValidSchema(schema))
-            return Invalid(asset, "SCHEMA_AMBIGUOUS", "Property identities and matching/order settings must be valid and unambiguous.");
+            return Invalid(asset, "SCHEMA_AMBIGUOUS", "Property identities must be valid and unambiguous.");
         var inputs = _observations.Where(o => o.AssetId == asset.Id && (context.EndpointId is null || context.EndpointId == o.EndpointId)).ToArray();
         if (inputs.Length == 0) inputs = [new(asset.Id, asset.Id, null, context.EndpointId, DiagnosticCode: "STRUCTURE_UNAVAILABLE")];
         var plans = inputs.SelectMany((input, index) => InputPlans(asset, schema, input, index, context)).ToArray();
@@ -36,17 +36,16 @@ public sealed class StructuralValidationCompiler : IRuleCompiler<DataAsset>
     private static bool ValidSchema(DataSchema schema)
     {
         var names = schema.Fields.Select(PhysicalName).ToArray();
-        return !names.Any(string.IsNullOrWhiteSpace) && names.Distinct(StringComparer.Ordinal).Count() == names.Length
-            && Enum.IsDefined(schema.PropertyMatching) && Enum.IsDefined(schema.PropertyOrder);
+        return !names.Any(string.IsNullOrWhiteSpace) && names.Distinct(StringComparer.Ordinal).Count() == names.Length;
     }
 
     private IEnumerable<IExecutableRule> InputPlans(DataAsset asset, DataSchema schema, DatasetStructure input, int index, RuleCompilationContext context)
     {
         var names = schema.Fields.Select(PhysicalName).ToArray();
         var prefix = $"structure:{asset.Id}:{index}";
-        yield return Plan(asset, input, prefix, "propertyMatching", null, () => MatchProperties(schema.PropertyMatching, names, input));
-        if (schema.PropertyOrder == PropertyOrder.Declared)
-            yield return Plan(asset, input, prefix, "propertyOrder", null, () => MatchOrder(names, input));
+        yield return Plan(asset, input, prefix, "propertyPresence", null, () => MatchProperties(schema, names, input));
+        if (schema.EnforcePropertyOrder)
+            yield return Plan(asset, input, prefix, "enforcePropertyOrder", null, () => MatchOrder(names, input));
         if (input.TypesAvailable)
             foreach (var field in schema.Fields.Where(f => IsPresent(input, f)))
                 yield return Plan(asset, input, prefix, "schemaType", field.Name, () => MatchType(field, input));
@@ -70,28 +69,21 @@ public sealed class StructuralValidationCompiler : IRuleCompiler<DataAsset>
         => input.Columns is null || input.Columns.Any(c => c.Name == PhysicalName(field));
     private static string PhysicalName(DataField field) => field.PhysicalName ?? field.Name;
 
-    private static RuleMeasurement MatchProperties(PropertyMatching matching, string[] names, DatasetStructure input)
+    private static RuleMeasurement MatchProperties(DataSchema schema, string[] names, DatasetStructure input)
     {
         if (Unavailable(input) is { } missing) return missing;
         var actual = input.Columns!.Select(c => c.Name).ToArray();
         var expectedSet = names.ToHashSet(StringComparer.Ordinal);
         var actualSet = actual.ToHashSet(StringComparer.Ordinal);
         var validNames = actual.Length == actualSet.Count && actual.All(n => !string.IsNullOrWhiteSpace(n));
-        var matches = SetMatches(matching, expectedSet, actualSet);
+        var required = schema.Fields.Where(f => f.Required).Select(PhysicalName).ToArray();
+        var matches = required.All(actualSet.Contains) && (schema.AllowAdditionalProperties || actualSet.IsSubsetOf(expectedSet))
+            && (!NativeSchemaRequirements.RequiresOverlap(schema) || expectedSet.Overlaps(actualSet));
         return Boolean(validNames && matches, actual.Length,
             new("expected", QualityValue.From(names)), new("actual", QualityValue.From(actual)),
-            new("missing", QualityValue.From(names.Except(actual, StringComparer.Ordinal).ToArray())),
+            new("missingRequired", QualityValue.From(required.Except(actual, StringComparer.Ordinal).ToArray())),
             new("additional", QualityValue.From(actual.Except(names, StringComparer.Ordinal).ToArray())));
     }
-
-    private static bool SetMatches(PropertyMatching matching, HashSet<string> expected, HashSet<string> actual) => matching switch
-    {
-        PropertyMatching.Equal => expected.SetEquals(actual),
-        PropertyMatching.Subset => expected.IsSubsetOf(actual),
-        PropertyMatching.Superset => actual.IsSubsetOf(expected),
-        PropertyMatching.Partial => expected.Overlaps(actual),
-        _ => false
-    };
 
     private static RuleMeasurement MatchOrder(string[] names, DatasetStructure input)
     {

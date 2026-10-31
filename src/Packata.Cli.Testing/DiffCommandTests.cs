@@ -57,7 +57,7 @@ public sealed class DiffCommandTests
     {
         using var workspace = new CliWorkspace();
         // An open unordered schema isolates property changes from closed-set/order changes.
-        var openRecord = Odcs.Replace("    properties:", "    customProperties:\n      - vendor: packata\n        property: propertyMatching\n        value: subset\n      - vendor: packata\n        property: propertyOrder\n        value: any\n    properties:");
+        var openRecord = Odcs.Replace("    properties:", "    customProperties:\n      - vendor: packata\n        property: allowAdditionalProperties\n        value: true\n      - vendor: packata\n        property: enforcePropertyOrder\n        value: false\n    properties:");
         var baseline = workspace.Write("old.yaml", openRecord);
         var candidate = workspace.Write("new.yaml", openRecord.Replace("logicalType: integer", "logicalType: number").Replace("name: old", "name: added"));
         var forward = await CliWorkspace.Run("contract", "diff", baseline, candidate, "--output-format", "json");

@@ -69,9 +69,9 @@ public class ContractSatisfactionTests
     [Test]
     public void Missing_optional_field_is_accepted_and_presence_is_distinct_from_nullability()
     {
-        var producer = Contract() with { Assets = [Contract().Assets[0] with { Schema = new([], PropertyMatching: PropertyMatching.Equal) }] };
+        var producer = Contract() with { Assets = [Contract().Assets[0] with { Schema = new([], AllowAdditionalProperties: false) }] };
         var consumer = Contract(new DataField("id", "string"));
-        consumer = consumer with { Assets = [consumer.Assets[0] with { Schema = consumer.Assets[0].Schema! with { PropertyMatching = PropertyMatching.Superset } }] };
+        consumer = consumer with { Assets = [consumer.Assets[0] with { Schema = consumer.Assets[0].Schema! with { AllowAdditionalProperties = false } }] };
         var result = ContractSatisfactionEvaluator.EvaluateSatisfaction(producer, consumer, SatisfactionPolicy.Default);
         Assert.That(result.IsSatisfied, Is.True);
         var required = ContractSatisfactionEvaluator.EvaluateSatisfaction(Contract(), Contract(new DataField("id", "string", Required: true)), SatisfactionPolicy.Default);

@@ -634,7 +634,9 @@ bounds, enums, array size and uniqueness, and object size and required propertie
 
 Requiredness and nullability are independent. A required field is added to its parent's
 `required` list. A nullable field allows null alongside its normal type. When nullability
-is omitted, it defaults to false.
+is omitted, it defaults to false. The schema's additional-property permission is exported
+as `additionalProperties`; native DPv2 partial overlap becomes an `anyOf` presence
+requirement. Tabular column ordering is outside this JSON object record representation.
 
 Conversion fails for unknown types, including maps and vectors, invalid constraints, temporal
 range constraints, and dataset-wide uniqueness or primary-key constraints. A schema for one

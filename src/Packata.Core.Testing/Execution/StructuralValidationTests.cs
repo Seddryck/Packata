@@ -6,9 +6,9 @@ namespace Packata.Core.Testing;
 
 public class StructuralValidationTests
 {
-    private static DataAsset Asset(PropertyMatching matching = PropertyMatching.Equal, PropertyOrder order = PropertyOrder.Declared) =>
+    private static DataAsset Asset(bool allowAdditional = false, bool enforceOrder = true) =>
         new("orders", "orders", null, null, AssetKind.Table,
-            new([new("a", "integer"), new("b", "string")], PropertyMatching: matching, PropertyOrder: order));
+            new([new("a", "integer"), new("b", "string")], AllowAdditionalProperties: allowAdditional, EnforcePropertyOrder: enforceOrder));
 
     private static async Task<RuleEvaluationReport> Run(DataAsset asset, params DatasetStructure[] observations)
     {
@@ -16,34 +16,45 @@ public class StructuralValidationTests
         return await RuleRunner.ExecuteAsync([compiler.Compile(asset, new())], new(DateTimeOffset.UnixEpoch));
     }
 
-    [TestCase(PropertyMatching.Equal, "a,b", true)]
-    [TestCase(PropertyMatching.Equal, "a,b,x", false)]
-    [TestCase(PropertyMatching.Equal, "a", false)]
-    [TestCase(PropertyMatching.Subset, "a,b,x", true)]
-    [TestCase(PropertyMatching.Subset, "a", false)]
-    [TestCase(PropertyMatching.Superset, "a", true)]
-    [TestCase(PropertyMatching.Superset, "a,x", false)]
-    [TestCase(PropertyMatching.Superset, "", true)]
-    [TestCase(PropertyMatching.Partial, "a,x", true)]
-    [TestCase(PropertyMatching.Partial, "x", false)]
-    [TestCase(PropertyMatching.Partial, "", false)]
-    public async Task Property_set_semantics_are_independent_of_order(PropertyMatching matching, string columns, bool passed)
+    [TestCase(false, "a,b", true)]
+    [TestCase(false, "a,b,x", false)]
+    [TestCase(false, "a", true)]
+    [TestCase(false, "", true)]
+    [TestCase(true, "a,b,x", true)]
+    [TestCase(true, "x", true)]
+    [TestCase(true, "", true)]
+    public async Task Optional_presence_and_extra_permissions_are_independent(bool allowAdditional, string columns, bool passed)
     {
         var actual = columns.Length == 0 ? [] : columns.Split(',').Select(n => new ObservedColumn(n)).ToArray();
-        var result = await Run(Asset(matching, PropertyOrder.Any), new DatasetStructure("orders", "file.csv", actual));
+        var result = await Run(Asset(allowAdditional, false), new DatasetStructure("orders", "file.csv", actual));
         Assert.That(result.Passed, Is.EqualTo(passed));
         Assert.That(result.IsComplete, Is.True);
     }
 
-    [TestCase(PropertyMatching.Subset, "a,x,b", true)]
-    [TestCase(PropertyMatching.Subset, "b,x,a", false)]
-    [TestCase(PropertyMatching.Superset, "b", true)]
-    [TestCase(PropertyMatching.Equal, "b,a", false)]
-    public async Task Declared_order_uses_present_properties_and_ignores_extras(PropertyMatching matching, string columns, bool passed)
+    [TestCase(false, false)]
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public async Task Required_presence_applies_to_all_boolean_combinations(bool allowAdditional, bool enforceOrder)
     {
-        var result = await Run(Asset(matching), new DatasetStructure("orders", "file.csv", columns.Split(',').Select(n => new ObservedColumn(n)).ToArray()));
+        var asset = Asset(allowAdditional, enforceOrder);
+        asset = asset with { Schema = asset.Schema! with { Fields = [new("a", "integer", Required: true, Nullable: true), new("b", "string")] } };
+        var missing = await Run(asset, new DatasetStructure("orders", "file.csv", [new("b")]));
+        Assert.That(missing.HasViolations, Is.True);
+        Assert.That(missing.Results.Single(r => r.Descriptor.ExecutionId.Contains("propertyPresence")).Measurement.Evidence
+            .Single(e => e.Name == "missingRequired").Value.Value, Is.EqualTo(new[] { QualityValue.From("a") }));
+        Assert.That((await Run(asset, new DatasetStructure("orders", "file.csv", [new("a")]))).Passed, Is.True);
+    }
+
+    [TestCase(true, "a,x,b", true)]
+    [TestCase(true, "b,x,a", false)]
+    [TestCase(false, "b", true)]
+    [TestCase(false, "b,a", false)]
+    public async Task Declared_order_uses_present_properties_and_ignores_extras(bool allowAdditional, string columns, bool passed)
+    {
+        var result = await Run(Asset(allowAdditional), new DatasetStructure("orders", "file.csv", columns.Split(',').Select(n => new ObservedColumn(n)).ToArray()));
         Assert.That(result.Passed, Is.EqualTo(passed));
-        Assert.That(result.Results.Single(r => r.Descriptor.ExecutionId.Contains("propertyOrder")).Outcome,
+        Assert.That(result.Results.Single(r => r.Descriptor.ExecutionId.Contains("enforcePropertyOrder")).Outcome,
             Is.EqualTo(passed ? RuleOutcome.Passed : RuleOutcome.Failed));
     }
 
@@ -57,15 +68,15 @@ public class StructuralValidationTests
             new("orders", "bad.csv", [new("a"), new("b")]),
             new("orders", "duplicate.csv", [new("A"), new("b"), new("b")]));
         Assert.That(result.Results.Where(r => r.Descriptor.SourcePath == "good.csv").All(r => r.Outcome == RuleOutcome.Passed), Is.True);
-        Assert.That(result.Results.Single(r => r.Descriptor.SourcePath == "bad.csv" && r.Descriptor.ExecutionId.Contains("propertyMatching")).Outcome, Is.EqualTo(RuleOutcome.Failed));
-        Assert.That(result.Results.Single(r => r.Descriptor.SourcePath == "duplicate.csv" && r.Descriptor.ExecutionId.Contains("propertyMatching")).Outcome, Is.EqualTo(RuleOutcome.Failed));
+        Assert.That(result.Results.Single(r => r.Descriptor.SourcePath == "bad.csv" && r.Descriptor.ExecutionId.Contains("propertyPresence")).Outcome, Is.EqualTo(RuleOutcome.Failed));
+        Assert.That(result.Results.Single(r => r.Descriptor.SourcePath == "duplicate.csv" && r.Descriptor.ExecutionId.Contains("propertyPresence")).Outcome, Is.EqualTo(RuleOutcome.Failed));
         Assert.That(result.Passed, Is.False);
     }
 
     [Test]
     public async Task Unavailable_observation_is_not_an_empty_schema_or_pass()
     {
-        var result = await Run(Asset(PropertyMatching.Superset), new DatasetStructure("orders", "empty.csv", null, DiagnosticCode: "HEADER_IDENTITY_UNAVAILABLE"));
+        var result = await Run(Asset(), new DatasetStructure("orders", "empty.csv", null, DiagnosticCode: "HEADER_IDENTITY_UNAVAILABLE"));
         Assert.That(result.IsComplete, Is.False);
         Assert.That(result.Results.All(r => r.Outcome == RuleOutcome.Inconclusive), Is.True);
         Assert.That(result.Results.All(r => r.Measurement.Diagnostics.Single().Code == "HEADER_IDENTITY_UNAVAILABLE"), Is.True);
@@ -91,7 +102,7 @@ public class StructuralValidationTests
     [Test]
     public async Task Absent_optional_columns_have_no_schema_type_check()
     {
-        var result = await Run(Asset(PropertyMatching.Superset),
+        var result = await Run(Asset(),
             new DatasetStructure("orders", "input.parquet", [new("a", "integer")], TypesAvailable: true));
         Assert.That(result.Passed, Is.True);
         Assert.That(result.Results.Any(r => r.Descriptor.Target.FieldPath.Contains("b")), Is.False);

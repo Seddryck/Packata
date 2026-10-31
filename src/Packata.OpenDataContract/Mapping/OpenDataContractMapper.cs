@@ -12,7 +12,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         ArgumentNullException.ThrowIfNull(document);
 
         var diagnostics = new List<MappingDiagnostic>();
-        PropertyMatchingMapper.CheckPlacements(document, diagnostics);
+        PropertyRequirementsMapper.CheckPlacements(document, diagnostics);
         var directory = DirectoryServer(document);
         var endpoints = MapEndpoints(document, directory, diagnostics);
         var canBindEndpoints = document.Servers.Count <= 1;
@@ -92,7 +92,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints,
         ICollection<MappingDiagnostic> diagnostics)
     {
-        var (matching, order) = PropertyMatchingMapper.Map(schema, diagnostics);
+        var (allowAdditional, enforceOrder) = PropertyRequirementsMapper.Map(schema, diagnostics);
         var fields = schema.Properties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics, schema.Name, [property.Name])).ToArray();
         var primaryKey = schema.Properties
             .Where(x => x.PrimaryKey)
@@ -112,7 +112,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             schema.PhysicalName,
             schema.Description,
             MapAssetKind(schema.PhysicalType),
-            new DataSchema(fields, primaryKey, relationships, PropertyMatching: matching, PropertyOrder: order),
+            new DataSchema(fields, primaryKey, relationships, AllowAdditionalProperties: allowAdditional, EnforcePropertyOrder: enforceOrder),
             endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray(),
             QualityRules: QualityMapper.Map(schema.Quality, new QualityTarget(schema.Name), $"schema/{schema.Name}/quality", diagnostics),
             Extensions: MapCustomProperties(schema.CustomProperties));

@@ -11,10 +11,10 @@ internal static class SchemaPropertyComparison
 
     internal static bool OrderChanged(DataSchema? previous, DataSchema? current)
     {
-        if (previous?.PropertyOrder != PropertyOrder.Declared && current?.PropertyOrder != PropertyOrder.Declared) return false;
+        if (previous?.EnforcePropertyOrder != true && current?.EnforcePropertyOrder != true) return false;
         return !Names(previous).SequenceEqual(Names(current), StringComparer.Ordinal);
     }
 
-    private static bool IsClosed(DataSchema? schema) => schema?.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset;
+    private static bool IsClosed(DataSchema? schema) => schema?.AllowAdditionalProperties == false;
     private static IEnumerable<string> Names(DataSchema? schema) => schema?.Fields.Select(field => field.Name) ?? [];
 }
