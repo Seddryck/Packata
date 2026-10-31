@@ -49,11 +49,15 @@ public class SchemaGenerationCommandTests
         Assert.That(File.ReadAllText(source), Is.EqualTo(Source));
     }
 
-    [TestCase("--record", "--polars")]
-    [TestCase("--record", "--template", "missing.scriban")]
-    [TestCase("--record", "--output-format", "json-schema")]
+    [TestCase("--target", "arrow")]
+    [TestCase("--target", "arrow", "--language", "rust")]
+    [TestCase("--target", "arrow", "--language", "python", "--template", "missing.scriban")]
+    [TestCase("--target", "arrow", "--language", "python", "--output-format", "json-schema")]
+    [TestCase("--arrow")]
+    [TestCase("--python")]
+    [TestCase("--record")]
     [TestCase("--template", "missing.scriban", "--engine", "absent")]
-    [TestCase("--record", "--define", "x=1", "--define", "x=2")]
+    [TestCase("--target", "arrow", "--language", "python", "--define", "x=1", "--define", "x=2")]
     public async Task Conflicts_are_rejected_before_source_or_template_reads(params string[] options)
     {
         var result = await CliWorkspace.Run(["schema", "generate", "missing.yaml", .. options]);
@@ -96,5 +100,21 @@ public class SchemaGenerationCommandTests
         Assert.That(File.Exists(output), Is.False);
         var missing = await CliWorkspace.Run("schema", "generate", source, "--template", "missing.scriban");
         Assert.That(missing.ExitCode, Is.EqualTo(3));
+    }
+
+    [TestCase("csharp", "Schema Create()")]
+    [TestCase("python", "import pyarrow as pa")]
+    public async Task Arrow_code_uses_explicit_language_and_protects_output(string language, string expected)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Source);
+        var output = Path.Combine(workspace.Path, "output.txt");
+        var result = await CliWorkspace.Run("schema", "generate", source, "--target", "arrow", "--language", language, "--asset", "orders", "-o", output);
+        Assert.That(result.ExitCode, Is.Zero, result.Error);
+        Assert.That(File.ReadAllText(output), Does.Contain(expected));
+        var repeat = await CliWorkspace.Run("schema", "generate", source, "--target", "arrow", "--language", language, "-o", output);
+        Assert.That(repeat.ExitCode, Is.EqualTo(3));
+        var wrongOperation = await CliWorkspace.Run("schema", "export", source, "--target", "arrow", "--language", language);
+        Assert.That(wrongOperation.ExitCode, Is.EqualTo(2));
     }
 }

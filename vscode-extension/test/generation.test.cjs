@@ -52,7 +52,7 @@ function harness(options = {}) {
   const module = { exports: {} };
   vm.runInNewContext(bundle.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'vscode' ? mock : require(name), console, Buffer });
   const discovery = { schemaVersion: 1, uri: source.toString(), version: 1, selectionKey: 'key', diagnostics: [],
-    catalog: { contextVersion: 1, targets: options.targets ?? [{ id: 'record', label: 'C# record', profile: 'csharp-record', engine: 'scriban', language: 'csharp' }], profiles: ['csharp-record'], engines: ['scriban', 'hbs'], defaultEngine: 'scriban' },
+    catalog: { contextVersion: 1, targets: options.targets ?? [{ id: options.arrow ? 'arrow' : 'record', label: options.arrow ? 'Arrow Schema' : 'C# record', profile: 'csharp-record', engine: 'scriban', language: options.language ?? 'csharp' }], profiles: ['csharp-record'], engines: ['scriban', 'hbs'], defaultEngine: 'scriban' },
     assets: options.assets ?? [{ id: 'orders', name: 'orders', sourcePath: '/schema/0', eligible: true }] };
   const request = async (command, args) => {
     calls.push({ command, args });
@@ -76,6 +76,16 @@ test('generation opens an editable C# untitled document without writing a descri
   assert.ok(h.opened[0].uri.path.endsWith('/Orders.cs'));
   assert.equal(h.calls.at(-1).outputLanguage, 'csharp');
 });
+
+for (const language of ['csharp', 'python']) {
+  test('Arrow generation routes the catalog target and ' + language + ' pair', async () => {
+    const h = harness({ arrow: true, language }); await h.run();
+    const call = h.calls.find(c => c.command === 'packata.schema.export');
+    assert.equal(call.args.options.target, 'arrow');
+    assert.equal(call.args.options.language, language);
+    assert.equal(h.opened.length, 1);
+  });
+}
 test('custom generation uses unsaved template text and the descriptor owning workspace folder', async () => {
   const h = harness({ custom: true }); await h.run();
   const call = h.calls.find(c => c.command === 'packata.schema.generate');

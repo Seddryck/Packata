@@ -8,7 +8,10 @@ internal sealed class GenerationProjection(GenerationOptions options, string? pr
     List<GenerationDiagnostic> diagnostics, CancellationToken token)
 {
     private readonly HashSet<string> _typeNames = new(["System", "Polars", "DataTable", "PolarsSchema", "DataType",
-        "TimeUnit", "Dictionary", "JsonPropertyName", "Create"], StringComparer.Ordinal);
+        "TimeUnit", "Dictionary", "JsonPropertyName", "Create", "Schema", "Field", "StructType", "ListType", "MapType",
+        "TimestampType", "Time32Type", "Time64Type", "Decimal128Type", "Decimal256Type", "Int8Type", "UInt8Type",
+        "Int16Type", "UInt16Type", "Int32Type", "UInt32Type", "Int64Type", "UInt64Type", "FloatType", "DoubleType",
+        "StringType", "BinaryType", "BooleanType", "Date32Type"], StringComparer.Ordinal);
     private readonly List<Dictionary<string, object?>> _declarations = [];
 
     internal Dictionary<string, object?> Build(DataContract contract, DataAsset asset)
@@ -66,7 +69,7 @@ internal sealed class GenerationProjection(GenerationOptions options, string? pr
         if (profile is null) return [];
         var expression = profile == "csharp-polars" ? PolarsProjection.Expression(resolution, children, items, diagnostics)
             : ClrExpression(resolution, nestedName, items);
-        if (expression is null)
+        if (expression is null && profile is not ("csharp-arrow" or "python-arrow"))
             diagnostics.Add(new("GEN_MAPPING", "Error", resolution.FieldPath, "The selected target cannot represent this field. Inspect its mapping diagnostics."));
         return GenerationData.Object(("type_expression", expression),
             ("runtime_type_expression", resolution.RuntimeType is null ? null : CSharpNames.TypeExpression(resolution.RuntimeType)),

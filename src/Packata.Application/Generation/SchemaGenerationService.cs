@@ -84,6 +84,8 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         var asset = SelectAsset(assets, options.AssetId, diagnostics);
         if (asset is null) return Result(null, null, null, template, diagnostics);
         var context = new GenerationProjection(options, profile, diagnostics, cancellationToken).Build(contract, asset);
+        if (profile is "csharp-arrow" or "python-arrow")
+            ArrowCodeProjection.Apply(context, asset.Schema!, profile == "python-arrow", diagnostics);
         var plain = (IReadOnlyDictionary<string, object?>)GenerationData.Plain(context)!;
         if (diagnostics.Any(d => d.Severity == "Error")) return Result(null, asset.Id, null, template, diagnostics, plain);
         try
@@ -91,8 +93,8 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             var content = await (renderer ?? new DidotTemplateRenderer()).RenderAsync(template, engine, plain, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             var name = ((Dictionary<string, object?>)context["asset"]!)["generated_name"]!.ToString()!.TrimStart('@');
-            var language = options.Language ?? (profile is null ? "plaintext" : "csharp");
-            return Result(content.ReplaceLineEndings("\n"), asset.Id, name + (language == "csharp" ? ".cs" : ".txt"), template, diagnostics, plain, language);
+            var language = profile is null ? "plaintext" : profile == "python-arrow" ? "python" : "csharp";
+            return Result(content.ReplaceLineEndings("\n"), asset.Id, name + (language == "csharp" ? ".cs" : language == "python" ? ".py" : ".txt"), template, diagnostics, plain, language);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception error)
@@ -108,9 +110,11 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         if ((options.Target is null) == (template is null)) throw new ArgumentException("Select exactly one built-in target or custom template.");
         var target = options.Target is null ? null : Catalog.Targets.SingleOrDefault(t => t.Operation == "generate" && t.Id == options.Target && t.Language == options.Language)
             ?? throw new ArgumentException("Unsupported target/language pair. Use schema generate --target record|datatable|polars --language csharp.");
+        if (template is not null && options.Language is not null) throw new ArgumentException("Custom templates select --type-mapping instead of --language.");
         var profile = SelectProfile(options, target);
+        if (profile == "python-arrow" && options.Namespace is not null) throw new ArgumentException("Python Arrow generation does not support --namespace.");
         CheckEngine(options, target);
-        template ??= GenerationCatalogService.BuiltIn(target!.Id);
+        template ??= GenerationCatalogService.BuiltIn(target!.Id == "arrow" ? target.Profile : target.Id);
         return (template, profile, GenerationCatalogService.Engine(template, target?.Engine ?? options.Engine));
     }
 
