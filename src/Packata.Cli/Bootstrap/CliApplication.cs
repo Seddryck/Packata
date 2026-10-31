@@ -28,7 +28,7 @@ internal static class CliApplication
             return ExitCodes.Invocation;
         }
         if (args.Take(2).SequenceEqual(new[] { "schema", "generate" }) && args.Any(a => a is "--output-format" or "-f" or "--profile")
-            || args.Take(2).SequenceEqual(new[] { "schema", "export" }) && args.Any(a => a is "--target" or "--language" or "--dialect" or "--template" or "--engine" or "--type-mapping" or "--namespace" or "--type-name" or "--define" or "--mapping-fallback"))
+            || args.Take(2).SequenceEqual(new[] { "schema", "export" }) && args.Any(a => a is "--target" or "--language" or "--dialect" or "--template" or "--engine" or "--type-mapping" or "--namespace" or "--type-name" or "--define" or "--mapping-fallback" or "--constraints" or "--no-descriptions"))
         {
             Console.Error.WriteLine("Options belong to another schema operation. Use schema export --output-format for documents or schema generate --target --language for code.");
             return ExitCodes.Invocation;

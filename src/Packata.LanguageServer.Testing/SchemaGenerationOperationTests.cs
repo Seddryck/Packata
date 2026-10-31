@@ -18,6 +18,19 @@ public class SchemaGenerationOperationTests
                 logicalType: integer
         """;
 
+    [Test]
+    public async Task Ddl_preserves_snapshot_scope_and_explicit_dialectAsync()
+    {
+        var store = new DocumentStore(); store.Update(Source, Text, 4);
+        var operations = new SchemaGenerationOperations(store);
+        var options = new GenerationOptions(AssetId: "orders", Target: "ddl", Language: "sql", Dialect: "sqlserver");
+        var result = await operations.GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(Text), options, 4, "/schema/0"), default);
+        var direct = await new SchemaGenerationService().GenerateAsync(Text, options);
+        Assert.That(result.Result.IsSuccessful, Is.True, string.Join(";", result.Result.Diagnostics));
+        Assert.That(result.Result.Content, Is.EqualTo(direct.Content));
+        Assert.That(result.Result.Language, Is.EqualTo("sql"));
+    }
+
     [TestCase("record")]
     [TestCase("datatable")]
     [TestCase("polars")]
