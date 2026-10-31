@@ -229,14 +229,15 @@ public class CompareCommandTests
     }
 
     [Test]
-    public async Task FieldAdditionsAndRemovals_KeepTheirDirectionAndClassification()
+    public async Task Closed_schema_field_additions_cannot_be_proven_compatible_by_the_open_record_policy()
     {
         using var workspace = new CliWorkspace();
         var baseline = workspace.Write("baseline", Odcs);
         var candidate = workspace.Write("candidate", Odcs + "\n      - name: extra\n        logicalType: string\n");
         var result = await CliWorkspace.Run("contract", "compare", baseline, candidate, "--output-format", "json");
-        Assert.That(result.ExitCode, Is.Zero, result.Error + result.Output);
+        Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         Assert.That((int?)JObject.Parse(result.Output)["totals"]!["nonBreaking"], Is.EqualTo(1));
+        Assert.That(JObject.Parse(result.Output)["findings"]!.Any(f => (string?)f["rule"] == "property-set"), Is.True);
         result = await CliWorkspace.Run("contract", "compare", candidate, baseline, "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4));
         Assert.That((int?)JObject.Parse(result.Output)["totals"]!["breaking"], Is.EqualTo(1));

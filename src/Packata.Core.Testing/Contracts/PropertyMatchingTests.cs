@@ -16,6 +16,8 @@ public class PropertyMatchingTests
         Assert.That(before.Diff(Contract(PropertyMatching.Subset, PropertyOrder.Declared, "a", "b")).Changes.OfType<DatasetModified>().Count(), Is.EqualTo(1));
         Assert.That(before.Diff(Contract(PropertyMatching.Equal, PropertyOrder.Any, "a", "b")).Changes.OfType<DatasetModified>().Count(), Is.EqualTo(1));
         Assert.That(before.Diff(Contract(PropertyMatching.Equal, PropertyOrder.Declared, "b", "a")).Changes.OfType<DatasetModified>().Count(), Is.EqualTo(1));
+        Assert.That(Contract(PropertyMatching.Equal, PropertyOrder.Any, "a").Diff(Contract(PropertyMatching.Equal, PropertyOrder.Any, "a", "b"))
+            .Changes.OfType<DatasetModified>().Count(), Is.EqualTo(1));
     }
 
     [Test]

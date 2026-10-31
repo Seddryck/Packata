@@ -92,6 +92,11 @@ internal static class CompatibilityRules
                 Add("property-matching", CompatibilityClassification.Unknown, "Native field matching mode changed; safe containment requires set/order policy.");
             if (dataset.Previous.Schema?.PropertyOrder != dataset.Current.Schema?.PropertyOrder)
                 Add("property-order", CompatibilityClassification.Unknown, "Property ordering changed; containment requires an order policy.");
+            if ((dataset.Previous.Schema?.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset
+                    || dataset.Current.Schema?.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset)
+                && !(dataset.Previous.Schema?.Fields.Select(x => x.Name) ?? []).ToHashSet(StringComparer.Ordinal)
+                    .SetEquals(dataset.Current.Schema?.Fields.Select(x => x.Name) ?? []))
+                Add("property-set", CompatibilityClassification.Unknown, "Closed property-set declarations changed; the open-record assumption cannot prove compatibility.");
             if ((dataset.Previous.Schema?.PropertyOrder == PropertyOrder.Declared || dataset.Current.Schema?.PropertyOrder == PropertyOrder.Declared)
                 && !(dataset.Previous.Schema?.Fields.Select(x => x.Name) ?? []).SequenceEqual(dataset.Current.Schema?.Fields.Select(x => x.Name) ?? [], StringComparer.Ordinal))
                 Add("property-sequence", CompatibilityClassification.Unknown, "Declared property sequence changed; order containment is unresolved.");

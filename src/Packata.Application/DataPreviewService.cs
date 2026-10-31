@@ -6,7 +6,7 @@ using Packata.Core.Reading;
 namespace Packata.Application;
 
 public sealed record DataPreviewOptions(int Limit = 20, IReadOnlyList<string>? Columns = null,
-    bool RequireUniqueColumnNames = true);
+    bool RequireUniqueColumnNames = true, bool StructureOnly = false);
 public sealed record DataPreviewColumn(string Name, string Type);
 public sealed record DataPreviewSample(IReadOnlyList<DataPreviewColumn> Columns, IReadOnlyList<object?[]> Rows);
 public enum DataPreviewSelectionFailure { Binding, Endpoint, Column }
@@ -49,12 +49,14 @@ public sealed class DataPreviewService(IDataEndpointReaderFactory readers)
         cancellationToken.ThrowIfCancellationRequested();
         // Streaming readers can discover headers/schema on their first read.
         var hasRow = await NextAsync(reader, cancellationToken).ConfigureAwait(false);
-        var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        if (!hasRow && names.Length == 0 && request.Schema is { Fields.Count: > 0 } schema)
+        var names = options.StructureOnly && reader is IOriginalColumnNames { OriginalColumnNames: { } original }
+            ? original.ToArray() : Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
+        if (!options.StructureOnly && !hasRow && names.Length == 0 && request.Schema is { Fields.Count: > 0 } schema)
             names = schema.Fields.Select(field => field.Name).ToArray();
         var ordinals = SelectColumns(names, options);
         var columns = ordinals.Select(index => new DataPreviewColumn(names[index],
             DeclaredType(request.Schema, names[index]) ?? (hasRow ? reader.GetFieldType(index)?.Name : null) ?? "unknown")).ToArray();
+        if (options.StructureOnly) return new(columns, []);
         var rows = new List<object?[]>();
         while (hasRow)
         {

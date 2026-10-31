@@ -2,8 +2,11 @@ using System.Data;
 
 namespace Packata.ResourceReaders;
 
-internal sealed class OwnedDataReader(IDataReader inner, params IDisposable[] owned) : IDataReader
+internal sealed class OwnedDataReader(IDataReader inner, params IDisposable[] owned) : IDataReader, Packata.Core.Reading.IOriginalColumnNames
 {
+    public IReadOnlyList<string>? OriginalColumnNames => inner is Packata.Core.Reading.IOriginalColumnNames metadata
+        ? metadata.OriginalColumnNames
+        : inner is PocketCsvReader.CsvDataReader { Fields: { } fields } ? Array.AsReadOnly(fields.ToArray()) : null;
     private bool _disposed;
     public object this[int i] => inner[i];
     public object this[string name] => inner[name];
