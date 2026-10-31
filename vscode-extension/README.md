@@ -112,14 +112,14 @@ Both projections come from the language server and follow unsaved edits. Switchi
 
 Run **Packata: Generate Schema Code…** from the Command Palette or a contract/asset context
 menu in either explorer projection. Select an eligible asset when prompted, then **C#
-record**, **DataTable**, **Polars.NET**, or **Custom template…**. The catalog comes from
+record**, **DataTable**, **Polars.NET**, **Arrow Schema (C#)**, **Arrow Schema (Python)**, or **Custom template…**. The catalog comes from
 Application through the server, so its targets, engines and mapping profiles match CLI.
 Use **Generate** for defaults or customize namespace/type name. Custom templates allow an
 engine override, optional mapping profile and repeatable user variables. Recognized engine
 suffixes retain their meaning; otherwise Scriban is the default, including `.template.cs`.
 
 Generation runs under cancellable progress and opens complete output in an editable
-**untitled** document named for the generated type (C# for built-ins). Inspect it and use
+**untitled** document named for the generated type (C# or Python for the selected target/language). Inspect it and use
 normal **Save As**. Generation never saves, overwrites or edits the descriptor/template.
 Existing output files require normal editor confirmation when explicitly saved. Source
 and template paths are excluded from automatic output filename association.

@@ -587,13 +587,13 @@ for all eligible assets. `--constraints` accepts all, none, or comma-separated
 PrimaryKey,Required,Unique,Checks,ForeignKeys. `--no-descriptions` omits SQL comments.
 No connection URL is required. See the [schema generation reference]({{ '/reference/dotnet/schema-generation/' | relative_url }}) for dialect IDs and selection policies.
 
-Code generation uses `schema generate --target record|datatable|polars --language csharp`, or `schema generate --template <PATH>`
-instead of `--output-format`. For generation, `--asset` may be omitted when one eligible
+Code generation uses `schema generate --target <TARGET> --language <LANGUAGE>` or `schema generate --template <PATH>`
+instead of `schema export --output-format`. Bundled targets include `record`, `datatable`, `polars` (C#) and `arrow` (C# or Python). For generation, `--asset` may be omitted when one eligible
 asset exists. `--engine <ENGINE>` overrides a custom template's engine; recognized suffixes
 such as `.scriban` and `.hbs` otherwise select Didot's engine, with Scriban as the fallback
 for `bar.template.cs`. Relative templates resolve from the descriptor directory.
 `--type-mapping <PROFILE>` optionally prepares `csharp-record`, `csharp-datatable`, or
-`csharp-polars` expressions for a custom template. Built-ins fix their engine/profile.
+`csharp-polars`, `csharp-arrow`, or `python-arrow` expressions for a custom template. Built-ins fix their engine/profile.
 `--namespace <NAMESPACE>` and `--type-name <NAME>` customize generated names.
 Repeat `--define <KEY=VALUE>` for user variables; duplicate keys are errors. Values parse
 as null, boolean, integer, decimal, then string, and appear only under `model.variables`.
@@ -605,6 +605,8 @@ JSON Schema export.
 packata schema generate sales.odcs.yaml --asset orders --target record --language csharp --namespace Sales > Orders.cs
 packata schema generate sales.odcs.yaml --asset orders --target datatable --language csharp --output OrdersTable.cs
 packata schema generate sales.odcs.yaml --asset orders --target polars --language csharp > OrdersPolars.cs
+packata schema generate sales.odcs.yaml --target arrow --language csharp -o Orders.cs
+packata schema generate sales.odcs.yaml --target arrow --language python -o orders_arrow_schema.py
 packata schema generate sales.odcs.yaml --template bar.template.cs --define author=Sales
 packata schema generate sales.odcs.yaml --template bar.hbs --engine scriban --type-mapping csharp-record
 ```
