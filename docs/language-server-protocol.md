@@ -162,7 +162,7 @@ The extension stores its Canonical/Native preference in VS Code workspace state,
 
 ## Schema/code generation (payload version 1)
 
-`packata.schema.export.options` and `packata.schema.export` are advertised in
+`packata.schema.options` and `packata.schema.generate` are advertised in
 `executeCommandProvider.commands`. Clients check both before offering generation; older
 servers continue inspection/validation and report generation unavailable. The options
 response carries the shared `SchemaGenerationService.Catalog` (context version 1), not a

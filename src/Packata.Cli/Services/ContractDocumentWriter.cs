@@ -6,6 +6,11 @@ internal static class ContractDocumentWriter
 {
     public static void Write(string path, string content, bool overwrite)
     {
+        Write(path, Encoding.UTF8.GetBytes(content), overwrite);
+    }
+
+    public static void Write(string path, byte[] content, bool overwrite)
+    {
         var fullPath = Path.GetFullPath(path);
         if (!overwrite && File.Exists(fullPath))
             throw new IOException($"Output file '{fullPath}' already exists.");
@@ -15,7 +20,7 @@ internal static class ContractDocumentWriter
         var temporary = Path.Combine(directory, $".{Path.GetFileName(fullPath)}.{Guid.NewGuid():N}.tmp");
         try
         {
-            File.WriteAllText(temporary, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.WriteAllBytes(temporary, content);
             File.Move(temporary, fullPath, overwrite);
         }
         finally

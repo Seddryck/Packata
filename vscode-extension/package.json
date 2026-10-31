@@ -113,6 +113,40 @@
         "category": "Packata",
         "icon": "$(code)",
         "title": "Generate Schema Code…"
+      },
+      {
+        "command": "packata.exportSchema",
+        "title": "Export Schema…",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.schema.custom",
+        "title": "Custom Template…",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.schema.jsonSchema",
+        "title": "JSON Schema…",
+        "category": "Packata",
+        "enablement": "packata.schema.jsonSchema"
+      },
+      {
+        "command": "packata.schema.record",
+        "title": "Record…",
+        "category": "Packata",
+        "enablement": "packata.schema.record"
+      },
+      {
+        "command": "packata.schema.datatable",
+        "title": "DataTable…",
+        "category": "Packata",
+        "enablement": "packata.schema.datatable"
+      },
+      {
+        "command": "packata.schema.polars",
+        "title": "Polars.NET…",
+        "category": "Packata",
+        "enablement": "packata.schema.polars"
       }
     ],
     "menus": {
@@ -155,8 +189,13 @@
           "group": "2_contract"
         },
         {
-          "command": "packata.generateSchemaCode",
-          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset)",
+          "submenu": "packata.schema.export",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset) && packata.schema.export",
+          "group": "2_contract"
+        },
+        {
+          "submenu": "packata.schema.generate",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset) && packata.schema.generate",
           "group": "2_contract"
         }
       ],
@@ -183,6 +222,51 @@
           "command": "packata.runLastValidation",
           "group": "packata@2"
         }
+      ],
+      "packata.schema.export": [
+        {
+          "command": "packata.schema.jsonSchema",
+          "when": "packata.schema.jsonSchema"
+        },
+        {
+          "command": "packata.exportSchema",
+          "when": "packata.schema.export"
+        }
+      ],
+      "packata.schema.csharp": [
+        {
+          "command": "packata.schema.record",
+          "when": "packata.schema.record"
+        },
+        {
+          "command": "packata.schema.datatable",
+          "when": "packata.schema.datatable"
+        },
+        {
+          "command": "packata.schema.polars",
+          "when": "packata.schema.polars"
+        }
+      ],
+      "packata.schema.generate": [
+        {
+          "submenu": "packata.schema.csharp",
+          "when": "packata.schema.csharp"
+        },
+        {
+          "submenu": "packata.schema.python",
+          "when": "packata.schema.python"
+        },
+        {
+          "submenu": "packata.schema.sql",
+          "when": "packata.schema.sql"
+        },
+        {
+          "command": "packata.schema.custom"
+        },
+        {
+          "command": "packata.generateSchemaCode",
+          "when": "packata.schema.generate"
+        }
       ]
     },
     "configuration": {
@@ -201,7 +285,29 @@
           "description": "Maximum server request time in milliseconds."
         }
       }
-    }
+    },
+    "submenus": [
+      {
+        "id": "packata.schema.export",
+        "label": "Export Schema"
+      },
+      {
+        "id": "packata.schema.generate",
+        "label": "Generate Schema Code"
+      },
+      {
+        "id": "packata.schema.csharp",
+        "label": "C#"
+      },
+      {
+        "id": "packata.schema.python",
+        "label": "Python"
+      },
+      {
+        "id": "packata.schema.sql",
+        "label": "SQL"
+      }
+    ]
   },
   "scripts": {
     "check": "tsc --noEmit",
