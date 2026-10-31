@@ -6,6 +6,20 @@ namespace Packata.LanguageServer.Testing;
 
 public class SchemaGenerationOperationTests
 {
+    [TestCase("csharp")]
+    [TestCase("python")]
+    public async Task Arrow_catalog_routes_exact_language_through_unsaved_snapshotAsync(string language)
+    {
+        var store = new DocumentStore();
+        store.Update(Source, Text, 3);
+        var operations = new SchemaGenerationOperations(store);
+        var discovery = await operations.OptionsAsync(Source, null, default);
+        Assert.That(discovery.Catalog.Targets.Count(t => t.Id == "arrow" && t.Language == language), Is.EqualTo(1));
+        var result = await operations.GenerateAsync(new(Source.AbsoluteUri, discovery.SelectionKey,
+            new(AssetId: "orders", Target: "arrow", Language: language), 3, "/schema/0"), default);
+        Assert.That(result.Result.IsSuccessful, Is.True, string.Join("\n", result.Result.Diagnostics));
+        Assert.That(result.Result.Language, Is.EqualTo(language));
+    }
     private static readonly Uri Source = new("file:///workspace/second/contract.yaml");
     private const string Text = """
         apiVersion: v3.2.0

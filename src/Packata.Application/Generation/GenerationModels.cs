@@ -4,7 +4,7 @@ namespace Packata.Application.Generation;
 
 public sealed record GenerationOptions(string? AssetId = null, string? Target = null,
     string? Engine = null, string? Profile = null, string? Namespace = null, string? TypeName = null,
-    IReadOnlyList<string>? Defines = null, TypeMappingFallback Fallback = TypeMappingFallback.Reject);
+    IReadOnlyList<string>? Defines = null, TypeMappingFallback Fallback = TypeMappingFallback.Reject, string? Language = null);
 public sealed record TemplateInput(string Identity, string Text, int? Version = null);
 public sealed record GenerationDiagnostic(string Code, string Severity, string SourcePath, string Message,
     string? Target = null, string? Template = null, int? Line = null, int? Column = null);

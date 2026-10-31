@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../Packata.Arrow/Packata.Arrow.csproj" />
     <InternalsVisibleTo Include="Packata.Cli.Testing" />
     <PackageReference Include="JsonSchema.Net" Version="9.4.1" />
     <PackageReference Include="Didot.Core" Version="0.34.0" />

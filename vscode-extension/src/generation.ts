@@ -10,7 +10,7 @@ export interface GenerationDiscovery {
   catalog: { contextVersion: number; targets: Target[]; profiles: string[]; engines: string[]; defaultEngine: string; limitations: string[] };
   assets: { id: string; name: string; sourcePath: string; eligible: boolean; reason?: string }[]; diagnostics: Finding[];
 }
-interface Options { assetId?: string; target?: string; engine?: string; profile?: string; namespace?: string; typeName?: string; defines?: string[] }
+interface Options { assetId?: string; target?: string; language?: string; engine?: string; profile?: string; namespace?: string; typeName?: string; defines?: string[] }
 interface TemplateSnapshot { uri: string; text: string; version: number }
 export interface Generated {
   schemaVersion: number; uri: string; version: number | null; selectionKey: string;
@@ -35,7 +35,7 @@ export function generationCurrent(result: Generated, sourceVersion: number | nul
 
 async function customize(options: Options, custom: boolean): Promise<boolean> {
   while (true) {
-    const choices = ['Generate', 'Namespace…', 'Type name…', ...(custom ? ['User variable…'] : [])];
+    const choices = ['Generate', ...(options.language === 'python' ? [] : ['Namespace…']), 'Type name…', ...(custom ? ['User variable…'] : [])];
     const choice = await vscode.window.showQuickPick(choices, { title: 'Generation options', placeHolder: 'Generate with defaults, or customize an option' });
     if (choice === undefined) return false;
     if (choice === 'Generate') return true;
@@ -51,7 +51,7 @@ async function selectTemplate(discovery: GenerationDiscovery, uri: vscode.Uri, o
   const choices = discovery.catalog.targets.map(target => ({ label: target.label, description: target.limitation, target }));
   const selected = await vscode.window.showQuickPick([...choices, { label: 'Custom template…', description: 'Select a Didot template', target: undefined }], { title: 'Generate Schema Code' });
   if (!selected) return undefined;
-  if (selected.target) { options.target = selected.target.id; return null; }
+  if (selected.target) { options.target = selected.target.id; options.language = selected.target.language; return null; }
   const folder = vscode.workspace.getWorkspaceFolder(uri)?.uri ?? uri.with({ path: path.posix.dirname(uri.path) });
   const files = await vscode.window.showOpenDialog({ title: 'Select Didot template', canSelectMany: false, defaultUri: folder });
   if (!files?.length || files[0].scheme !== 'file') return undefined;

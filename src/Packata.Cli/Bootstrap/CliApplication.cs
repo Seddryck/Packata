@@ -26,6 +26,7 @@ internal static class CliApplication
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
         {
+            if (args.Take(2).SequenceEqual(new[] { "schema", "generate" })) configuration.UseStrictParsing();
             configuration.SetApplicationName("packata");
             configuration.SetApplicationVersion(ApplicationVersion.Value);
             configuration.ConfigureConsole(AnsiConsole.Create(new AnsiConsoleSettings

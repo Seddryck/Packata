@@ -59,8 +59,8 @@ For example, save this as `bar.template.cs` beside the descriptor:
 ```
 
 ```console
-packata schema export sales.odcs.yaml --template bar.template.cs --define author=Sales
-packata schema export sales.odcs.yaml --template bar.template.cs --engine scriban --type-mapping csharp-record
+packata schema generate sales.odcs.yaml --template bar.template.cs --define author=Sales
+packata schema generate sales.odcs.yaml --template bar.template.cs --engine scriban --type-mapping csharp-record
 ```
 
 Definitions use the first `=` as separator. `null`, booleans, invariant integers and
@@ -107,3 +107,70 @@ substitution occurs. Unknown types/formats and unsupported representations fail 
 rendering. Explicit mapping fallback is available and remains visible in diagnostics.
 Target expressions are prepared before Didot rendering; templates arrange them instead
 of reproducing source interpretation. Mapping describes representation, not row validation.
+
+## Apache Arrow schemas (C# and Python)
+
+Use explicit target and language selectors. Generation and portable document export are separate operations:
+
+```console
+packata schema generate contract.yaml --asset orders --target arrow --language csharp --type-name Orders -o Orders.cs
+packata schema generate contract.yaml --asset orders --target arrow --language python --type-name Orders -o orders_arrow_schema.py
+```
+
+C# consumers reference Apache.Arrow **23.0.0** and call `Orders.Create()` to obtain an
+`Apache.Arrow.Schema`. Python consumers need Python **3.10+** and PyArrow **23+**:
+
+```python
+from orders_arrow_schema import Orders
+import pyarrow as pa
+assert isinstance(Orders, pa.Schema)
+print(Orders.field("id"))
+```
+
+For a contract with one required, non-nullable integer `id`, the complete Python output is:
+
+```python
+import pyarrow as pa
+
+Orders = pa.schema([pa.field("id", pa.int32(), nullable=False, metadata={"packata.required": "true"})], metadata={})
+```
+
+Field order and value nullability are retained. Presence requiredness is separately stored
+in field metadata as `packata.required`. Arrow schemas do not enforce field presence,
+uniqueness, value domains or quality constraints; `ARROW_CONSTRAINTS` reports this limitation.
+Use `--type-name` for the exported value/factory name; names are sanitized deterministically.
+Python has no namespace option. Source field names and metadata strings are escaped literals.
+
+Both targets use the same field-aware `Packata.Arrow.ArrowSchemaMapper` projection, also
+available to IPC consumers. Supported types include signed/unsigned integers, floats,
+boolean, UTF-8 string, explicit string/binary, date32, time32/time64, timestamps, decimal128
+(up to 38 digits), decimal256 (up to 76), nested structs and lists. Decimal precision and
+scale must be declared. Temporal precision selects seconds/milliseconds/microseconds/
+nanoseconds; an omitted precision uses nanoseconds to retain CLR ticks. Instants default
+to UTC. Arbitrary per-row offsets without a declared zone are rejected. Epoch range and
+conversion precision require separate value validation (`ARROW_TEMPORAL_RANGE`).
+
+Canonical schema/field `Extensions["arrow"]` string values become Arrow metadata. A
+canonical object with `arrow.type = "map"` and exactly two children (non-nullable key,
+then value) becomes an Arrow map. This is an explicit canonical adapter convention;
+native ODCS/Data Package metadata remains source-specific unless mapped to that namespace.
+Dictionary types are not inferred from categorical domains. Unsupported dictionary/extension
+representations and `ARROW:extension:*` metadata fail instead of changing meaning; extension
+registration and storage adapters are outside this generation target.
+
+Custom templates select `--type-mapping csharp-arrow` or `python-arrow` and can render
+`model.target.schema_expression` or each field's `target.field_expression` and
+`target.type_expression`. Python uses public [schema](https://arrow.apache.org/docs/python/generated/pyarrow.schema.html)
+and [field](https://arrow.apache.org/docs/python/generated/pyarrow.field.html) APIs; string
+metadata becomes PyArrow UTF-8 bytes. Production only renders text; Python execution and
+package installation occur exclusively in interoperability tests.
+
+The editor picker discovers both `arrow/csharp` and `arrow/python` through the Application
+catalog and sends the selected language with the target through LanguageServer. Unsaved
+snapshots, cancellation, diagnostics, and untitled editable output retain their existing
+safeguards. Common hierarchical menu infrastructure remains owned by #699.
+
+Focused checks: `SchemaGenerationTests`, `ArrowGenerationTests` (set `PACKATA_TEST_PYTHON`
+to a Python with PyArrow), CLI `SchemaGenerationCommandTests`, LanguageServer
+`SchemaGenerationOperationTests`, and VS Code `generation.test.cjs`. Python interoperability
+compares generated schemas, including metadata, against IPC serialized from generated C#.
