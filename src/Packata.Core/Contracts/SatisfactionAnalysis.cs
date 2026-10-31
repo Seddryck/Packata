@@ -116,7 +116,7 @@ internal sealed class SatisfactionAnalysis(SatisfactionInput producer, Satisfact
             SourceFinding(role, path.Value, "SAT026", SatisfactionStatus.Unknown, "Quality, keys, relationships, category tables, or extension semantics are unresolved.");
         if (asset.Schema is { } schema && SatisfactionExtensionCoverage.HasUnresolved(schema.Extensions))
             SourceFinding(role, path.Value, "SAT026", SatisfactionStatus.Unknown, "Schema extension semantics are unresolved.");
-        if (asset.Schema?.FieldMatching == FieldMatching.Partial)
+        if (asset.Schema?.PropertyMatching == PropertyMatching.Partial)
             SourceFinding(role, path.Value, "SAT026", SatisfactionStatus.Unknown, "Partial field-set matching is unsupported.");
         foreach (var field in asset.Schema?.Fields ?? []) InspectField(field, role, path.Append("properties").Append(field.Name));
     }
@@ -162,7 +162,7 @@ internal sealed class SatisfactionAnalysis(SatisfactionInput producer, Satisfact
             Add("SAT100", asset is null ? SatisfactionStatus.Unsatisfied : SatisfactionStatus.Satisfied, path, asset?.Id, accepted.Id, "Dataset identity match.");
             CompareSchemaMatching(asset?.Schema, accepted.Schema, path);
             CompareFields(asset?.Schema?.Fields, accepted.Schema?.Fields ?? [], path.Append("properties"), asset is not null,
-                accepted.Schema?.FieldMatching is FieldMatching.OrderedExact or FieldMatching.Exact or FieldMatching.ClosedOptional);
+                accepted.Schema?.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset);
         }
         foreach (var extra in offered.Keys.Except(consumer.Contract.Assets.Select(x => x.Id), StringComparer.Ordinal))
             Extra(ContractPath.Root("schema").Append(extra));
@@ -192,21 +192,30 @@ internal sealed class SatisfactionAnalysis(SatisfactionInput producer, Satisfact
     private void CompareSchemaMatching(DataSchema? offered, DataSchema? accepted, ContractPath path)
     {
         if (accepted is null || offered is null) return;
-        var mode = accepted.FieldMatching;
-        if (mode == FieldMatching.Partial || offered.FieldMatching == FieldMatching.Partial)
+        var producerNames = offered.Fields.Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
+        var consumerNames = accepted.Fields.Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
+        var matching = accepted.PropertyMatching;
+        var partial = matching == PropertyMatching.Partial || offered.PropertyMatching == PropertyMatching.Partial;
+        var guaranteesPresence = offered.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Subset;
+        var guaranteesClosed = offered.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset;
+        var fits = matching switch
         {
-            Add("SAT103", SatisfactionStatus.Unknown, path.Append("fieldMatching"), offered.FieldMatching, mode, "Partial native field matching requires unsupported set semantics.");
-            return;
-        }
-        if (mode == FieldMatching.ByName) return;
-        var guaranteesSet = (offered.FieldMatching is FieldMatching.OrderedExact or FieldMatching.Exact)
-            || (mode == FieldMatching.ClosedOptional && offered.FieldMatching == FieldMatching.ClosedOptional);
-        var orderFits = mode != FieldMatching.OrderedExact || (offered.FieldMatching == FieldMatching.OrderedExact
-            && offered.Fields.Select(x => x.Name).SequenceEqual(accepted.Fields.Select(x => x.Name), StringComparer.Ordinal));
-        Add("SAT103", guaranteesSet && orderFits ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied,
-            path.Append("fieldMatching"), offered.FieldMatching, mode, "Native closed-schema and ordered-field guarantees must fit the consumer's matching mode.");
+            PropertyMatching.Equal => guaranteesPresence && guaranteesClosed && producerNames.SetEquals(consumerNames),
+            PropertyMatching.Subset => guaranteesPresence && consumerNames.IsSubsetOf(producerNames),
+            PropertyMatching.Superset => guaranteesClosed && producerNames.IsSubsetOf(consumerNames),
+            _ => false
+        };
+        Add("SAT103", partial ? SatisfactionStatus.Unknown : fits ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied,
+            path.Append("propertyMatching"), offered.PropertyMatching, matching,
+            partial ? "Partial field-set containment is unresolved." : "Producer property-set guarantees must fit consumer requirements.");
+        var expected = accepted.Fields.Select(x => x.Name).Where(producerNames.Contains);
+        var actual = offered.Fields.Select(x => x.Name).Where(consumerNames.Contains);
+        var orderFits = accepted.PropertyOrder == PropertyOrder.Any
+            || offered.PropertyOrder == PropertyOrder.Declared && expected.SequenceEqual(actual, StringComparer.Ordinal);
+        Add("SAT104", orderFits ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied,
+            path.Append("propertyOrder"), offered.PropertyOrder, accepted.PropertyOrder,
+            "Producer ordering guarantees must fit the relative order of consumer-declared properties.");
     }
-
     private static SatisfactionStatus Presence(DataField? offered, DataField accepted, bool known)
         => !known ? SatisfactionStatus.Unknown : offered is not null || !accepted.Required ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied;
 

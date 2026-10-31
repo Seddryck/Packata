@@ -35,7 +35,10 @@ public static class ContractDiffer
 
         void Dataset(ContractPath path, DataAsset before, DataAsset after)
         {
-            Modified(WithoutChildren(before), WithoutChildren(after), () => changes.Add(new DatasetModified(path, before, after)));
+            var ordered = before.Schema?.PropertyOrder == PropertyOrder.Declared || after.Schema?.PropertyOrder == PropertyOrder.Declared;
+            if (ordered && !(before.Schema?.Fields.Select(x => x.Name) ?? []).SequenceEqual(after.Schema?.Fields.Select(x => x.Name) ?? [], StringComparer.Ordinal)
+                || !ContractDiffValues.Equal(WithoutChildren(before), WithoutChildren(after)))
+                changes.Add(new DatasetModified(path, before, after));
             Fields(path.Append("properties"), before.Id, before.Schema?.Fields ?? [], after.Schema?.Fields ?? []);
             Compare(before.Schema?.Relationships ?? [], after.Schema?.Relationships ?? [], RelationshipId, path.Append("relationships"),
                 (p, value) => changes.Add(new RelationshipAdded(p, value)),

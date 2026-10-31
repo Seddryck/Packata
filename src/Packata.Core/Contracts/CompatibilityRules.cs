@@ -88,8 +88,13 @@ internal static class CompatibilityRules
 
         private void Dataset(DatasetModified dataset)
         {
-            if (dataset.Previous.Schema?.FieldMatching != dataset.Current.Schema?.FieldMatching)
-                Add("field-matching", CompatibilityClassification.Unknown, "Native field matching mode changed; safe containment requires set/order policy.");
+            if (dataset.Previous.Schema?.PropertyMatching != dataset.Current.Schema?.PropertyMatching)
+                Add("property-matching", CompatibilityClassification.Unknown, "Native field matching mode changed; safe containment requires set/order policy.");
+            if (dataset.Previous.Schema?.PropertyOrder != dataset.Current.Schema?.PropertyOrder)
+                Add("property-order", CompatibilityClassification.Unknown, "Property ordering changed; containment requires an order policy.");
+            if ((dataset.Previous.Schema?.PropertyOrder == PropertyOrder.Declared || dataset.Current.Schema?.PropertyOrder == PropertyOrder.Declared)
+                && !(dataset.Previous.Schema?.Fields.Select(x => x.Name) ?? []).SequenceEqual(dataset.Current.Schema?.Fields.Select(x => x.Name) ?? [], StringComparer.Ordinal))
+                Add("property-sequence", CompatibilityClassification.Unknown, "Declared property sequence changed; order containment is unresolved.");
             if (dataset.Previous.Name != dataset.Current.Name || dataset.Previous.PhysicalName != dataset.Current.PhysicalName
                 || dataset.Previous.Kind != dataset.Current.Kind || !Equal(dataset.Previous.EndpointBindings, dataset.Current.EndpointBindings))
                 Add("dataset-access", CompatibilityClassification.PotentiallyBreaking, "Dataset naming, representation, or endpoint bindings changed; consumer access assumptions may be affected.");

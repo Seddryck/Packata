@@ -37,6 +37,16 @@ internal static class CompatibilityCoverage
 
         private void VisitMember(string context, string key, object? child, string path, string? logicalType)
         {
+            if (context == "odcs-dataset" && key == "customProperties" && child is IEnumerable<object?> properties)
+            {
+                var index = 0;
+                foreach (var property in properties)
+                {
+                    if (!SatisfactionExtensionCoverage.IsMappedPropertyRequirement(property)) Paths.Add($"{path}[{index}]");
+                    index++;
+                }
+                return;
+            }
             var rule = Rule(context, key, logicalType);
             if (rule is null) { Paths.Add(path); return; }
             if (rule == "leaf")

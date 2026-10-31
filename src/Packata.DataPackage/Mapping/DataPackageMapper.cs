@@ -136,14 +136,14 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 ["uniqueKeys"] = schema.UniqueKeys,
                 ["missingValues"] = schema.MissingValues,
                 ["metrics"] = schema.Metrics
-            }), FieldMatching: schema.FieldsMatch switch
+            }), PropertyMatching: schema.FieldsMatch switch
             {
-                Native.FieldsMatching.Exact => FieldMatching.OrderedExact,
-                Native.FieldsMatching.Equal => FieldMatching.Exact,
-                Native.FieldsMatching.Subset => FieldMatching.ByName,
-                Native.FieldsMatching.Superset => FieldMatching.ClosedOptional,
-                _ => FieldMatching.Partial
-            });
+                Native.FieldsMatching.Exact => PropertyMatching.Equal,
+                Native.FieldsMatching.Equal => PropertyMatching.Equal,
+                Native.FieldsMatching.Subset => PropertyMatching.Subset,
+                Native.FieldsMatching.Superset => PropertyMatching.Superset,
+                _ => PropertyMatching.Partial
+            }, PropertyOrder: schema.FieldsMatch == Native.FieldsMatching.Exact ? PropertyOrder.Declared : PropertyOrder.Any);
     }
 
     private static DataField MapField(Native.Field field, int index, Native.DataPackage package,
