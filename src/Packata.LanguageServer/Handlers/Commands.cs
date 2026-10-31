@@ -11,17 +11,17 @@ public sealed record DiscoveryRequest(string[] WorkspaceFolders, int SchemaVersi
 public sealed record SchemaGenerationOptionsRequest(string Uri, string? SelectionKey = null, int SchemaVersion = 1);
 
 public sealed class SchemaGenerationOptionsHandler(SchemaGenerationOperations generation, ISerializer serializer)
-    : ExecuteTypedResponseCommandHandlerBase<SchemaGenerationOptionsRequest, GenerationOptionsResult>("packata.schema.export.options", serializer)
+    : ExecuteTypedResponseCommandHandlerBase<SchemaGenerationOptionsRequest, GenerationOptionsResult>("packata.schema.options", serializer)
 {
     public override Task<GenerationOptionsResult> Handle(SchemaGenerationOptionsRequest request, CancellationToken cancellationToken)
         => ProtocolVersion.RunAsync(request.SchemaVersion, () => generation.OptionsAsync(WorkspaceUri.Parse(request.Uri), request.SelectionKey, cancellationToken));
 }
 
 public sealed class SchemaGenerationHandler(SchemaGenerationOperations generation, ISerializer serializer)
-    : ExecuteTypedResponseCommandHandlerBase<SchemaGenerationRequest, SchemaGenerationResponse>("packata.schema.export", serializer)
+    : ExecuteTypedResponseCommandHandlerBase<SchemaGenerationRequest, SchemaGenerationResponse>("packata.schema.generate", serializer)
 {
     public override Task<SchemaGenerationResponse> Handle(SchemaGenerationRequest request, CancellationToken cancellationToken)
-        => ProtocolVersion.RunAsync(request.SchemaVersion, () => generation.GenerateAsync(request, cancellationToken));
+        => ProtocolVersion.RunAsync(request.SchemaVersion, () => generation.GenerateAsync(request with { Options = request.Options with { Operation = "generate" } }, cancellationToken));
 }
 public sealed record PreviewRequest(string Uri, string SourcePath, JToken? Limit = null, int? BindingIndex = null,
     string? SelectionKey = null, int SchemaVersion = 1);
@@ -99,4 +99,17 @@ public sealed class ProtocolHandler(ISerializer serializer)
 {
     public override Task<object> Handle(DiscoveryRequest request, CancellationToken cancellationToken)
         => ProtocolVersion.RunAsync<object>(request.SchemaVersion, () => Task.FromResult<object>(new { schemaVersion = 1, schemaVersions = new[] { 1 }, positionEncoding = "utf-16" }));
+}
+
+public sealed class SchemaExportHandler(SchemaGenerationOperations generation, ISerializer serializer)
+    : ExecuteTypedResponseCommandHandlerBase<SchemaGenerationRequest, SchemaGenerationResponse>("packata.schema.export", serializer)
+{
+    public override Task<SchemaGenerationResponse> Handle(SchemaGenerationRequest request, CancellationToken cancellationToken)
+        => ProtocolVersion.RunAsync(request.SchemaVersion, () => generation.GenerateAsync(request with { Options = request.Options with { Operation = "export" } }, cancellationToken));
+}
+public sealed class SchemaCatalogHandler(ISerializer serializer)
+    : ExecuteTypedResponseCommandHandlerBase<DiscoveryRequest, Packata.Application.Generation.GenerationCatalog>("packata.schema.catalog", serializer)
+{
+    public override Task<Packata.Application.Generation.GenerationCatalog> Handle(DiscoveryRequest request, CancellationToken cancellationToken)
+        => ProtocolVersion.RunAsync(request.SchemaVersion, () => Task.FromResult(Packata.Application.Generation.SchemaGenerationService.Catalog));
 }

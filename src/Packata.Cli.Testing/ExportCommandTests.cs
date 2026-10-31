@@ -51,8 +51,8 @@ public sealed class ExportCommandTests
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("sales.odcs.yaml", Odcs);
-        var first = await CliWorkspace.Run("export", source, "--output-format", "json-schema", "--asset", "orders");
-        var second = await CliWorkspace.Run("export", source, "-f", "json-schema", "--asset", "orders");
+        var first = await CliWorkspace.Run("schema", "export", source, "--output-format", "json-schema", "--asset", "orders");
+        var second = await CliWorkspace.Run("schema", "export", source, "-f", "json-schema", "--asset", "orders");
         Assert.That(first.ExitCode, Is.Zero, first.Error);
         var schema = JObject.Parse(first.Output);
         var properties = schema["properties"]!;
@@ -81,10 +81,10 @@ public sealed class ExportCommandTests
         using var workspace = new CliWorkspace();
         var source = workspace.Write("contract.yaml", Odcs);
         var output = Path.Combine(workspace.Path, "orders.schema.json");
-        var first = await CliWorkspace.Run("export", source, "-f", "json-schema", "--asset", "orders", "-o", output);
+        var first = await CliWorkspace.Run("schema", "export", source, "-f", "json-schema", "--asset", "orders", "-o", output);
         var content = File.ReadAllText(output);
-        var second = await CliWorkspace.Run("export", source, "-f", "json-schema", "--asset", "orders", "--output", output);
-        var overwriteSource = await CliWorkspace.Run("export", source, "-f", "json-schema", "--asset", "orders", "-o", source);
+        var second = await CliWorkspace.Run("schema", "export", source, "-f", "json-schema", "--asset", "orders", "--output", output);
+        var overwriteSource = await CliWorkspace.Run("schema", "export", source, "-f", "json-schema", "--asset", "orders", "-o", source);
         Assert.Multiple(() =>
         {
             Assert.That(first.ExitCode, Is.Zero, first.Error);
@@ -97,13 +97,13 @@ public sealed class ExportCommandTests
         });
     }
 
-    [TestCase("absent", "string", "not found")]
+    [TestCase("absent", "string", "does not exist")]
     [TestCase("orders", "map", "Unsupported logical type")]
     public async Task Export_RejectsUnknownDatasetsAndUnsupportedTypesWithoutOutput(string dataset, string type, string error)
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("contract.yaml", Odcs.Replace("logicalType: string", "logicalType: " + type));
-        var result = await CliWorkspace.Run("export", source, "-f", "json-schema", "--asset", dataset);
+        var result = await CliWorkspace.Run("schema", "export", source, "-f", "json-schema", "--asset", dataset);
         Assert.Multiple(() =>
         {
             Assert.That(result.ExitCode, Is.EqualTo(1));
@@ -116,7 +116,7 @@ public sealed class ExportCommandTests
     [TestCase("json-schema", "")]
     public async Task Export_RejectsInvalidOptions(string format, string dataset)
     {
-        var result = await CliWorkspace.Run("export", "missing.yaml", "-f", format, "--asset", dataset);
+        var result = await CliWorkspace.Run("schema", "export", "missing.yaml", "-f", format, "--asset", dataset);
         Assert.That(result.ExitCode, Is.EqualTo(2));
         Assert.That(result.Output, Is.Empty);
     }
@@ -131,7 +131,7 @@ public sealed class ExportCommandTests
               {"name":"Price","type":"number","constraints":{"maximum":100}}
             ]}}]}
             """);
-        var result = await CliWorkspace.Run("export", source, "-f", "json-schema", "--asset", "orders");
+        var result = await CliWorkspace.Run("schema", "export", source, "-f", "json-schema", "--asset", "orders");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         var schema = JObject.Parse(result.Output);
         Assert.That((int?)schema["properties"]!["OrderID"]!["minimum"], Is.EqualTo(1));
@@ -170,15 +170,15 @@ public sealed class ExportCommandTests
         using var workspace = new CliWorkspace();
         var duplicate = workspace.Write("duplicate.yaml", Odcs + "\n  - name: orders\n");
         var missing = workspace.Write("datapackage.json", CliWorkspace.PackageJson);
-        var ambiguous = await CliWorkspace.Run("export", duplicate, "-f", "json-schema", "--asset", "orders");
-        var noSchema = await CliWorkspace.Run("export", missing, "-f", "json-schema", "--asset", "customers");
+        var ambiguous = await CliWorkspace.Run("schema", "export", duplicate, "-f", "json-schema", "--asset", "orders");
+        var noSchema = await CliWorkspace.Run("schema", "export", missing, "-f", "json-schema", "--asset", "customers");
         Assert.Multiple(() =>
         {
             Assert.That(ambiguous.ExitCode, Is.EqualTo(1));
             Assert.That(ambiguous.Error, Does.Contain("ambiguous"));
             Assert.That(ambiguous.Output, Is.Empty);
             Assert.That(noSchema.ExitCode, Is.EqualTo(1));
-            Assert.That(noSchema.Error, Does.Contain("no schema"));
+            Assert.That(noSchema.Error, Does.Contain("usable schema"));
             Assert.That(noSchema.Output, Is.Empty);
         });
     }
@@ -203,7 +203,7 @@ public sealed class ExportCommandTests
     [Test]
     public async Task Export_HelpDocumentsLongAndShortOptions()
     {
-        var result = await CliWorkspace.Run("export", "--help");
+        var result = await CliWorkspace.Run("schema", "export", "--help");
         Assert.That(result.ExitCode, Is.Zero);
         Assert.That(result.Output, Does.Contain("--output-format").And.Contain("--asset").And.Contain("--output").And.Contain("json-schema"));
     }
@@ -216,7 +216,7 @@ public sealed class ExportCommandTests
         var document = Odcs.ReplaceLineEndings(lineEnding).Replace("logicalType: date",
             $"logicalType: date{lineEnding}        logicalTypeOptions:{lineEnding}          minimum: '2020-01-01'");
         var source = workspace.Write("sales.yaml", document);
-        var result = await CliWorkspace.Run("export", source, "-f", "json-schema", "--asset", "orders");
+        var result = await CliWorkspace.Run("schema", "export", source, "-f", "json-schema", "--asset", "orders");
         Assert.That(result.ExitCode, Is.EqualTo(1));
         Assert.That(result.Error, Does.Contain("minimum"));
         Assert.That(result.Output, Is.Empty);

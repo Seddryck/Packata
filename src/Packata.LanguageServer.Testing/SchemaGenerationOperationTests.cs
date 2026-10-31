@@ -30,8 +30,8 @@ public class SchemaGenerationOperationTests
         Assert.That(discovery.Catalog, Is.SameAs(SchemaGenerationService.Catalog));
         Assert.That(discovery.Assets.Single().SourcePath, Is.EqualTo("/schema/0"));
         var result = await operations.GenerateAsync(new(Source.AbsoluteUri, discovery.SelectionKey,
-            new(AssetId: "orders", Target: target), 2, "/schema/0"), default);
-        var direct = await new SchemaGenerationService().GenerateAsync(Text, new(AssetId: "orders", Target: target), baseUri: new Uri(Source, "."));
+            new(AssetId: "orders", Target: target, Language: "csharp"), 2, "/schema/0"), default);
+        var direct = await new SchemaGenerationService().GenerateAsync(Text, new(AssetId: "orders", Target: target, Language: "csharp"), baseUri: new Uri(Source, "."));
         Assert.That(result.Result.IsSuccessful, Is.True, string.Join("\n", result.Result.Diagnostics));
         Assert.That(result.Result.Content, Is.EqualTo(direct.Content));
         Assert.That(result.Result.Diagnostics, Is.EqualTo(direct.Diagnostics));
@@ -58,10 +58,10 @@ public class SchemaGenerationOperationTests
         var operations = new SchemaGenerationOperations(store);
         var old = await operations.OptionsAsync(Source, "old-key", default);
         Assert.That(old.Diagnostics.Single().Code, Is.EqualTo("GEN_STALE"));
-        var stale = await operations.GenerateAsync(new(Source.AbsoluteUri, "old-key", new(Target: "record"), 1), default);
+        var stale = await operations.GenerateAsync(new(Source.AbsoluteUri, "old-key", new(Target: "record", Language: "csharp"), 1), default);
         Assert.That(stale.Result.Content, Is.Null);
         Assert.That(stale.Result.Diagnostics.Single().Code, Is.EqualTo("GEN_STALE"));
-        var wrong = await operations.GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(Text), new(AssetId: "orders", Target: "record"), 2, "/schema/9"), default);
+        var wrong = await operations.GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(Text), new(AssetId: "orders", Target: "record", Language: "csharp"), 2, "/schema/9"), default);
         Assert.That(wrong.Result.Diagnostics.Single().Code, Is.EqualTo("GEN_SELECTION"));
     }
 
@@ -72,7 +72,7 @@ public class SchemaGenerationOperationTests
         store.Update(Source, Text, 1);
         var renderer = new MutatingRenderer(() => store.Update(Source, Text + "\n# changed", 2));
         var operations = new SchemaGenerationOperations(store, new(renderer));
-        var result = await operations.GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(Text), new(Target: "record"), 1), default);
+        var result = await operations.GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(Text), new(Target: "record", Language: "csharp"), 1), default);
         Assert.That(result.Result.Content, Is.Null);
         Assert.That(result.Result.Diagnostics.Single().Code, Is.EqualTo("GEN_STALE"));
     }
@@ -90,7 +90,7 @@ public class SchemaGenerationOperationTests
         Assert.That(missing.Result.Diagnostics.Single().Code, Is.EqualTo("GEN_ACCESS"));
         var unsupported = Text.Replace("logicalType: integer", "logicalType: unknown");
         store.Update(Source, unsupported, 3);
-        var bad = await operations.GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(unsupported), new(Target: "record"), 3), default);
+        var bad = await operations.GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(unsupported), new(Target: "record", Language: "csharp"), 3), default);
         Assert.That(bad.Result.Content, Is.Null);
         Assert.That(bad.Result.Diagnostics.Any(d => d.Severity == "Error"), Is.True);
         Assert.That(bad.Findings.Single(f => f.Diagnostic.Code == "UnsupportedType").Location?.Uri, Is.EqualTo(Source.AbsoluteUri));
@@ -115,7 +115,7 @@ public class SchemaGenerationOperationTests
         store.Update(Source, Text, 1);
         using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
         Assert.That(async () => await new SchemaGenerationOperations(store).GenerateAsync(new(Source.AbsoluteUri,
-            SchemaGenerationOperations.Key(Text), new(Target: "record"), 1), cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
+            SchemaGenerationOperations.Key(Text), new(Target: "record", Language: "csharp"), 1), cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
     }
 
     private sealed class MutatingRenderer(Action mutate) : ISchemaTemplateRenderer
