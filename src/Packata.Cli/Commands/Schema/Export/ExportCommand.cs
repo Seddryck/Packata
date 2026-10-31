@@ -41,5 +41,4 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
             return CommandOutput.FailureExitCode(exception);
         }
     }
-
 }

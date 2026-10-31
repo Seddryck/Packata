@@ -4,6 +4,20 @@ parent: Reference
 permalink: /reference/dotnet/schema-generation/
 ---
 
+<!-- cli:schema generate -->
+## Generate schema code
+
+`packata schema generate <SOURCE> --target <TARGET> --language <LANGUAGE> [OPTIONS]`
+
+Select a bundled target/language pair or a custom `--template <PATH>`.
+`--input-format` selects the descriptor standard. `--asset` selects one eligible asset.
+`--output` / `-o` writes a protected new file; otherwise complete text goes to stdout.
+`--namespace` and `--type-name` customize supported names. Custom templates accept
+`--engine`, `--type-mapping`, repeatable `--define`, and `--mapping-fallback`.
+Bundled targets fix their template engine and mapping profile.
+<!-- end-cli -->
+
+
 `SchemaGenerationService` in `Packata.Application.Generation` is the shared metadata-only
 workflow for CLI and editor hosts. It accepts `ContractDocument` or descriptor text with
 its original base URI, `GenerationOptions`, optional `TemplateInput` text/identity/version,

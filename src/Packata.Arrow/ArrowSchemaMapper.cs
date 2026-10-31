@@ -12,6 +12,16 @@ public sealed record ArrowSchemaResult(Schema? Schema, IReadOnlyList<ArrowDiagno
 /// <summary>One field-aware projection shared by code generation and IPC consumers.</summary>
 public static class ArrowSchemaMapper
 {
+    private static readonly IReadOnlyDictionary<DbType, IArrowType> Scalars = new Dictionary<DbType, IArrowType>
+    {
+        [DbType.SByte] = Int8Type.Default, [DbType.Byte] = UInt8Type.Default,
+        [DbType.Int16] = Int16Type.Default, [DbType.UInt16] = UInt16Type.Default,
+        [DbType.Int32] = Int32Type.Default, [DbType.UInt32] = UInt32Type.Default,
+        [DbType.Int64] = Int64Type.Default, [DbType.UInt64] = UInt64Type.Default,
+        [DbType.Single] = FloatType.Default, [DbType.Double] = DoubleType.Default,
+        [DbType.String] = StringType.Default, [DbType.Boolean] = BooleanType.Default, [DbType.Date] = Date32Type.Default
+    };
+
     public static ArrowSchemaResult Map(DataSchema schema)
     {
         var diagnostics = new List<ArrowDiagnostic>();
@@ -39,13 +49,7 @@ public static class ArrowSchemaMapper
     private static IArrowType? Type(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
     {
         if (f.Field.Extensions.TryGetNamespace("arrow", out var options) && options.TryGetValue("type", out var representation))
-        {
-            if (representation is not "map" || f.Children.Count != 2) return null;
-            var key = Field(f.Children[0], diagnostics);
-            var value = Field(f.Children[1], diagnostics);
-            if (key is null || value is null || key.IsNullable) return null;
-            return new MapType(key, value);
-        }
+            return Map(f, representation, diagnostics);
         if (f.LogicalType == "array" && f.Items is not null)
             return Field(f.Items, diagnostics) is { } item ? new ListType(item) : null;
         if (f.LogicalType == "object" && f.Children.Count > 0)
@@ -55,21 +59,37 @@ public static class ArrowSchemaMapper
         }
         // Binary is an explicit annotation on the canonical string type.
         if (f.LogicalType == "string" && f.SourceFormat == "binary") return BinaryType.Default;
+        if (f.DatabaseType is { } database && Scalars.TryGetValue(database, out var scalar)) return scalar;
+        return ParameterizedType(f, diagnostics);
+    }
+
+    private static IArrowType? Map(FieldTypeResolution f, object? representation, List<ArrowDiagnostic> diagnostics)
+    {
+        if (representation is not "map" || f.Children.Count != 2) return null;
+        var key = Field(f.Children[0], diagnostics);
+        var value = Field(f.Children[1], diagnostics);
+        if (key is null || value is null || key.IsNullable) return null;
+        return new MapType(key, value);
+    }
+
+    private static IArrowType? ParameterizedType(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
+    {
         return f.DatabaseType switch
         {
-            DbType.SByte => Int8Type.Default, DbType.Byte => UInt8Type.Default,
-            DbType.Int16 => Int16Type.Default, DbType.UInt16 => UInt16Type.Default,
-            DbType.Int32 => Int32Type.Default, DbType.UInt32 => UInt32Type.Default,
-            DbType.Int64 => Int64Type.Default, DbType.UInt64 => UInt64Type.Default,
-            DbType.Single => FloatType.Default, DbType.Double => DoubleType.Default,
-            DbType.String => StringType.Default, DbType.Boolean => BooleanType.Default,
-            DbType.Date => Date32Type.Default,
-            DbType.Decimal when f.Parameters.Precision is > 0 and <= 38 && f.Parameters.Scale is >= 0
-                => new Decimal128Type(f.Parameters.Precision.Value, f.Parameters.Scale.Value),
-            DbType.Decimal when f.Parameters.Precision is > 38 and <= 76 && f.Parameters.Scale is >= 0
-                => new Decimal256Type(f.Parameters.Precision.Value, f.Parameters.Scale.Value),
+            DbType.Decimal => Decimal(f.Parameters),
             DbType.Time when f.Parameters.TemporalPrecision is null or <= 9 => Time(f.Parameters.TemporalPrecision),
             DbType.DateTime or DbType.DateTimeOffset => Timestamp(f, diagnostics),
+            _ => null
+        };
+    }
+
+    private static IArrowType? Decimal(TypeParameters parameters)
+    {
+        if (parameters.Scale is not >= 0) return null;
+        return parameters.Precision switch
+        {
+            > 0 and <= 38 => new Decimal128Type(parameters.Precision.Value, parameters.Scale.Value),
+            > 38 and <= 76 => new Decimal256Type(parameters.Precision.Value, parameters.Scale.Value),
             _ => null
         };
     }
