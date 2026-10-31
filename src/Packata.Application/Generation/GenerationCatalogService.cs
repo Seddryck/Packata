@@ -6,6 +6,8 @@ public static class GenerationCatalogService
 {
     public static GenerationCatalog Catalog { get; } = new(1, 1,
     [
+        new("json-schema", "JSON Schema", "", "", "json", false, "Draft 2020-12; preserves canonical JSON Schema semantics.",
+            "export", "schema-document", "JSON", ".schema.json", ["asset"], []),
         new("record", "C# record", "csharp-record", "scriban", "csharp", true,
             "C# 11 required properties and nullable annotations describe initialization; they do not validate dataset values."),
         new("datatable", "DataTable", "csharp-datatable", "scriban", "csharp", true,

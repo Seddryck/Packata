@@ -16,7 +16,7 @@ contacts databases, acquires connectors, or compiles/executes generated code.
 using Packata.Application.Generation;
 var source = await File.ReadAllTextAsync("sales.odcs.yaml");
 var result = await new SchemaGenerationService().GenerateAsync(source,
-    new(AssetId: "orders", Target: "record", Namespace: "Sales", TypeName: "Orders"));
+    new(AssetId: "orders", Target: "record", Language: "csharp", Namespace: "Sales", TypeName: "Orders"));
 if (!result.IsSuccessful) throw new InvalidOperationException("Inspect result.Diagnostics.");
 await File.WriteAllTextAsync("Orders.cs", result.Content);
 ```
@@ -59,8 +59,8 @@ For example, save this as `bar.template.cs` beside the descriptor:
 ```
 
 ```console
-packata schema export sales.odcs.yaml --template bar.template.cs --define author=Sales
-packata schema export sales.odcs.yaml --template bar.template.cs --engine scriban --type-mapping csharp-record
+packata schema generate sales.odcs.yaml --template bar.template.cs --define author=Sales
+packata schema generate sales.odcs.yaml --template bar.template.cs --engine scriban --type-mapping csharp-record
 ```
 
 Definitions use the first `=` as separator. `null`, booleans, invariant integers and

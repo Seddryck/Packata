@@ -22,6 +22,17 @@ internal static class CliApplication
     }
     internal static int Run(string[] args, CancellationToken cancellationToken)
     {
+        if (args.FirstOrDefault() == "export" || (args.FirstOrDefault() == "schema" && args.Any(a => new[] { "--record", "--datatable", "--polars", "--pyspark", "--arrow", "--dataframe", "--idataview", "--ddl", "--json-schema", "--spark-json", "--avro", "--format", "--dataset" }.Contains(a))))
+        {
+            Console.Error.WriteLine("Removed schema syntax. Use schema export --output-format <format> or schema generate --target <target> --language <language>; use --asset for selection.");
+            return ExitCodes.Invocation;
+        }
+        if (args.Take(2).SequenceEqual(new[] { "schema", "generate" }) && args.Any(a => a is "--output-format" or "-f" or "--profile")
+            || args.Take(2).SequenceEqual(new[] { "schema", "export" }) && args.Any(a => a is "--target" or "--language" or "--dialect" or "--template" or "--engine" or "--type-mapping" or "--namespace" or "--type-name" or "--define" or "--mapping-fallback"))
+        {
+            Console.Error.WriteLine("Options belong to another schema operation. Use schema export --output-format for documents or schema generate --target --language for code.");
+            return ExitCodes.Invocation;
+        }
         if (args.Length == 1 && args[0] is "contract" or "data" or "schema" or "config" or "connector" or "dialect" or "quality") args = [args[0], "--help"];
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
@@ -39,9 +50,6 @@ internal static class CliApplication
             DialectCommands.Configure(configuration);
             DataCommands.Configure(configuration);
             QualityCommands.Configure(configuration);
-            configuration.AddCommand<ExportCommand>("export")
-                .WithDescription("Export an asset as JSON Schema; compatibility alias for schema export.")
-                .WithExample(["export", "sales.odcs.yaml", "--output-format", "json-schema", "--asset", "orders"]);
             configuration.AddCommand<InferCommand>("infer")
                 .WithDescription("Infer a bound CSV, Excel, Parquet, or database schema; compatibility alias for schema infer.")
                 .WithExample(["infer", "datapackage.json", "--asset", "customers"]);

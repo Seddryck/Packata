@@ -16,14 +16,14 @@ public class SchemaGenerationCommandTests
                 required: true
         """;
 
-    [TestCase("--record", "record Orders")]
-    [TestCase("--datatable", "DataTable Create()")]
-    [TestCase("--polars", "PolarsSchema Create()")]
+    [TestCase("record", "record Orders")]
+    [TestCase("datatable", "DataTable Create()")]
+    [TestCase("polars", "PolarsSchema Create()")]
     public async Task Builtins_write_only_generated_content_to_stdout(string selector, string expected)
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("contract.yaml", Source);
-        var result = await CliWorkspace.Run("schema", "export", source, selector);
+        var result = await CliWorkspace.Run("schema", "generate", source, "--target", selector, "--language", "csharp");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(result.Output, Does.Contain(expected));
         Assert.That(result.Error, Does.Not.Contain("Error"));
@@ -35,13 +35,13 @@ public class SchemaGenerationCommandTests
         using var workspace = new CliWorkspace();
         var source = workspace.Write("nested/contract.yaml", Source);
         workspace.Write("nested/bar.template.cs", "{{ model.asset.name }} {{ model.variables.count }}");
-        var result = await CliWorkspace.Run("schema", "export", source, "--template", "bar.template.cs", "--define", "count=42");
+        var result = await CliWorkspace.Run("schema", "generate", source, "--template", "bar.template.cs", "--define", "count=42");
         Assert.That(result.ExitCode, Is.Zero, result.Error);
         Assert.That(result.Output, Is.EqualTo("orders 42"));
         var output = Path.Combine(workspace.Path, "Orders.cs");
-        var first = await CliWorkspace.Run("schema", "export", source, "--record", "--output", output);
-        var second = await CliWorkspace.Run("schema", "export", source, "--record", "--output", output);
-        var overwrite = await CliWorkspace.Run("schema", "export", source, "--record", "--output", source);
+        var first = await CliWorkspace.Run("schema", "generate", source, "--target", "record", "--language", "csharp", "--output", output);
+        var second = await CliWorkspace.Run("schema", "generate", source, "--target", "record", "--language", "csharp", "--output", output);
+        var overwrite = await CliWorkspace.Run("schema", "generate", source, "--target", "record", "--language", "csharp", "--output", source);
         Assert.That(first.ExitCode, Is.Zero, first.Error);
         Assert.That(first.Output, Is.Empty);
         Assert.That(second.ExitCode, Is.EqualTo(3));
@@ -56,9 +56,32 @@ public class SchemaGenerationCommandTests
     [TestCase("--record", "--define", "x=1", "--define", "x=2")]
     public async Task Conflicts_are_rejected_before_source_or_template_reads(params string[] options)
     {
-        var result = await CliWorkspace.Run(["schema", "export", "missing.yaml", .. options]);
+        var result = await CliWorkspace.Run(["schema", "generate", "missing.yaml", .. options]);
         Assert.That(result.ExitCode, Is.EqualTo(2), result.Error);
         Assert.That(result.Output, Is.Empty);
+    }
+
+    [TestCase("--target", "record")]
+    [TestCase("--target", "record", "--language", "python")]
+    [TestCase("--target", "record", "--language", "csharp", "--template", "missing.scriban")]
+    [TestCase("--target", "record", "--language", "csharp", "--output-format", "json-schema")]
+    [TestCase("--target", "record", "--language", "csharp", "--profile", "hudi")]
+    public async Task Canonical_invalid_selections_fail_before_reading(params string[] options)
+    {
+        var result = await CliWorkspace.Run(["schema", "generate", "missing.yaml", .. options]);
+        Assert.That(result.ExitCode, Is.EqualTo(2), result.Error);
+        Assert.That(result.Output, Is.Empty);
+    }
+
+    [Test]
+    public async Task Removed_shortcuts_and_top_level_export_explain_migration()
+    {
+        foreach (var args in new[] { new[] { "export", "missing.yaml" }, new[] { "schema", "export", "missing.yaml", "--record" }, new[] { "schema", "generate", "missing.yaml", "--ddl" } })
+        {
+            var result = await CliWorkspace.Run(args);
+            Assert.That(result.ExitCode, Is.EqualTo(2));
+            Assert.That(result.Error, Does.Contain("schema generate --target").And.Contain("schema export --output-format"));
+        }
     }
 
     [Test]
@@ -67,11 +90,11 @@ public class SchemaGenerationCommandTests
         using var workspace = new CliWorkspace();
         var source = workspace.Write("contract.yaml", Source.Replace("logicalType: integer", "logicalType: unknown"));
         var output = Path.Combine(workspace.Path, "not-created.cs");
-        var failed = await CliWorkspace.Run("schema", "export", source, "--record", "--output", output);
+        var failed = await CliWorkspace.Run("schema", "generate", source, "--target", "record", "--language", "csharp", "--output", output);
         Assert.That(failed.ExitCode, Is.EqualTo(1));
         Assert.That(failed.Output, Is.Empty);
         Assert.That(File.Exists(output), Is.False);
-        var missing = await CliWorkspace.Run("schema", "export", source, "--template", "missing.scriban");
+        var missing = await CliWorkspace.Run("schema", "generate", source, "--template", "missing.scriban");
         Assert.That(missing.ExitCode, Is.EqualTo(3));
     }
 }

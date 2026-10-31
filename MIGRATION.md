@@ -55,3 +55,7 @@ var canonical = native
 ```
 
 `ToCanonicalContract()` is the consumer-facing API. `IDataContractMapper<T>.Map(...)` remains available as the lower-level adapter contract for dependency injection and third-party formats. Source-only information remains available under the `datapackage` or `odcs` extension namespace.
+
+## Explicit schema operations
+
+Use `schema export --output-format json-schema` for schema documents and `schema generate --target record|datatable|polars --language csharp` for bundled source. Custom templates use `schema generate --template <path>`; language is optional presentation metadata and never selects a mapping profile. Removed boolean shortcuts, top-level `export`, `--format`, and `--dataset` fail with migration guidance. `--asset` is optional when exactly one eligible asset exists. Output filenames never select a renderer.

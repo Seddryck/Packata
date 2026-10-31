@@ -74,7 +74,7 @@ test('generation opens an editable C# untitled document without writing a descri
 });
 test('custom generation uses unsaved template text and the descriptor owning workspace folder', async () => {
   const h = harness({ custom: true }); await h.run();
-  const call = h.calls.find(c => c.command === 'packata.schema.export');
+  const call = h.calls.find(c => c.command === 'packata.schema.generate');
   assert.equal(call.args.template.text, 'unsaved template'); assert.equal(call.args.template.version, 7);
   assert.equal(h.calls.find(c => c.pickerFolder).pickerFolder, 'file:///workspace/second');
   assert.equal(h.opened.length, 1);
@@ -90,13 +90,13 @@ test('generation discards changed unsaved template snapshots', async () => {
 test('untrusted workspaces and cancelled target choices do not generate', async () => {
   for (const options of [{ trusted: false }, { cancelSelection: true }]) {
     const h = harness(options); await h.run(); assert.equal(h.opened.length, 0);
-    assert.ok(!h.calls.some(c => c.command === 'packata.schema.export'));
+    assert.ok(!h.calls.some(c => c.command === 'packata.schema.generate'));
   }
 });
 test('native and canonical asset nodes preserve server-backed identity and reject obsolete nodes', async () => {
   const h = harness();
   await h.run({ node: { kind: 'asset', sourcePath: '/schema/0' }, contract: { uri: 'file:///workspace/second/contract.yaml', generationKey: 'key' } });
-  assert.equal(h.calls.find(c => c.command === 'packata.schema.export').args.options.assetId, 'orders');
+  assert.equal(h.calls.find(c => c.command === 'packata.schema.generate').args.options.assetId, 'orders');
   const stale = harness(); await stale.run({ node: { kind: 'asset', sourcePath: '/schema/9' }, contract: { uri: 'file:///workspace/second/contract.yaml' } });
   assert.equal(stale.opened.length, 0);
 });
