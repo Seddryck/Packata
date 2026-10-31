@@ -45,7 +45,7 @@ exports.run = async function () {
   await vscode.commands.executeCommand('packata.selectView', 'canonical');
   assert.equal(document.getText(), unchanged, 'Switching projections never rewrites the descriptor');
   const generationOptions = await vscode.commands.executeCommand('packata.schema.export.options', { uri: uri.toString(), schemaVersion: 1 });
-  assert.equal(generationOptions.catalog.targets.length, 3, 'Generation targets come from Application');
+  assert.equal(generationOptions.catalog.targets.length, 5, 'Generation targets come from Application');
   const generated = await vscode.commands.executeCommand('packata.schema.export', { uri: uri.toString(), version: document.version,
     selectionKey: generationOptions.selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', target: 'record' }, schemaVersion: 1 });
   assert.equal(generated.result.isSuccessful, true, JSON.stringify(generated.result.diagnostics));

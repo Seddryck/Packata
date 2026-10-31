@@ -18,7 +18,7 @@ public sealed class StdioTests
         await client.NotifyAsync("textDocument/didOpen", new { textDocument = new { uri, languageId = "yaml", version = 1,
             text = "resources:\n  - name: orders\n    schema:\n      fields:\n        - name: id\n          type: integer\n" } });
         var options = await client.CommandAsync("packata.schema.export.options", new { uri });
-        Assert.That(options["catalog"]?["targets"], Has.Count.EqualTo(3));
+        Assert.That(options["catalog"]?["targets"], Has.Count.EqualTo(5));
         var generated = await client.CommandAsync("packata.schema.export", new { uri, version = 1,
             selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", target = "record" } });
         Assert.That((bool?)generated["result"]?["isSuccessful"], Is.True, generated.ToString());
