@@ -16,6 +16,7 @@ internal sealed class ExportSettings : ContractSourceSettings
     {
         var source = base.Validate();
         if (!source.Successful) return source;
+        if (Asset is not null && string.IsNullOrWhiteSpace(Asset)) return ValidationResult.Error("--asset must not be empty.");
         if (OutputFormat is null) return ValidationResult.Error("--output-format is required.");
         if (SchemaDocumentService.ValidateOptions(new(OutputFormat, Asset, Profile)) is { } error) return ValidationResult.Error(error);
         if (OutputFormat == "arrow-ipc" && Output is null && !Console.IsOutputRedirected)

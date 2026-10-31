@@ -37,10 +37,9 @@ public static class SchemaDocumentService
         if (ValidateOptions(options) is { } error) return Failure("EXPORT_OPTIONS", error);
         var mapping = ContractInspector.Inspect(document, cancellationToken).Mapping;
         if (!mapping.IsSuccessful) return new(null, null, null, null, "binary", mapping.Diagnostics);
-        var assets = mapping.RequireValue().Assets.Where(a => a.Schema is not null).ToArray();
-        var matches = assets.Where(a => options.AssetId is null || a.Id == options.AssetId).ToArray();
-        if (matches.Length != 1) return Failure("EXPORT_ASSET", "Select one eligible asset using --asset; absent, ambiguous or unknown schemas cannot be exported.");
-        var asset = matches[0];
+        var selection = SelectAsset(mapping.RequireValue(), options.AssetId);
+        if (!selection.IsSuccessful) return new(null, null, null, null, "binary", selection.Diagnostics);
+        var asset = selection.RequireValue();
         var filename = Generation.CSharpNames.Identifier(asset.Name).TrimStart('@') + Formats.Single(f => f.Id == options.OutputFormat).Extension;
         if (options.OutputFormat == "json-schema")
         {
@@ -62,4 +61,19 @@ public static class SchemaDocumentService
 
     private static SchemaDocumentResult Failure(string code, string message)
         => new(null, null, null, null, "binary", [new(code, MappingSeverity.Error, "$", message)]);
+
+    private static MappingResult<DataAsset> SelectAsset(DataContract contract, string? id)
+    {
+        var matches = id is null ? contract.Assets.Where(a => a.Schema is not null).ToArray()
+            : contract.Assets.Where(a => a.Id == id).ToArray();
+        if (matches.Length != 1)
+        {
+            var message = id is null ? "Select one eligible asset using --asset; absent or ambiguous schemas cannot be exported."
+                : "The selected asset was not found or is ambiguous.";
+            return MappingResult<DataAsset>.Failure(new MappingDiagnostic("EXPORT_ASSET", MappingSeverity.Error, "$", message));
+        }
+        if (matches[0].Schema is null)
+            return MappingResult<DataAsset>.Failure(new MappingDiagnostic("EXPORT_ASSET", MappingSeverity.Error, "$", "The selected asset has no schema."));
+        return MappingResult<DataAsset>.Success(matches[0]);
+    }
 }
