@@ -35,6 +35,7 @@ function harness(options = {}) {
       activeTextEditor: { document: { uri: source } },
       showErrorMessage: async message => { errors.push(message); }, showWarningMessage: async message => { errors.push(message); },
       showQuickPick: async (items, settings) => {
+        calls.push({ prompt: settings.title });
         if (options.cancelSelection) return undefined;
         if (settings.title === 'Generate Schema Code') return options.custom ? items.at(-1) : items[0];
         return items[0];
@@ -48,7 +49,7 @@ function harness(options = {}) {
   const module = { exports: {} };
   vm.runInNewContext(bundle.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'vscode' ? mock : require(name), console });
   const discovery = { schemaVersion: 1, uri: source.toString(), version: 1, selectionKey: 'key', diagnostics: [],
-    catalog: { contextVersion: 1, targets: [{ id: 'record', label: 'C# record', profile: 'csharp-record', engine: 'scriban', language: 'csharp' }], profiles: ['csharp-record'], engines: ['scriban', 'hbs'], defaultEngine: 'scriban' },
+    catalog: { contextVersion: 1, targets: options.targets ?? [{ id: 'record', label: 'C# record', profile: 'csharp-record', engine: 'scriban', language: 'csharp' }], profiles: ['csharp-record'], engines: ['scriban', 'hbs'], defaultEngine: 'scriban' },
     assets: options.assets ?? [{ id: 'orders', name: 'orders', sourcePath: '/schema/0', eligible: true }] };
   const request = async (command, args) => {
     calls.push({ command, args });
@@ -63,7 +64,7 @@ function harness(options = {}) {
       result: { isSuccessful: !options.failure, content: options.failure ? null : 'generated', language: options.custom ? 'plaintext' : 'csharp', suggestedFilename: 'Orders.cs',
         templateVersion: options.custom ? 7 : 1, diagnostics: options.failure ? [{ severity: 'Error', message: 'Mapping failed' }] : [] } };
   };
-  return { api: module.exports, mock, request, errors, opened, calls, run: entry => module.exports.generateSchemaCode(request, entry, () => session, () => selected) };
+  return { api: module.exports, mock, request, errors, opened, calls, run: (entry, route) => module.exports.generateSchemaCode(request, entry, () => session, () => selected, route) };
 }
 
 test('generation opens an editable C# untitled document without writing a descriptor', async () => {
@@ -103,4 +104,25 @@ test('native and canonical asset nodes preserve server-backed identity and rejec
 test('missing capabilities fail safely before any generated document opens', async () => {
   const h = harness({ missingCapability: true });
   await h.run(); assert.equal(h.opened.length, 0); assert.ok(h.errors.length);
+});
+
+for (const dialect of ['postgresql', 'sqlite', 'sqlserver', 'duckdb']) test('direct SQL leaf propagates ' + dialect + ' without dialect or asset prompt for whole contract', async () => {
+  const h = harness({ targets: [{ id: 'ddl', label: 'SQL DDL', operation: 'generate', language: 'sql', dialects: [{ id: dialect, label: dialect }], wholeContract: true }], assets: [{ id: 'a', eligible: true }, { id: 'b', eligible: true }] });
+  await h.run(undefined, { operation: 'generate', target: 'ddl', language: 'sql', dialect });
+  const call = h.calls.find(c => c.command === 'packata.schema.generate');
+  assert.equal(call.args.options.dialect, dialect); assert.equal(call.args.options.language, 'sql');
+  assert.equal(call.args.options.assetId, undefined);
+  assert.ok(!h.calls.some(c => c.prompt === 'SQL dialect' || c.prompt === 'Select an asset'));
+  assert.equal(h.opened.length, 1);
+});
+test('generic DDL picker asks for its missing dialect once', async () => {
+  const h = harness({ targets: [{ id: 'ddl', label: 'SQL DDL', operation: 'generate', language: 'sql', dialects: [{ id: 'duckdb', label: 'DuckDB' }], wholeContract: true }] });
+  await h.run();
+  assert.equal(h.calls.filter(c => c.prompt === 'SQL dialect').length, 1);
+  assert.equal(h.calls.find(c => c.command === 'packata.schema.generate').args.options.dialect, 'duckdb');
+});
+test('direct unavailable dialect fails before rendering', async () => {
+  const h = harness({ targets: [{ id: 'ddl', label: 'SQL DDL', operation: 'generate', language: 'sql', dialects: [{ id: 'sqlite', label: 'SQLite' }], wholeContract: true }] });
+  await h.run(undefined, { operation: 'generate', target: 'ddl', language: 'sql', dialect: 'absent' });
+  assert.equal(h.opened.length, 0); assert.ok(!h.calls.some(c => c.command === 'packata.schema.generate'));
 });
