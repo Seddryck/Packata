@@ -23,6 +23,8 @@ public static class Program
             .WithHandler<PreviewHandler>()
             .WithHandler<SchemaGenerationOptionsHandler>()
             .WithHandler<SchemaGenerationHandler>()
+            .WithHandler<SchemaExportHandler>()
+            .WithHandler<SchemaCatalogHandler>()
             .WithHandler<ProtocolHandler>()
             .WithHandler<DiscoverHandler>());
         await server.WaitForExit;

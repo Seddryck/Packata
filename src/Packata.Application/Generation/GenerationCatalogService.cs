@@ -6,6 +6,15 @@ public static class GenerationCatalogService
 {
     public static GenerationCatalog Catalog { get; } = new(1, 1,
     [
+        new("ddl", "SQL DDL", "", "", "sql", false, "Metadata-only SQL; unsupported constraints are reported. Foreign keys outside a selection are errors.",
+            Category: "table-definition", Representation: "SQL", Extension: ".sql", ApplicableOptions: ["asset", "dialect", "output", "constraints", "no-descriptions"],
+            Dialects: Packata.Provisioners.Database.OfflineSqlDialects.Catalog.Select(d => new SchemaDialect(d.Id, d.Label)).ToArray(), WholeContract: true),
+        new("avro", "Avro", "", "", "json", false, "Avro 1.12; null-first unions, no inferred defaults; decimal uses bytes.",
+            "export", "schema-document", "JSON", ".avsc", ["asset", "output", "schema-name", "schema-namespace"], []),
+        new("spark-json", "Spark JSON", "", "", "json", false, "Spark 3.x StructType JSON; decimal precision is limited to 38.",
+            "export", "schema-document", "JSON", ".spark.schema.json", ["asset", "output"], []),
+        new("json-schema", "JSON Schema", "", "", "json", false, "Draft 2020-12; preserves canonical JSON Schema semantics.",
+            "export", "schema-document", "JSON", ".schema.json", ["asset"], []),
         new("record", "C# record", "csharp-record", "scriban", "csharp", true,
             "C# 11 required properties and nullable annotations describe initialization; they do not validate dataset values."),
         new("datatable", "DataTable", "csharp-datatable", "scriban", "csharp", true,

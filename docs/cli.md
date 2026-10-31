@@ -22,7 +22,7 @@ The existing `packata infer` command remains available.
 | `contract diff` | [Factual differences](#compare-two-contract-versions) |
 | `contract compare` | [Consumer compatibility](#assess-consumer-compatibility) |
 | `contract satisfies` | [Producer/consumer satisfaction](#evaluate-producer-and-consumer-contracts) |
-| `schema export`, alias `export` | [JSON Schema](#export-a-dataset-schema) |
+| `schema export` | [JSON Schema](#export-a-dataset-schema) |
 | `schema infer`, alias `infer` | [Schema inference]({{ '/cli-inference/' | relative_url }}) |
 | `data preview` | [Read data](#preview-bound-data) |
 | `quality run` | [Quality execution and OORS reports]({{ '/cli-quality/' | relative_url }}) |
@@ -37,7 +37,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 
 | Commands | Codes |
 | --- | --- |
-| validate, inspect, diff, schema export/export, dialect export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
+| validate, inspect, diff, schema export, dialect export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
 | contract satisfies | 0 gate passes; 1 Unsatisfied or default Unknown; 2 input/invocation/I/O/cancellation/analysis error or Unknown under error policy |
 | quality run | 0 pass or warning; 1 quality failure without errors; 2 command/contract/execution/report error, cancellation, no matches, or all skipped |
 | contract compare | Same base codes, plus 4 for a completed report failing the selected gate and 5 for incomplete analysis; see [details](#assess-consumer-compatibility) |
@@ -49,8 +49,8 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 ## Shared options
 
 The CLI uses Spectre.Console.Cli. Commands are grouped under `contract`, `schema`,
-`data`, `quality`, `dialect`, `connector`, and `config`. `infer` and `export` remain compatibility
-entry points for `schema infer` and `schema export`, with the same options.
+`data`, `quality`, `dialect`, `connector`, and `config`. `infer` remains a compatibility
+entry point for `schema infer`. Schema export and generation require their explicit grouped commands.
 
 | Option | Meaning |
 | --- | --- |
@@ -559,21 +559,19 @@ failures. JSON already supplies the classifications and explanations needed by #
 GitHub annotations, validation line/column mapping and MCP registration remain separate work.
 
 <!-- cli:schema export -->
-<!-- cli:export -->
 ## Export a dataset schema
 
 `packata schema export <SOURCE> --asset <ID> --output-format json-schema [OPTIONS]`
 
-`packata export <SOURCE> --asset <ID> --output-format json-schema [OPTIONS]`
-
 | Option / alias | Values / default | Meaning |
 | --- | --- | --- |
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
-| `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
-| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema` | Target representation |
+| `--asset <ID>` | Optional for exactly one eligible asset | Exact Data Package resource or ODCS schema object name |
+| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema`, `avro`, `spark-json` | Target representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
 
-Code generation uses one of `--record`, `--datatable`, `--polars`, or `--template <PATH>`
+<!-- cli:schema generate -->
+Code generation uses `schema generate --target record|datatable|polars --language csharp`, or `schema generate --template <PATH>`
 instead of `--output-format`. For generation, `--asset` may be omitted when one eligible
 asset exists. `--engine <ENGINE>` overrides a custom template's engine; recognized suffixes
 such as `.scriban` and `.hbs` otherwise select Didot's engine, with Scriban as the fallback
@@ -588,11 +586,11 @@ as null, boolean, integer, decimal, then string, and appear only under `model.va
 JSON Schema export.
 
 ```console
-packata schema export sales.odcs.yaml --asset orders --record --namespace Sales > Orders.cs
-packata schema export sales.odcs.yaml --asset orders --datatable --output OrdersTable.cs
-packata schema export sales.odcs.yaml --asset orders --polars > OrdersPolars.cs
-packata schema export sales.odcs.yaml --template bar.template.cs --define author=Sales
-packata schema export sales.odcs.yaml --template bar.hbs --engine scriban --type-mapping csharp-record
+packata schema generate sales.odcs.yaml --asset orders --target record --language csharp --namespace Sales > Orders.cs
+packata schema generate sales.odcs.yaml --asset orders --target datatable --language csharp --output OrdersTable.cs
+packata schema generate sales.odcs.yaml --asset orders --target polars --language csharp > OrdersPolars.cs
+packata schema generate sales.odcs.yaml --template bar.template.cs --define author=Sales
+packata schema generate sales.odcs.yaml --template bar.hbs --engine scriban --type-mapping csharp-record
 ```
 
 Only complete generated text goes to stdout; diagnostics go to stderr. No partial output
@@ -612,8 +610,9 @@ Export one asset from an ODCS or Data Package v2 descriptor. You can use the sam
 HTTP(S) and ZIP, TAR, TAR.GZ and TAR.BR sources as inspection. Select the asset by its exact canonical identifier;
 a missing or ambiguous identifier fails.
 
-The required output format is JSON Schema. Select it with `--output-format` or its short
-alias, `-f`. The complete syntax and accepted values are listed above.
+Select the required document format with `--output-format` or `-f`: `json-schema`, `avro`, or `spark-json`.
+Avro accepts `--schema-name` and `--schema-namespace`; see the [schema reference]({{ '/reference/dotnet/schema-generation/' | relative_url }}) for representation policies and limitations.
+Compatibility profiles are not yet available; omit `--profile` for generic output.
 
 The result is a JSON Schema Draft 2020-12 object describing one dataset record. By default,
 only the generated JSON goes to stdout, while diagnostics go to stderr. To save it instead,

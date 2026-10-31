@@ -21,6 +21,7 @@ function harness(options = {}) {
     ProgressLocation: { Notification: 1 },
     workspace: {
       isTrusted: options.trusted !== false, textDocuments: docs,
+      fs: { stat: async () => { if (!options.existingDestination) throw new Error('absent'); return {}; }, writeFile: async (uri, bytes) => calls.push({ savedBinary: uri.toString(), bytes: [...bytes] }) },
       getWorkspaceFolder: uri => ({ uri: Uri.parse('file:///workspace/second') }),
       openTextDocument: async uri => {
         let doc = docs.find(d => d.uri.toString() === uri.toString());
@@ -35,10 +36,13 @@ function harness(options = {}) {
       activeTextEditor: { document: { uri: source } },
       showErrorMessage: async message => { errors.push(message); }, showWarningMessage: async message => { errors.push(message); },
       showQuickPick: async (items, settings) => {
+        calls.push({ prompt: settings.title });
         if (options.cancelSelection) return undefined;
         if (settings.title === 'Generate Schema Code') return options.custom ? items.at(-1) : items[0];
+        if (settings.title === 'Compatibility profile' && options.profile) return items.find(i => i === options.profile);
         return items[0];
       },
+      showSaveDialog: async settings => { calls.push({ saveDialog: true }); return options.cancelSave ? undefined : Uri.parse('file:///workspace/schema.ipc'); },
       showOpenDialog: async settings => { calls.push({ pickerFolder: settings.defaultUri.toString() }); return [template]; },
       showTextDocument: async document => { calls.push({ outputLanguage: document.language }); },
       withProgress: async (_, work) => work({}, token)
@@ -46,9 +50,9 @@ function harness(options = {}) {
   };
   const bundle = esbuild.buildSync({ entryPoints: [path.join(__dirname, '../src/generation.ts')], bundle: true, platform: 'node', format: 'cjs', write: false, external: ['vscode'] });
   const module = { exports: {} };
-  vm.runInNewContext(bundle.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'vscode' ? mock : require(name), console });
+  vm.runInNewContext(bundle.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'vscode' ? mock : require(name), console, Buffer });
   const discovery = { schemaVersion: 1, uri: source.toString(), version: 1, selectionKey: 'key', diagnostics: [],
-    catalog: { contextVersion: 1, targets: [{ id: 'record', label: 'C# record', profile: 'csharp-record', engine: 'scriban', language: 'csharp' }], profiles: ['csharp-record'], engines: ['scriban', 'hbs'], defaultEngine: 'scriban' },
+    catalog: { contextVersion: 1, targets: options.targets ?? [{ id: 'record', label: 'C# record', profile: 'csharp-record', engine: 'scriban', language: 'csharp' }], profiles: ['csharp-record'], engines: ['scriban', 'hbs'], defaultEngine: 'scriban' },
     assets: options.assets ?? [{ id: 'orders', name: 'orders', sourcePath: '/schema/0', eligible: true }] };
   const request = async (command, args) => {
     calls.push({ command, args });
@@ -60,10 +64,10 @@ function harness(options = {}) {
     if (options.restart) session++;
     if (options.selectionChange) selected = 'other';
     return { schemaVersion: 1, uri: source.toString(), version: 1, selectionKey: 'key', findings: [],
-      result: { isSuccessful: !options.failure, content: options.failure ? null : 'generated', language: options.custom ? 'plaintext' : 'csharp', suggestedFilename: 'Orders.cs',
+      result: { representation: options.binary ? 'binary' : 'text', binaryContent: options.binary ? 'AAEC/w==' : undefined, isSuccessful: !options.failure, content: options.failure ? null : 'generated', language: options.custom ? 'plaintext' : 'csharp', suggestedFilename: 'Orders.cs',
         templateVersion: options.custom ? 7 : 1, diagnostics: options.failure ? [{ severity: 'Error', message: 'Mapping failed' }] : [] } };
   };
-  return { api: module.exports, mock, request, errors, opened, calls, run: entry => module.exports.generateSchemaCode(request, entry, () => session, () => selected) };
+  return { api: module.exports, mock, request, errors, opened, calls, run: (entry, route) => module.exports.generateSchemaCode(request, entry, () => session, () => selected, route) };
 }
 
 test('generation opens an editable C# untitled document without writing a descriptor', async () => {
@@ -74,7 +78,7 @@ test('generation opens an editable C# untitled document without writing a descri
 });
 test('custom generation uses unsaved template text and the descriptor owning workspace folder', async () => {
   const h = harness({ custom: true }); await h.run();
-  const call = h.calls.find(c => c.command === 'packata.schema.export');
+  const call = h.calls.find(c => c.command === 'packata.schema.generate');
   assert.equal(call.args.template.text, 'unsaved template'); assert.equal(call.args.template.version, 7);
   assert.equal(h.calls.find(c => c.pickerFolder).pickerFolder, 'file:///workspace/second');
   assert.equal(h.opened.length, 1);
@@ -90,17 +94,61 @@ test('generation discards changed unsaved template snapshots', async () => {
 test('untrusted workspaces and cancelled target choices do not generate', async () => {
   for (const options of [{ trusted: false }, { cancelSelection: true }]) {
     const h = harness(options); await h.run(); assert.equal(h.opened.length, 0);
-    assert.ok(!h.calls.some(c => c.command === 'packata.schema.export'));
+    assert.ok(!h.calls.some(c => c.command === 'packata.schema.generate'));
   }
 });
 test('native and canonical asset nodes preserve server-backed identity and reject obsolete nodes', async () => {
   const h = harness();
   await h.run({ node: { kind: 'asset', sourcePath: '/schema/0' }, contract: { uri: 'file:///workspace/second/contract.yaml', generationKey: 'key' } });
-  assert.equal(h.calls.find(c => c.command === 'packata.schema.export').args.options.assetId, 'orders');
+  assert.equal(h.calls.find(c => c.command === 'packata.schema.generate').args.options.assetId, 'orders');
   const stale = harness(); await stale.run({ node: { kind: 'asset', sourcePath: '/schema/9' }, contract: { uri: 'file:///workspace/second/contract.yaml' } });
   assert.equal(stale.opened.length, 0);
 });
 test('missing capabilities fail safely before any generated document opens', async () => {
   const h = harness({ missingCapability: true });
   await h.run(); assert.equal(h.opened.length, 0); assert.ok(h.errors.length);
+});
+
+for (const dialect of ['postgresql', 'sqlite', 'sqlserver', 'duckdb']) test('direct SQL leaf propagates ' + dialect + ' without dialect or asset prompt for whole contract', async () => {
+  const h = harness({ targets: [{ id: 'ddl', label: 'SQL DDL', operation: 'generate', language: 'sql', dialects: [{ id: dialect, label: dialect }], wholeContract: true }], assets: [{ id: 'a', eligible: true }, { id: 'b', eligible: true }] });
+  await h.run(undefined, { operation: 'generate', target: 'ddl', language: 'sql', dialect });
+  const call = h.calls.find(c => c.command === 'packata.schema.generate');
+  assert.equal(call.args.options.dialect, dialect); assert.equal(call.args.options.language, 'sql');
+  assert.equal(call.args.options.assetId, undefined);
+  assert.ok(!h.calls.some(c => c.prompt === 'SQL dialect' || c.prompt === 'Select an asset'));
+  assert.equal(h.opened.length, 1);
+});
+test('generic DDL picker asks for its missing dialect once', async () => {
+  const h = harness({ targets: [{ id: 'ddl', label: 'SQL DDL', operation: 'generate', language: 'sql', dialects: [{ id: 'duckdb', label: 'DuckDB' }], wholeContract: true }] });
+  await h.run();
+  assert.equal(h.calls.filter(c => c.prompt === 'SQL dialect').length, 1);
+  assert.equal(h.calls.find(c => c.command === 'packata.schema.generate').args.options.dialect, 'duckdb');
+});
+test('direct unavailable dialect fails before rendering', async () => {
+  const h = harness({ targets: [{ id: 'ddl', label: 'SQL DDL', operation: 'generate', language: 'sql', dialects: [{ id: 'sqlite', label: 'SQLite' }], wholeContract: true }] });
+  await h.run(undefined, { operation: 'generate', target: 'ddl', language: 'sql', dialect: 'absent' });
+  assert.equal(h.opened.length, 0); assert.ok(!h.calls.some(c => c.command === 'packata.schema.generate'));
+});
+
+for (const format of ['avro', 'spark-json']) test('export leaf routes selected asset and generic profile for ' + format, async () => {
+  const h = harness({ targets: [{ id: format, label: format, operation: 'export', language: 'json', compatibilityProfiles: [] }] });
+  await h.run({ node: { kind: 'asset', sourcePath: '/schema/0' }, contract: { uri: 'file:///workspace/second/contract.yaml' } }, { operation: 'export', outputFormat: format });
+  const call = h.calls.find(c => c.command === 'packata.schema.export');
+  assert.equal(call.args.options.outputFormat, format); assert.equal(call.args.options.assetId, 'orders');
+  assert.equal(call.args.options.compatibilityProfile, undefined); assert.equal(h.opened.length, 1);
+  assert.ok(!h.calls.some(c => c.prompt === 'Compatibility profile'));
+});
+test('only advertised compatible profiles are offered after preselecting a format', async () => {
+  const h = harness({ targets: [{ id: 'avro', label: 'Avro', operation: 'export', language: 'json', compatibilityProfiles: ['hudi'] }], profile: 'hudi' });
+  await h.run(undefined, { operation: 'export', outputFormat: 'avro' });
+  assert.equal(h.calls.find(c => c.command === 'packata.schema.export').args.options.compatibilityProfile, 'hudi');
+});
+test('binary results require explicit save and never open as text', async () => {
+  const h = harness({ binary: true }); await h.run();
+  assert.equal(h.opened.length, 0); assert.equal(h.calls.filter(c => c.saveDialog).length, 1);
+  assert.deepEqual(h.calls.find(c => c.savedBinary).bytes, [0, 1, 2, 255]);
+});
+for (const opt of ['cancelSave', 'existingDestination']) test('binary artifacts protect ' + opt, async () => {
+  const h = harness({ binary: true, [opt]: true }); await h.run();
+  assert.equal(h.opened.length, 0); assert.ok(!h.calls.some(c => c.savedBinary));
 });

@@ -113,6 +113,164 @@
         "category": "Packata",
         "icon": "$(code)",
         "title": "Generate Schema Code…"
+      },
+      {
+        "command": "packata.exportSchema",
+        "title": "Export Schema…",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.schema.custom",
+        "title": "Custom Template…",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.schema.jsonSchema",
+        "title": "JSON Schema…",
+        "category": "Packata",
+        "enablement": "packata.schema.jsonSchema"
+      },
+      {
+        "command": "packata.schema.record",
+        "title": "Record…",
+        "category": "Packata",
+        "enablement": "packata.schema.record"
+      },
+      {
+        "command": "packata.schema.datatable",
+        "title": "DataTable…",
+        "category": "Packata",
+        "enablement": "packata.schema.datatable"
+      },
+      {
+        "command": "packata.schema.polars",
+        "title": "Polars.NET…",
+        "category": "Packata",
+        "enablement": "packata.schema.polars"
+      },
+      {
+        "command": "packata.schema.sql.ansi",
+        "title": "ANSI SQL…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.ansi"
+      },
+      {
+        "command": "packata.schema.sql.access",
+        "title": "Access…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.access"
+      },
+      {
+        "command": "packata.schema.sql.db2",
+        "title": "Db2…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.db2"
+      },
+      {
+        "command": "packata.schema.sql.drill",
+        "title": "Apache Drill…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.drill"
+      },
+      {
+        "command": "packata.schema.sql.duckdb",
+        "title": "DuckDB…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.duckdb"
+      },
+      {
+        "command": "packata.schema.sql.firebird",
+        "title": "Firebird…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.firebird"
+      },
+      {
+        "command": "packata.schema.sql.mysql",
+        "title": "MySQL…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.mysql"
+      },
+      {
+        "command": "packata.schema.sql.singlestore",
+        "title": "SingleStore…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.singlestore"
+      },
+      {
+        "command": "packata.schema.sql.oracle",
+        "title": "Oracle…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.oracle"
+      },
+      {
+        "command": "packata.schema.sql.cockroachdb",
+        "title": "CockroachDB…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.cockroachdb"
+      },
+      {
+        "command": "packata.schema.sql.cratedb",
+        "title": "CrateDB…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.cratedb"
+      },
+      {
+        "command": "packata.schema.sql.postgresql",
+        "title": "PostgreSQL…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.postgresql"
+      },
+      {
+        "command": "packata.schema.sql.questdb",
+        "title": "QuestDB…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.questdb"
+      },
+      {
+        "command": "packata.schema.sql.snowflake",
+        "title": "Snowflake…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.snowflake"
+      },
+      {
+        "command": "packata.schema.sql.sqlite",
+        "title": "SQLite…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.sqlite"
+      },
+      {
+        "command": "packata.schema.sql.sqlserver",
+        "title": "SQL Server…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.sqlserver"
+      },
+      {
+        "command": "packata.schema.sql.teradata",
+        "title": "Teradata…",
+        "category": "Packata",
+        "enablement": "packata.schema.sql.teradata"
+      },
+      {
+        "command": "packata.schema.avro",
+        "title": "Avro…",
+        "category": "Packata",
+        "enablement": "packata.schema.avro"
+      },
+      {
+        "command": "packata.schema.sparkJson",
+        "title": "Spark JSON…",
+        "category": "Packata",
+        "enablement": "packata.schema.sparkJson"
+      },
+      {
+        "command": "packata.schema.otherFormats",
+        "title": "Other Formats…",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.schema.otherTargets",
+        "title": "Other Targets…",
+        "category": "Packata"
       }
     ],
     "menus": {
@@ -155,8 +313,13 @@
           "group": "2_contract"
         },
         {
-          "command": "packata.generateSchemaCode",
-          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset)",
+          "submenu": "packata.schema.export",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset) && packata.schema.export",
+          "group": "2_contract"
+        },
+        {
+          "submenu": "packata.schema.generate",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset) && packata.schema.generate",
           "group": "2_contract"
         }
       ],
@@ -183,6 +346,129 @@
           "command": "packata.runLastValidation",
           "group": "packata@2"
         }
+      ],
+      "packata.schema.export": [
+        {
+          "command": "packata.schema.sparkJson",
+          "when": "packata.schema.sparkJson"
+        },
+        {
+          "command": "packata.schema.avro",
+          "when": "packata.schema.avro"
+        },
+        {
+          "command": "packata.schema.jsonSchema",
+          "when": "packata.schema.jsonSchema"
+        },
+        {
+          "command": "packata.schema.otherFormats",
+          "when": "packata.schema.other.export"
+        }
+      ],
+      "packata.schema.csharp": [
+        {
+          "command": "packata.schema.record",
+          "when": "packata.schema.record"
+        },
+        {
+          "command": "packata.schema.datatable",
+          "when": "packata.schema.datatable"
+        },
+        {
+          "command": "packata.schema.polars",
+          "when": "packata.schema.polars"
+        }
+      ],
+      "packata.schema.generate": [
+        {
+          "submenu": "packata.schema.csharp",
+          "when": "packata.schema.csharp"
+        },
+        {
+          "submenu": "packata.schema.python",
+          "when": "packata.schema.python"
+        },
+        {
+          "submenu": "packata.schema.sql",
+          "when": "packata.schema.sql"
+        },
+        {
+          "command": "packata.schema.custom"
+        },
+        {
+          "command": "packata.schema.otherTargets",
+          "when": "packata.schema.other.generate"
+        }
+      ],
+      "packata.schema.sql": [
+        {
+          "command": "packata.schema.sql.ansi",
+          "when": "packata.schema.sql.ansi"
+        },
+        {
+          "command": "packata.schema.sql.access",
+          "when": "packata.schema.sql.access"
+        },
+        {
+          "command": "packata.schema.sql.db2",
+          "when": "packata.schema.sql.db2"
+        },
+        {
+          "command": "packata.schema.sql.drill",
+          "when": "packata.schema.sql.drill"
+        },
+        {
+          "command": "packata.schema.sql.duckdb",
+          "when": "packata.schema.sql.duckdb"
+        },
+        {
+          "command": "packata.schema.sql.firebird",
+          "when": "packata.schema.sql.firebird"
+        },
+        {
+          "command": "packata.schema.sql.mysql",
+          "when": "packata.schema.sql.mysql"
+        },
+        {
+          "command": "packata.schema.sql.singlestore",
+          "when": "packata.schema.sql.singlestore"
+        },
+        {
+          "command": "packata.schema.sql.oracle",
+          "when": "packata.schema.sql.oracle"
+        },
+        {
+          "command": "packata.schema.sql.cockroachdb",
+          "when": "packata.schema.sql.cockroachdb"
+        },
+        {
+          "command": "packata.schema.sql.cratedb",
+          "when": "packata.schema.sql.cratedb"
+        },
+        {
+          "command": "packata.schema.sql.postgresql",
+          "when": "packata.schema.sql.postgresql"
+        },
+        {
+          "command": "packata.schema.sql.questdb",
+          "when": "packata.schema.sql.questdb"
+        },
+        {
+          "command": "packata.schema.sql.snowflake",
+          "when": "packata.schema.sql.snowflake"
+        },
+        {
+          "command": "packata.schema.sql.sqlite",
+          "when": "packata.schema.sql.sqlite"
+        },
+        {
+          "command": "packata.schema.sql.sqlserver",
+          "when": "packata.schema.sql.sqlserver"
+        },
+        {
+          "command": "packata.schema.sql.teradata",
+          "when": "packata.schema.sql.teradata"
+        }
       ]
     },
     "configuration": {
@@ -201,7 +487,29 @@
           "description": "Maximum server request time in milliseconds."
         }
       }
-    }
+    },
+    "submenus": [
+      {
+        "id": "packata.schema.export",
+        "label": "Export Schema"
+      },
+      {
+        "id": "packata.schema.generate",
+        "label": "Generate Schema Code"
+      },
+      {
+        "id": "packata.schema.csharp",
+        "label": "C#"
+      },
+      {
+        "id": "packata.schema.python",
+        "label": "Python"
+      },
+      {
+        "id": "packata.schema.sql",
+        "label": "SQL"
+      }
+    ]
   },
   "scripts": {
     "check": "tsc --noEmit",

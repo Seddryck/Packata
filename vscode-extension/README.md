@@ -139,3 +139,7 @@ are never replaced automatically by labels/enums. See the repository's
 for context version 1, examples and target limits. The feature is disabled in untrusted or
 virtual workspaces and reports missing generation capabilities on older servers. It reads
 no rows, uses no database connections, and never compiles or executes generated output.
+
+Schema actions are grouped into **Export Schema** (JSON Schema, Avro, Spark JSON) and **Generate Schema Code** (C# targets, SQL dialects, Custom Template). C# and SQL are declarative language submenus; each SQL leaf fixes its catalog dialect and needs no connection URL. Contract clicks allow whole-contract SQL generation; asset clicks keep the selected asset. Generic palette pickers use the same catalog and only request a missing dialect. Avro/Spark compatibility profiles appear only when implemented; generic exports omit profiles. Additional runtime capabilities use Other Formats/Other Targets when available.
+
+All leaves route through Application via LanguageServer using unsaved descriptor snapshots. Text opens in an untitled preview with explicit save. Binary artifacts require an explicit new-file save and are never decoded into a text editor. Unsupported capabilities and empty groups are hidden; capability changes are revalidated on invocation.

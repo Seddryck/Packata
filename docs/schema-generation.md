@@ -16,7 +16,7 @@ contacts databases, acquires connectors, or compiles/executes generated code.
 using Packata.Application.Generation;
 var source = await File.ReadAllTextAsync("sales.odcs.yaml");
 var result = await new SchemaGenerationService().GenerateAsync(source,
-    new(AssetId: "orders", Target: "record", Namespace: "Sales", TypeName: "Orders"));
+    new(AssetId: "orders", Target: "record", Language: "csharp", Namespace: "Sales", TypeName: "Orders"));
 if (!result.IsSuccessful) throw new InvalidOperationException("Inspect result.Diagnostics.");
 await File.WriteAllTextAsync("Orders.cs", result.Content);
 ```
@@ -59,8 +59,8 @@ For example, save this as `bar.template.cs` beside the descriptor:
 ```
 
 ```console
-packata schema export sales.odcs.yaml --template bar.template.cs --define author=Sales
-packata schema export sales.odcs.yaml --template bar.template.cs --engine scriban --type-mapping csharp-record
+packata schema generate sales.odcs.yaml --template bar.template.cs --define author=Sales
+packata schema generate sales.odcs.yaml --template bar.template.cs --engine scriban --type-mapping csharp-record
 ```
 
 Definitions use the first `=` as separator. `null`, booleans, invariant integers and
@@ -107,3 +107,61 @@ substitution occurs. Unknown types/formats and unsupported representations fail 
 rendering. Explicit mapping fallback is available and remains visible in diagnostics.
 Target expressions are prepared before Didot rendering; templates arrange them instead
 of reproducing source interpretation. Mapping describes representation, not row validation.
+
+## Offline SQL DDL
+
+Use schema metadata to generate SQL without a connection URL, credentials, connectors, or database access:
+
+```bash
+packata schema generate sales.odcs.yaml --target ddl --dialect postgresql -o schema.sql
+packata schema generate sales.odcs.yaml --target ddl --language sql --dialect sqlserver --asset orders
+packata schema generate datapackage.json --target ddl --dialect sqlite --constraints PrimaryKey,Required --no-descriptions
+```
+
+Bundled dialect IDs are ansi, access, db2, drill, duckdb, firebird, mysql, singlestore, oracle, cockroachdb, cratedb, postgresql, questdb, snowflake, sqlite, sqlserver, and teradata (DubUrl 0.46.1). These are metadata renderers; connectivity support does not determine their availability. The Application catalog exposes their IDs and display names. SQL submenu entries preselect the exact dialect; generic generation pickers request a dialect.
+
+Omitting --asset selects all assets with non-empty schemas. Selecting one asset never adds related tables. Foreign keys outside the selection, unresolved keys and duplicate physical columns are errors: no script is published. Unsupported checks, comments, native physical types and qualifiers produce structured warnings using the existing provisioning planner's fallback policy. Review warnings before deploying the script. Nested columns and unsupported logical types fail. The planner preserves physical identifiers, quoting, supported qualifiers, composite keys and supported constraints; it is not a migration engine. Rendering reads no records and executes no SQL.
+
+Default options match provisioning: all supported constraints and descriptions. --constraints accepts all, none, or comma-separated PrimaryKey,Required,Unique,Checks,ForeignKeys; --no-descriptions omits comments. Application callers can supply typed DdlOptions. Provisioning retains its deployment capability boundary and delegates metadata mapping/rendering to the same RelationalSchemaPlanner. Cancellation is checked before and after synchronous rendering; cancelled results are discarded before output.
+
+## Structured schema documents
+
+```bash
+packata schema export sales.odcs.yaml --asset orders --output-format spark-json -o orders.spark.schema.json
+packata schema export sales.odcs.yaml --asset orders --output-format avro --schema-name Orders --schema-namespace example.sales -o orders.avsc
+```
+
+These structured serializers do not invoke Didot. JSON Schema continues using the existing Draft 2020-12 converter unchanged. Application callers holding canonical metadata can use SchemaDocumentSerializer.Serialize; CLI/LSP use the shared operation for descriptor selection, cancellation and diagnostics. No dataset records are read. --asset is optional only for exactly one eligible asset; DDL alone supports whole-contract scope. Profile targets hudi and delta are not advertised or accepted until implemented.
+
+Avro targets the Avro 1.12 schema specification. For id: signed int64/non-null, name: string/nullable and amount: decimal(12,2)/non-null, the complete output is:
+
+```json
+{
+  "type": "record",
+  "name": "orders",
+  "namespace": "packata.generated",
+  "fields": [
+    {"name": "id", "type": "long"},
+    {"name": "name", "type": ["null", "string"]},
+    {"name": "amount", "type": {"type": "bytes", "logicalType": "decimal", "precision": 12, "scale": 2}}
+  ]
+}
+```
+
+Nullable Avro values use a null-first union. Neither optionality nor nullability implies a default; no defaults are emitted. Explicit default constraints generate a warning. Decimal bytes represent the big-endian two's-complement unscaled integer as required by Avro; this operation creates schemas only, not encoded values. Names replace non-ASCII identifier characters with underscores and prefix digit-leading names with an underscore. Field collisions after normalization fail; nested record names use the owner/field path with deterministic numeric suffixes for record-name collisions. The default namespace is packata.generated; --schema-name and --schema-namespace override Avro naming. Namespace components must be valid Avro identifiers. These options apply only to Avro; output filenames do not select formats or names.
+
+Spark targets portable Spark 3.x StructType JSON, validated with Microsoft.Spark 2.3.1's native JSON parser. The same example is:
+
+```json
+{"type":"struct","fields":[
+  {"name":"id","type":"long","nullable":false,"metadata":{}},
+  {"name":"name","type":"string","nullable":true,"metadata":{}},
+  {"name":"amount","type":"decimal(12,2)","nullable":false,"metadata":{}}
+]}
+```
+
+Both preserve field order and nested records/structs, arrays, element nullability and explicit map value nullability. Canonical maps carry DataMap key/value definitions (ODCS map.key/map.value). Portable map keys must be explicit non-null strings; other keys fail. Spark keeps field names exactly and rejects duplicates. Opaque objects without fields and arrays without item schemas fail. Optional property presence is distinct from value nullability: both targets lack an independent presence constraint, so optional fields produce a representation warning. Constraints, defaults, quality rules, physical database types, primary keys and relationships that are not enforced produce structured warnings; no validation is silently claimed.
+
+Decimal precision and scale must both be explicit. Spark allows precision up to 38; Avro retains the declared decimal domain even when it exceeds CLR Decimal. Signed integer widths map to the nearest target domain; unsigned values widen when possible, with range warnings. Unsigned 64-bit values fail. fp32/fp64 map to float/double; unspecified exact numbers require explicit decimal parameters. Date maps to Spark date or Avro int/date. Instant timestamps use microsecond precision (Avro long/timestamp-micros, Spark timestamp); Avro additionally supports local-timestamp-micros and time-micros. Spark local/time-only values fail under this portable baseline. More than six fractional digits fail, coarser precision emits a constraint warning, and original offsets/named timezones produce a representation warning because they cannot round-trip. Requiredness never changes nullable-union ordering.
+
+Parser tests use Apache.Avro 1.12.0 and Microsoft.Spark 2.3.1; Spark's test-only MessagePack dependency is pinned to 3.1.12. These target parsers are test dependencies; Packata.Core contains no Spark/Avro libraries. All fatal projection errors return no content, and hosts publish only complete successful results.

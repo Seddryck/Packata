@@ -7,6 +7,7 @@
     <EmbeddedResource Include="Generation/Templates/*.scriban" />
     <EmbeddedResource Include="Validation/Schemas/*.json" />
     <EmbeddedResource Include="../../docs/profiles/category-tables/1.0.0/datapackage.json" LogicalName="Packata.Application.Validation.Schemas.category-tables-v1.0.0.json" />
+    <ProjectReference Include="../Packata.Provisioners/Packata.Provisioners.csproj" />
     <ProjectReference Include="../Packata.DataPackage/Packata.DataPackage.csproj" />
     <ProjectReference Include="../Packata.OpenDataContract/Packata.OpenDataContract.csproj" />
     <ProjectReference Include="../Packata.ResourceReaders/Packata.ResourceReaders.csproj" />
