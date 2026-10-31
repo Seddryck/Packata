@@ -37,15 +37,17 @@ internal static class ArrowCodeProjection
         }
     }
 
-    private static string Literal(string value) => GenerationData.Literal(value);
+    private static string Literal(string value, bool python = false) => python
+        ? Newtonsoft.Json.JsonConvert.ToString(ContractJson.Redact(value), '"', Newtonsoft.Json.StringEscapeHandling.Default)
+        : GenerationData.Literal(value);
     private static string Metadata(IReadOnlyDictionary<string, string>? values, bool python)
     {
         var pairs = (values ?? new Dictionary<string, string>()).OrderBy(p => p.Key, StringComparer.Ordinal);
-        return python ? "{" + string.Join(", ", pairs.Select(p => $"{Literal(p.Key)}: {Literal(p.Value)}")) + "}"
+        return python ? "{" + string.Join(", ", pairs.Select(p => $"{Literal(p.Key, true)}: {Literal(p.Value, true)}")) + "}"
             : "new Dictionary<string, string> { " + string.Join(", ", pairs.Select(p => $"[{Literal(p.Key)}] = {Literal(p.Value)}")) + " }";
     }
     private static string Field(Field f, bool python) => python
-        ? $"pa.field({Literal(f.Name)}, {Type(f.DataType, true)}, nullable={(f.IsNullable ? "True" : "False")}, metadata={Metadata(f.Metadata, true)})"
+        ? $"pa.field({Literal(f.Name, true)}, {Type(f.DataType, true)}, nullable={(f.IsNullable ? "True" : "False")}, metadata={Metadata(f.Metadata, true)})"
         : $"new Field({Literal(f.Name)}, {Type(f.DataType, false)}, {(f.IsNullable ? "true" : "false")}, {Metadata(f.Metadata, false)})";
 
     private static string Type(IArrowType type, bool python)
@@ -55,8 +57,8 @@ internal static class ArrowCodeProjection
         if (type is StructType s) return python ? $"pa.struct([{string.Join(", ", s.Fields.Select(f => Field(f, true)))}])" : $"new StructType(new Field[] {{ {string.Join(", ", s.Fields.Select(f => Field(f, false)))} }})";
         if (type is ListType l) return python ? $"pa.list_({Field(l.ValueField, true)})" : $"new ListType({Field(l.ValueField, false)})";
         if (type is MapType m) return python ? $"pa.map_({Field(m.KeyField, true)}, {Field(m.ValueField, true)})" : $"new MapType({Field(m.KeyField, false)}, {Field(m.ValueField, false)})";
-        if (type is TimestampType t) return python ? $"pa.timestamp({Literal(pyUnit)}, tz={(t.Timezone is null ? "None" : Literal(t.Timezone))})" : $"new TimestampType(TimeUnit.{unit}, {(t.Timezone is null ? "(string?)null" : Literal(t.Timezone))})";
-        if (type is Time32Type or Time64Type) return python ? $"pa.{(type is Time32Type ? "time32" : "time64")}({Literal(pyUnit)})" : $"new {type.GetType().Name}(TimeUnit.{unit})";
+        if (type is TimestampType t) return python ? $"pa.timestamp({Literal(pyUnit, true)}, tz={(t.Timezone is null ? "None" : Literal(t.Timezone, true))})" : $"new TimestampType(TimeUnit.{unit}, {(t.Timezone is null ? "(string?)null" : Literal(t.Timezone))})";
+        if (type is Time32Type or Time64Type) return python ? $"pa.{(type is Time32Type ? "time32" : "time64")}({Literal(pyUnit, true)})" : $"new {type.GetType().Name}(TimeUnit.{unit})";
         if (type is Decimal128Type d) return python ? $"pa.decimal128({d.Precision}, {d.Scale})" : $"new Decimal128Type({d.Precision}, {d.Scale})";
         if (type is Decimal256Type d256) return python ? $"pa.decimal256({d256.Precision}, {d256.Scale})" : $"new Decimal256Type({d256.Precision}, {d256.Scale})";
         var function = type.TypeId switch
