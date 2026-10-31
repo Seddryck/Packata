@@ -144,6 +144,9 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     {
         if (string.IsNullOrWhiteSpace(value))
             return defaultAsset is null ? null : (defaultAsset, defaultField);
+        // External/fragment references are unresolved by this mapper. Never split a file name
+        // containing dots into fabricated local asset and property identifiers.
+        if (value.Contains('#')) return null;
         var parts = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 4 && parts[0].Equals("schema", StringComparison.OrdinalIgnoreCase)
             && parts[2].Equals("properties", StringComparison.OrdinalIgnoreCase))

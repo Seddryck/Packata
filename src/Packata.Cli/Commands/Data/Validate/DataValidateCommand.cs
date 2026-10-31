@@ -1,6 +1,7 @@
 using Packata.Application;
 using Packata.Application.Validation;
 using Packata.Core.Contracts;
+using Packata.Core.Execution;
 using Packata.Core.Reading;
 using Spectre.Console.Cli;
 
@@ -13,12 +14,14 @@ internal sealed class DataValidateCommand : AsyncCommand<DataValidateSettings>
         try
         {
             using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken, retainArchive: true).ConfigureAwait(false);
-            if (!ValidateDeclarations(source, settings.InputFormat, cancellationToken)) return ExitCodes.InvalidDocument;
+            var (canRun, deferred) = ValidateDeclarations(source, settings.InputFormat, cancellationToken);
+            if (!canRun) return ExitCodes.InvalidDocument;
             var mapped = ContractSelection.Map(source, cancellationToken);
             foreach (var diagnostic in mapped.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!mapped.IsSuccessful) return ExitCodes.InvalidDocument;
             var service = CreateService(source, mapped);
             var report = await service.ValidateAsync(mapped.RequireValue(), settings.Asset, cancellationToken: cancellationToken).ConfigureAwait(false);
+            report = report with { CompilationFindings = report.CompilationFindings.Concat(deferred).ToArray() };
             await DataValidationPresenter.WriteAsync(report, settings.OutputFormat, Console.Out, cancellationToken).ConfigureAwait(false);
             return DataValidationPresenter.ExitCode(report);
         }
@@ -29,13 +32,27 @@ internal sealed class DataValidateCommand : AsyncCommand<DataValidateSettings>
         }
     }
 
-    private static bool ValidateDeclarations(ContractSource source, string format, CancellationToken token)
+    private static (bool CanRun, CompilationFinding[] Deferred) ValidateDeclarations(ContractSource source, string format, CancellationToken token)
     {
         var validation = DescriptorValidation.Validate(source.OriginalText, format, ValidationLayers.Semantic, source.BaseUri, token);
         foreach (var diagnostic in validation.Diagnostics)
-            CommandOutput.Diagnostic(new(diagnostic.Code, diagnostic.Severity, diagnostic.SourcePath, diagnostic.Message));
-        return validation.Valid;
+        {
+            var severity = IsDeferredReference(diagnostic) ? MappingSeverity.Warning : diagnostic.Severity;
+            CommandOutput.Diagnostic(new(diagnostic.Code, severity, diagnostic.SourcePath, diagnostic.Message));
+        }
+        var deferred = validation.Diagnostics.Where(IsDeferredReference).Select(diagnostic =>
+            new CompilationFinding($"declaration:{diagnostic.SourcePath}", CompilationFindingKind.Unsupported,
+                diagnostic.Code, diagnostic.Message)).ToArray();
+        return (CanRunAvailableChecks(validation), deferred);
     }
+
+    private static bool IsDeferredReference(ValidationFinding finding)
+        => finding.Layer == ValidationLayers.Semantic && finding.Code == "SEM_EXTERNAL_REFERENCE";
+
+    private static bool CanRunAvailableChecks(DescriptorValidationReport report)
+        => report.Layers.Count > 0
+            && report.Layers.All(layer => layer.Executed && layer.Prerequisites == ValidationPrerequisiteStatus.Satisfied)
+            && report.Diagnostics.All(finding => finding.Severity != MappingSeverity.Error || IsDeferredReference(finding));
 
     private static DatasetValidationService CreateService(ContractSource source, MappingResult<DataContract> mapped)
     {

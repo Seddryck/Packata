@@ -168,6 +168,51 @@ public class DataValidateCommandTests
     }
 
     [Test]
+    public async Task External_relationship_does_not_block_local_checks_or_produce_a_complete_pass()
+    {
+        using var workspace = new CliWorkspace();
+        var descriptor = ExternalRelationship();
+        var source = workspace.Write("contract.yaml", descriptor);
+        workspace.Write("orders.csv", "id,name\n1,Alice\n");
+        var result = await CliWorkspace.Run("data", "validate", source, "--asset", "orders", "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
+        Assert.That(result.Error, Does.Contain("SEM_EXTERNAL_REFERENCE Warning"));
+        var report = JObject.Parse(result.Output);
+        Assert.That(report["results"]!.All(r => (string?)r["outcome"] == "Passed"), Is.True);
+        Assert.That(report["results"]!.Count(), Is.EqualTo(2));
+        Assert.That((bool)report["isComplete"]!, Is.False);
+        Assert.That((bool)report["passed"]!, Is.False);
+        Assert.That(report["compilationFindings"]!.Any(f => (string?)f["code"] == "SEM_EXTERNAL_REFERENCE" && (string?)f["kind"] == "Unsupported"), Is.True);
+        var offline = Packata.Application.Validation.DescriptorValidation.Validate(descriptor,
+            layers: Packata.Application.Validation.ValidationLayers.Semantic);
+        Assert.That(offline.Valid, Is.False);
+        Assert.That(offline.Diagnostics.Any(f => f.Code == "SEM_EXTERNAL_REFERENCE" && f.Severity == Packata.Core.Contracts.MappingSeverity.Error), Is.True);
+
+        workspace.Write("orders.csv", "name,id\nAlice,1\n");
+        var reordered = await CliWorkspace.Run("data", "validate", source, "--asset", "orders", "--output-format", "json");
+        var reorderedReport = JObject.Parse(reordered.Output);
+        Assert.That(reorderedReport["results"]!.Any(r => (string?)r["outcome"] == "Failed"), Is.True);
+        Assert.That((bool)reorderedReport["hasViolations"]!, Is.True);
+    }
+
+    [Test]
+    public async Task External_relationship_does_not_hide_other_invalid_declarations()
+    {
+        using var workspace = new CliWorkspace();
+        var descriptor = ExternalRelationship().Replace("    properties:",
+            "    customProperties:\n      - vendor: packata\n        property: propertyOrder\n        value: invalid\n    properties:");
+        var source = workspace.Write("contract.yaml", descriptor);
+        // No data file exists: malformed declarations must remain fatal before acquisition.
+        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(1), result.Error + result.Output);
+        Assert.That(result.Error, Does.Contain("ODCS008"));
+        Assert.That(result.Output, Is.Empty);
+    }
+
+    private static string ExternalRelationship() => Odcs.Replace("        logicalType: string",
+        "        logicalType: string\n        relationships:\n          - type: foreignKey\n            to: countries.odcs.yaml#/schema/countries/properties/iso_code");
+
+    [Test]
     public async Task Parquet_native_schema_uses_existing_metadata_extractor()
     {
         using var workspace = new CliWorkspace();

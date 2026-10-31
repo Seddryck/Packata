@@ -37,6 +37,14 @@ values: a structurally valid relationship does not prove referential integrity.
 Unavailable/unreadable targets, unsupported types, and ambiguous structure remain
 explicit rather than being treated as empty tables or passing checks.
 
+An external relationship such as `countries.odcs.yaml#/schema/countries/properties/id`
+does not prevent available local structural checks from running. It is retained as
+an unsupported compilation finding, so the overall report is incomplete (exit 4),
+even when local membership/order checks pass. The command does not automatically
+open another contract or fetch external data. Other invalid declarations still stop
+the run before data access. Standalone `contract validate` keeps its strict offline
+validation behavior for unresolved external references.
+
 This is structural validation. It does not execute per-cell logical-type checks,
 requiredness, bounds, uniqueness, foreign-key value membership, authored quality
 rules, or SLA checks. Those value rules belong to the separate constraint compiler
