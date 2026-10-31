@@ -126,6 +126,11 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         if (options.UnsupportedOptions is { Count: > 0 }) throw new ArgumentException("Unsupported generation options; use the generation catalog.");
         if (!Enum.IsDefined(options.Fallback)) throw new ArgumentException("Unknown mapping fallback policy.");
         if ((options.Target is null) == (template is null)) throw new ArgumentException("Select exactly one built-in target or custom template.");
+        ValidateLanguage(options, template);
+    }
+
+    private static void ValidateLanguage(GenerationOptions options, TemplateInput? template)
+    {
         if (options.Target == "arrow" && options.Language is null) throw new ArgumentException("--target arrow requires --language csharp or python.");
         if (template is not null && options.Language is not null) throw new ArgumentException("Custom templates select --type-mapping instead of --language.");
     }
