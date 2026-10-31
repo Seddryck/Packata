@@ -175,7 +175,10 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             Description: property.Description,
             Nullable: property.Nullable ?? false,
             Items: property.Items is null ? null : MapField(property.Items, $"{path}/items", diagnostics, assetId, [..fieldPath, "[]"]),
-            ValueDomain: domain);
+            ValueDomain: domain,
+            Map: property.Map is null ? null : new DataMap(
+                MapField(property.Map.Key, path + "/map/key", diagnostics, assetId, [..fieldPath, "key"]),
+                MapField(property.Map.Value, path + "/map/value", diagnostics, assetId, [..fieldPath, "value"])));
     }
 
     private static ValueDomain? MapValueDomain(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics)

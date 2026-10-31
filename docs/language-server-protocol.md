@@ -162,11 +162,11 @@ The extension stores its Canonical/Native preference in VS Code workspace state,
 
 ## Schema/code generation (payload version 1)
 
-`packata.schema.options` and `packata.schema.generate` are advertised in
+`packata.schema.catalog`, `packata.schema.options`, `packata.schema.export`, and `packata.schema.generate` are advertised in
 `executeCommandProvider.commands`. Clients check both before offering generation; older
 servers continue inspection/validation and report generation unavailable. The options
 response carries the shared `SchemaGenerationService.Catalog` (context version 1), not a
-separate server/client catalog. All target selection, mapping and Didot rendering delegate
+separate server/client catalog. All target selection, structured serialization, SQL planning and Didot rendering delegate
 to `Packata.Application` directly; neither host launches a CLI or implements template rules.
 
 Options request: `{ uri, selectionKey?, schemaVersion: 1 }`. Response:
@@ -185,7 +185,7 @@ Generation request:
   "version": 3,
   "selectionKey": "<options response key>",
   "sourcePath": "/schema/0",
-  "options": { "assetId": "orders", "target": "record", "namespace": "Sales", "typeName": "Orders" }
+  "options": { "assetId": "orders", "target": "record", "language": "csharp", "namespace": "Sales", "typeName": "Orders" }
 }
 ```
 
@@ -222,3 +222,9 @@ servers/databases, acquire connectors, resolve credentials, compile or execute o
 The VSIX bundles Application, Didot's managed engines and embedded templates; no installed
 Packata/Didot command or Polars native runtime is required. LSP stdout contains framed
 responses only. Source/context credential redaction follows `ContractJson`.
+
+Schema catalog requests need only schemaVersion: 1. The catalog is host independent and carries operation, category, representation, extension, language, supported dialect IDs/display names, applicable options and compatibility profiles. The descriptor-specific options response adds eligible asset IDs tied to the source snapshot.
+
+The export and generate commands use the same snapshot-aware request envelope and shared result. Options carry operation, assetId, target/language or outputFormat, dialect, compatibilityProfile, documentOptions (Avro name/namespace) and ddlOptions where applicable. The command fixes its operation; wrong-operation selectors fail shared validation. Exports route to structured serializers; source templates route to Didot; ddl/sql routes directly to the offline planner. Generation custom-template profile remains a mapping profile, distinct from export compatibilityProfile.
+
+Results include representation (text/binary), mediaType, content for text or base64 binaryContent for binary, language, suggestedFilename and structured diagnostics. Text previews remain untitled and saving is explicit. Binary artifacts use an explicit new-file save flow and are never UTF-8 decoded. No binary exporter is advertised until implemented. Source/template versions, selection keys, cancellation and stale-result checks apply to both operations.

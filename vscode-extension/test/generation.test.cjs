@@ -21,6 +21,7 @@ function harness(options = {}) {
     ProgressLocation: { Notification: 1 },
     workspace: {
       isTrusted: options.trusted !== false, textDocuments: docs,
+      fs: { stat: async () => { if (!options.existingDestination) throw new Error('absent'); return {}; }, writeFile: async (uri, bytes) => calls.push({ savedBinary: uri.toString(), bytes: [...bytes] }) },
       getWorkspaceFolder: uri => ({ uri: Uri.parse('file:///workspace/second') }),
       openTextDocument: async uri => {
         let doc = docs.find(d => d.uri.toString() === uri.toString());
@@ -38,8 +39,10 @@ function harness(options = {}) {
         calls.push({ prompt: settings.title });
         if (options.cancelSelection) return undefined;
         if (settings.title === 'Generate Schema Code') return options.custom ? items.at(-1) : items[0];
+        if (settings.title === 'Compatibility profile' && options.profile) return items.find(i => i === options.profile);
         return items[0];
       },
+      showSaveDialog: async settings => { calls.push({ saveDialog: true }); return options.cancelSave ? undefined : Uri.parse('file:///workspace/schema.ipc'); },
       showOpenDialog: async settings => { calls.push({ pickerFolder: settings.defaultUri.toString() }); return [template]; },
       showTextDocument: async document => { calls.push({ outputLanguage: document.language }); },
       withProgress: async (_, work) => work({}, token)
@@ -47,7 +50,7 @@ function harness(options = {}) {
   };
   const bundle = esbuild.buildSync({ entryPoints: [path.join(__dirname, '../src/generation.ts')], bundle: true, platform: 'node', format: 'cjs', write: false, external: ['vscode'] });
   const module = { exports: {} };
-  vm.runInNewContext(bundle.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'vscode' ? mock : require(name), console });
+  vm.runInNewContext(bundle.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'vscode' ? mock : require(name), console, Buffer });
   const discovery = { schemaVersion: 1, uri: source.toString(), version: 1, selectionKey: 'key', diagnostics: [],
     catalog: { contextVersion: 1, targets: options.targets ?? [{ id: 'record', label: 'C# record', profile: 'csharp-record', engine: 'scriban', language: 'csharp' }], profiles: ['csharp-record'], engines: ['scriban', 'hbs'], defaultEngine: 'scriban' },
     assets: options.assets ?? [{ id: 'orders', name: 'orders', sourcePath: '/schema/0', eligible: true }] };
@@ -61,7 +64,7 @@ function harness(options = {}) {
     if (options.restart) session++;
     if (options.selectionChange) selected = 'other';
     return { schemaVersion: 1, uri: source.toString(), version: 1, selectionKey: 'key', findings: [],
-      result: { isSuccessful: !options.failure, content: options.failure ? null : 'generated', language: options.custom ? 'plaintext' : 'csharp', suggestedFilename: 'Orders.cs',
+      result: { representation: options.binary ? 'binary' : 'text', binaryContent: options.binary ? 'AAEC/w==' : undefined, isSuccessful: !options.failure, content: options.failure ? null : 'generated', language: options.custom ? 'plaintext' : 'csharp', suggestedFilename: 'Orders.cs',
         templateVersion: options.custom ? 7 : 1, diagnostics: options.failure ? [{ severity: 'Error', message: 'Mapping failed' }] : [] } };
   };
   return { api: module.exports, mock, request, errors, opened, calls, run: (entry, route) => module.exports.generateSchemaCode(request, entry, () => session, () => selected, route) };
@@ -125,4 +128,27 @@ test('direct unavailable dialect fails before rendering', async () => {
   const h = harness({ targets: [{ id: 'ddl', label: 'SQL DDL', operation: 'generate', language: 'sql', dialects: [{ id: 'sqlite', label: 'SQLite' }], wholeContract: true }] });
   await h.run(undefined, { operation: 'generate', target: 'ddl', language: 'sql', dialect: 'absent' });
   assert.equal(h.opened.length, 0); assert.ok(!h.calls.some(c => c.command === 'packata.schema.generate'));
+});
+
+for (const format of ['avro', 'spark-json']) test('export leaf routes selected asset and generic profile for ' + format, async () => {
+  const h = harness({ targets: [{ id: format, label: format, operation: 'export', language: 'json', compatibilityProfiles: [] }] });
+  await h.run({ node: { kind: 'asset', sourcePath: '/schema/0' }, contract: { uri: 'file:///workspace/second/contract.yaml' } }, { operation: 'export', outputFormat: format });
+  const call = h.calls.find(c => c.command === 'packata.schema.export');
+  assert.equal(call.args.options.outputFormat, format); assert.equal(call.args.options.assetId, 'orders');
+  assert.equal(call.args.options.compatibilityProfile, undefined); assert.equal(h.opened.length, 1);
+  assert.ok(!h.calls.some(c => c.prompt === 'Compatibility profile'));
+});
+test('only advertised compatible profiles are offered after preselecting a format', async () => {
+  const h = harness({ targets: [{ id: 'avro', label: 'Avro', operation: 'export', language: 'json', compatibilityProfiles: ['hudi'] }], profile: 'hudi' });
+  await h.run(undefined, { operation: 'export', outputFormat: 'avro' });
+  assert.equal(h.calls.find(c => c.command === 'packata.schema.export').args.options.compatibilityProfile, 'hudi');
+});
+test('binary results require explicit save and never open as text', async () => {
+  const h = harness({ binary: true }); await h.run();
+  assert.equal(h.opened.length, 0); assert.equal(h.calls.filter(c => c.saveDialog).length, 1);
+  assert.deepEqual(h.calls.find(c => c.savedBinary).bytes, [0, 1, 2, 255]);
+});
+for (const opt of ['cancelSave', 'existingDestination']) test('binary artifacts protect ' + opt, async () => {
+  const h = harness({ binary: true, [opt]: true }); await h.run();
+  assert.equal(h.opened.length, 0); assert.ok(!h.calls.some(c => c.savedBinary));
 });

@@ -7,6 +7,12 @@ internal static class CliApplication
 {
     private static int HandleInvocation(string[] args, Exception exception)
     {
+        if (args.FirstOrDefault() == "schema" && args.ElementAtOrDefault(1) is "export" or "generate")
+        {
+            CliErrorHandler.Invocation(exception);
+            Console.Error.WriteLine("Use schema export --output-format <format> for documents, or schema generate --target <target> --language <language> (or --template <path>) for code. DDL uses --target ddl --dialect <id>.");
+            return ExitCodes.Invocation;
+        }
         if (args.FirstOrDefault() == "quality")
         {
             CliErrorHandler.Invocation(exception);
@@ -22,21 +28,16 @@ internal static class CliApplication
     }
     internal static int Run(string[] args, CancellationToken cancellationToken)
     {
-        if (args.FirstOrDefault() == "export" || (args.FirstOrDefault() == "schema" && args.Any(a => new[] { "--record", "--datatable", "--polars", "--pyspark", "--arrow", "--dataframe", "--idataview", "--ddl", "--json-schema", "--spark-json", "--avro", "--format", "--dataset" }.Contains(a))))
+        if (args.FirstOrDefault() == "export" || (args.FirstOrDefault() == "schema" && args.Any(a => new[] { "--record", "--datatable", "--polars", "--pyspark", "--arrow", "--dataframe", "--idataview", "--ddl", "--json-schema", "--spark-json", "--avro", "--format", "--dataset" }.Contains(a.Split('=')[0]))))
         {
             Console.Error.WriteLine("Removed schema syntax. Use schema export --output-format <format> or schema generate --target <target> --language <language>; use --asset for selection.");
-            return ExitCodes.Invocation;
-        }
-        if (args.Take(2).SequenceEqual(new[] { "schema", "generate" }) && args.Any(a => a is "--output-format" or "-f" or "--profile")
-            || args.Take(2).SequenceEqual(new[] { "schema", "export" }) && args.Any(a => a is "--target" or "--language" or "--dialect" or "--template" or "--engine" or "--type-mapping" or "--namespace" or "--type-name" or "--define" or "--mapping-fallback" or "--constraints" or "--no-descriptions"))
-        {
-            Console.Error.WriteLine("Options belong to another schema operation. Use schema export --output-format for documents or schema generate --target --language for code.");
             return ExitCodes.Invocation;
         }
         if (args.Length == 1 && args[0] is "contract" or "data" or "schema" or "config" or "connector" or "dialect" or "quality") args = [args[0], "--help"];
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
         {
+            if (args.FirstOrDefault() == "schema") configuration.UseStrictParsing();
             configuration.SetApplicationName("packata");
             configuration.SetApplicationVersion(ApplicationVersion.Value);
             configuration.ConfigureConsole(AnsiConsole.Create(new AnsiConsoleSettings

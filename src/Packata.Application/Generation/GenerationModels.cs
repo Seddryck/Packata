@@ -6,7 +6,7 @@ public sealed record GenerationOptions(string? AssetId = null, string? Target = 
     string? Engine = null, string? Profile = null, string? Namespace = null, string? TypeName = null,
     IReadOnlyList<string>? Defines = null, TypeMappingFallback Fallback = TypeMappingFallback.Reject,
     string? Language = null, string Operation = "generate", string? OutputFormat = null,
-    string? Dialect = null, string? CompatibilityProfile = null, Packata.Core.Provisioning.ContractProvisioningOptions? DdlOptions = null);
+    string? Dialect = null, string? CompatibilityProfile = null, Packata.Core.Provisioning.ContractProvisioningOptions? DdlOptions = null, SchemaDocumentOptions? DocumentOptions = null);
 public sealed record TemplateInput(string Identity, string Text, int? Version = null);
 public sealed record GenerationDiagnostic(string Code, string Severity, string SourcePath, string Message,
     string? Target = null, string? Template = null, int? Line = null, int? Column = null);

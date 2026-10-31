@@ -4,14 +4,14 @@ import { requireSchema } from './protocol';
 import { TreeEntry } from './tree';
 
 interface Finding { code: string; severity: string; sourcePath?: string; message: string }
-export interface Target { operation?: string; category?: string; representation?: string; extension?: string; compatibilityProfiles?: string[]; dialects?: { id: string; label: string }[]; wholeContract?: boolean; id: string; label: string; profile: string; engine: string; language: string; supportsCSharpOptions: boolean; limitation: string }
+export interface Target { options?: string[]; operation?: string; category?: string; representation?: string; extension?: string; compatibilityProfiles?: string[]; dialects?: { id: string; label: string }[]; wholeContract?: boolean; id: string; label: string; profile: string; engine: string; language: string; supportsCSharpOptions: boolean; limitation: string }
 export interface GenerationDiscovery {
   schemaVersion: number; uri: string; version: number | null; selectionKey: string;
   catalog: { contextVersion: number; targets: Target[]; profiles: string[]; engines: string[]; defaultEngine: string; limitations: string[] };
   assets: { id: string; name: string; sourcePath: string; eligible: boolean; reason?: string }[]; diagnostics: Finding[];
 }
 export interface SchemaRoute { operation: string; target?: string; language?: string; outputFormat?: string; dialect?: string; custom?: boolean }
-interface Options { operation?: string; language?: string; outputFormat?: string; dialect?: string; compatibilityProfile?: string; assetId?: string; target?: string; engine?: string; profile?: string; namespace?: string; typeName?: string; defines?: string[] }
+interface Options { documentOptions?: { name?: string; namespace?: string }; ddlOptions?: { constraints: number; descriptions: boolean }; operation?: string; language?: string; outputFormat?: string; dialect?: string; compatibilityProfile?: string; assetId?: string; target?: string; engine?: string; profile?: string; namespace?: string; typeName?: string; defines?: string[] }
 interface TemplateSnapshot { uri: string; text: string; version: number }
 export interface Generated {
   schemaVersion: number; uri: string; version: number | null; selectionKey: string;
@@ -45,6 +45,28 @@ async function customize(options: Options, custom: boolean): Promise<boolean> {
     if (choice === 'Namespace…') options.namespace = value || undefined;
     else if (choice === 'Type name…') options.typeName = value || undefined;
     else (options.defines ??= []).push(value);
+  }
+}
+
+async function documentOptions(options: Options): Promise<boolean> {
+  while (true) {
+    const sql = options.target === 'ddl';
+    const choice = await vscode.window.showQuickPick(sql ? ['Generate', 'Constraints…', 'Descriptions…'] : ['Export', 'Schema name…', 'Schema namespace…'], { title: sql ? 'SQL options' : 'Avro options' });
+    if (!choice) return false;
+    if (choice === 'Generate' || choice === 'Export') return true;
+    if (sql) {
+      options.ddlOptions ??= { constraints: 31, descriptions: true };
+      const value = await vscode.window.showQuickPick(choice === 'Constraints…' ? ['All', 'None', 'Primary key and required'] : ['Include descriptions', 'Omit descriptions'], { title: choice });
+      if (!value) continue;
+      if (choice === 'Constraints…') options.ddlOptions.constraints = value === 'All' ? 31 : value === 'None' ? 0 : 3;
+      else options.ddlOptions.descriptions = value === 'Include descriptions';
+    } else {
+      const value = await vscode.window.showInputBox({ title: choice, prompt: 'Leave empty for the catalog default' });
+      if (value === undefined) continue;
+      options.documentOptions ??= {};
+      if (choice === 'Schema name…') options.documentOptions.name = value || undefined;
+      else options.documentOptions.namespace = value || undefined;
+    }
   }
 }
 
@@ -155,6 +177,7 @@ async function prepare(request: Request, entry: TreeEntry | undefined, epoch: nu
     if (!profile) return undefined;
     if (profile !== 'Generic') options.compatibilityProfile = profile;
   }
+  if (target?.options?.some(o => o === 'schema-name' || o === 'constraints') && !await documentOptions(options)) return undefined;
   const whole = target?.wholeContract && entry?.node.kind !== 'asset';
   const asset = whole ? undefined : await chooseAsset(discovery, entry);
   if (!whole && !asset) return undefined;

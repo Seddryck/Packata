@@ -55,7 +55,7 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         return new(script, diagnostics.ToArray());
     }
 
-    private ITableBuilder Map(DataAsset asset, DatabaseObjectName tableName, DataContract contract,
+    internal ITableBuilder Map(DataAsset asset, DatabaseObjectName tableName, DataContract contract,
         IReadOnlyDictionary<DataAsset, DatabaseObjectName> identities, ContractProvisioningOptions options,
         ICollection<ProvisioningDiagnostic> diagnostics)
     {

@@ -76,7 +76,7 @@ public class SchemaGenerationCommandTests
     [Test]
     public async Task Removed_shortcuts_and_top_level_export_explain_migration()
     {
-        foreach (var args in new[] { new[] { "export", "missing.yaml" }, new[] { "schema", "export", "missing.yaml", "--record" }, new[] { "schema", "generate", "missing.yaml", "--ddl" } })
+        foreach (var args in new[] { new[] { "export", "missing.yaml" }, new[] { "schema", "export", "missing.yaml", "--record" }, new[] { "schema", "generate", "missing.yaml", "--ddl" }, new[] { "schema", "export", "missing.yaml", "--template", "missing.scriban" } })
         {
             var result = await CliWorkspace.Run(args);
             Assert.That(result.ExitCode, Is.EqualTo(2));

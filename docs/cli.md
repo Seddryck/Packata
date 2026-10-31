@@ -559,20 +559,18 @@ failures. JSON already supplies the classifications and explanations needed by #
 GitHub annotations, validation line/column mapping and MCP registration remain separate work.
 
 <!-- cli:schema export -->
-<!-- cli:export -->
 ## Export a dataset schema
 
 `packata schema export <SOURCE> --asset <ID> --output-format json-schema [OPTIONS]`
 
-`packata export <SOURCE> --asset <ID> --output-format json-schema [OPTIONS]`
-
 | Option / alias | Values / default | Meaning |
 | --- | --- | --- |
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
-| `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
-| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema` | Target representation |
+| `--asset <ID>` | Optional for exactly one eligible asset | Exact Data Package resource or ODCS schema object name |
+| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema`, `avro`, `spark-json` | Target representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
 
+<!-- cli:schema generate -->
 Code generation uses `schema generate --target record|datatable|polars --language csharp`, or `schema generate --template <PATH>`
 instead of `--output-format`. For generation, `--asset` may be omitted when one eligible
 asset exists. `--engine <ENGINE>` overrides a custom template's engine; recognized suffixes
@@ -612,8 +610,9 @@ Export one asset from an ODCS or Data Package v2 descriptor. You can use the sam
 HTTP(S) and ZIP, TAR, TAR.GZ and TAR.BR sources as inspection. Select the asset by its exact canonical identifier;
 a missing or ambiguous identifier fails.
 
-The required output format is JSON Schema. Select it with `--output-format` or its short
-alias, `-f`. The complete syntax and accepted values are listed above.
+Select the required document format with `--output-format` or `-f`: `json-schema`, `avro`, or `spark-json`.
+Avro accepts `--schema-name` and `--schema-namespace`; see the [schema reference]({{ '/reference/dotnet/schema-generation/' | relative_url }}) for representation policies and limitations.
+Compatibility profiles are not yet available; omit `--profile` for generic output.
 
 The result is a JSON Schema Draft 2020-12 object describing one dataset record. By default,
 only the generated JSON goes to stdout, while diagnostics go to stderr. To save it instead,

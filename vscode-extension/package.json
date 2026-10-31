@@ -249,6 +249,28 @@
         "title": "Teradata…",
         "category": "Packata",
         "enablement": "packata.schema.sql.teradata"
+      },
+      {
+        "command": "packata.schema.avro",
+        "title": "Avro…",
+        "category": "Packata",
+        "enablement": "packata.schema.avro"
+      },
+      {
+        "command": "packata.schema.sparkJson",
+        "title": "Spark JSON…",
+        "category": "Packata",
+        "enablement": "packata.schema.sparkJson"
+      },
+      {
+        "command": "packata.schema.otherFormats",
+        "title": "Other Formats…",
+        "category": "Packata"
+      },
+      {
+        "command": "packata.schema.otherTargets",
+        "title": "Other Targets…",
+        "category": "Packata"
       }
     ],
     "menus": {
@@ -327,12 +349,20 @@
       ],
       "packata.schema.export": [
         {
+          "command": "packata.schema.sparkJson",
+          "when": "packata.schema.sparkJson"
+        },
+        {
+          "command": "packata.schema.avro",
+          "when": "packata.schema.avro"
+        },
+        {
           "command": "packata.schema.jsonSchema",
           "when": "packata.schema.jsonSchema"
         },
         {
-          "command": "packata.exportSchema",
-          "when": "packata.schema.export"
+          "command": "packata.schema.otherFormats",
+          "when": "packata.schema.other.export"
         }
       ],
       "packata.schema.csharp": [
@@ -366,8 +396,8 @@
           "command": "packata.schema.custom"
         },
         {
-          "command": "packata.generateSchemaCode",
-          "when": "packata.schema.generate"
+          "command": "packata.schema.otherTargets",
+          "when": "packata.schema.other.generate"
         }
       ],
       "packata.schema.sql": [

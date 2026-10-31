@@ -140,12 +140,13 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
                 throw new ArgumentException("Export accepts --output-format and optional --profile; use schema generate for code and templates.");
             var target = Catalog.Targets.SingleOrDefault(t => t.Operation == "export" && t.Id == options.OutputFormat)
                 ?? throw new ArgumentException("Unknown or missing --output-format. Discover available schema export formats.");
+            if (options.DocumentOptions is not null && options.OutputFormat != "avro") throw new ArgumentException("Schema naming options apply only to Avro export.");
             if (options.CompatibilityProfile is not null && target.CompatibilityProfiles?.Contains(options.CompatibilityProfile) != true)
                 throw new ArgumentException("Unknown or incompatible export --profile. Omit --profile for generic output.");
         }
         else if (options.Operation == "generate")
         {
-            if (options.OutputFormat is not null || options.CompatibilityProfile is not null)
+            if (options.OutputFormat is not null || options.CompatibilityProfile is not null || options.DocumentOptions is not null)
                 throw new ArgumentException("Use schema export --output-format for schema documents; --profile is export-only.");
             if (options.Target == "ddl")
             {
@@ -172,6 +173,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         if (options.AssetId is not null && inspection.Mapping.RequireValue().Assets.Count(a => a.Id == options.AssetId) > 1) return Failure("GEN_ASSET", "The selected asset ID is ambiguous.");
         var asset = SelectAsset(inspection.Mapping.RequireValue().Assets.Where(a => a.Schema is { Fields.Count: > 0 }).ToArray(), options.AssetId, diagnostics);
         if (asset is null) return new(null, null, null, null, null, null, diagnostics);
+        if (options.OutputFormat is "avro" or "spark-json") return new StructuredSchemaExport(options.OutputFormat, diagnostics, token, options.DocumentOptions).Export(asset);
         try
         {
             var result = ContractExportService.JsonSchema(document, asset.Id, token);

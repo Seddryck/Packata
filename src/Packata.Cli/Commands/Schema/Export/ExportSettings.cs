@@ -5,7 +5,7 @@ namespace Packata.Cli;
 internal sealed class ExportSettings : ContractSourceSettings
 {
     [CommandOption("-f|--output-format <FORMAT>")]
-    [System.ComponentModel.Description("Schema document format: json-schema. Use schema generate for source code.")]
+    [System.ComponentModel.Description("Schema document format: json-schema, avro, spark-json. Use schema generate for source code.")]
     public string? OutputFormat { get; init; }
     [CommandOption("--profile <PROFILE>")]
     public string? Profile { get; init; }
@@ -13,7 +13,11 @@ internal sealed class ExportSettings : ContractSourceSettings
     public string? Asset { get; init; }
     [CommandOption("-o|--output <PATH>")]
     public string? Output { get; init; }
-    internal GenerationOptions Options => new(Asset, Operation: "export", OutputFormat: OutputFormat, CompatibilityProfile: Profile);
+    [CommandOption("--schema-name <NAME>")]
+    public string? SchemaName { get; init; }
+    [CommandOption("--schema-namespace <NAMESPACE>")]
+    public string? SchemaNamespace { get; init; }
+    internal GenerationOptions Options => new(Asset, Operation: "export", OutputFormat: OutputFormat, CompatibilityProfile: Profile, DocumentOptions: SchemaName is null && SchemaNamespace is null ? null : new(SchemaName, SchemaNamespace));
     public override ValidationResult Validate()
     {
         var source = base.Validate();
