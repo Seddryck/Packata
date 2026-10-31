@@ -43,27 +43,7 @@ public static class ArrowRecordBatches
                 var hasRow = reader.Read();
                 token.ThrowIfCancellationRequested();
                 if (!hasRow) break;
-                var row = new object?[fields.Length];
-                long rowBytes = 0;
-                for (var i = 0; i < fields.Length; i++)
-                {
-                    token.ThrowIfCancellationRequested();
-                    try
-                    {
-                        var value = reader.GetValue(ordinals[i]);
-                        token.ThrowIfCancellationRequested();
-                        row[i] = Normalize(value, fields[i]);
-                        rowBytes += BufferSize(row[i], fields[i].DataType);
-                        if (rowBytes + baseBytes > options.MaxBufferedBytes)
-                            throw new InvalidOperationException("A row exceeds MaxBufferedBytes.");
-                        // IDataReader providers may reuse binary storage between rows.
-                        if (row[i] is byte[] binary) row[i] = binary.ToArray();
-                    }
-                    catch (Exception error) when (error is not OperationCanceledException)
-                    {
-                        throw new InvalidDataException($"Cannot convert field '{fields[i].Name}' to {fields[i].DataType.Name}.", error);
-                    }
-                }
+                var (row, rowBytes) = ReadRow(reader, fields, ordinals, options.MaxBufferedBytes - baseBytes, token);
                 if (rows.Count > 0 && bytes + rowBytes > options.MaxBufferedBytes)
                 {
                     var batch = Build(schema, fields, rows, token);
@@ -90,6 +70,33 @@ public static class ArrowRecordBatches
         }
     }
 
+    private static (object?[] Values, long Bytes) ReadRow(IDataReader reader, Field[] fields,
+        int[] ordinals, long byteBudget, CancellationToken token)
+    {
+        var row = new object?[fields.Length];
+        long bytes = 0;
+        for (var i = 0; i < fields.Length; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                var value = reader.GetValue(ordinals[i]);
+                token.ThrowIfCancellationRequested();
+                row[i] = Normalize(value, fields[i]);
+                bytes += BufferSize(row[i], fields[i].DataType);
+                if (bytes > byteBudget)
+                    throw new InvalidOperationException("A row exceeds MaxBufferedBytes.");
+                // IDataReader providers may reuse binary storage between rows.
+                if (row[i] is byte[] binary) row[i] = binary.ToArray();
+            }
+            catch (Exception error) when (error is not OperationCanceledException)
+            {
+                throw new InvalidDataException($"Cannot convert field '{fields[i].Name}' to {fields[i].DataType.Name}.", error);
+            }
+        }
+        return (row, bytes);
+    }
+
     private static int[] ResolveOrdinals(IDataReader reader, DataSchema schema)
     {
         var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
@@ -110,58 +117,72 @@ public static class ArrowRecordBatches
             if (!field.IsNullable) throw new InvalidOperationException("Null in a non-nullable field.");
             return null;
         }
-        switch (field.DataType)
+        return field.DataType switch
         {
-            case IntegerType integer:
-                if (value is not (sbyte or byte or short or ushort or int or uint or long or ulong)) break;
-                // Convert only integral CLR values; never round decimal/floating input.
-                return (integer.BitWidth, integer.IsSigned) switch
-                {
-                    (8, true) => (object)Convert.ToSByte(value, CultureInfo.InvariantCulture),
-                    (16, true) => Convert.ToInt16(value, CultureInfo.InvariantCulture),
-                    (32, true) => Convert.ToInt32(value, CultureInfo.InvariantCulture),
-                    (64, true) => Convert.ToInt64(value, CultureInfo.InvariantCulture),
-                    (8, false) => Convert.ToByte(value, CultureInfo.InvariantCulture),
-                    (16, false) => Convert.ToUInt16(value, CultureInfo.InvariantCulture),
-                    (32, false) => Convert.ToUInt32(value, CultureInfo.InvariantCulture),
-                    (64, false) => Convert.ToUInt64(value, CultureInfo.InvariantCulture),
-                    _ => throw new NotSupportedException()
-                };
-            case DoubleType when value is double or float:
-                return Convert.ToDouble(value, CultureInfo.InvariantCulture);
-            case BooleanType when value is bool: return value;
-            case StringType when value is string: return value;
-            case BinaryType when value is byte[]: return value;
-            case Decimal128Type type when value is decimal number:
-                ValidateDecimal(number, type);
-                return number;
-            case Date32Type when value is DateOnly date:
-                return date.ToDateTime(TimeOnly.MinValue);
-            case Date32Type when value is DateTime date && date.TimeOfDay == TimeSpan.Zero && date.Kind != DateTimeKind.Local:
-                return date;
-            case TimestampType type:
-                var timestamp = value switch
-                {
-                    DateTimeOffset offset when !string.IsNullOrEmpty(type.Timezone) => offset,
-                    DateTime date when date.Kind == DateTimeKind.Utc && !string.IsNullOrEmpty(type.Timezone) => new DateTimeOffset(date),
-                    DateTime date when date.Kind == DateTimeKind.Unspecified && string.IsNullOrEmpty(type.Timezone)
-                        => new DateTimeOffset(date, TimeSpan.Zero),
-                    _ => throw new InvalidOperationException("Timestamp requires UTC DateTime/DateTimeOffset, or Unspecified DateTime for timezone=false.")
-                };
-                var ticks = timestamp.UtcTicks - DateTime.UnixEpoch.Ticks;
-                var divisor = type.Unit switch
-                {
-                    TimeUnit.Second => TimeSpan.TicksPerSecond, TimeUnit.Millisecond => TimeSpan.TicksPerMillisecond,
-                    TimeUnit.Microsecond => 10, _ => 1
-                };
-                if (ticks % divisor != 0) throw new InvalidOperationException("Timestamp would lose precision.");
-                if (type.Unit == TimeUnit.Nanosecond) _ = checked(ticks * 100);
-                return timestamp;
-        }
-        throw new NotSupportedException($"Unsupported CLR value type {value.GetType().Name}.");
+            IntegerType integer => NormalizeInteger(value, integer),
+            DoubleType when value is double or float => Convert.ToDouble(value, CultureInfo.InvariantCulture),
+            BooleanType when value is bool => value,
+            StringType when value is string => value,
+            BinaryType when value is byte[] => value,
+            Decimal128Type type when value is decimal number => NormalizeDecimal(number, type),
+            Date32Type => NormalizeDate(value),
+            TimestampType type => NormalizeTimestamp(value, type),
+            _ => throw UnsupportedValue(value)
+        };
     }
 
-    private static void ValidateDecimal(decimal value, Decimal128Type type)
+    private static object NormalizeInteger(object value, IntegerType type)
+    {
+        // Convert only integral CLR values; never round decimal/floating input.
+        if (value is not (sbyte or byte or short or ushort or int or uint or long or ulong))
+            throw UnsupportedValue(value);
+        return (type.BitWidth, type.IsSigned) switch
+        {
+            (8, true) => (object)Convert.ToSByte(value, CultureInfo.InvariantCulture),
+            (16, true) => Convert.ToInt16(value, CultureInfo.InvariantCulture),
+            (32, true) => Convert.ToInt32(value, CultureInfo.InvariantCulture),
+            (64, true) => Convert.ToInt64(value, CultureInfo.InvariantCulture),
+            (8, false) => Convert.ToByte(value, CultureInfo.InvariantCulture),
+            (16, false) => Convert.ToUInt16(value, CultureInfo.InvariantCulture),
+            (32, false) => Convert.ToUInt32(value, CultureInfo.InvariantCulture),
+            (64, false) => Convert.ToUInt64(value, CultureInfo.InvariantCulture),
+            _ => throw new NotSupportedException()
+        };
+    }
+
+    private static DateTime NormalizeDate(object value) => value switch
+    {
+        DateOnly date => date.ToDateTime(TimeOnly.MinValue),
+        DateTime date when date.TimeOfDay == TimeSpan.Zero && date.Kind != DateTimeKind.Local => date,
+        _ => throw UnsupportedValue(value)
+    };
+
+    private static DateTimeOffset NormalizeTimestamp(object value, TimestampType type)
+    {
+        var timestamp = ResolveTimestamp(value, !string.IsNullOrEmpty(type.Timezone));
+        var ticks = timestamp.UtcTicks - DateTime.UnixEpoch.Ticks;
+        var divisor = type.Unit switch
+        {
+            TimeUnit.Second => TimeSpan.TicksPerSecond, TimeUnit.Millisecond => TimeSpan.TicksPerMillisecond,
+            TimeUnit.Microsecond => 10, _ => 1
+        };
+        if (ticks % divisor != 0) throw new InvalidOperationException("Timestamp would lose precision.");
+        if (type.Unit == TimeUnit.Nanosecond) _ = checked(ticks * 100);
+        return timestamp;
+    }
+
+    private static DateTimeOffset ResolveTimestamp(object value, bool timezoneAware) => value switch
+    {
+        DateTimeOffset offset when timezoneAware => offset,
+        DateTime date when date.Kind == DateTimeKind.Utc && timezoneAware => new DateTimeOffset(date),
+        DateTime date when date.Kind == DateTimeKind.Unspecified && !timezoneAware => new DateTimeOffset(date, TimeSpan.Zero),
+        _ => throw new InvalidOperationException("Timestamp requires UTC DateTime/DateTimeOffset, or Unspecified DateTime for timezone=false.")
+    };
+
+    private static NotSupportedException UnsupportedValue(object value)
+        => new($"Unsupported CLR value type {value.GetType().Name}.");
+
+    private static decimal NormalizeDecimal(decimal value, Decimal128Type type)
     {
         var bits = decimal.GetBits(value);
         var unscaled = (BigInteger)(uint)bits[0] | ((BigInteger)(uint)bits[1] << 32) | ((BigInteger)(uint)bits[2] << 64);
@@ -173,6 +194,7 @@ public static class ArrowRecordBatches
         }
         else unscaled *= BigInteger.Pow(10, type.Scale - sourceScale);
         if (unscaled >= BigInteger.Pow(10, type.Precision)) throw new OverflowException("Decimal exceeds declared precision.");
+        return value;
     }
 
     private static long BufferSize(object? value, IArrowType type) => 1L + (type switch
