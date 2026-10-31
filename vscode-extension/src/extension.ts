@@ -138,6 +138,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (token.isCancellationRequested || currentGeneration !== generation) return;
     for (const [key, value] of Object.entries({ ...documents, ...code })) await vscode.commands.executeCommand('setContext', key, value);
   }
+  function reportDiagnostics(): void {
+  for (const contract of state.contracts) {
+    const signature = JSON.stringify(contract.diagnostics);
+    if (reportedDiagnostics.get(contract.uri) !== signature) {
+      for (const diagnostic of contract.diagnostics) output.appendLine(`Packata ${diagnostic.code ?? ''} ${diagnostic.severity} ${diagnostic.sourcePath ?? '$'}: ${diagnostic.message}`);
+      reportedDiagnostics.set(contract.uri, signature);
+    }
+  }
+  }
   async function refresh(): Promise<void> {
     if (stopped || connection.state !== State.Running) return;
     refreshCancellation?.cancel(); refreshCancellation?.dispose();
@@ -155,13 +164,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       validation.refreshAction();
       await updateSchemaCapabilities(currentGeneration, cancellation.token);
       if (cancellation.token.isCancellationRequested || currentGeneration !== generation) return;
-      for (const contract of state.contracts) {
-        const signature = JSON.stringify(contract.diagnostics);
-        if (reportedDiagnostics.get(contract.uri) !== signature) {
-          for (const diagnostic of contract.diagnostics) output.appendLine(`Packata ${diagnostic.code ?? ''} ${diagnostic.severity} ${diagnostic.sourcePath ?? '$'}: ${diagnostic.message}`);
-          reportedDiagnostics.set(contract.uri, signature);
-        }
-      }
+      reportDiagnostics();
       view.message = state.contracts.length ? undefined : 'No supported contracts found. Add an ODCS or Data Package v2 descriptor, then refresh.';
     } catch {
       if (!cancellation.token.isCancellationRequested && currentGeneration === generation) {
