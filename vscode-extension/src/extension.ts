@@ -113,6 +113,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     view.message = message;
     output.appendLine(message);
   };
+  async function documentCapabilities(uri: string | undefined, token: vscode.CancellationToken): Promise<Record<string, boolean>> {
+    const unavailable = { 'packata.schemaDocumentsAvailable': false, 'packata.arrowIpcAvailable': false };
+    if (!uri || !connection.initializeResult?.capabilities.executeCommandProvider?.commands.includes('packata.schema.document.options')) return unavailable;
+    try {
+      const catalog = await request<{ formats: { id: string; representation: string }[] }>('packata.schema.document.options', { uri }, token);
+      return { 'packata.schemaDocumentsAvailable': catalog.formats.length > 0,
+        'packata.arrowIpcAvailable': catalog.formats.some(f => f.id === 'arrow-ipc' && f.representation === 'binary') };
+    } catch { return unavailable; }
+  }
+  async function generationCapabilities(uri: string | undefined, token: vscode.CancellationToken): Promise<Record<string, boolean>> {
+    const unavailable = { 'packata.schemaGenerationAvailable': false, 'packata.arrowCsharpAvailable': false, 'packata.arrowPythonAvailable': false };
+    if (!uri || !connection.initializeResult?.capabilities.executeCommandProvider?.commands.includes('packata.schema.export.options')) return unavailable;
+    try {
+      const discovery = await request<GenerationDiscovery>('packata.schema.export.options', { uri }, token);
+      return { 'packata.schemaGenerationAvailable': discovery.catalog.contextVersion === 1,
+        'packata.arrowCsharpAvailable': discovery.catalog.targets.some(t => t.id === 'arrow' && t.language === 'csharp'),
+        'packata.arrowPythonAvailable': discovery.catalog.targets.some(t => t.id === 'arrow' && t.language === 'python') };
+    } catch { return unavailable; }
+  }
+  async function updateSchemaCapabilities(currentGeneration: number, token: vscode.CancellationToken): Promise<void> {
+    const uri = state.contracts[0]?.uri;
+    const [documents, code] = await Promise.all([documentCapabilities(uri, token), generationCapabilities(uri, token)]);
+    if (token.isCancellationRequested || currentGeneration !== generation) return;
+    for (const [key, value] of Object.entries({ ...documents, ...code })) await vscode.commands.executeCommand('setContext', key, value);
+  }
   async function refresh(): Promise<void> {
     if (stopped || connection.state !== State.Running) return;
     refreshCancellation?.cancel(); refreshCancellation?.dispose();
@@ -128,30 +153,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (cancellation.token.isCancellationRequested || !state.apply(epoch, response, versions())) return;
       tree.refresh();
       validation.refreshAction();
-      let schemaDocumentsAvailable = false, arrowIpcAvailable = false;
-      if (state.contracts.length && connection.initializeResult?.capabilities.executeCommandProvider?.commands.includes('packata.schema.document.options')) {
-        try {
-          const catalog = await request<{ formats: { id: string; representation: string }[] }>('packata.schema.document.options', { uri: state.contracts[0].uri }, cancellation.token);
-          schemaDocumentsAvailable = catalog.formats.length > 0;
-          arrowIpcAvailable = catalog.formats.some(f => f.id === 'arrow-ipc' && f.representation === 'binary');
-        } catch { /* Older servers keep the unavailable format hidden. */ }
-      }
+      await updateSchemaCapabilities(currentGeneration, cancellation.token);
       if (cancellation.token.isCancellationRequested || currentGeneration !== generation) return;
-      await vscode.commands.executeCommand('setContext', 'packata.schemaDocumentsAvailable', schemaDocumentsAvailable);
-      await vscode.commands.executeCommand('setContext', 'packata.arrowIpcAvailable', arrowIpcAvailable);
-      let generationAvailable = false, arrowCsharp = false, arrowPython = false;
-      if (state.contracts.length && connection.initializeResult?.capabilities.executeCommandProvider?.commands.includes('packata.schema.export.options')) {
-        try {
-          const discovery = await request<GenerationDiscovery>('packata.schema.export.options', { uri: state.contracts[0].uri }, cancellation.token);
-          generationAvailable = discovery.catalog.contextVersion === 1;
-          arrowCsharp = discovery.catalog.targets.some(t => t.id === 'arrow' && t.language === 'csharp');
-          arrowPython = discovery.catalog.targets.some(t => t.id === 'arrow' && t.language === 'python');
-        } catch { /* Hide target entries when their catalog is unavailable. */ }
-      }
-      if (cancellation.token.isCancellationRequested || currentGeneration !== generation) return;
-      await vscode.commands.executeCommand('setContext', 'packata.arrowCsharpAvailable', arrowCsharp);
-      await vscode.commands.executeCommand('setContext', 'packata.arrowPythonAvailable', arrowPython);
-      await vscode.commands.executeCommand('setContext', 'packata.schemaGenerationAvailable', generationAvailable);
       for (const contract of state.contracts) {
         const signature = JSON.stringify(contract.diagnostics);
         if (reportedDiagnostics.get(contract.uri) !== signature) {

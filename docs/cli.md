@@ -573,6 +573,7 @@ GitHub annotations, validation line/column mapping and MCP registration remain s
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
 | `--asset <ID>` | Optional for one eligible asset | Exact Data Package resource or ODCS schema object name |
 | `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema` or `arrow-ipc` | Portable schema document representation |
+| `--profile <PROFILE>` | Omit for generic output | Only advertised compatible profiles are accepted; Arrow IPC currently has none |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
 
 Code generation uses `schema generate --target <TARGET> --language <LANGUAGE>` or `schema generate --template <PATH>`

@@ -16,27 +16,7 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
                 new(settings.OutputFormat!, settings.Asset, settings.Profile), cancellationToken).ConfigureAwait(false);
             foreach (var diagnostic in result.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!result.IsSuccessful) return ExitCodes.InvalidDocument;
-            cancellationToken.ThrowIfCancellationRequested();
-            if (result.Bytes is { } bytes)
-            {
-                if (settings.Output is null)
-                {
-                    await Console.OpenStandardOutput().WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
-                }
-                else ContractDocumentWriter.WriteBytes(settings.Output, bytes, cancellationToken);
-            }
-            else if (settings.Output is null) Console.Write(result.Content + Environment.NewLine);
-            else
-            {
-                try { ContractDocumentWriter.Write(settings.Output, result.Content + Environment.NewLine, overwrite: false); }
-                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-                {
-                    CommandOutput.Diagnostic(new("CLI003", MappingSeverity.Error, "$.output",
-                        "Unable to write output. Choose a new file and check directory permissions."));
-                    return ExitCodes.Io;
-                }
-            }
-            return ExitCodes.Success;
+            return await PublishAsync(result, settings.Output, cancellationToken).ConfigureAwait(false);
         }
         catch (JsonSchemaConversionException exception)
         {
@@ -48,5 +28,30 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
             CommandOutput.Diagnostic(CommandOutput.Failure(exception));
             return CommandOutput.FailureExitCode(exception);
         }
+    }
+
+    private static async Task<int> PublishAsync(SchemaDocumentResult result, string? output, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (result.Bytes is { } bytes)
+        {
+            if (output is null)
+            {
+                await Console.OpenStandardOutput().WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+            }
+            else ContractDocumentWriter.WriteBytes(output, bytes, cancellationToken);
+        }
+        else if (output is null) Console.Write(result.Content + Environment.NewLine);
+        else
+        {
+            try { ContractDocumentWriter.Write(output, result.Content + Environment.NewLine, overwrite: false); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                CommandOutput.Diagnostic(new("CLI003", MappingSeverity.Error, "$.output",
+                    "Unable to write output. Choose a new file and check directory permissions."));
+                return ExitCodes.Io;
+            }
+        }
+        return ExitCodes.Success;
     }
 }

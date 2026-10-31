@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
 import { requireSchema } from './protocol';
 import { TreeEntry } from './tree';
@@ -57,28 +58,36 @@ export async function exportSchemaDocument(request: Request, entry?: TreeEntry, 
       if (!response.result.isSuccessful) {
         void vscode.window.showErrorMessage(response.result.diagnostics.find(d => d.severity === 'Error')?.message ?? 'Schema export failed.'); return;
       }
-      if (response.result.representation !== format.representation) throw new Error('Unexpected schema representation.');
-      if (format.representation === 'text') {
-        if (typeof response.result.content !== 'string') throw new Error('Missing schema content.');
-        const preview = await vscode.workspace.openTextDocument({ content: response.result.content, language: 'json' });
-        if (token.isCancellationRequested || !current()) return;
-        await vscode.window.showTextDocument(preview, { preview: false });
-        return;
-      }
-      const suggested = response.result.suggestedFilename ?? 'schema' + format.extension;
-      if (suggested.includes('/') || suggested.includes('\\') || suggested === '..') throw new Error('Invalid artifact filename.');
-      const output = await vscode.window.showSaveDialog({ title: 'Save ' + format.label + ' schema', defaultUri: uri.with({ path: path.posix.join(path.posix.dirname(uri.path), suggested) }) });
-      if (!output || output.scheme !== 'file' || token.isCancellationRequested || !current()) return;
-      if (output.toString() === uri.toString()) throw new Error('Choose a new output file.');
-      const bytes = artifactBytes(response.result.bytes ?? '');
-      const temporary = output.with({ path: output.path + '.packata-' + Date.now() + '-' + Math.random().toString(16).slice(2) + '.tmp' });
-      try {
-        await vscode.workspace.fs.writeFile(temporary, bytes);
-        if (token.isCancellationRequested || !current()) return;
-        await vscode.workspace.fs.rename(temporary, output, { overwrite: false });
-      } finally { try { await vscode.workspace.fs.delete(temporary); } catch { /* Already moved, or no file was created. */ } }
-      if (response.result.diagnostics.some(d => d.severity === 'Warning')) void vscode.window.showWarningMessage('Schema saved with representation warnings. Review contract constraints separately.');
-      else void vscode.window.showInformationMessage('Schema saved.');
+      await presentDocument(response.result, format, uri, current, token);
     });
   } catch { void vscode.window.showErrorMessage('Unable to export schema. Choose a new output file and check source/server compatibility and permissions.'); }
+}
+
+async function presentDocument(result: Result['result'], format: Format, uri: vscode.Uri, current: () => boolean, token: vscode.CancellationToken): Promise<void> {
+  if (result.representation !== format.representation) throw new Error('Unexpected schema representation.');
+  if (format.representation === 'text') {
+    if (typeof result.content !== 'string') throw new Error('Missing schema content.');
+    const preview = await vscode.workspace.openTextDocument({ content: result.content, language: 'json' });
+    if (token.isCancellationRequested || !current()) return;
+    await vscode.window.showTextDocument(preview, { preview: false });
+    return;
+  }
+  await saveArtifact(result, format, uri, current, token);
+}
+
+async function saveArtifact(result: Result['result'], format: Format, uri: vscode.Uri, current: () => boolean, token: vscode.CancellationToken): Promise<void> {
+  const suggested = result.suggestedFilename ?? 'schema' + format.extension;
+  if (suggested.includes('/') || suggested.includes('\\') || suggested === '..') throw new Error('Invalid artifact filename.');
+  const output = await vscode.window.showSaveDialog({ title: 'Save ' + format.label + ' schema', defaultUri: uri.with({ path: path.posix.join(path.posix.dirname(uri.path), suggested) }) });
+  if (!output || output.scheme !== 'file' || token.isCancellationRequested || !current()) return;
+  if (output.toString() === uri.toString()) throw new Error('Choose a new output file.');
+  const bytes = artifactBytes(result.bytes ?? '');
+  const temporary = output.with({ path: output.path + '.packata-' + randomUUID() + '.tmp' });
+  try {
+    await vscode.workspace.fs.writeFile(temporary, bytes);
+    if (token.isCancellationRequested || !current()) return;
+    await vscode.workspace.fs.rename(temporary, output, { overwrite: false });
+  } finally { try { await vscode.workspace.fs.delete(temporary); } catch { /* Already moved, or no file was created. */ } }
+  if (result.diagnostics.some(d => d.severity === 'Warning')) void vscode.window.showWarningMessage('Schema saved with representation warnings. Review contract constraints separately.');
+  else void vscode.window.showInformationMessage('Schema saved.');
 }
