@@ -16,7 +16,7 @@ public class ArrowGenerationTests
     public async Task Equivalent_sources_and_escaped_field_names_preserve_schema_meaning(string language)
     {
         var service = new SchemaGenerationService();
-        const string dp = """{"resources":[{"name":"orders","schema":{"fields":[{"name":"quote\"slash\\line\n","type":"integer","format":"i64"}]}}]}""";
+        const string dp = """{"resources":[{"name":"orders","schema":{"fields":[{"name":"quote\"slash\\line\n😀","type":"integer","format":"i64"}]}}]}""";
         const string odcs = """
             apiVersion: v3.2.0
             kind: DataContract
@@ -24,7 +24,7 @@ public class ArrowGenerationTests
             schema:
               - name: orders
                 properties:
-                  - name: "quote\"slash\\line\n"
+                  - name: "quote\"slash\\line\n😀"
                     logicalType: integer
                     required: true
                     nullable: true
@@ -39,7 +39,19 @@ public class ArrowGenerationTests
         if (language == "csharp")
         {
             var schema = (Schema)SchemaGenerationTests.Compile(left.Content!).GetType("Orders")!.GetMethod("Create")!.Invoke(null, null)!;
-            Assert.That(schema.GetFieldByIndex(0).Name, Is.EqualTo("quote\"slash\\line\n"));
+            Assert.That(schema.GetFieldByIndex(0).Name, Is.EqualTo("quote\"slash\\line\n😀"));
+        }
+        else
+        {
+            var python = Environment.GetEnvironmentVariable("PACKATA_TEST_PYTHON");
+            if (python is null) { Assert.Ignore("Set PACKATA_TEST_PYTHON with PyArrow for Unicode interoperability."); return; }
+            var start = new ProcessStartInfo(python) { RedirectStandardError = true, RedirectStandardOutput = true, UseShellExecute = false };
+            start.ArgumentList.Add("-c");
+            start.ArgumentList.Add(left.Content + "\nassert Orders.names[0].endswith('\\U0001f600')\n");
+            using var process = Process.Start(start)!;
+            var error = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            Assert.That(process.ExitCode, Is.Zero, await error);
         }
     }
 
