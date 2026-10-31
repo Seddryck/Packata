@@ -50,13 +50,23 @@ public static class ArrowSchemaMapper
     {
         if (f.Field.Extensions.TryGetNamespace("arrow", out var options) && options.TryGetValue("type", out var representation))
             return Map(f, representation, diagnostics);
-        if (f.LogicalType == "array" && f.Items is not null)
-            return Field(f.Items, diagnostics) is { } item ? new ListType(item) : null;
-        if (f.LogicalType == "object" && f.Children.Count > 0)
-        {
-            var fields = f.Children.Select(c => Field(c, diagnostics)).ToArray();
-            return fields.All(c => c is not null) ? new StructType(fields!) : null;
-        }
+        if (f.LogicalType == "array") return List(f, diagnostics);
+        if (f.LogicalType == "object") return Struct(f, diagnostics);
+        return Scalar(f, diagnostics);
+    }
+
+    private static IArrowType? List(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
+        => f.Items is not null && Field(f.Items, diagnostics) is { } item ? new ListType(item) : null;
+
+    private static IArrowType? Struct(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
+    {
+        if (f.Children.Count == 0) return null;
+        var fields = f.Children.Select(c => Field(c, diagnostics)).ToArray();
+        return fields.All(c => c is not null) ? new StructType(fields!) : null;
+    }
+
+    private static IArrowType? Scalar(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
+    {
         // Binary is an explicit annotation on the canonical string type.
         if (f.LogicalType == "string" && f.SourceFormat == "binary") return BinaryType.Default;
         if (f.DatabaseType is { } database && Scalars.TryGetValue(database, out var scalar)) return scalar;
