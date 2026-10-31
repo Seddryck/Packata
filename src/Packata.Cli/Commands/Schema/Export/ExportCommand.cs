@@ -16,19 +16,26 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
     }
     internal static async Task<int> GenerateAsync(ContractSource source, GenerationOptions options, string? templatePath, string? output, CancellationToken token)
     {
-        TemplateInput? template = null;
-        if (templatePath is not null)
-        {
-            var uri = Uri.TryCreate(templatePath, UriKind.Absolute, out var absolute) ? absolute : new Uri(source.BaseUri, templatePath);
-            if (!uri.IsFile) throw new NotSupportedException("Custom templates must be local files.");
-            template = new(uri.AbsoluteUri, await File.ReadAllTextAsync(uri.LocalPath, token).ConfigureAwait(false));
-        }
+        var template = await ReadTemplateAsync(source, templatePath, token);
         var result = await new SchemaGenerationService().GenerateAsync(source.ParsedDocument, options, template, token).ConfigureAwait(false);
         foreach (var diagnostic in result.Diagnostics)
             CommandOutput.Diagnostic(new(diagnostic.Code, Enum.Parse<MappingSeverity>(diagnostic.Severity),
                 diagnostic.Template ?? diagnostic.SourcePath, diagnostic.Message));
         if (!result.IsSuccessful) return result.Diagnostics.Any(d => d.Code == "GEN_OPTIONS") ? ExitCodes.Invocation : ExitCodes.InvalidDocument;
         token.ThrowIfCancellationRequested();
+        Publish(result, output);
+        return ExitCodes.Success;
+    }
+    private static async Task<TemplateInput?> ReadTemplateAsync(ContractSource source, string? templatePath, CancellationToken token)
+    {
+        if (templatePath is null) return null;
+        var uri = Uri.TryCreate(templatePath, UriKind.Absolute, out var absolute) ? absolute : new Uri(source.BaseUri, templatePath);
+        if (!uri.IsFile) throw new NotSupportedException("Custom templates must be local files.");
+        return new(uri.AbsoluteUri, await File.ReadAllTextAsync(uri.LocalPath, token).ConfigureAwait(false));
+    }
+
+    private static void Publish(GenerationResult result, string? output)
+    {
         if (result.Representation == "binary")
         {
             if (output is null) throw new ArgumentException("Binary schema artifacts require --output <path>.");
@@ -36,6 +43,5 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
         }
         else if (output is null) Console.Write(result.Content);
         else ContractDocumentWriter.Write(output, result.Content!, overwrite: false);
-        return ExitCodes.Success;
     }
 }

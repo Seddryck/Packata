@@ -58,13 +58,10 @@ internal sealed class DialectInferCommand : AsyncCommand<DialectInferSettings>
         AnsiConsole.WriteLine($"Sampled records: {result.SampledRecordCount}; record limit: {settings.MaximumRecords}; source byte limit: {settings.MaximumBytes}.");
         AnsiConsole.WriteLine("Dialect detection scores at most 100 records; results describe a sample, not the complete dataset.");
         foreach (var diagnostic in document.MappingDiagnostics)
-            Warning(diagnostic.Code + ": " + diagnostic.Message);
+            InferencePresenter.WriteDiagnostic(diagnostic.Severity.ToString(), diagnostic.Code, diagnostic.Message, null);
         foreach (var diagnostic in result.Diagnostics.Where(item => !item.Code.StartsWith("column.", StringComparison.Ordinal)
             && item.Code != "header.duplicate-name"))
-        {
-            var confidence = diagnostic.Confidence is { } value ? $" (confidence {value:P0})" : "";
-            AnsiConsole.WriteLine(InferencePresenter.SafeText($"{diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}{confidence}"));
-        }
+            InferencePresenter.WriteDiagnostic(diagnostic.Severity.ToString(), diagnostic.Code, diagnostic.Message, diagnostic.Confidence);
         Warning("Only delimiter, quote character, line terminator and header settings are candidates for update. Escape rules, null tokens, comments, spacing, encoding and other unsupported settings are retained, not inferred.");
         Warning("Quote candidates can tie when no quoted values are observed. Fewer than two records, truncated byte samples and inconsistent record widths cannot be saved.");
         if (shared.Length > 1) Warning("Shared endpoint affects assets: " + string.Join(", ", shared));

@@ -86,7 +86,8 @@ public sealed record DataField(
     bool Nullable = false,
     DataField? Items = null,
     ValueDomain? ValueDomain = null,
-    string? Language = null)
+    string? Language = null,
+    DataMap? Map = null)
 {
     private readonly IReadOnlyList<DataConstraint> _constraints = Array.AsReadOnly((Constraints ?? []).ToArray());
     public IReadOnlyList<DataConstraint> Constraints
@@ -98,6 +99,9 @@ public sealed record DataField(
     public IReadOnlyList<DataField> Children { get; init; } = Children ?? [];
     public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;
 }
+
+/// <summary>An explicit canonical map key/value shape, independent of target libraries.</summary>
+public sealed record DataMap(DataField Key, DataField Value);
 
 public sealed record DataConstraint(string Kind, object? Value);
 

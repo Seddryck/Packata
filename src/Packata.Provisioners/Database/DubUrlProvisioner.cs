@@ -138,4 +138,8 @@ public class DubUrlProvisioner : IDataContractProvisioner
         return diagnostics;
     }
 
+    protected internal ITableBuilder Map(DataAsset asset, DatabaseObjectName tableName, DataContract contract,
+        IReadOnlyDictionary<DataAsset, DatabaseObjectName> identities, ContractProvisioningOptions options,
+        ICollection<ProvisioningDiagnostic> diagnostics)
+        => new RelationalSchemaPlanner(Dialect, ScriptRenderer, DbTypeMapper).Map(asset, tableName, contract, identities, options, diagnostics);
 }

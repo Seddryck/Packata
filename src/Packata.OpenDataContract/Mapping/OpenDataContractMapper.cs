@@ -144,13 +144,23 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     {
         if (string.IsNullOrWhiteSpace(value))
             return defaultAsset is null ? null : (defaultAsset, defaultField);
-        // External/fragment references are unresolved by this mapper. Never split a file name
-        // containing dots into fabricated local asset and property identifiers.
-        if (value.Contains('#')) return null;
+        var fragment = value.IndexOf('#');
+        if (fragment >= 0)
+        {
+            var target = ParseLocalReference(Uri.UnescapeDataString(value[(fragment + 1)..]), null);
+            if (target is null || string.IsNullOrWhiteSpace(target.Value.Asset)) return null;
+            return fragment == 0 ? target : (value[..fragment] + "#/schema/" + Uri.EscapeDataString(target.Value.Asset), target.Value.Field);
+        }
+        return ParseLocalReference(value, defaultAsset);
+    }
+
+    private static (string? Asset, string? Field)? ParseLocalReference(string value, string? defaultAsset)
+    {
         var parts = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 4 && parts[0].Equals("schema", StringComparison.OrdinalIgnoreCase)
+        if (parts.Length == 4 && parts[0].Equals("schema", StringComparison.OrdinalIgnoreCase)
             && parts[2].Equals("properties", StringComparison.OrdinalIgnoreCase))
-            return (parts[1], parts[3]);
+            return (UnescapeReferenceName(parts[1]), UnescapeReferenceName(parts[3]));
+        if (value.Contains('/')) return null;
         parts = value.Split('.', StringSplitOptions.RemoveEmptyEntries);
         return parts.Length switch
         {
@@ -159,6 +169,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             _ => null
         };
     }
+
+    private static string UnescapeReferenceName(string name) => name.Replace("~1", "/").Replace("~0", "~");
 
     private static DataField MapField(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics, string assetId, IReadOnlyList<string> fieldPath)
     {
@@ -180,7 +192,10 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             Description: property.Description,
             Nullable: property.Nullable ?? false,
             Items: property.Items is null ? null : MapField(property.Items, $"{path}/items", diagnostics, assetId, [..fieldPath, "[]"]),
-            ValueDomain: domain);
+            ValueDomain: domain,
+            Map: property.Map is null ? null : new DataMap(
+                MapField(property.Map.Key, path + "/map/key", diagnostics, assetId, [..fieldPath, "key"]),
+                MapField(property.Map.Value, path + "/map/value", diagnostics, assetId, [..fieldPath, "value"])));
     }
 
     private static ValueDomain? MapValueDomain(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics)

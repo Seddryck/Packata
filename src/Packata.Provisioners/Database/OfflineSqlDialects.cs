@@ -8,7 +8,6 @@ public static class OfflineSqlDialects
         new("ansi", "ANSI SQL"),
         new("access", "Access"),
         new("db2", "Db2"),
-        new("drill", "Apache Drill"),
         new("duckdb", "DuckDB"),
         new("firebird", "Firebird"),
         new("mysql", "MySQL"),
@@ -17,7 +16,6 @@ public static class OfflineSqlDialects
         new("cockroachdb", "CockroachDB"),
         new("cratedb", "CrateDB"),
         new("postgresql", "PostgreSQL"),
-        new("questdb", "QuestDB"),
         new("snowflake", "Snowflake"),
         new("sqlite", "SQLite"),
         new("sqlserver", "SQL Server"),
@@ -28,7 +26,6 @@ public static class OfflineSqlDialects
         builder.AddDialect<DubUrl.Querying.Dialects.AnsiDialect>(["ansi"]);
         builder.AddDialect<DubUrl.Provider.Access.Sql.MsAccessDialect>(["access"]);
         builder.AddDialect<DubUrl.Provider.Db2.Sql.Db2Dialect>(["db2"]);
-        builder.AddDialect<DubUrl.Provider.Drill.Sql.DrillDialect>(["drill"]);
         builder.AddDialect<DubUrl.Provider.DuckDb.Sql.DuckDbDialect>(["duckdb"]);
         builder.AddDialect<DubUrl.Provider.FirebirdSql.Sql.FirebirdSqlDialect>(["firebird"]);
         builder.AddDialect<DubUrl.Provider.MySql.Sql.MySqlDialect>(["mysql"]);
@@ -37,7 +34,6 @@ public static class OfflineSqlDialects
         builder.AddDialect<DubUrl.Provider.PostgreSql.Sql.CockRoachDialect>(["cockroachdb"]);
         builder.AddDialect<DubUrl.Provider.PostgreSql.Sql.CrateDbDialect>(["cratedb"]);
         builder.AddDialect<DubUrl.Provider.PostgreSql.Sql.PgsqlDialect>(["postgresql"]);
-        builder.AddDialect<DubUrl.Provider.PostgreSql.Sql.QuestDbDialect>(["questdb"]);
         builder.AddDialect<DubUrl.Provider.Snowflake.Sql.SnowflakeDialect>(["snowflake"]);
         builder.AddDialect<DubUrl.Provider.Sqlite.Sql.SqliteDialect>(["sqlite"]);
         builder.AddDialect<DubUrl.Provider.SqlServer.Sql.TSqlDialect>(["sqlserver"]);

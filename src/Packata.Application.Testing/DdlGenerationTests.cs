@@ -14,9 +14,9 @@ public class DdlGenerationTests
                   type: integer
                   constraints:
                     required: true
-                    minimum: 1
                 - name: label
                   type: string
+                  x-packata-physicalType: varchar(80)
               primaryKey: [id]
           - name: other
             schema:

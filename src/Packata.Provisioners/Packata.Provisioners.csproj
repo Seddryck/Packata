@@ -10,20 +10,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DubUrl.Provider.PostgreSql" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.SqlServer" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.DuckDb" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.MySql" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.Oracle" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.Db2" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.FirebirdSql" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.Snowflake" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.Teradata" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.Access" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Provider.Drill" Version="0.46.1" />
-    <PackageReference Include="DubUrl.BulkCopy" Version="0.46.1" />
-    <PackageReference Include="DubUrl.Schema" Version="0.46.1" />
+    <PackageReference Include="DubUrl.Provider.PostgreSql" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.SqlServer" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.DuckDb" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.MySql" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.Oracle" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.Db2" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.FirebirdSql" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.Snowflake" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.Teradata" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.Access" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Provider.Drill" Version="0.55.1" />
+    <PackageReference Include="DubUrl.BulkCopy" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Schema" Version="0.55.1" />
   </ItemGroup>
 
   <ItemGroup>
