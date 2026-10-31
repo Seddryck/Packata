@@ -1,9 +1,14 @@
 ---
 title: Dataset structural validation
 parent: Guides
+permalink: /dataset-validation/
 ---
 
+<!-- cli:data validate -->
+
 Validate the structure of data bound to an ODCS or DPv2 contract:
+
+`packata data validate <SOURCE> [--input-format auto|odcs|datapackage] [--asset <ID>] [--output-format text|json]`
 
 ```shell
 packata data validate contract.yaml
@@ -19,7 +24,7 @@ resolution as `data preview`. Multiple endpoint bindings require explicit resolu
 the validator reports unavailable binding evidence instead of choosing one.
 
 ODCS defaults to exactly the declared properties in declaration order. Use the
-[Packata propertyMatching and propertyOrder extensions](property-matching.md) to relax
+[Packata propertyMatching and propertyOrder extensions]({{ '/property-matching/' | relative_url }}) to relax
 either requirement. DPv2 uses its native `fieldsMatch`, defaulting to `exact`.
 Parquet native schema types are compared with declared logical types. CSV text
 does not provide authoritative logical-type metadata, so it does not receive
@@ -64,3 +69,5 @@ instances without loading descriptors or opening files. Null `Columns` means
 unavailable evidence; an explicit empty list represents a known empty field set.
 `StructuralValidationCompiler` produces Constraint-category plans from those
 observations. It does not require a separate inspector service or value compiler.
+
+<!-- end-cli -->

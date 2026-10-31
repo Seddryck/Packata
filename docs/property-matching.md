@@ -1,6 +1,7 @@
 ---
 title: Property matching and order
 parent: Reference
+permalink: /property-matching/
 ---
 
 ODCS schema objects can opt into Packata's independent property-set and order requirements:

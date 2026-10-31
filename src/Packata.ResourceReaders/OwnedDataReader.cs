@@ -4,9 +4,15 @@ namespace Packata.ResourceReaders;
 
 internal sealed class OwnedDataReader(IDataReader inner, params IDisposable[] owned) : IDataReader, Packata.Core.Reading.IOriginalColumnNames
 {
-    public IReadOnlyList<string>? OriginalColumnNames => inner is Packata.Core.Reading.IOriginalColumnNames metadata
-        ? metadata.OriginalColumnNames
-        : inner is PocketCsvReader.CsvDataReader { Fields: { } fields } ? Array.AsReadOnly(fields.ToArray()) : null;
+    public IReadOnlyList<string>? OriginalColumnNames
+    {
+        get
+        {
+            if (inner is Packata.Core.Reading.IOriginalColumnNames metadata) return metadata.OriginalColumnNames;
+            if (inner is PocketCsvReader.CsvDataReader { Fields: { } fields }) return Array.AsReadOnly(fields.ToArray());
+            return null;
+        }
+    }
     private bool _disposed;
     public object this[int i] => inner[i];
     public object this[string name] => inner[name];

@@ -44,28 +44,47 @@ internal static class PropertyMatchingMapper
     }
 
     internal static void CheckPlacements(DataContract document, ICollection<MappingDiagnostic> diagnostics)
+        => new PlacementVisitor(diagnostics).Visit(document, "$");
+
+    private sealed class PlacementVisitor(ICollection<MappingDiagnostic> diagnostics)
     {
-        var seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
-        Visit(document, "$");
-        void Visit(object? value, string path)
+        private readonly HashSet<object> _seen = new(ReferenceEqualityComparer.Instance);
+
+        internal void Visit(object? value, string path)
         {
-            if (value is null or string || !seen.Add(value)) return;
+            if (value is null or string || !_seen.Add(value)) return;
             if (value is System.Collections.IEnumerable list)
             {
-                var index = 0;
-                foreach (var item in list) Visit(item, $"{path}/{index++}");
+                VisitSequence(list, path);
                 return;
             }
             if (value.GetType().Namespace?.StartsWith("Packata.OpenDataContract", StringComparison.Ordinal) != true) return;
+            VisitMembers(value, path);
+        }
+
+        private void VisitSequence(System.Collections.IEnumerable list, string path)
+        {
+            var index = 0;
+            foreach (var item in list) Visit(item, $"{path}/{index++}");
+        }
+
+        private void VisitMembers(object value, string path)
+        {
             foreach (var member in value.GetType().GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0))
             {
                 if (member.GetValue(value) is not { } child) continue;
-                if (child is CustomProperties properties)
-                {
-                    if (value is not SchemaObject) CheckPlacement(properties, path, diagnostics);
-                }
-                else Visit(child, $"{path}/{char.ToLowerInvariant(member.Name[0])}{member.Name[1..]}");
+                VisitMember(value, child, member.Name, path);
             }
+        }
+
+        private void VisitMember(object owner, object child, string memberName, string path)
+        {
+            if (child is CustomProperties properties)
+            {
+                if (owner is not SchemaObject) CheckPlacement(properties, path, diagnostics);
+                return;
+            }
+            Visit(child, $"{path}/{char.ToLowerInvariant(memberName[0])}{memberName[1..]}");
         }
     }
 }

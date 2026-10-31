@@ -25,7 +25,7 @@ The existing `packata infer` command remains available.
 | `schema export`, alias `export` | [JSON Schema](#export-a-dataset-schema) |
 | `schema infer`, alias `infer` | [Schema inference]({{ '/cli-inference/' | relative_url }}) |
 | `data preview` | [Read data](#preview-bound-data) |
-| `data validate` | [Structural validation](dataset-validation.md) |
+| `data validate` | [Structural validation]({{ '/dataset-validation/' | relative_url }}) |
 | `quality run` | [Quality execution and OORS reports]({{ '/cli-quality/' | relative_url }}) |
 | `dialect export` | [CSV dialect](#export-a-csv-dialect) |
 | `dialect infer` | [Infer CSV parsing settings](#infer-csv-parsing-settings) |

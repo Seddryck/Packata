@@ -194,24 +194,44 @@ internal sealed class SatisfactionAnalysis(SatisfactionInput producer, Satisfact
         if (accepted is null || offered is null) return;
         var producerNames = offered.Fields.Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
         var consumerNames = accepted.Fields.Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
+        ComparePropertyMatching(offered, accepted, producerNames, consumerNames, path);
+        ComparePropertyOrder(offered, accepted, producerNames, consumerNames, path);
+    }
+
+    private void ComparePropertyMatching(DataSchema offered, DataSchema accepted, HashSet<string> producerNames,
+        HashSet<string> consumerNames, ContractPath path)
+    {
         var matching = accepted.PropertyMatching;
         var partial = matching == PropertyMatching.Partial || offered.PropertyMatching == PropertyMatching.Partial;
-        var guaranteesPresence = offered.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Subset;
-        var guaranteesClosed = offered.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset;
-        var fits = matching switch
+        var status = SatisfactionStatus.Unknown;
+        if (!partial)
+            status = MatchingFits(offered.PropertyMatching, matching, producerNames, consumerNames)
+                ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied;
+        Add("SAT103", status,
+            path.Append("propertyMatching"), offered.PropertyMatching, matching,
+            partial ? "Partial field-set containment is unresolved." : "Producer property-set guarantees must fit consumer requirements.");
+    }
+
+    private static bool MatchingFits(PropertyMatching offered, PropertyMatching accepted, HashSet<string> producerNames, HashSet<string> consumerNames)
+    {
+        var guaranteesPresence = offered is PropertyMatching.Equal or PropertyMatching.Subset;
+        var guaranteesClosed = offered is PropertyMatching.Equal or PropertyMatching.Superset;
+        return accepted switch
         {
             PropertyMatching.Equal => guaranteesPresence && guaranteesClosed && producerNames.SetEquals(consumerNames),
             PropertyMatching.Subset => guaranteesPresence && consumerNames.IsSubsetOf(producerNames),
             PropertyMatching.Superset => guaranteesClosed && producerNames.IsSubsetOf(consumerNames),
             _ => false
         };
-        Add("SAT103", partial ? SatisfactionStatus.Unknown : fits ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied,
-            path.Append("propertyMatching"), offered.PropertyMatching, matching,
-            partial ? "Partial field-set containment is unresolved." : "Producer property-set guarantees must fit consumer requirements.");
+    }
+
+    private void ComparePropertyOrder(DataSchema offered, DataSchema accepted, HashSet<string> producerNames,
+        HashSet<string> consumerNames, ContractPath path)
+    {
         var expected = accepted.Fields.Select(x => x.Name).Where(producerNames.Contains);
         var actual = offered.Fields.Select(x => x.Name).Where(consumerNames.Contains);
         var orderFits = accepted.PropertyOrder == PropertyOrder.Any
-            || offered.PropertyOrder == PropertyOrder.Declared && expected.SequenceEqual(actual, StringComparer.Ordinal);
+            || (offered.PropertyOrder == PropertyOrder.Declared && expected.SequenceEqual(actual, StringComparer.Ordinal));
         Add("SAT104", orderFits ? SatisfactionStatus.Satisfied : SatisfactionStatus.Unsatisfied,
             path.Append("propertyOrder"), offered.PropertyOrder, accepted.PropertyOrder,
             "Producer ordering guarantees must fit the relative order of consumer-declared properties.");

@@ -35,15 +35,7 @@ public static class ContractDiffer
 
         void Dataset(ContractPath path, DataAsset before, DataAsset after)
         {
-            var ordered = before.Schema?.PropertyOrder == PropertyOrder.Declared || after.Schema?.PropertyOrder == PropertyOrder.Declared;
-            var closed = before.Schema?.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset
-                || after.Schema?.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset;
-            var beforeNames = (before.Schema?.Fields.Select(x => x.Name) ?? []).ToArray();
-            var afterNames = (after.Schema?.Fields.Select(x => x.Name) ?? []).ToArray();
-            if (ordered && !beforeNames.SequenceEqual(afterNames, StringComparer.Ordinal)
-                || closed && !beforeNames.ToHashSet(StringComparer.Ordinal).SetEquals(afterNames)
-                || !ContractDiffValues.Equal(WithoutChildren(before), WithoutChildren(after)))
-                changes.Add(new DatasetModified(path, before, after));
+            if (DatasetChanged(before, after)) changes.Add(new DatasetModified(path, before, after));
             Fields(path.Append("properties"), before.Id, before.Schema?.Fields ?? [], after.Schema?.Fields ?? []);
             Compare(before.Schema?.Relationships ?? [], after.Schema?.Relationships ?? [], RelationshipId, path.Append("relationships"),
                 (p, value) => changes.Add(new RelationshipAdded(p, value)),
@@ -80,6 +72,11 @@ public static class ContractDiffer
                 (p, value) => changes.Add(new QualityRuleRemoved(p, value)),
                 (p, oldValue, newValue) => Modified(oldValue, newValue, () => changes.Add(new QualityRuleModified(p, oldValue, newValue))));
     }
+
+    private static bool DatasetChanged(DataAsset previous, DataAsset current)
+        => SchemaPropertyComparison.OrderChanged(previous.Schema, current.Schema)
+            || SchemaPropertyComparison.ClosedSetChanged(previous.Schema, current.Schema)
+            || !ContractDiffValues.Equal(WithoutChildren(previous), WithoutChildren(current));
 
     private static DataAsset WithoutChildren(DataAsset value) => value with
     {

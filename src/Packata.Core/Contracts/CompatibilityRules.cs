@@ -88,25 +88,36 @@ internal static class CompatibilityRules
 
         private void Dataset(DatasetModified dataset)
         {
-            if (dataset.Previous.Schema?.PropertyMatching != dataset.Current.Schema?.PropertyMatching)
+            DatasetMatching(dataset.Previous.Schema, dataset.Current.Schema);
+            DatasetAccess(dataset.Previous, dataset.Current);
+            DatasetSemantics(dataset.Previous, dataset.Current);
+        }
+
+        private void DatasetMatching(DataSchema? previous, DataSchema? current)
+        {
+            if (previous?.PropertyMatching != current?.PropertyMatching)
                 Add("property-matching", CompatibilityClassification.Unknown, "Native field matching mode changed; safe containment requires set/order policy.");
-            if (dataset.Previous.Schema?.PropertyOrder != dataset.Current.Schema?.PropertyOrder)
+            if (previous?.PropertyOrder != current?.PropertyOrder)
                 Add("property-order", CompatibilityClassification.Unknown, "Property ordering changed; containment requires an order policy.");
-            if ((dataset.Previous.Schema?.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset
-                    || dataset.Current.Schema?.PropertyMatching is PropertyMatching.Equal or PropertyMatching.Superset)
-                && !(dataset.Previous.Schema?.Fields.Select(x => x.Name) ?? []).ToHashSet(StringComparer.Ordinal)
-                    .SetEquals(dataset.Current.Schema?.Fields.Select(x => x.Name) ?? []))
+            if (SchemaPropertyComparison.ClosedSetChanged(previous, current))
                 Add("property-set", CompatibilityClassification.Unknown, "Closed property-set declarations changed; the open-record assumption cannot prove compatibility.");
-            if ((dataset.Previous.Schema?.PropertyOrder == PropertyOrder.Declared || dataset.Current.Schema?.PropertyOrder == PropertyOrder.Declared)
-                && !(dataset.Previous.Schema?.Fields.Select(x => x.Name) ?? []).SequenceEqual(dataset.Current.Schema?.Fields.Select(x => x.Name) ?? [], StringComparer.Ordinal))
+            if (SchemaPropertyComparison.OrderChanged(previous, current))
                 Add("property-sequence", CompatibilityClassification.Unknown, "Declared property sequence changed; order containment is unresolved.");
-            if (dataset.Previous.Name != dataset.Current.Name || dataset.Previous.PhysicalName != dataset.Current.PhysicalName
-                || dataset.Previous.Kind != dataset.Current.Kind || !Equal(dataset.Previous.EndpointBindings, dataset.Current.EndpointBindings))
+        }
+
+        private void DatasetAccess(DataAsset previous, DataAsset current)
+        {
+            if (previous.Name != current.Name || previous.PhysicalName != current.PhysicalName
+                || previous.Kind != current.Kind || !Equal(previous.EndpointBindings, current.EndpointBindings))
                 Add("dataset-access", CompatibilityClassification.PotentiallyBreaking, "Dataset naming, representation, or endpoint bindings changed; consumer access assumptions may be affected.");
-            if (!Equal(dataset.Previous.Schema?.PrimaryKey, dataset.Current.Schema?.PrimaryKey)
-                || !Equal(dataset.Previous.Schema?.Extensions, dataset.Current.Schema?.Extensions)
-                || !Equal(dataset.Previous.Extensions, dataset.Current.Extensions)
-                || (dataset.Previous.Schema is null) != (dataset.Current.Schema is null))
+        }
+
+        private void DatasetSemantics(DataAsset previous, DataAsset current)
+        {
+            if (!Equal(previous.Schema?.PrimaryKey, current.Schema?.PrimaryKey)
+                || !Equal(previous.Schema?.Extensions, current.Schema?.Extensions)
+                || !Equal(previous.Extensions, current.Extensions)
+                || (previous.Schema is null) != (current.Schema is null))
                 Add("dataset-semantics", CompatibilityClassification.Unknown, "Schema keys, schema availability, or extension semantics require additional policy rules.");
         }
 
