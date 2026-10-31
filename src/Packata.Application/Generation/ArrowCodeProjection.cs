@@ -50,24 +50,60 @@ internal static class ArrowCodeProjection
         ? $"pa.field({Literal(f.Name, true)}, {Type(f.DataType, true)}, nullable={(f.IsNullable ? "True" : "False")}, metadata={Metadata(f.Metadata, true)})"
         : $"new Field({Literal(f.Name)}, {Type(f.DataType, false)}, {(f.IsNullable ? "true" : "false")}, {Metadata(f.Metadata, false)})";
 
-    private static string Type(IArrowType type, bool python)
+    private static string Type(IArrowType type, bool python) => type switch
     {
-        var unit = type switch { TimestampType ts => ts.Unit, Time32Type t32 => t32.Unit, Time64Type t64 => t64.Unit, _ => TimeUnit.Second };
-        var pyUnit = unit switch { TimeUnit.Second => "s", TimeUnit.Millisecond => "ms", TimeUnit.Microsecond => "us", _ => "ns" };
-        if (type is StructType s) return python ? $"pa.struct([{string.Join(", ", s.Fields.Select(f => Field(f, true)))}])" : $"new StructType(new Field[] {{ {string.Join(", ", s.Fields.Select(f => Field(f, false)))} }})";
-        if (type is ListType l) return python ? $"pa.list_({Field(l.ValueField, true)})" : $"new ListType({Field(l.ValueField, false)})";
-        if (type is MapType m) return python ? $"pa.map_({Field(m.KeyField, true)}, {Field(m.ValueField, true)})" : $"new MapType({Field(m.KeyField, false)}, {Field(m.ValueField, false)})";
-        if (type is TimestampType t) return python ? $"pa.timestamp({Literal(pyUnit, true)}, tz={(t.Timezone is null ? "None" : Literal(t.Timezone, true))})" : $"new TimestampType(TimeUnit.{unit}, {(t.Timezone is null ? "(string?)null" : Literal(t.Timezone))})";
-        if (type is Time32Type or Time64Type) return python ? $"pa.{(type is Time32Type ? "time32" : "time64")}({Literal(pyUnit, true)})" : $"new {type.GetType().Name}(TimeUnit.{unit})";
-        if (type is Decimal128Type d) return python ? $"pa.decimal128({d.Precision}, {d.Scale})" : $"new Decimal128Type({d.Precision}, {d.Scale})";
-        if (type is Decimal256Type d256) return python ? $"pa.decimal256({d256.Precision}, {d256.Scale})" : $"new Decimal256Type({d256.Precision}, {d256.Scale})";
-        var function = type.TypeId switch
-        {
-            ArrowTypeId.Int8 => "int8", ArrowTypeId.UInt8 => "uint8", ArrowTypeId.Int16 => "int16", ArrowTypeId.UInt16 => "uint16",
-            ArrowTypeId.Int32 => "int32", ArrowTypeId.UInt32 => "uint32", ArrowTypeId.Int64 => "int64", ArrowTypeId.UInt64 => "uint64",
-            ArrowTypeId.Float => "float32", ArrowTypeId.Double => "float64", ArrowTypeId.String => "string", ArrowTypeId.Binary => "binary",
-            ArrowTypeId.Boolean => "bool_", ArrowTypeId.Date32 => "date32", _ => throw new NotSupportedException("Arrow code type is unavailable.")
-        };
+        StructType structure => Struct(structure, python),
+        ListType list => List(list, python),
+        MapType map => Map(map, python),
+        TimestampType timestamp => Timestamp(timestamp, python),
+        Time32Type time => Time(time.Unit, "Time32Type", "time32", python),
+        Time64Type time => Time(time.Unit, "Time64Type", "time64", python),
+        Decimal128Type number => Decimal(number.Precision, number.Scale, 128, python),
+        Decimal256Type number => Decimal(number.Precision, number.Scale, 256, python),
+        _ => Scalar(type, python)
+    };
+
+    private static string Struct(StructType type, bool python) => python
+        ? $"pa.struct([{string.Join(", ", type.Fields.Select(f => Field(f, true)))}])"
+        : $"new StructType(new Field[] {{ {string.Join(", ", type.Fields.Select(f => Field(f, false)))} }})";
+
+    private static string List(ListType type, bool python) => python
+        ? $"pa.list_({Field(type.ValueField, true)})" : $"new ListType({Field(type.ValueField, false)})";
+
+    private static string Map(MapType type, bool python) => python
+        ? $"pa.map_({Field(type.KeyField, true)}, {Field(type.ValueField, true)})"
+        : $"new MapType({Field(type.KeyField, false)}, {Field(type.ValueField, false)})";
+
+    private static string Timestamp(TimestampType type, bool python)
+    {
+        var zone = type.Timezone is null ? "None" : Literal(type.Timezone, true);
+        if (python) return $"pa.timestamp({Literal(PythonUnit(type.Unit), true)}, tz={zone})";
+        zone = type.Timezone is null ? "(string?)null" : Literal(type.Timezone);
+        return $"new TimestampType(TimeUnit.{type.Unit}, {zone})";
+    }
+
+    private static string PythonUnit(TimeUnit unit) => unit switch
+    {
+        TimeUnit.Second => "s", TimeUnit.Millisecond => "ms", TimeUnit.Microsecond => "us", _ => "ns"
+    };
+
+    private static string Time(TimeUnit unit, string csharpType, string pythonType, bool python) => python
+        ? $"pa.{pythonType}({Literal(PythonUnit(unit), true)})" : $"new {csharpType}(TimeUnit.{unit})";
+
+    private static string Decimal(int precision, int scale, int width, bool python) => python
+        ? $"pa.decimal{width}({precision}, {scale})" : $"new Decimal{width}Type({precision}, {scale})";
+
+    private static readonly IReadOnlyDictionary<ArrowTypeId, string> ScalarFunctions = new Dictionary<ArrowTypeId, string>
+    {
+        [ArrowTypeId.Int8] = "int8", [ArrowTypeId.UInt8] = "uint8", [ArrowTypeId.Int16] = "int16", [ArrowTypeId.UInt16] = "uint16",
+        [ArrowTypeId.Int32] = "int32", [ArrowTypeId.UInt32] = "uint32", [ArrowTypeId.Int64] = "int64", [ArrowTypeId.UInt64] = "uint64",
+        [ArrowTypeId.Float] = "float32", [ArrowTypeId.Double] = "float64", [ArrowTypeId.String] = "string", [ArrowTypeId.Binary] = "binary",
+        [ArrowTypeId.Boolean] = "bool_", [ArrowTypeId.Date32] = "date32"
+    };
+
+    private static string Scalar(IArrowType type, bool python)
+    {
+        if (!ScalarFunctions.TryGetValue(type.TypeId, out var function)) throw new NotSupportedException("Arrow code type is unavailable.");
         return python ? $"pa.{function}()" : type.GetType().Name + ".Default";
     }
 }
