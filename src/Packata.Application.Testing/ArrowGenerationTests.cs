@@ -13,6 +13,46 @@ public class ArrowGenerationTests
 {
     [TestCase("csharp")]
     [TestCase("python")]
+    public async Task Equivalent_sources_and_escaped_field_names_preserve_schema_meaning(string language)
+    {
+        var service = new SchemaGenerationService();
+        const string dp = """{"resources":[{"name":"orders","schema":{"fields":[{"name":"quote\"slash\\line\n","type":"integer","format":"i64"}]}}]}""";
+        const string odcs = """
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: sample
+            schema:
+              - name: orders
+                properties:
+                  - name: "quote\"slash\\line\n"
+                    logicalType: integer
+                    required: true
+                    nullable: true
+                    logicalTypeOptions:
+                      format: i64
+            """;
+        var left = await service.GenerateAsync(dp, new(Target: "arrow", Language: language));
+        var right = await service.GenerateAsync(odcs, new(Target: "arrow", Language: language));
+        Assert.That(left.IsSuccessful && right.IsSuccessful, Is.True, string.Join("\n", left.Diagnostics.Concat(right.Diagnostics)));
+        Assert.That(left.Content, Is.EqualTo(right.Content));
+        Assert.That(left.Content, Does.Contain("quote\\\"slash\\\\line\\n"));
+        if (language == "csharp")
+        {
+            var schema = (Schema)SchemaGenerationTests.Compile(left.Content!).GetType("Orders")!.GetMethod("Create")!.Invoke(null, null)!;
+            Assert.That(schema.GetFieldByIndex(0).Name, Is.EqualTo("quote\"slash\\line\n"));
+        }
+    }
+
+    [Test]
+    public async Task Wrong_operation_options_from_JSON_are_rejected()
+    {
+        var options = Newtonsoft.Json.JsonConvert.DeserializeObject<GenerationOptions>("""{"target":"arrow","language":"python","outputFormat":"arrow-ipc"}""")!;
+        var result = await new SchemaGenerationService().GenerateAsync(SchemaGenerationTests.Descriptor, options);
+        Assert.That(result.Content, Is.Null);
+        Assert.That(result.Diagnostics.Single().Code, Is.EqualTo("GEN_OPTIONS"));
+    }
+    [TestCase("csharp")]
+    [TestCase("python")]
     public async Task Arrow_targets_are_deterministic_and_share_nested_type_parameters(string language)
     {
         var service = new SchemaGenerationService();
