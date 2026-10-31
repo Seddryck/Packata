@@ -26,7 +26,7 @@ internal static class CliApplication
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
         {
-            if (args.Take(2).SequenceEqual(new[] { "schema", "generate" })) configuration.UseStrictParsing();
+            if (args.Length >= 2 && args[0] == "schema" && args[1] is "generate" or "export") configuration.UseStrictParsing();
             configuration.SetApplicationName("packata");
             configuration.SetApplicationVersion(ApplicationVersion.Value);
             configuration.ConfigureConsole(AnsiConsole.Create(new AnsiConsoleSettings

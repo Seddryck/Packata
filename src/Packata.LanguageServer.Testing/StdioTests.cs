@@ -10,6 +10,31 @@ namespace Packata.LanguageServer.Testing;
 public sealed class StdioTests
 {
     [Test]
+    public async Task SchemaDocumentsAdvertiseBinaryAndRejectCodeOptionsAsync()
+    {
+        await using var client = await StdioClient.StartAsync();
+        Assert.That(client.Commands, Does.Contain("packata.schema.document.options").And.Contain("packata.schema.document.export"));
+        const string uri = "file:///workspace/document.yaml";
+        await client.NotifyAsync("textDocument/didOpen", new { textDocument = new { uri, languageId = "yaml", version = 1,
+            text = "resources:\n  - name: orders\n    schema:\n      fields:\n        - name: id\n          type: integer\n" } });
+        var options = await client.CommandAsync("packata.schema.document.options", new { uri });
+        Assert.That(options["formats"]!.Any(f => (string?)f["id"] == "arrow-ipc" && (string?)f["representation"] == "binary"), Is.True);
+        var exported = await client.CommandAsync("packata.schema.document.export", new { uri, version = 1,
+            selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", outputFormat = "arrow-ipc" } });
+        Assert.That((bool?)exported["result"]?["isSuccessful"], Is.True, exported.ToString());
+        Assert.That((string?)exported["result"]?["diagnostics"]?[0]?["severity"], Is.EqualTo("Warning"));
+        var bytes = Convert.FromBase64String((string)exported["result"]!["bytes"]!);
+        using var stream = new MemoryStream(bytes);
+        using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(stream);
+        Assert.That((await reader.GetSchema()).FieldsList.Single().Name, Is.EqualTo("id"));
+        Assert.That(stream.Position, Is.EqualTo(stream.Length));
+        var rejected = await client.CommandAsync("packata.schema.document.export", new { uri, version = 1,
+            selectionKey = (string?)options["selectionKey"], options = new { outputFormat = "arrow-ipc", target = "arrow", language = "python" } });
+        Assert.That((bool?)rejected["result"]?["isSuccessful"], Is.False);
+        Assert.That((string?)rejected["result"]?["diagnostics"]?[0]?["code"], Is.EqualTo("EXPORT_OPTIONS"));
+        await client.StopAsync();
+    }
+    [Test]
     public async Task GenerationCommandsAdvertiseCapabilitiesAndReturnContentInsideFramesAsync()
     {
         await using var client = await StdioClient.StartAsync();

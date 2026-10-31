@@ -110,8 +110,8 @@ Both projections come from the language server and follow unsaved edits. Switchi
 
 ## Generate schema code
 
-Run **Packata: Generate Schema Code…** from the Command Palette or a contract/asset context
-menu in either explorer projection. Select an eligible asset when prompted, then **C#
+Use **Generate Schema Code > C# / Python > Arrow Schema…** or the catalog-driven **Other Targets…** picker from a contract/asset context
+menu in either explorer projection (also available from the Command Palette). Select an eligible asset when prompted, then **C#
 record**, **DataTable**, **Polars.NET**, **Arrow Schema (C#)**, **Arrow Schema (Python)**, or **Custom template…**. The catalog comes from
 Application through the server, so its targets, engines and mapping profiles match CLI.
 Use **Generate** for defaults or customize namespace/type name. Custom templates allow an
@@ -139,3 +139,8 @@ are never replaced automatically by labels/enums. See the repository's
 for context version 1, examples and target limits. The feature is disabled in untrusted or
 virtual workspaces and reports missing generation capabilities on older servers. It reads
 no rows, uses no database connections, and never compiles or executes generated output.
+
+
+## Export schema documents
+
+Use **Export Schema > Arrow IPC…** on a contract or asset for a portable binary schema message. The Application catalog supplies its binary representation; the extension uses an explicit save dialog, protects existing files, and never treats the bytes as editable UTF-8. **Other Formats…** uses the same export catalog; text formats open untitled previews. Source edits, changed selection, server restart and cancellation discard obsolete artifacts. See [Arrow schema documents](../docs/arrow-schema-documents.md) for the encoding, .NET/Python readers and focused validation.

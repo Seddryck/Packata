@@ -11,6 +11,7 @@ export interface GenerationDiscovery {
   assets: { id: string; name: string; sourcePath: string; eligible: boolean; reason?: string }[]; diagnostics: Finding[];
 }
 interface Options { assetId?: string; target?: string; language?: string; engine?: string; profile?: string; namespace?: string; typeName?: string; defines?: string[] }
+interface TargetSelection { target: string; language: string }
 interface TemplateSnapshot { uri: string; text: string; version: number }
 export interface Generated {
   schemaVersion: number; uri: string; version: number | null; selectionKey: string;
@@ -47,7 +48,12 @@ async function customize(options: Options, custom: boolean): Promise<boolean> {
   }
 }
 
-async function selectTemplate(discovery: GenerationDiscovery, uri: vscode.Uri, options: Options): Promise<TemplateSnapshot | null | undefined> {
+async function selectTemplate(discovery: GenerationDiscovery, uri: vscode.Uri, options: Options, preset?: TargetSelection): Promise<TemplateSnapshot | null | undefined> {
+  if (preset) {
+    const target = discovery.catalog.targets.find(t => t.id === preset.target && t.language === preset.language);
+    if (!target) throw new Error('This target/language pair is unavailable.');
+    options.target = target.id; options.language = target.language; return null;
+  }
   const choices = discovery.catalog.targets.map(target => ({ label: target.label, description: target.limitation, target }));
   const selected = await vscode.window.showQuickPick([...choices, { label: 'Custom template…', description: 'Select a Didot template', target: undefined }], { title: 'Generate Schema Code' });
   if (!selected) return undefined;
@@ -119,7 +125,7 @@ async function chooseAsset(discovery: GenerationDiscovery, entry?: TreeEntry): P
   return (await vscode.window.showQuickPick(assets.map(a => ({ label: a.name, description: a.id, asset: a })), { title: 'Select an asset' }))?.asset;
 }
 
-async function prepare(request: Request, entry: TreeEntry | undefined, epoch: number, selectedNode?: string): Promise<PreparedGeneration | undefined> {
+async function prepare(request: Request, entry: TreeEntry | undefined, epoch: number, selectedNode?: string, preset?: TargetSelection): Promise<PreparedGeneration | undefined> {
   const source = sourceUri(entry);
   if (!source) return undefined;
   const uri = source.toString();
@@ -129,7 +135,7 @@ async function prepare(request: Request, entry: TreeEntry | undefined, epoch: nu
   const asset = await chooseAsset(discovery, entry);
   if (!asset) return undefined;
   const options: Options = { assetId: asset.id };
-  const template = await selectTemplate(discovery, source, options);
+  const template = await selectTemplate(discovery, source, options, preset);
   if (template === undefined) return undefined;
   if (!await customize(options, template !== null)) return undefined;
   return { uri, sourceUri: source, discovery, sourcePath: asset.sourcePath, options, template, epoch, selectedNode };
@@ -161,9 +167,9 @@ async function render(request: Request, prepared: PreparedGeneration, token: vsc
 }
 
 export async function generateSchemaCode(request: Request, entry?: TreeEntry, session: () => number = () => 0,
-  selection: () => string | undefined = () => undefined): Promise<void> {
+  selection: () => string | undefined = () => undefined, preset?: TargetSelection): Promise<void> {
   try {
-    const prepared = await prepare(request, entry, session(), selection());
+    const prepared = await prepare(request, entry, session(), selection(), preset);
     if (!prepared) return;
     await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Generating schema code…', cancellable: true }, async (_progress, token) => {
       try { await render(request, prepared, token, session, selection); }

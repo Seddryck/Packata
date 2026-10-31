@@ -182,7 +182,7 @@ package installation occur exclusively in interoperability tests.
 The editor picker discovers both `arrow/csharp` and `arrow/python` through the Application
 catalog and sends the selected language with the target through LanguageServer. Unsaved
 snapshots, cancellation, diagnostics, and untitled editable output retain their existing
-safeguards. Common hierarchical menu infrastructure remains owned by #699.
+safeguards. The editor declares Generate Schema Code > C#/Python > Arrow Schema… and a catalog-driven Other Targets… picker. Arrow IPC document export has its own Export Schema menu and binary save flow; see [schema documents](../arrow-schema-documents/).
 
 Focused checks: `SchemaGenerationTests`, `ArrowGenerationTests` (set `PACKATA_TEST_PYTHON`
 to a Python with PyArrow), CLI `SchemaGenerationCommandTests`, LanguageServer

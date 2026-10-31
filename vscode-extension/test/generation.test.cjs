@@ -63,7 +63,7 @@ function harness(options = {}) {
       result: { isSuccessful: !options.failure, content: options.failure ? null : 'generated', language: options.custom ? 'plaintext' : 'csharp', suggestedFilename: 'Orders.cs',
         templateVersion: options.custom ? 7 : 1, diagnostics: options.failure ? [{ severity: 'Error', message: 'Mapping failed' }] : [] } };
   };
-  return { api: module.exports, mock, request, errors, opened, calls, run: entry => module.exports.generateSchemaCode(request, entry, () => session, () => selected) };
+  return { api: module.exports, mock, request, errors, opened, calls, run: entry => module.exports.generateSchemaCode(request, entry, () => session, () => selected, options.preset) };
 }
 
 test('generation opens an editable C# untitled document without writing a descriptor', async () => {
@@ -81,7 +81,19 @@ for (const language of ['csharp', 'python']) {
     assert.equal(call.args.options.language, language);
     assert.equal(h.opened.length, 1);
   });
+  test('Arrow submenu routes the exact implemented ' + language + ' pair', async () => {
+    const h = harness({ arrow: true, language, preset: { target: 'arrow', language } }); await h.run();
+    const call = h.calls.find(c => c.command === 'packata.schema.export');
+    assert.equal(call.args.options.target, 'arrow');
+    assert.equal(call.args.options.language, language);
+  });
 }
+
+test('Arrow submenu cannot invoke an unavailable language pair', async () => {
+  const h = harness({ arrow: true, language: 'csharp', preset: { target: 'arrow', language: 'python' } }); await h.run();
+  assert.equal(h.opened.length, 0);
+  assert.ok(!h.calls.some(c => c.command === 'packata.schema.export'));
+});
 test('custom generation uses unsaved template text and the descriptor owning workspace folder', async () => {
   const h = harness({ custom: true }); await h.run();
   const call = h.calls.find(c => c.command === 'packata.schema.export');

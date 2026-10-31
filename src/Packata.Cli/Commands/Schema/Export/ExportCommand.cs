@@ -12,15 +12,23 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
         try
         {
             using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var result = ContractExportService.JsonSchema(source.ParsedDocument, settings.Asset ?? throw new ArgumentException("An asset is required."), cancellationToken);
+            var result = await SchemaDocumentService.ExportAsync(source.ParsedDocument,
+                new(settings.OutputFormat!, settings.Asset, settings.Profile), cancellationToken).ConfigureAwait(false);
             foreach (var diagnostic in result.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!result.IsSuccessful) return ExitCodes.InvalidDocument;
-            var content = result.Content + Environment.NewLine;
             cancellationToken.ThrowIfCancellationRequested();
-            if (settings.Output is null) Console.Write(content);
+            if (result.Bytes is { } bytes)
+            {
+                if (settings.Output is null)
+                {
+                    await Console.OpenStandardOutput().WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+                }
+                else ContractDocumentWriter.WriteBytes(settings.Output, bytes, cancellationToken);
+            }
+            else if (settings.Output is null) Console.Write(result.Content + Environment.NewLine);
             else
             {
-                try { ContractDocumentWriter.Write(settings.Output, content, overwrite: false); }
+                try { ContractDocumentWriter.Write(settings.Output, result.Content + Environment.NewLine, overwrite: false); }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {
                     CommandOutput.Diagnostic(new("CLI003", MappingSeverity.Error, "$.output",

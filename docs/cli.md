@@ -571,8 +571,8 @@ GitHub annotations, validation line/column mapping and MCP registration remain s
 | Option / alias | Values / default | Meaning |
 | --- | --- | --- |
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
-| `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
-| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema` | Target representation |
+| `--asset <ID>` | Optional for one eligible asset | Exact Data Package resource or ODCS schema object name |
+| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema` or `arrow-ipc` | Portable schema document representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
 
 Code generation uses `schema generate --target <TARGET> --language <LANGUAGE>` or `schema generate --template <PATH>`
@@ -605,6 +605,8 @@ mapping/template failure, 2 invalid selectors/options, 3 template/output I/O fai
 130 cancellation. See [schema generation]({{ '/reference/dotnet/schema-generation/' | relative_url }})
 for the context, target limits and runnable templates.
 
+Arrow IPC exports one binary schema message, without data batches. For binary output use `--output-format arrow-ipc -o orders.schema.ipc` or byte-preserving stdout redirection. The source and existing outputs are protected. See [Arrow schema documents]({{ '/reference/dotnet/arrow-schema-documents/' | relative_url }}) for readers, encoding and limitations.
+
 All shown positional arguments are required. Use `--help` for command help.
 
 ```console
@@ -616,7 +618,7 @@ Export one asset from an ODCS or Data Package v2 descriptor. You can use the sam
 HTTP(S) and ZIP, TAR, TAR.GZ and TAR.BR sources as inspection. Select the asset by its exact canonical identifier;
 a missing or ambiguous identifier fails.
 
-The required output format is JSON Schema. Select it with `--output-format` or its short
+Select JSON Schema or an Arrow IPC schema message with `--output-format` or its short
 alias, `-f`. The complete syntax and accepted values are listed above.
 
 The result is a JSON Schema Draft 2020-12 object describing one dataset record. By default,
@@ -662,7 +664,7 @@ schema.Serialize(stream);
 | Option / alias | Values / default | Meaning |
 | --- | --- | --- |
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
-| `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
+| `--asset <ID>` | Optional for one eligible asset | Exact Data Package resource or ODCS schema object name |
 | `--limit <COUNT>` | Positive 32-bit integer; `20` | Maximum data rows, excluding headers |
 | `--staging-maximum-bytes <COUNT>` | Positive integer; `268435456` (256 MiB) | Maximum bytes copied for each non-seekable Excel/Parquet resource; ignored for CSV/inline/database reads |
 | `--columns <NAMES>` | All fields | Unique exact names, comma-separated, in output order |

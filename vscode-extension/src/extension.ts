@@ -6,7 +6,8 @@ import { ContractTree, TreeEntry, restoreViewState } from './tree';
 import { ViewMode, ViewPreference } from './viewMode';
 import { ValidationUi } from './validationUi';
 import { previewResource } from './preview';
-import { generateSchemaCode } from './generation';
+import { generateSchemaCode, GenerationDiscovery } from './generation';
+import { exportSchemaDocument } from './schemaDocuments';
 
 let client: LanguageClient | undefined;
 
@@ -127,6 +128,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (cancellation.token.isCancellationRequested || !state.apply(epoch, response, versions())) return;
       tree.refresh();
       validation.refreshAction();
+      let schemaDocumentsAvailable = false, arrowIpcAvailable = false;
+      if (state.contracts.length && connection.initializeResult?.capabilities.executeCommandProvider?.commands.includes('packata.schema.document.options')) {
+        try {
+          const catalog = await request<{ formats: { id: string; representation: string }[] }>('packata.schema.document.options', { uri: state.contracts[0].uri }, cancellation.token);
+          schemaDocumentsAvailable = catalog.formats.length > 0;
+          arrowIpcAvailable = catalog.formats.some(f => f.id === 'arrow-ipc' && f.representation === 'binary');
+        } catch { /* Older servers keep the unavailable format hidden. */ }
+      }
+      if (cancellation.token.isCancellationRequested || currentGeneration !== generation) return;
+      await vscode.commands.executeCommand('setContext', 'packata.schemaDocumentsAvailable', schemaDocumentsAvailable);
+      await vscode.commands.executeCommand('setContext', 'packata.arrowIpcAvailable', arrowIpcAvailable);
+      let generationAvailable = false, arrowCsharp = false, arrowPython = false;
+      if (state.contracts.length && connection.initializeResult?.capabilities.executeCommandProvider?.commands.includes('packata.schema.export.options')) {
+        try {
+          const discovery = await request<GenerationDiscovery>('packata.schema.export.options', { uri: state.contracts[0].uri }, cancellation.token);
+          generationAvailable = discovery.catalog.contextVersion === 1;
+          arrowCsharp = discovery.catalog.targets.some(t => t.id === 'arrow' && t.language === 'csharp');
+          arrowPython = discovery.catalog.targets.some(t => t.id === 'arrow' && t.language === 'python');
+        } catch { /* Hide target entries when their catalog is unavailable. */ }
+      }
+      if (cancellation.token.isCancellationRequested || currentGeneration !== generation) return;
+      await vscode.commands.executeCommand('setContext', 'packata.arrowCsharpAvailable', arrowCsharp);
+      await vscode.commands.executeCommand('setContext', 'packata.arrowPythonAvailable', arrowPython);
+      await vscode.commands.executeCommand('setContext', 'packata.schemaGenerationAvailable', generationAvailable);
       for (const contract of state.contracts) {
         const signature = JSON.stringify(contract.diagnostics);
         if (reportedDiagnostics.get(contract.uri) !== signature) {
@@ -167,6 +192,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   command('packata.refresh', refresh);
   command('packata.preview', entry => previewResource(request, entry));
   command('packata.generateSchemaCode', entry => generateSchemaCode(request, entry, () => serverSession, () => view.selection[0]?.node.id));
+  command('packata.generateArrowCsharp', entry => generateSchemaCode(request, entry, () => serverSession, () => view.selection[0]?.node.id, { target: 'arrow', language: 'csharp' }));
+  command('packata.generateArrowPython', entry => generateSchemaCode(request, entry, () => serverSession, () => view.selection[0]?.node.id, { target: 'arrow', language: 'python' }));
+  command('packata.exportSchemaDocument', entry => exportSchemaDocument(request, entry, undefined, () => serverSession, () => view.selection[0]?.node.id));
+  command('packata.exportArrowSchema', entry => exportSchemaDocument(request, entry, 'arrow-ipc', () => serverSession, () => view.selection[0]?.node.id));
   command('packata.restart', async () => { state.clear(); tree.validation.clear(); tree.refresh(); await connection.restart(); await Promise.all(pendingOpenNotifications); compatible(); schedule(); });
   command('packata.copyPath', entry => entry && vscode.env.clipboard.writeText(tree.mode === 'native' ? entry.node.sourcePath ?? entry.node.logicalPath : entry.node.logicalPath));
   command('packata.openSource', async entry => vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.parse(uri(entry)))));
@@ -212,6 +241,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     connection.onDidChangeState(event => {
       ++serverSession;
+      for (const key of ['packata.schemaDocumentsAvailable', 'packata.arrowIpcAvailable', 'packata.schemaGenerationAvailable', 'packata.arrowCsharpAvailable', 'packata.arrowPythonAvailable'])
+        void vscode.commands.executeCommand('setContext', key, false);
       if (event.newState === State.Running) { tree.validation.clear(); schedule(); }
       else { state.clear(); tree.refresh(); failure('Packata language server is disconnected. Restart it to refresh contracts.'); }
     }),

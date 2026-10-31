@@ -112,7 +112,27 @@
         "command": "packata.generateSchemaCode",
         "category": "Packata",
         "icon": "$(code)",
-        "title": "Generate Schema Code…"
+        "title": "Other Targets…"
+      },
+      {
+        "title": "Other Formats…",
+        "command": "packata.exportSchemaDocument",
+        "category": "Packata"
+      },
+      {
+        "title": "Arrow IPC…",
+        "command": "packata.exportArrowSchema",
+        "category": "Packata"
+      },
+      {
+        "title": "Arrow Schema…",
+        "category": "Packata C#",
+        "command": "packata.generateArrowCsharp"
+      },
+      {
+        "title": "Arrow Schema…",
+        "category": "Packata Python",
+        "command": "packata.generateArrowPython"
       }
     ],
     "menus": {
@@ -155,9 +175,14 @@
           "group": "2_contract"
         },
         {
-          "command": "packata.generateSchemaCode",
-          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset)",
-          "group": "2_contract"
+          "group": "2_contract",
+          "submenu": "packata.exportSchema",
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset) && packata.schemaDocumentsAvailable"
+        },
+        {
+          "when": "view == packata.contracts && (viewItem == contract || viewItem == asset || viewItem == previewAsset) && packata.schemaGenerationAvailable",
+          "group": "2_contract",
+          "submenu": "packata.generateSchema"
         }
       ],
       "explorer/context": [
@@ -183,6 +208,69 @@
           "command": "packata.runLastValidation",
           "group": "packata@2"
         }
+      ],
+      "packata.exportSchema": [
+        {
+          "group": "1_formats",
+          "command": "packata.exportArrowSchema",
+          "when": "packata.arrowIpcAvailable"
+        },
+        {
+          "group": "2_other",
+          "command": "packata.exportSchemaDocument",
+          "when": "packata.schemaDocumentsAvailable"
+        }
+      ],
+      "commandPalette": [
+        {
+          "when": "packata.arrowIpcAvailable",
+          "command": "packata.exportArrowSchema"
+        },
+        {
+          "when": "packata.schemaDocumentsAvailable",
+          "command": "packata.exportSchemaDocument"
+        },
+        {
+          "command": "packata.generateArrowCsharp",
+          "when": "packata.arrowCsharpAvailable"
+        },
+        {
+          "command": "packata.generateArrowPython",
+          "when": "packata.arrowPythonAvailable"
+        },
+        {
+          "when": "packata.schemaGenerationAvailable",
+          "command": "packata.generateSchemaCode"
+        }
+      ],
+      "packata.generateSchema": [
+        {
+          "when": "packata.arrowCsharpAvailable",
+          "group": "1_languages",
+          "submenu": "packata.generateCsharp"
+        },
+        {
+          "when": "packata.arrowPythonAvailable",
+          "group": "1_languages",
+          "submenu": "packata.generatePython"
+        },
+        {
+          "command": "packata.generateSchemaCode",
+          "group": "2_other",
+          "when": "packata.schemaGenerationAvailable"
+        }
+      ],
+      "packata.generateCsharp": [
+        {
+          "command": "packata.generateArrowCsharp",
+          "when": "packata.arrowCsharpAvailable"
+        }
+      ],
+      "packata.generatePython": [
+        {
+          "command": "packata.generateArrowPython",
+          "when": "packata.arrowPythonAvailable"
+        }
       ]
     },
     "configuration": {
@@ -201,7 +289,25 @@
           "description": "Maximum server request time in milliseconds."
         }
       }
-    }
+    },
+    "submenus": [
+      {
+        "id": "packata.exportSchema",
+        "label": "Export Schema"
+      },
+      {
+        "id": "packata.generateSchema",
+        "label": "Generate Schema Code"
+      },
+      {
+        "id": "packata.generateCsharp",
+        "label": "C#"
+      },
+      {
+        "id": "packata.generatePython",
+        "label": "Python"
+      }
+    ]
   },
   "scripts": {
     "check": "tsc --noEmit",
