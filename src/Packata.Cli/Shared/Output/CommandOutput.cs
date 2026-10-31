@@ -1,4 +1,5 @@
 using Newtonsoft.Json.Linq;
+using Spectre.Console;
 using Packata.Core.Contracts;
 
 namespace Packata.Cli;
@@ -26,8 +27,35 @@ internal static class CommandOutput
         _ => ExitCodes.InvalidDocument
     };
 
-    public static void Diagnostic(MappingDiagnostic diagnostic) =>
-        Console.Error.WriteLine($"{diagnostic.Code} {diagnostic.Severity} {Redact(diagnostic.SourcePath)}: {Redact(diagnostic.Message)}");
+    public static void Diagnostic(MappingDiagnostic diagnostic)
+    {
+        if (Console.IsErrorRedirected)
+        {
+            Console.Error.WriteLine(DiagnosticText(diagnostic));
+            return;
+        }
+        Diagnostic(diagnostic, AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Out = new AnsiConsoleOutput(Console.Error),
+            Ansi = AnsiSupport.Detect,
+            Enrichment = new ProfileEnrichment { UseDefaultEnrichers = true }
+        }));
+    }
+
+    internal static void Diagnostic(MappingDiagnostic diagnostic, IAnsiConsole console)
+    {
+        var color = SeverityColor(diagnostic.Severity.ToString());
+        var text = DiagnosticText(diagnostic);
+        console.MarkupLine($"[{color}]{Markup.Escape(text)}[/]");
+    }
+
+    internal static string SeverityColor(string severity) => severity.ToLowerInvariant() switch
+    {
+        "warning" => "yellow", "information" or "info" => "blue", "error" => "red", _ => "grey"
+    };
+
+    private static string DiagnosticText(MappingDiagnostic diagnostic)
+        => $"{diagnostic.Code} {diagnostic.Severity} {Redact(diagnostic.SourcePath)}: {Redact(diagnostic.Message)}";
 
     public static string Redact(string value) => Packata.Application.ContractJson.Redact(value);
 

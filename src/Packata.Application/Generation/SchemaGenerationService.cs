@@ -55,7 +55,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             var error = ValidateOptions(options, template);
             if (error is not null) return Failure("GEN_OPTIONS", error);
             if (options.Operation == "export") return ExportDocument(document, options, cancellationToken);
-            if (options.Target == "ddl") return DdlGeneration.Generate(document, options, cancellationToken);
+            if (options.Target == "ddl") return await DdlGeneration.GenerateAsync(document, options, cancellationToken).ConfigureAwait(false);
             return await GenerateDocumentAsync(document, options, template, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { throw; }
@@ -131,37 +131,73 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
 
     private static void ValidateSelection(GenerationOptions options, TemplateInput? template)
     {
-        if (options.AssetId is not null && string.IsNullOrWhiteSpace(options.AssetId)) throw new ArgumentException("--asset must be a non-empty canonical ID.");
-        if (options.Operation == "export")
+        if (options.AssetId is not null && string.IsNullOrWhiteSpace(options.AssetId))
+            throw new ArgumentException("--asset must be a non-empty canonical ID.");
+        switch (options.Operation)
         {
-            if (options.Target is not null || options.Language is not null || options.Dialect is not null || template is not null
-                || options.Engine is not null || options.Profile is not null || options.Namespace is not null || options.TypeName is not null
-                || options.Defines?.Count > 0 || options.Fallback != Packata.Core.TypeMappingFallback.Reject || options.DdlOptions is not null)
-                throw new ArgumentException("Export accepts --output-format and optional --profile; use schema generate for code and templates.");
-            var target = Catalog.Targets.SingleOrDefault(t => t.Operation == "export" && t.Id == options.OutputFormat)
-                ?? throw new ArgumentException("Unknown or missing --output-format. Discover available schema export formats.");
-            if (options.CompatibilityProfile is not null && target.CompatibilityProfiles?.Contains(options.CompatibilityProfile) != true)
-                throw new ArgumentException("Unknown or incompatible export --profile. Omit --profile for generic output.");
+            case "export": ValidateExport(options, template); break;
+            case "generate": ValidateGeneration(options, template); break;
+            default: throw new ArgumentException("Unknown schema operation. Use export or generate.");
         }
-        else if (options.Operation == "generate")
-        {
-            if (options.OutputFormat is not null || options.CompatibilityProfile is not null)
-                throw new ArgumentException("Use schema export --output-format for schema documents; --profile is export-only.");
-            if (options.Target == "ddl")
-            {
-                if (template is not null || options.Engine is not null || options.Profile is not null || options.Namespace is not null || options.TypeName is not null || options.Defines?.Count > 0 || options.Fallback != Packata.Core.TypeMappingFallback.Reject)
-                    throw new ArgumentException("DDL does not accept templates or code-generation options.");
-                if (options.Language is not null && options.Language != "sql") throw new ArgumentException("DDL requires SQL; omit --language or supply --language sql.");
-                if (options.Dialect is null) throw new ArgumentException("DDL requires --dialect. Use an ID from the schema catalog.");
-                Packata.Provisioners.Database.OfflineSqlDialects.Resolve(options.Dialect);
-                return;
-            }
-            if (options.DdlOptions is not null) throw new ArgumentException("Relational options apply only to target ddl.");
-            if (options.Dialect is not null) throw new ArgumentException("--dialect applies only to target ddl.");
-            if (options.Target is not null && options.Language is null)
-                throw new ArgumentException("Bundled generation requires --target and --language (for example --target record --language csharp).");
-        }
-        else throw new ArgumentException("Unknown schema operation. Use export or generate.");
+    }
+
+    private static bool HasTemplateOptions(GenerationOptions options)
+        => options.Engine is not null || options.Profile is not null || options.Defines?.Count > 0
+            || options.Fallback != Packata.Core.TypeMappingFallback.Reject || HasSourceNames(options);
+
+    private static bool HasSourceNames(GenerationOptions options)
+        => options.Namespace is not null || options.TypeName is not null;
+
+    private static void ValidateExport(GenerationOptions options, TemplateInput? template)
+    {
+        RejectGenerationSelectors(options, template);
+        var target = DocumentTarget(options.OutputFormat);
+        ValidateDocumentOptions(options, target);
+    }
+
+    private static bool HasGenerationSelectors(GenerationOptions options)
+        => options.Target is not null || options.Language is not null || options.Dialect is not null || HasTemplateOptions(options);
+
+    private static void RejectGenerationSelectors(GenerationOptions options, TemplateInput? template)
+    {
+        if (HasGenerationSelectors(options) || template is not null || options.DdlOptions is not null)
+            throw new ArgumentException("Export accepts --output-format and optional --profile; use schema generate for code and templates.");
+    }
+
+    private static GenerationTarget DocumentTarget(string? format)
+        => Catalog.Targets.SingleOrDefault(t => t.Operation == "export" && t.Id == format)
+            ?? throw new ArgumentException("Unknown or missing --output-format. Discover available schema export formats.");
+
+    private static void ValidateDocumentOptions(GenerationOptions options, GenerationTarget target)
+    {
+        if (options.DocumentOptions is not null && options.OutputFormat != "avro")
+            throw new ArgumentException("Schema naming options apply only to Avro export.");
+        if (options.CompatibilityProfile is not null && target.CompatibilityProfiles?.Contains(options.CompatibilityProfile) != true)
+            throw new ArgumentException("Unknown or incompatible export --profile. Omit --profile for generic output.");
+    }
+
+    private static bool HasDocumentSelectors(GenerationOptions options)
+        => options.OutputFormat is not null || options.CompatibilityProfile is not null || options.DocumentOptions is not null;
+
+    private static void ValidateGeneration(GenerationOptions options, TemplateInput? template)
+    {
+        if (HasDocumentSelectors(options))
+            throw new ArgumentException("Use schema export --output-format for schema documents; --profile is export-only.");
+        if (options.Target == "ddl") { ValidateDdl(options, template); return; }
+        if (options.DdlOptions is not null) throw new ArgumentException("Relational options apply only to target ddl.");
+        if (options.Dialect is not null) throw new ArgumentException("--dialect applies only to target ddl.");
+        if (options.Target is not null && options.Language is null)
+            throw new ArgumentException("Bundled generation requires --target and --language (for example --target record --language csharp).");
+    }
+
+    private static void ValidateDdl(GenerationOptions options, TemplateInput? template)
+    {
+        if (template is not null || HasTemplateOptions(options))
+            throw new ArgumentException("DDL does not accept templates or code-generation options.");
+        if (options.Language is not null && options.Language != "sql")
+            throw new ArgumentException("DDL requires SQL; omit --language or supply --language sql.");
+        if (options.Dialect is null) throw new ArgumentException("DDL requires --dialect. Use an ID from the schema catalog.");
+        Packata.Provisioners.Database.OfflineSqlDialects.Resolve(options.Dialect);
     }
 
     private static GenerationResult ExportDocument(ContractDocument document, GenerationOptions options, CancellationToken token)
@@ -172,6 +208,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         if (options.AssetId is not null && inspection.Mapping.RequireValue().Assets.Count(a => a.Id == options.AssetId) > 1) return Failure("GEN_ASSET", "The selected asset ID is ambiguous.");
         var asset = SelectAsset(inspection.Mapping.RequireValue().Assets.Where(a => a.Schema is { Fields.Count: > 0 }).ToArray(), options.AssetId, diagnostics);
         if (asset is null) return new(null, null, null, null, null, null, diagnostics);
+        if (options.OutputFormat is "avro" or "spark-json") return new StructuredSchemaExport(options.OutputFormat, diagnostics, token, options.DocumentOptions).Export(asset);
         try
         {
             var result = ContractExportService.JsonSchema(document, asset.Id, token);

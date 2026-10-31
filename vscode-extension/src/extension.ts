@@ -122,6 +122,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const currentGeneration = ++generation;
     try {
       const catalog = await request<{ targets: Target[] }>('packata.schema.catalog', {});
+      if (cancellation.token.isCancellationRequested) return;
       await schemaContexts(catalog.targets);
       const response = await request<Discovery>('packata.workspace.discover', {
         workspaceFolders: vscode.workspace.workspaceFolders?.map(folder => folder.uri.toString()) ?? []
@@ -169,6 +170,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
   command('packata.refresh', refresh);
   command('packata.preview', entry => previewResource(request, entry));
+  command('packata.schema.otherFormats', entry => generateSchemaCode(request, entry, () => serverSession, () => view.selection[0]?.node.id, { operation: 'export' }));
+  command('packata.schema.otherTargets', entry => generateSchemaCode(request, entry, () => serverSession, () => view.selection[0]?.node.id));
   command('packata.exportSchema', entry => generateSchemaCode(request, entry, () => serverSession, () => view.selection[0]?.node.id, { operation: 'export' }));
   command('packata.schema.custom', entry => generateSchemaCode(request, entry, () => serverSession, () => view.selection[0]?.node.id, { operation: 'generate', custom: true }));
   for (const [id, route] of Object.entries(schemaRoutes)) command(id, entry => generateSchemaCode(request, entry, () => serverSession, () => view.selection[0]?.node.id, route));
@@ -219,7 +222,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     connection.onDidChangeState(event => {
       ++serverSession;
       if (event.newState === State.Running) { tree.validation.clear(); schedule(); }
-      else { state.clear(); tree.refresh(); failure('Packata language server is disconnected. Restart it to refresh contracts.'); }
+      else { state.clear(); tree.refresh(); void schemaContexts([]); failure('Packata language server is disconnected. Restart it to refresh contracts.'); }
     }),
     { dispose: () => { stopped = true; clearTimeout(timer); refreshCancellation?.cancel(); refreshCancellation?.dispose(); } }
   );

@@ -464,7 +464,7 @@ public class ConnectorIntegrationTests
         var entry = new ConnectorDefinition
         {
             Provider = id ?? scheme + "-native", Version = version, Aliases = aliases ?? [scheme],
-            DubUrlApiRange = incompatible == "api" ? "[99.0,100.0)" : "[0.46,0.47)",
+            DubUrlApiRange = incompatible == "api" ? "[99.0,100.0)" : "[0.55,0.56)",
             Assembly = assemblyPath, ImplementationAssemblies = [assemblyPath],
             Driver = driver.GetName().Name!, DriverAssembly = driverPath,
             Databases = [new(sqlite ? "SQLite3" : "DuckDB", sqlite ? ["sq", "sqlite"] : ["duck", "duckdb"])],
@@ -492,6 +492,8 @@ public class ConnectorIntegrationTests
         public string? Connector { get; private set; }
         public CancellationToken Token { get; private set; }
         public IReadOnlyList<ConnectorInfo> List() => inner.List();
+        public Task<ConnectorInfo> InstallOfflineAsync(string connector, string archivePath, CancellationToken cancellationToken = default)
+            => inner.InstallOfflineAsync(connector, archivePath, cancellationToken);
         public Task<ConnectorInfo> InstallAsync(string connector, CancellationToken cancellationToken = default)
         {
             Installations++;

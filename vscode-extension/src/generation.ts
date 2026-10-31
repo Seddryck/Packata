@@ -4,14 +4,14 @@ import { requireSchema } from './protocol';
 import { TreeEntry } from './tree';
 
 interface Finding { code: string; severity: string; sourcePath?: string; message: string }
-export interface Target { operation?: string; category?: string; representation?: string; extension?: string; compatibilityProfiles?: string[]; dialects?: { id: string; label: string }[]; wholeContract?: boolean; id: string; label: string; profile: string; engine: string; language: string; supportsCSharpOptions: boolean; limitation: string }
+export interface Target { options?: string[]; operation?: string; category?: string; representation?: string; extension?: string; compatibilityProfiles?: string[]; dialects?: { id: string; label: string }[]; wholeContract?: boolean; id: string; label: string; profile: string; engine: string; language: string; supportsCSharpOptions: boolean; limitation: string }
 export interface GenerationDiscovery {
   schemaVersion: number; uri: string; version: number | null; selectionKey: string;
   catalog: { contextVersion: number; targets: Target[]; profiles: string[]; engines: string[]; defaultEngine: string; limitations: string[] };
   assets: { id: string; name: string; sourcePath: string; eligible: boolean; reason?: string }[]; diagnostics: Finding[];
 }
 export interface SchemaRoute { operation: string; target?: string; language?: string; outputFormat?: string; dialect?: string; custom?: boolean }
-interface Options { operation?: string; language?: string; outputFormat?: string; dialect?: string; compatibilityProfile?: string; assetId?: string; target?: string; engine?: string; profile?: string; namespace?: string; typeName?: string; defines?: string[] }
+interface Options { documentOptions?: { name?: string; namespace?: string }; ddlOptions?: { constraints: number; descriptions: boolean }; operation?: string; language?: string; outputFormat?: string; dialect?: string; compatibilityProfile?: string; assetId?: string; target?: string; engine?: string; profile?: string; namespace?: string; typeName?: string; defines?: string[] }
 interface TemplateSnapshot { uri: string; text: string; version: number }
 export interface Generated {
   schemaVersion: number; uri: string; version: number | null; selectionKey: string;
@@ -46,6 +46,35 @@ async function customize(options: Options, custom: boolean): Promise<boolean> {
     else if (choice === 'Type name…') options.typeName = value || undefined;
     else (options.defines ??= []).push(value);
   }
+}
+
+async function documentOptions(options: Options): Promise<boolean> {
+  while (true) {
+    const sql = options.target === 'ddl';
+    const choice = await vscode.window.showQuickPick(sql ? ['Generate', 'Constraints…', 'Descriptions…'] : ['Export', 'Schema name…', 'Schema namespace…'], { title: sql ? 'SQL options' : 'Avro options' });
+    if (!choice) return false;
+    if (choice === 'Generate' || choice === 'Export') return true;
+    if (sql) await editSqlOptions(options, choice);
+    else await editAvroOptions(options, choice);
+  }
+}
+
+async function editSqlOptions(options: Options, choice: string): Promise<void> {
+  options.ddlOptions ??= { constraints: 31, descriptions: true };
+  const value = await vscode.window.showQuickPick(choice === 'Constraints…' ? ['All', 'None', 'Primary key and required'] : ['Include descriptions', 'Omit descriptions'], { title: choice });
+  if (!value) return;
+  if (choice === 'Constraints…') options.ddlOptions.constraints = value === 'All' ? 31 : value === 'None' ? 0 : 3;
+  else options.ddlOptions.descriptions = value === 'Include descriptions';
+
+}
+
+async function editAvroOptions(options: Options, choice: string): Promise<void> {
+  const value = await vscode.window.showInputBox({ title: choice, prompt: 'Leave empty for the catalog default' });
+  if (value === undefined) return;
+  options.documentOptions ??= {};
+  if (choice === 'Schema name…') options.documentOptions.name = value || undefined;
+  else options.documentOptions.namespace = value || undefined;
+
 }
 
 async function selectTemplate(discovery: GenerationDiscovery, uri: vscode.Uri, options: Options, customOnly = false): Promise<TemplateSnapshot | null | undefined> {
@@ -121,14 +150,7 @@ async function chooseAsset(discovery: GenerationDiscovery, entry?: TreeEntry): P
   return (await vscode.window.showQuickPick(assets.map(a => ({ label: a.name, description: a.id, asset: a })), { title: 'Select an asset' }))?.asset;
 }
 
-async function prepare(request: Request, entry: TreeEntry | undefined, epoch: number, selectedNode?: string, route?: SchemaRoute): Promise<PreparedGeneration | undefined> {
-  const source = sourceUri(entry);
-  if (!source) return undefined;
-  const uri = source.toString();
-  await vscode.workspace.openTextDocument(source);
-  const discovery = await request<GenerationDiscovery>('packata.schema.options', { uri, selectionKey: entry?.contract.generationKey });
-  requireGenerationOptions(discovery);
-  const options: Options = { operation: route?.operation ?? 'generate', target: route?.target, language: route?.language, outputFormat: route?.outputFormat, dialect: route?.dialect };
+async function chooseTarget(discovery: GenerationDiscovery, source: vscode.Uri, options: Options, custom?: boolean): Promise<TemplateSnapshot | null | undefined> {
   let template: TemplateSnapshot | null | undefined = null;
   if (options.operation === 'export') {
     if (!options.outputFormat) {
@@ -137,33 +159,75 @@ async function prepare(request: Request, entry: TreeEntry | undefined, epoch: nu
       options.outputFormat = selected.target.id;
     }
   } else if (!options.target) {
-    template = await selectTemplate(discovery, source, options, route?.custom);
+    template = await selectTemplate(discovery, source, options, custom);
     if (template === undefined) return undefined;
   }
-  const target = discovery.catalog.targets.find(t => (t.operation ?? 'generate') === options.operation && t.id === (options.outputFormat ?? options.target) && (options.operation === 'export' || t.language === options.language));
-  if (template === null && !target) throw new Error('The selected capability is unavailable. Refresh the server catalog.');
+  return template;
+}
+
+async function chooseTargetOptions(options: Options, target?: Target): Promise<boolean> {
   if (target?.dialects?.length) {
     if (!options.dialect) {
       const selected = await vscode.window.showQuickPick(target.dialects.map(d => ({ label: d.label, id: d.id })), { title: 'SQL dialect' });
-      if (!selected) return undefined;
+      if (!selected) return false;
       options.dialect = selected.id;
     }
     if (!target.dialects.some(d => d.id === options.dialect)) throw new Error('Selected dialect is unavailable.');
   }
   if (target?.compatibilityProfiles?.length) {
     const profile = await vscode.window.showQuickPick(['Generic', ...target.compatibilityProfiles], { title: 'Compatibility profile' });
-    if (!profile) return undefined;
+    if (!profile) return false;
     if (profile !== 'Generic') options.compatibilityProfile = profile;
   }
+  if (target?.options?.some(o => o === 'schema-name' || o === 'constraints') && !await documentOptions(options)) return false;
+  return true;
+}
+
+function findTarget(discovery: GenerationDiscovery, options: Options): Target | undefined {
+  return discovery.catalog.targets.find(t => (t.operation ?? 'generate') === options.operation
+    && t.id === (options.outputFormat ?? options.target) && (options.operation === 'export' || t.language === options.language));
+}
+
+async function customizeSource(options: Options, target: Target | undefined, custom: boolean): Promise<boolean> {
+  if (options.operation !== 'generate') return true;
+  if (!custom && !target?.supportsCSharpOptions) return true;
+  return customize(options, custom);
+}
+
+async function prepare(request: Request, entry: TreeEntry | undefined, epoch: number, selectedNode?: string, route?: SchemaRoute): Promise<PreparedGeneration | undefined> {
+  const source = sourceUri(entry);
+  if (!source) return undefined;
+  const uri = source.toString();
+  await vscode.workspace.openTextDocument(source);
+  const discovery = await request<GenerationDiscovery>('packata.schema.options', { uri, selectionKey: entry?.contract.generationKey });
+  requireGenerationOptions(discovery);
+  const { custom, ...selectors } = route ?? { operation: 'generate' };
+  const options: Options = selectors;
+  const template = await chooseTarget(discovery, source, options, custom);
+  if (template === undefined) return undefined;
+  const target = findTarget(discovery, options);
+  if (template === null && !target) throw new Error('The selected capability is unavailable. Refresh the server catalog.');
+  if (!await chooseTargetOptions(options, target)) return undefined;
   const whole = target?.wholeContract && entry?.node.kind !== 'asset';
   const asset = whole ? undefined : await chooseAsset(discovery, entry);
   if (!whole && !asset) return undefined;
   options.assetId = asset?.id;
-  if (options.operation === 'generate' && (template !== null || target?.supportsCSharpOptions) && !await customize(options, template !== null)) return undefined;
+  if (!await customizeSource(options, target, template !== null)) return undefined;
   return { uri, sourceUri: source, discovery, sourcePath: asset?.sourcePath, options, template, epoch, selectedNode };
 }
 
 const bufferVersion = (uri: string): number | null => vscode.workspace.textDocuments.find(d => d.uri.toString() === uri)?.version ?? null;
+
+async function saveBinary(result: Generated, prepared: PreparedGeneration, template: TemplateSnapshot | null): Promise<void> {
+  if (typeof result.result.binaryContent !== 'string') throw new Error('Missing binary artifact.');
+  const destination = await vscode.window.showSaveDialog({ title: 'Save schema artifact', defaultUri: prepared.sourceUri.with({ path: path.posix.join(path.posix.dirname(prepared.sourceUri.path), result.result.suggestedFilename ?? 'schema.bin') }) });
+  if (!destination) return;
+  if (destination.toString() === prepared.uri || destination.toString() === template?.uri) throw new Error('The source and template are protected.');
+  let exists = false;
+  try { await vscode.workspace.fs.stat(destination); exists = true; } catch { /* A new destination is required. */ }
+  if (exists) throw new Error('Choose a new artifact filename.');
+  await vscode.workspace.fs.writeFile(destination, Buffer.from(result.result.binaryContent, 'base64'));
+}
 
 async function render(request: Request, prepared: PreparedGeneration, token: vscode.CancellationToken,
   session: () => number, selection: () => string | undefined): Promise<void> {
@@ -186,14 +250,7 @@ async function render(request: Request, prepared: PreparedGeneration, token: vsc
   if (result.result.diagnostics.some(d => d.severity === 'Warning'))
     void vscode.window.showWarningMessage('Schema code generated with representation warnings.', 'View findings').then(choice => choice && showFindings(result));
   if (result.result.representation === 'binary') {
-    if (typeof result.result.binaryContent !== 'string') throw new Error('Missing binary artifact.');
-    const destination = await vscode.window.showSaveDialog({ title: 'Save schema artifact', defaultUri: prepared.sourceUri.with({ path: path.posix.join(path.posix.dirname(prepared.sourceUri.path), result.result.suggestedFilename ?? 'schema.bin') }) });
-    if (!destination) return;
-    if (destination.toString() === uri || destination.toString() === template?.uri) throw new Error('The source and template are protected.');
-    let exists = false;
-    try { await vscode.workspace.fs.stat(destination); exists = true; } catch { /* A new destination is required. */ }
-    if (exists) throw new Error('Choose a new artifact filename.');
-    await vscode.workspace.fs.writeFile(destination, Buffer.from(result.result.binaryContent, 'base64'));
+    await saveBinary(result, prepared, template);
   } else await openGenerated(result, prepared.sourceUri, template);
 }
 

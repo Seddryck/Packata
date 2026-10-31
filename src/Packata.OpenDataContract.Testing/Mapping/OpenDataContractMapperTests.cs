@@ -8,21 +8,36 @@ namespace Packata.OpenDataContract.Testing.Mapping;
 
 public class OpenDataContractMapperTests
 {
-    [TestCase("countries.odcs.yaml#/schema/countries/properties/iso_code")]
-    [TestCase("https://example.test/countries.odcs.yaml#/schema/countries/properties/iso_code")]
-    public void External_relationships_are_diagnosed_without_inventing_local_identifiers(string reference)
+    [TestCase("countries.odcs.yaml#/schema/countries/properties/iso_code", "countries.odcs.yaml#/schema/countries", "iso_code")]
+    [TestCase("https://example.test/countries.odcs.yaml#/schema/countries/properties/iso_code", "https://example.test/countries.odcs.yaml#/schema/countries", "iso_code")]
+    [TestCase("../lookups/countries.v1.odcs.yaml#/schema/countries/properties/iso_code", "../lookups/countries.v1.odcs.yaml#/schema/countries", "iso_code")]
+    [TestCase("#/schema/countries/properties/iso_code", "countries", "iso_code")]
+    [TestCase("schema/countries/properties/iso_code", "countries", "iso_code")]
+    [TestCase("countries.iso_code", "countries", "iso_code")]
+    [TestCase("catalog.countries.iso_code", "countries", "iso_code")]
+    [TestCase("lookup.yaml#/schema/country~1lookup/properties/iso~0code", "lookup.yaml#/schema/country%2Flookup", "iso~code")]
+    public void Relationship_targets_preserve_descriptor_URIs_and_parse_fragment_names(string reference, string target, string column)
     {
-        var relationship = new Relationship { Type = "foreignKey", To = reference };
-        var document = new DataContract { Schema = [new SchemaObject { Name = "members",
-            Properties = [new SchemaProperty { Name = "nationality", Relationships = [relationship] }]
-        }] };
-        var mapped = document.ToCanonicalContract();
-        Assert.That(mapped.RequireValue().Assets.Single().Schema!.Relationships, Is.Empty);
-        Assert.That(mapped.Diagnostics.Single().Code, Is.EqualTo("ODCS003"));
-        Assert.That(mapped.Diagnostics.Single().Severity, Is.EqualTo(MappingSeverity.Warning));
-        Assert.That(relationship.To, Is.EqualTo(reference));
+        var document = new DataContract { Id = "members", Schema = [new SchemaObject { Name = "members", Properties =
+            [new SchemaProperty { Name = "country", Relationships = [new Relationship { To = reference }] }] }] };
+        var result = new OpenDataContractMapper().Map(document);
+        Assert.That(result.Diagnostics, Is.Empty);
+        var relationship = result.RequireValue().Assets[0].Schema!.Relationships.Single();
+        Assert.That(relationship.TargetAsset, Is.EqualTo(target));
+        Assert.That(relationship.TargetFields, Is.EqualTo(new[] { column }));
     }
 
+    [TestCase("countries.odcs.yaml#")]
+    [TestCase("countries.odcs.yaml#/not/schema.path")]
+    [TestCase("countries.odcs.yaml#/schema/countries/properties/iso_code/extra")]
+    public void Malformed_relationship_fragments_are_not_reinterpreted_as_dotted_table_names(string reference)
+    {
+        var document = new DataContract { Id = "members", Schema = [new SchemaObject { Name = "members", Properties =
+            [new SchemaProperty { Name = "country", Relationships = [new Relationship { To = reference }] }] }] };
+        var result = new OpenDataContractMapper().Map(document);
+        Assert.That(result.Diagnostics.Single().Code, Is.EqualTo("ODCS003"));
+        Assert.That(result.RequireValue().Assets[0].Schema!.Relationships, Is.Empty);
+    }
     [Test]
     public void ToCanonicalContract_ReturnsCanonicalContract()
     {

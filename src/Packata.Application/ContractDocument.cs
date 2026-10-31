@@ -12,6 +12,7 @@ namespace Packata.Application;
 /// <summary>Shared descriptor parsing, mapping and validation for interactive and command-line hosts.</summary>
 public sealed record ContractDocument(object NativeDocument, YamlMappingNode Root)
 {
+    public Uri? BaseUri { get; init; }
     public string Format => NativeDocument is Packata.DataPackage.DataPackage ? "datapackage" : "odcs";
 
     public static ContractDocument Parse(string text, string format = "auto", Uri? baseUri = null)
@@ -28,7 +29,7 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
         object native = odcs
             ? new Packata.OpenDataContract.DataContractFactory().LoadFromStream(content, context)
             : new Packata.DataPackage.DataPackageFactory().LoadFromStream(content, context, serializationFormat);
-        return new(native, root);
+        return new(native, root) { BaseUri = context.BaseUri };
     }
 
     /// <summary>Reads bounded source syntax independently of native model deserialization.</summary>

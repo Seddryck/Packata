@@ -6,6 +6,20 @@ namespace Packata.LanguageServer.Testing;
 
 public class SchemaGenerationOperationTests
 {
+    [TestCase("drill")]
+    [TestCase("questdb")]
+    public async Task Disabled_DDL_dialects_are_not_offered_or_accepted_in_the_editorAsync(string dialect)
+    {
+        var store = new DocumentStore(); store.Update(Source, Text, 4);
+        var operations = new SchemaGenerationOperations(store);
+        var options = await operations.OptionsAsync(Source, SchemaGenerationOperations.Key(Text), default);
+        Assert.That(options.Catalog.Targets.Single(t => t.Id == "ddl").Dialects!.Select(d => d.Id), Does.Not.Contain(dialect));
+        var result = await operations.GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(Text),
+            new(AssetId: "orders", Target: "ddl", Dialect: dialect), 4, "/schema/0"), default);
+        Assert.That(result.Result.Content, Is.Null);
+        Assert.That(result.Result.Diagnostics.Single().Code, Is.EqualTo("GEN_OPTIONS"));
+    }
+
     private static readonly Uri Source = new("file:///workspace/second/contract.yaml");
     private const string Text = """
         apiVersion: v3.2.0
@@ -17,6 +31,22 @@ public class SchemaGenerationOperationTests
               - name: id
                 logicalType: integer
         """;
+
+    [TestCase("avro")]
+    [TestCase("spark-json")]
+    public async Task Structured_exports_use_unsaved_snapshots_and_selected_assetAsync(string format)
+    {
+        var store = new DocumentStore(); store.Update(Source, Text, 4);
+        var options = new GenerationOptions(AssetId: "orders", Operation: "export", OutputFormat: format);
+        var response = await new SchemaGenerationOperations(store).GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(Text), options, 4, "/schema/0"), default);
+        var direct = await new SchemaGenerationService().GenerateAsync(Text, options);
+        Assert.That(response.Result.IsSuccessful, Is.True, string.Join(";", response.Result.Diagnostics));
+        Assert.That(response.Result.Content, Is.EqualTo(direct.Content));
+        Assert.That(response.Version, Is.EqualTo(4));
+        store.Update(Source, Text, 5);
+        var stale = await new SchemaGenerationOperations(store).GenerateAsync(new(Source.AbsoluteUri, SchemaGenerationOperations.Key(Text), options, 4, "/schema/0"), default);
+        Assert.That(stale.Result.Content, Is.Null);
+    }
 
     [Test]
     public async Task Ddl_preserves_snapshot_scope_and_explicit_dialectAsync()

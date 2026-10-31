@@ -81,9 +81,9 @@ internal static class InferencePresenter
         return Markup.Escape(value.ToString()!.Replace("\r", "\\r").Replace("\n", "\\n"));
     }
 
-    private static void WriteDiagnostic(string severity, string code, string message, double? confidence)
+    internal static void WriteDiagnostic(string severity, string code, string message, double? confidence)
     {
-        var color = severity.Equals("Warning", StringComparison.OrdinalIgnoreCase) ? "yellow" : "grey";
+        var color = CommandOutput.SeverityColor(severity);
         var confidenceText = confidence.HasValue ? $" (confidence {confidence:P0})" : string.Empty;
         AnsiConsole.MarkupLine(
             $"[{color}]{Markup.Escape(severity)} {Markup.Escape(code)}:[/] " +
