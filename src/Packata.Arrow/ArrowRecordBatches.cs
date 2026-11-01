@@ -33,7 +33,7 @@ public static class ArrowRecordBatches
             token.ThrowIfCancellationRequested();
             var schema = ArrowSchemaMapper.Map(contract);
             var fields = schema.FieldsList.ToArray();
-            var ordinals = ResolveOrdinals(reader, contract);
+            int[]? ordinals = null;
             var rows = new List<object?[]>();
             long bytes = 4L * fields.Count(f => f.DataType is StringType or BinaryType);
             var baseBytes = bytes;
@@ -42,6 +42,9 @@ public static class ArrowRecordBatches
                 token.ThrowIfCancellationRequested();
                 var hasRow = reader.Read();
                 token.ThrowIfCancellationRequested();
+                // Streaming providers may discover column names on the first read.
+                // A schema-only empty source need not expose physical columns.
+                ordinals ??= !hasRow && reader.FieldCount == 0 ? [] : ResolveOrdinals(reader, contract);
                 if (!hasRow) break;
                 var (row, rowBytes) = ReadRow(reader, fields, ordinals, options.MaxBufferedBytes - baseBytes, token);
                 if (rows.Count > 0 && bytes + rowBytes > options.MaxBufferedBytes)

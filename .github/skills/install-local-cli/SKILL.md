@@ -5,7 +5,7 @@ description: Install the framework-dependent .NET 10 Windows x64 Packata CLI loc
 
 # Install Packata CLI locally
 
-Use `scripts/install-local.ps1` with PowerShell 7 and authenticated GitHub CLI access (`gh auth status -h github.com`). Defaults target `Seddryck/Packata` and its lightweight framework-dependent .NET 10 Windows x64 ZIP. The matching x64 .NET 10 runtime must already be installed; the archive does not bundle it.
+Use `scripts/install-local.ps1` with PowerShell 7 and authenticated GitHub CLI access (`gh auth status -h github.com`). Defaults target `Seddryck/Packata` and its lightweight framework-dependent .NET 10 Windows x64 ZIP. The matching x64 ASP.NET Core 10 runtime (including the .NET runtime) must already be installed; the archive does not bundle it.
 
 Run from this skill directory, or invoke the script by its full path.
 

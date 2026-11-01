@@ -279,7 +279,7 @@ The package is a RID-aware .NET tool: the .NET CLI automatically selects the pac
 
 The [GitHub releases](https://github.com/Seddryck/Packata/releases/latest) page provides two archive types for every supported platform:
 
-- Framework-dependent archives named `Packata-cli-<version>-<framework>-<rid>` target `net8.0`, `net9.0`, or `net10.0` and require the corresponding .NET runtime.
+- Framework-dependent archives named `Packata-cli-<version>-<framework>-<rid>` target `net8.0`, `net9.0`, or `net10.0` and require the corresponding ASP.NET Core runtime (which includes the .NET runtime).
 - Self-contained .NET 10 archives named `Packata-cli-<version>-<rid>` include the runtime and preserve the original release filenames.
 
 Select the RID matching the target platform:

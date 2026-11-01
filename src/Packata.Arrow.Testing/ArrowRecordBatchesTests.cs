@@ -80,6 +80,20 @@ public class ArrowRecordBatchesTests
         Assert.That(reader.Disposals, Is.EqualTo(1));
     }
 
+    [TestCase(0)]
+    [TestCase(1)]
+    public void DiscoversStreamingHeadersOnFirstRead(int count)
+    {
+        var reader = new RowsReader(["value"], count, _ => [42], discoverOnRead: true);
+        var rows = 0;
+        foreach (var batch in ArrowRecordBatches.Read(reader, Schema(Field("integer"))))
+        {
+            using (batch) rows += batch.Length;
+        }
+        Assert.That(rows, Is.EqualTo(count));
+        Assert.That(reader.Disposals, Is.EqualTo(1));
+    }
+
     [Test]
     public void LargeLazyInputHasBoundedBatchesAndNoReadAheadAtRowLimit()
     {
@@ -240,7 +254,7 @@ public class ArrowRecordBatchesTests
         Assert.That(reader.Disposals, Is.Zero);
     }
 
-    private sealed class RowsReader(string[] names, int count, Func<int, object?[]> getRow) : DbDataReader
+    internal sealed class RowsReader(string[] names, int count, Func<int, object?[]> getRow, bool discoverOnRead = false) : DbDataReader
     {
         private int index = -1;
         private object?[] row = [];
@@ -255,7 +269,7 @@ public class ArrowRecordBatchesTests
         }
         protected override void Dispose(bool disposing) { if (disposing) Disposals++; }
         public override bool IsClosed => Disposals > 0;
-        public override int FieldCount => names.Length;
+        public override int FieldCount => discoverOnRead && ReadCalls == 0 ? 0 : names.Length;
         public override string GetName(int ordinal) => names[ordinal];
         public override object GetValue(int ordinal) => row[ordinal]!;
         public override bool IsDBNull(int ordinal) => GetValue(ordinal) is null or DBNull;

@@ -27,7 +27,10 @@
       "src\\Packata.Rules.Expressif\\Packata.Rules.Expressif.csproj",
       "src\\Packata.Rules.Expressif.Testing\\Packata.Rules.Expressif.Testing.csproj",
       "src\\Packata.Rules.Sql\\Packata.Rules.Sql.csproj",
-      "src\\Packata.Rules.Sql.Testing\\Packata.Rules.Sql.Testing.csproj"
+      "src\\Packata.Rules.Sql.Testing\\Packata.Rules.Sql.Testing.csproj",
+      "src\\Packata.Http\\Packata.Http.csproj",
+      "src\\Packata.Http.Arrow\\Packata.Http.Arrow.csproj",
+      "src\\Packata.Http.Testing\\Packata.Http.Testing.csproj"
     ]
   }
 }

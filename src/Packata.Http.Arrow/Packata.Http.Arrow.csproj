@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><Description>Optional Arrow IPC representation for Packata HTTP asset hosting.</Description></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.Http\Packata.Http.csproj" />
+    <ProjectReference Include="..\Packata.Arrow\Packata.Arrow.csproj" />
+  </ItemGroup>
+</Project>
