@@ -70,20 +70,21 @@ internal sealed partial class ModelCodeProjection
     }
 
     private static string? ConstraintKey(string kind, FieldTypeResolution resolution)
+        => NumericConstraint(kind, resolution) ?? LengthConstraint(kind, resolution) ?? DecimalConstraint(kind, resolution);
+
+    private static string? NumericConstraint(string kind, FieldTypeResolution resolution)
+        => resolution.LogicalType is "integer" or NumberType ? NumericConstraintKey(kind) : null;
+
+    private static string? LengthConstraint(string kind, FieldTypeResolution resolution)
+        => (resolution.LogicalType is StringType or "array" || resolution.Field.Map is not null) ? LengthConstraintKey(kind) : null;
+
+    private static string? DecimalConstraint(string kind, FieldTypeResolution resolution)
+        => resolution.LogicalType == NumberType ? DecimalConstraintKey(kind) : null;
+
+    private static string? DecimalConstraintKey(string kind) => kind switch
     {
-        if (resolution.LogicalType is "integer" or NumberType)
-        {
-            var key = NumericConstraintKey(kind);
-            if (key is not null) return key;
-        }
-        if (resolution.LogicalType is StringType or "array" || resolution.Field.Map is not null)
-        {
-            var key = LengthConstraintKey(kind);
-            if (key is not null) return key;
-        }
-        if (resolution.LogicalType != NumberType) return null;
-        return kind switch { "precision" => "max_digits", "scale" => "decimal_places", _ => null };
-    }
+        "precision" => "max_digits", "scale" => "decimal_places", _ => null
+    };
 
     private static string? NumericConstraintKey(string kind) => kind switch
     {
