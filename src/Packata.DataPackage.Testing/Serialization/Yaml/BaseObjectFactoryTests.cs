@@ -7,7 +7,8 @@ using YamlDotNet.Serialization.ObjectFactories;
 
 namespace Packata.DataPackage.Testing.Serialization.Yaml;
 
-internal abstract class BaseObjectFactoryTests<T, U> where T : DefaultObjectFactory
+internal abstract class BaseObjectFactoryTests<T, TValue>
+    where T : DefaultObjectFactory
 {
     protected IDeserializer Deserializer { get; }
 
@@ -36,6 +37,6 @@ internal abstract class BaseObjectFactoryTests<T, U> where T : DefaultObjectFact
 
     protected class Wrapper
     {
-        public U? Object { get; set; }
+        public TValue? Object { get; set; }
     }
 }

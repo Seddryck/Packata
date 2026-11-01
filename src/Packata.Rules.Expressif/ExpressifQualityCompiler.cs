@@ -88,8 +88,12 @@ public sealed class ExpressifQualityCompiler : IRuleCompiler<DataQualityRule>
                 // Apply each measurement's expectations, then reduce violations across the whole population.
                 var assertion = new ExpectationAssertionPlan(rule.Expectations, definition.ProgramKind == QualityProgramKind.Predicate);
                 var outcome = assertion.Evaluate(measured);
-                if (outcome == RuleOutcome.Inconclusive) return new(null, Population: scan.Population, Complete: false,
+                if (outcome == RuleOutcome.Inconclusive)
+                {
+                    return new(null, Population: scan.Population, Complete: false,
                     Diagnostics: [new("MISSING_EXPECTATION", "Row/value expression measurements require explicit expectations.")]);
+                }
+
                 if (outcome == RuleOutcome.Failed) violations++;
             }
             if (scan.Population == 0) return new(null, Population: 0, Complete: false, Diagnostics: [new("EMPTY_INPUT", "No values were evaluated.")]);

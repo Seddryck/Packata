@@ -6,7 +6,8 @@ namespace Packata.DataPackage.Testing.Serialization.Json;
 
 internal class ConstraintsConverterTests : BaseConverterTests<ConstraintsConverter, FieldConstraintCollection>
 {
-    public ConstraintsConverterTests() : base("constraints") { }
+    public ConstraintsConverterTests()
+        : base("constraints") { }
 
     [Test]
     public void ReadJson_StructuredConstraints_PreservesValues()

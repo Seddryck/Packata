@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,15 +27,24 @@ public class ObjectLogicalType : ILogicalType
     /// <summary>
     /// Property names that are required to exist in the object.
     /// </summary>
+    /// <value>
+    /// Property names that are required to exist in the object.
+    /// </value>
     public string[] Required { get; set; } = [];
 
     /// <summary>
     /// Maximum number of properties.
     /// </summary>
+    /// <value>
+    /// Maximum number of properties.
+    /// </value>
     public int? MaxProperties { get; set; }
 
     /// <summary>
     /// Minimum number of properties.
     /// </summary>
+    /// <value>
+    /// Minimum number of properties.
+    /// </value>
     public int? MinProperties { get; set; }
 }

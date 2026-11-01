@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,6 +12,9 @@ public sealed class LabelAttribute : Attribute
     /// <summary>
     /// Get the UI label for the property.
     /// </summary>
+    /// <value>
+    /// Get the UI label for the property.
+    /// </value>
     public string Label { get; }
     /// <summary>
     /// Initializes a new instance of the <see cref="LabelAttribute"/> class with the specified label.

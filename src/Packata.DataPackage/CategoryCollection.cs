@@ -29,6 +29,9 @@ public sealed class CategoryTableReference
     public string? Resource { get; set; }
     public string? Package { get; set; }
     /// <summary>Omission means value; the absent state is preserved when writing.</summary>
+    /// <value>
+    /// Omission means value; the absent state is preserved when writing.
+    /// </value>
     public string? EncodedAs { get; set; }
 }
 
@@ -38,7 +41,13 @@ public sealed class CategoryFieldMap
     public string? Value { get; set; }
     public string? Label { get; set; }
     /// <summary>Additional eligible label fields (Packata extension).</summary>
+    /// <value>
+    /// Additional eligible label fields (Packata extension).
+    /// </value>
     public List<string>? Labels { get; set; }
     /// <summary>Null makes no assumption about ordering, unlike explicit false.</summary>
+    /// <value>
+    /// Null makes no assumption about ordering, unlike explicit false.
+    /// </value>
     public bool? Ordered { get; set; }
 }

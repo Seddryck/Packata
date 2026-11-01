@@ -194,8 +194,10 @@ public static class DataPackageValidator
     {
         if (enumeration is null) return;
         for (var index = 0; index < enumeration.Value.Count; index++)
+        {
             if (!CategoryValues.TryNormalize(enumeration.Value[index], out var value) || !values.Contains(value!))
                 Add(issues, $"{path}.constraints.enum[{index}]", "Enum values must be a subset of categories with matching logical types.");
+        }
     }
 
     private static void ValidateUniqueKeys(IReadOnlyList<List<string>>? uniqueKeys, string path,

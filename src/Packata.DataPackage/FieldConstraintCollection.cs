@@ -16,7 +16,8 @@ public class FieldConstraintCollection
         _constraints.Add(constraint);
     }
 
-    public bool Any<T>() where T : Constraint
+    public bool Any<T>()
+        where T : Constraint
         => _constraints.OfType<T>().Any();
 
     public bool Any(Type constraintType)
@@ -34,19 +35,22 @@ public class FieldConstraintCollection
     public bool Remove(Constraint constraint)
         => _constraints.Remove(constraint);
 
-    public bool Remove<T>() where T : Constraint
+    public bool Remove<T>()
+        where T : Constraint
     {
         var constraint = _constraints.OfType<T>().FirstOrDefault();
         return constraint is not null && Remove(constraint);
     }
 
-    public T? Get<T>() where T : Constraint
+    public T? Get<T>()
+        where T : Constraint
     {
         var constraint = _constraints.OfType<T>().FirstOrDefault();
         return constraint;
     }
 
-    public T[] TypeOf<T>() where T : Constraint
+    public T[] TypeOf<T>()
+        where T : Constraint
     {
         var constraints = _constraints.OfType<T>();
         return [..constraints];

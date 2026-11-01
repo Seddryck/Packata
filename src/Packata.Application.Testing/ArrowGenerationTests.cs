@@ -89,7 +89,10 @@ public class ArrowGenerationTests
             using var reader = new ArrowStreamReader(stream);
             Assert.That((await reader.GetSchema()).FieldsList.Count, Is.EqualTo(schema.FieldsList.Count));
         }
-        else await VerifyPython(result.Content!);
+        else
+        {
+            await VerifyPython(result.Content!);
+        }
     }
 
     [Test]

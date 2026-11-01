@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,12 +15,18 @@ public class AuthoritativeDefinition
     /// <summary>
     /// URL to the authority.
     /// </summary>
+    /// <value>
+    /// URL to the authority.
+    /// </value>
     [Label("Url")]
     public string? Url { get; set; }
 
     /// <summary>
     /// Type of definition for authority: v2.3 adds standard values: `businessDefinition`, `transformationImplementation`, `videoTutorial`, `tutorial`, and `implementation`.
     /// </summary>
+    /// <value>
+    /// Type of definition for authority: v2.3 adds standard values: `businessDefinition`, `transformationImplementation`, `videoTutorial`, `tutorial`, and `implementation`.
+    /// </value>
     [Label("Type")]
     public string? Type { get; set; }
 

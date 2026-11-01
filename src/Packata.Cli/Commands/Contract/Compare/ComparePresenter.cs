@@ -32,7 +32,9 @@ internal static class ComparePresenter
         });
 
     // Keep enum wire names independent from serializer configuration and .NET naming.
-    private static string Name<T>(T value) where T : Enum => value.ToString() switch
+    private static string Name<T>(T value)
+        where T : Enum
+        => value.ToString() switch
     {
         "PotentiallyBreaking" => "potentiallyBreaking", "NonBreaking" => "nonBreaking",
         var name => char.ToLowerInvariant(name[0]) + name[1..]

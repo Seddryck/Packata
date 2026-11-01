@@ -35,7 +35,10 @@ internal static class InspectPresenter
             {
                 if (container.HasValues) AddProperties(parent.AddNode(new Text(property.Name)), container);
             }
-            else parent.AddNode(new Text($"{property.Name}: {property.Value}"));
+            else
+            {
+                parent.AddNode(new Text($"{property.Name}: {property.Value}"));
+            }
         }
     }
 

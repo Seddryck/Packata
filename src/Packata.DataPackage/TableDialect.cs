@@ -6,6 +6,9 @@ public class TableDialect
     public string Profile { get; set; } = "https://datapackage.org/profiles/1.0/tabledialect.json";
 
     /// <summary>Backward-compatible Packata discriminator; it is not required by Data Package v2.</summary>
+    /// <value>
+    /// Backward-compatible Packata discriminator; it is not required by Data Package v2.
+    /// </value>
     public string? Type { get; set; }
 
     public bool Header { get; set; } = true;

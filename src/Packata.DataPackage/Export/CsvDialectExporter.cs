@@ -44,8 +44,10 @@ public sealed class CsvDialectExporter
         ValidateCharacters(dialect, path, diagnostics);
         ValidateHeaderRows(dialect, path, diagnostics);
         if (dialect.QuoteChar is null)
+        {
             diagnostics.Add(new("CSV007", MappingSeverity.Warning, $"{path}.options.quoteChar",
                 "The null quoteChar is exported as an empty string because the Table Dialect profile requires a string. Check the consumer's support for disabled quoting."));
+        }
 
         return new(diagnostics.Any(d => d.Severity == MappingSeverity.Error) ? null : dialect, diagnostics);
     }
@@ -59,9 +61,11 @@ public sealed class CsvDialectExporter
             return Fail("CSV001", "$.endpoints", "Select a CSV endpoint by its exact identifier.");
         var matches = contract.Endpoints.Where(endpoint => endpoint.Id == endpointId).ToArray();
         if (matches.Length != 1)
+        {
             return Fail("CSV002", "$.endpoints", matches.Length == 0
                 ? $"Endpoint '{endpointId}' was not found. Inspect the contract to list endpoint identifiers."
                 : $"Endpoint identifier '{endpointId}' is ambiguous. Use unique endpoint identifiers.");
+        }
 
         var endpoint = matches[0];
         var path = $"$.endpoints[{contract.Endpoints.ToList().IndexOf(endpoint)}].format";
@@ -77,9 +81,16 @@ public sealed class CsvDialectExporter
         if (Properties.Contains(name, StringComparer.Ordinal))
         {
             var property = typeof(TableDialect).GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)!;
-            if (TryValue(value, property.PropertyType, out var converted)) property.SetValue(dialect, converted);
-            else diagnostics.Add(new("CSV004", MappingSeverity.Error, $"{path}.options.{name}",
+            if (TryValue(value, property.PropertyType, out var converted))
+            {
+                property.SetValue(dialect, converted);
+            }
+            else
+            {
+                diagnostics.Add(new("CSV004", MappingSeverity.Error, $"{path}.options.{name}",
                 $"Invalid CSV dialect setting '{name}'; expected {property.PropertyType.Name}."));
+            }
+
             return;
         }
 

@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: csharp-stylecop
+        name: C# StyleCop
+        entry: dotnet format Packata.sln analyzers --verify-no-changes --no-restore
+        language: system
+        pass_filenames: false
+        files: \.cs$

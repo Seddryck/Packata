@@ -113,7 +113,7 @@ public sealed class LibraryQualityCompiler(IMetricCatalog? catalog = null) : IRu
         public override bool Equals(object? obj) => obj is ScalarKey other && Equals(other);
         public override int GetHashCode()
         {
-            var hash = new HashCode();
+            var hash = default(HashCode);
             foreach (var value in values) hash.Add(value);
             return hash.ToHashCode();
         }

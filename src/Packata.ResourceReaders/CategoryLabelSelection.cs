@@ -9,12 +9,18 @@ internal static class CategoryLabelSelection
         var table = asset.CategoryTable!;
         var fields = EligibleFields(asset);
         if (label is not null)
+        {
             return [fields.SingleOrDefault(field => field.Name == label)
                 ?? throw Error(asset, $"'{label}' is not a declared label field; check --decode-categories-label")];
+        }
+
         var result = LanguageFields(asset, fields, language);
         if (language is not null && result.Count == 0)
+        {
             diagnostic?.Invoke($"Category table '{asset.Name}' has no label for language '{language}'; using " +
                 (table.LabelField is null ? "original codes." : "the default label, then original codes."));
+        }
+
         if (table.LabelField is not null) result.Add(Field(asset, table.LabelField));
         return result.DistinctBy(field => field.Name).ToArray();
     }

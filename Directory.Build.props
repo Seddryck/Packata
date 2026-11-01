@@ -4,6 +4,7 @@
 		<IsPackable>true</IsPackable>
 		<IsPackable Condition="$(MSBuildProjectName.EndsWith('Testing'))">false</IsPackable>
 		<DebugType>portable</DebugType>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
 
 	<PropertyGroup>
@@ -59,4 +60,10 @@
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<Deterministic>true</Deterministic>
 	</PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
 </Project>

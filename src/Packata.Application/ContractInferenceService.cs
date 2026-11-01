@@ -186,8 +186,11 @@ public static class ContractInferenceService
     public static DataEndpoint SelectEndpoint(DataContract contract, DataAsset asset)
     {
         if (asset.EndpointBindings.Count != 1)
+        {
             throw new InvalidOperationException(
                 $"Asset '{asset.Id}' must have exactly one endpoint binding for inference.");
+        }
+
         var endpointId = asset.EndpointBindings[0].EndpointId;
         var matches = contract.Endpoints.Where(endpoint => endpoint.Id == endpointId).ToArray();
         return matches.Length == 1
@@ -199,8 +202,10 @@ public static class ContractInferenceService
     public static void ValidateCsvEndpoint(DataAsset asset, DataEndpoint endpoint)
     {
         if (endpoint.Kind != EndpointKind.File || endpoint.Location is not PathLocation { Paths.Count: 1 })
+        {
             throw new NotSupportedException(
                 $"Asset '{asset.Id}' must bind exactly one file endpoint for CSV inference.");
+        }
 
         var effectiveFormat = new DataFormatResolver().Resolve(endpoint).Name;
         if (!SupportedFormats.Contains(effectiveFormat, StringComparer.Ordinal))

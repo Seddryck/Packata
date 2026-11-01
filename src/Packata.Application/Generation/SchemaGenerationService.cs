@@ -285,9 +285,16 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             if (asset is not null) return asset;
             diagnostics.Add(new("GEN_ASSET", "Error", "$.assets", "The selected asset does not exist or has no usable schema."));
         }
-        else if (assets.Length == 1) return assets[0];
-        else diagnostics.Add(new("GEN_ASSET", "Error", "$.assets", assets.Length == 0
+        else if (assets.Length == 1)
+        {
+            return assets[0];
+        }
+        else
+        {
+            diagnostics.Add(new("GEN_ASSET", "Error", "$.assets", assets.Length == 0
             ? "No asset has an eligible schema." : "Select --asset explicitly. Eligible asset IDs: " + string.Join(", ", assets.Select(a => ContractJson.Redact(a.Id)))));
+        }
+
         return null;
     }
 

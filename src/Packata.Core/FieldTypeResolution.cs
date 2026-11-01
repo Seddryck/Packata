@@ -3,10 +3,19 @@ using Packata.Core.Contracts;
 
 namespace Packata.Core;
 
-public enum TypeMappingFallback { Reject, LogicalType, Object, String }
-public enum TypeMappingTarget { Source, Runtime, Database }
-public enum TypeMappingSeverity { Information, Warning, Error }
-public enum TemporalSemantics { Local, Offset, Instant }
+public enum TypeMappingFallback { Reject,
+    LogicalType,
+    Object,
+    String }
+public enum TypeMappingTarget { Source,
+    Runtime,
+    Database }
+public enum TypeMappingSeverity { Information,
+    Warning,
+    Error }
+public enum TemporalSemantics { Local,
+    Offset,
+    Instant }
 
 /// <summary>Fallback is opt-in. Mapping describes representation, not validation of data values.</summary>
 public sealed record TypeMappingOptions(TypeMappingFallback Fallback = TypeMappingFallback.Reject,

@@ -1,6 +1,9 @@
 namespace Packata.Core.Contracts;
 
-public enum SatisfactionStatus { Satisfied, Unsatisfied, Unknown, Informational }
+public enum SatisfactionStatus { Satisfied,
+    Unsatisfied,
+    Unknown,
+    Informational }
 public sealed record SatisfactionPolicy(bool RejectAdditionalElements = false)
 {
     public static SatisfactionPolicy Default { get; } = new();

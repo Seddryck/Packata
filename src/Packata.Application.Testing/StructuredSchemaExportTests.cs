@@ -63,7 +63,10 @@ public class StructuredSchemaExportTests
         var second = SchemaDocumentSerializer.Serialize(asset, format);
         Assert.That(first.IsSuccessful, Is.True, string.Join(";", first.Diagnostics));
         Assert.That(first.Content, Is.EqualTo(second.Content));
-        if (format == "avro") Assert.DoesNotThrow(() => Schema.Parse(first.Content!));
+        if (format == "avro")
+        {
+            Assert.DoesNotThrow(() => Schema.Parse(first.Content!));
+        }
         else
         {
             AssertSparkSchema(first.Content!);

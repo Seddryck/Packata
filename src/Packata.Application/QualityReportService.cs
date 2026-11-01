@@ -117,8 +117,11 @@ public static class QualityReportService
             ("relatesTo", rule.SourcePath), ("dimension", rule.Metadata.Dimension), ("severity", rule.Metadata.Severity),
             ("message", result.Message), ("tags", Array(rule.Metadata.Tags)));
         if (rule.Target is { } target)
+        {
             output["target"] = new JObject { ["resourceType"] = field is null ? "table" : "column",
                 ["resourceIdentifier"] = field is null ? target.AssetId : target.AssetId + "." + field };
+        }
+
         var measure = Measurement(result, properties);
         if (measure.Count > 0) output["measure"] = measure;
         output["customProperties"] = properties;

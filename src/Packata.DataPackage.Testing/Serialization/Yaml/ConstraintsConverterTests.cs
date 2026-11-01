@@ -5,7 +5,8 @@ namespace Packata.DataPackage.Testing.Serialization.Yaml;
 
 internal class ConstraintsConverterTests : BaseConverterTests<ConstraintsConverter, FieldConstraintCollection>
 {
-    public ConstraintsConverterTests() : base("constraints") { }
+    public ConstraintsConverterTests()
+        : base("constraints") { }
 
     [Test]
     public void ReadYaml_StructuredConstraints_PreservesValues()

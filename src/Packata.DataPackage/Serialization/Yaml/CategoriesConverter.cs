@@ -71,8 +71,8 @@ internal class CategoriesConverter : IYamlTypeConverter
     {
         var typedNumber = scalar.Tag == "tag:yaml.org,2002:int" || scalar.Tag == "tag:yaml.org,2002:float";
         var typedOther = scalar.Tag == "tag:yaml.org,2002:bool" || scalar.Tag == "tag:yaml.org,2002:null";
-        if (scalar.Tag == "tag:yaml.org,2002:str" || !typedNumber && !typedOther &&
-            scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded)
+        if (scalar.Tag == "tag:yaml.org,2002:str" || (!typedNumber && !typedOther &&
+            scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded))
             return scalar.Value;
         if (ScalarSyntax.IsInteger(scalar.Value))
         {
@@ -105,7 +105,10 @@ internal class CategoriesConverter : IYamlTypeConverter
                 { emitter.Emit(new Scalar("label")); WriteValue(emitter, category.Label); }
                 emitter.Emit(new MappingEnd());
             }
-            else WriteValue(emitter, category.Value);
+            else
+            {
+                WriteValue(emitter, category.Value);
+            }
         }
         emitter.Emit(new SequenceEnd());
     }

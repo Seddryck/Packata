@@ -45,6 +45,7 @@ internal static class DdlGeneration
     private static void ValidateAssets(IEnumerable<DataAsset> assets, List<GenerationDiagnostic> diagnostics, CancellationToken token)
     {
         foreach (var asset in assets)
+        {
             foreach (var field in asset.Schema!.Fields)
             {
                 token.ThrowIfCancellationRequested();
@@ -54,6 +55,7 @@ internal static class DdlGeneration
                 if (field.Children.Count > 0 || field.Items is not null)
                     diagnostics.Add(new("DDL_SHAPE", "Error", type.FieldPath, "Nested structures cannot be represented as relational columns by this planner."));
             }
+        }
     }
 
     private static GenerationResult Render(DataContract contract, DataAsset[] assets, DataAsset[] references, GenerationOptions options,

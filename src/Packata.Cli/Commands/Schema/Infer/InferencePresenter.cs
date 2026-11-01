@@ -40,8 +40,11 @@ internal static class InferencePresenter
             AnsiConsole.MarkupLine(
                 $"[bold]Database object:[/] {Markup.Escape(asset.PhysicalName ?? asset.Name)}");
             if (asset.Schema?.PrimaryKey.Count > 0)
+            {
                 AnsiConsole.MarkupLine(
                     $"[bold]Primary key:[/] {Markup.Escape(string.Join(", ", asset.Schema.PrimaryKey))}");
+            }
+
             foreach (var relationship in asset.Schema?.Relationships ?? [])
             {
                 AnsiConsole.MarkupLine(

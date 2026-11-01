@@ -26,8 +26,11 @@ public static class JsonSchemaExport
         AddProperties(result, asset.Schema.Fields, asset.Name);
         result["additionalProperties"] = asset.Schema.AllowAdditionalProperties;
         if (NativeSchemaRequirements.RequiresOverlap(asset.Schema))
+        {
             result["anyOf"] = asset.Schema.Fields.Select(field =>
                 new Dictionary<string, object?> { ["required"] = new[] { field.Name } }).ToArray();
+        }
+
         return result;
     }
 
@@ -105,7 +108,9 @@ public static class JsonSchemaExport
                 .Distinct(StringComparer.Ordinal).ToArray();
         }
         else if (!result.TryAdd(keyword, constraint.Value))
+        {
             throw new JsonSchemaConversionException($"Duplicate constraint '{keyword}' at '{path}'.");
+        }
     }
 
     private static bool IsValidConstraint(string keyword, JsonElement value, string type) => keyword switch

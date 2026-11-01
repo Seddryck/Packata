@@ -35,9 +35,11 @@ internal sealed class FrameworkCodeProjection(string profile, List<GenerationDia
         if (HasValidationRules(field) || field.Format is not null)
             Warn(path, "Contract constraints, formats, quality rules and categories require separate validation.");
         if (!field.Required || field.Nullable || dataframe)
+        {
             Warn(path, dataframe
                 ? "DataFrame columns permit nulls; requiredness and value nullability must be validated separately. No rows are generated."
                 : "ML.NET cannot enforce presence or represent nullable values separately from its type-specific missing values (NaN, empty text, or key zero).");
+        }
     }
 
     private static bool HasValidationRules(DataField field)
@@ -130,7 +132,10 @@ internal sealed class FrameworkCodeProjection(string profile, List<GenerationDia
     private JObject MlOptions(DataField field, string path)
     {
         object? value = null;
-        if (field.Extensions.TryGetNamespace("mlnet", out var direct)) value = direct;
+        if (field.Extensions.TryGetNamespace("mlnet", out var direct))
+        {
+            value = direct;
+        }
         else if (field.Extensions.TryGetNamespace("odcs", out var odcs) && odcs.TryGetValue("customProperties", out var properties) && properties is not null)
         {
             var entries = JArray.FromObject(properties).Where(p => (string?)p["property"] == "mlnet").ToArray();

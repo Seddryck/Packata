@@ -3,9 +3,18 @@ using Packata.Core.Contracts;
 
 namespace Packata.Core.Execution;
 
-public enum RuleCategory { Constraint, Quality, Sla }
-public enum RuleOutcome { Passed, Failed, Inconclusive, Error, Skipped, Warn }
-public enum CompilationFindingKind { Unsupported, Invalid, MissingBinding }
+public enum RuleCategory { Constraint,
+    Quality,
+    Sla }
+public enum RuleOutcome { Passed,
+    Failed,
+    Inconclusive,
+    Error,
+    Skipped,
+    Warn }
+public enum CompilationFindingKind { Unsupported,
+    Invalid,
+    MissingBinding }
 
 public sealed record RuleDescriptor(string ExecutionId, string? SourceId, string? SourcePath,
     RuleCategory Category, QualityTarget Target, string Backend, string ImplementationVersion,

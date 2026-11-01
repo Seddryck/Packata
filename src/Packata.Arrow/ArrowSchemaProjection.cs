@@ -126,6 +126,7 @@ public static class ArrowSchemaProjection
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         if (extensions.TryGetNamespace("arrow", out var values))
+        {
             foreach (var (key, value) in values)
             {
                 if (key.StartsWith("ARROW:extension:", StringComparison.Ordinal))
@@ -133,6 +134,8 @@ public static class ArrowSchemaProjection
                 if (value is not string text) throw new NotSupportedException("Arrow metadata values must be strings.");
                 result.Add(key, text);
             }
+        }
+
         return result;
     }
 }

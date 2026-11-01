@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,6 +11,9 @@ public interface ISchemaAware
     /// <summary>
     /// The name of the schema in the database.
     /// </summary>
+    /// <value>
+    /// The name of the schema in the database.
+    /// </value>
     [Label("Schema")]
     public string Schema { get; set; }
 }

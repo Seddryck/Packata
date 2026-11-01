@@ -55,8 +55,8 @@ internal sealed class EnumerationValueConverter : IYamlTypeConverter
     }
 
     private static bool IsString(Scalar scalar)
-        => scalar.Tag == StringTag || !HasExplicitScalarType(scalar) &&
-            scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded;
+        => scalar.Tag == StringTag || (!HasExplicitScalarType(scalar) &&
+            scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded);
 
     private static bool HasExplicitScalarType(Scalar scalar)
         => scalar.Tag == IntegerTag || scalar.Tag == FloatTag || scalar.Tag == BooleanTag || scalar.Tag == NullTag;
@@ -97,7 +97,9 @@ internal sealed class EnumerationValueConverter : IYamlTypeConverter
         emitter.Emit(new MappingStart());
         emitter.Emit(new Scalar("value"));
         if (scalar.Kind == ScalarKind.String)
+        {
             emitter.Emit(new Scalar(null, null, (string)scalar.Value!, ScalarStyle.DoubleQuoted, true, false));
+        }
         else if (scalar.Kind == ScalarKind.Number)
         {
             var text = scalar.Value switch
@@ -109,7 +111,11 @@ internal sealed class EnumerationValueConverter : IYamlTypeConverter
             if (text.IndexOfAny(['.', 'e', 'E']) < 0) text += ".0";
             emitter.Emit(new Scalar(text));
         }
-        else serializer(scalar.Value);
+        else
+        {
+            serializer(scalar.Value);
+        }
+
         Write("label", entry.Label); Write("description", entry.Description); Write("id", entry.Id);
         if (entry.Tags.Count > 0) Write("tags", entry.Tags);
         if (entry.AuthoritativeDefinitions.Count > 0) Write("authoritativeDefinitions", entry.AuthoritativeDefinitions);

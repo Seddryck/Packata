@@ -57,6 +57,9 @@ public class SchemaConstraintMetadataOperationTests
             Assert.That(json["fields"]![1]!["type"]!["symbols"]!.Values<string>(), Is.EqualTo(new[] { "GOLD", "SILVER" }));
             Assert.That(response.Result.Diagnostics.Any(d => d.Code == "SCHEMA_ENUM_FORMAT_LIMIT"), Is.False);
         }
-        else Assert.That(response.Findings.Any(f => f.Diagnostic.Code == "SCHEMA_ENUM_FORMAT_LIMIT" && f.Diagnostic.Severity == "Information"), Is.True);
+        else
+        {
+            Assert.That(response.Findings.Any(f => f.Diagnostic.Code == "SCHEMA_ENUM_FORMAT_LIMIT" && f.Diagnostic.Severity == "Information"), Is.True);
+        }
     }
 }

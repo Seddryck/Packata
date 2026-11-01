@@ -6,7 +6,8 @@ using Packata.DataPackage.Serialization.Yaml;
 
 namespace Packata.DataPackage.Testing.Serialization.Yaml;
 
-internal abstract class BaseTypeDiscriminatorTests<T, U> where T : ITypeDiscriminator, new()
+internal abstract class BaseTypeDiscriminatorTests<T, TValue>
+    where T : ITypeDiscriminator, new()
 {
     protected IDeserializer Deserializer { get; }
 
@@ -33,6 +34,6 @@ internal abstract class BaseTypeDiscriminatorTests<T, U> where T : ITypeDiscrimi
 
     protected class Wrapper
     {
-        public U? Object { get; set; }
+        public TValue? Object { get; set; }
     }
 }

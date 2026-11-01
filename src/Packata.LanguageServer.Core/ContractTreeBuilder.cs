@@ -13,7 +13,8 @@ public sealed class ContractTreeBuilder(YamlMappingNode root, bool odcs, Uri uri
     private string UriText => uri.AbsoluteUri;
     private bool Odcs => odcs;
 
-    public ContractTreeBuilder(ContractDocument document, Uri uri) : this(document.Root, document.Format == "odcs", uri) { }
+    public ContractTreeBuilder(ContractDocument document, Uri uri)
+        : this(document.Root, document.Format == "odcs", uri) { }
 
     public ContractNode BuildNative()
     {
@@ -94,8 +95,11 @@ public sealed class ContractTreeBuilder(YamlMappingNode root, bool odcs, Uri uri
             .Select(item => (item.name, item.pointer, value: source.Find(item.pointer)))
             .Where(item => item.value is not null && Meaningful(item.value))
             .Select(item => Native(item.name, id + "/" + item.name, kind, item.pointer, item.value)).ToArray();
-        if (children.Length > 0) nodes.Add(Node(id, label, GroupKind, null, children,
+        if (children.Length > 0)
+        {
+            nodes.Add(Node(id, label, GroupKind, null, children,
             kind == QualityKind ? "Source declarations; execution is unavailable" : null));
+        }
     }
 
     private ContractNode Native(string label, string id, string kind, string sourcePointer, YamlNode? value)

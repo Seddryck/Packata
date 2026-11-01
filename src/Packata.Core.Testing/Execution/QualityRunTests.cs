@@ -13,7 +13,7 @@ public class QualityRunTests
     private static DataContract Contract(params DataQualityRule[] rules) => new(new("contract"), new(),
         [new("customers", "customers", null, null, AssetKind.Table, null, QualityRules: rules)], [], new());
     private static QualityEngine Engine(IRuleCompiler<DataQualityRule> compiler) => new(new("test", "1", ["library"]), compiler);
-    private static RuleExecutionContext Context(DataQualityRule _) => new(DateTimeOffset.UtcNow);
+    private static RuleExecutionContext Context(DataQualityRule rule) => new(DateTimeOffset.UtcNow);
 
     [TestCase(new[] { RuleOutcome.Skipped, RuleOutcome.Passed }, RuleOutcome.Passed)]
     [TestCase(new[] { RuleOutcome.Passed, RuleOutcome.Warn }, RuleOutcome.Warn)]

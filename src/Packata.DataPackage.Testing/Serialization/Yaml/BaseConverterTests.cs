@@ -10,7 +10,8 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace Packata.DataPackage.Testing.Serialization.Yaml;
 
-public abstract class AbstractConverterTests<T, U> where T : IYamlTypeConverter
+public abstract class AbstractConverterTests<T, TValue>
+    where T : IYamlTypeConverter
 {
     protected IDeserializer Deserializer { get; }
 
@@ -39,18 +40,19 @@ public abstract class AbstractConverterTests<T, U> where T : IYamlTypeConverter
 
     protected class Wrapper
     {
-        public U? Object { get; set; }
+        public TValue? Object { get; set; }
     }
 
     [Test]
     public void Accepts_FieldType_ReturnsTrue()
     {
         var converter = CreateConverter();
-        Assert.That(converter.Accepts(typeof(U)), Is.True);
+        Assert.That(converter.Accepts(typeof(TValue)), Is.True);
     }
 }
 
-public abstract class BaseConverterTests<T, U> : AbstractConverterTests<T, U> where T : IYamlTypeConverter, new()
+public abstract class BaseConverterTests<T, TValue> : AbstractConverterTests<T, TValue>
+    where T : IYamlTypeConverter, new()
 {
     protected BaseConverterTests(string propertyName)
         : base(propertyName)

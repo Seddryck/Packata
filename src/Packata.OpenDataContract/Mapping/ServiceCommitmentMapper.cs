@@ -13,8 +13,16 @@ internal static class ServiceCommitmentMapper
 
     private enum CommitmentKind
     {
-        Unknown, Freshness, Latency, Frequency, Retention, Availability,
-        TimeOfAvailability, GeneralAvailability, EndOfSupport, EndOfLife
+        Unknown,
+        Freshness,
+        Latency,
+        Frequency,
+        Retention,
+        Availability,
+        TimeOfAvailability,
+        GeneralAvailability,
+        EndOfSupport,
+        EndOfLife
     }
 
     private static readonly Dictionary<string, CommitmentKind> PropertyKinds = new(StringComparer.OrdinalIgnoreCase)

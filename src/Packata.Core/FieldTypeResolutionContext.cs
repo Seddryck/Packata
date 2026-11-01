@@ -117,8 +117,11 @@ internal sealed class FieldTypeResolutionContext
     private void SetIntegerFormat(int width, bool? signed)
     {
         if ((_width is not null && _width != width) || (_signed is not null && _signed != signed))
+        {
             Report("ConflictingSemantics", TypeMappingTarget.Source,
                 "Integer format takes precedence over integerWidth/signed parameters.", TypeMappingSeverity.Warning);
+        }
+
         _width = width;
         _signed = signed;
     }
@@ -151,8 +154,11 @@ internal sealed class FieldTypeResolutionContext
             _semantics = _timezone.Value ? TemporalSemantics.Offset : TemporalSemantics.Local;
         if (!DateTimeFormatConverter.HasOffset(_format)) return;
         if (_timezone == false)
+        {
             Report("ConflictingSemantics", TypeMappingTarget.Source,
                 "Offset parsing pattern conflicts with timezone=false; the parsing pattern takes precedence.", TypeMappingSeverity.Warning);
+        }
+
         _semantics = TemporalSemantics.Offset;
     }
 
@@ -194,8 +200,10 @@ internal sealed class FieldTypeResolutionContext
         _entry = TypeMappingCatalog.Entries.FirstOrDefault(e => e.LogicalType == _type
             && e.IntegerWidth == _width && e.Signed == _signed && _width is not null && _signed is not null);
         if (_entry is null)
+        {
             Report("UnsupportedIntegerDomain", TypeMappingTarget.Source,
                 "Integer width and signedness must declare a supported complete domain.");
+        }
     }
 
     private void ProjectTemporal()
@@ -209,8 +217,10 @@ internal sealed class FieldTypeResolutionContext
         CheckTemporalOffset();
         CheckTemporalPrecision();
         if (_zone is not null)
+        {
             Report("RepresentationLoss", TypeMappingTarget.Runtime,
                 "CLR temporal values do not retain a named timezone; it remains available in metadata.", TypeMappingSeverity.Warning);
+        }
     }
 
     private void CheckTemporalOffset()
@@ -259,8 +269,10 @@ internal sealed class FieldTypeResolutionContext
     {
         if (_runtime != typeof(float) && _runtime != typeof(double)) return;
         if (_precision is not null || _scale is not null)
+        {
             Report("RepresentationLoss", TypeMappingTarget.Source,
                 "Binary floating point cannot represent a declared fixed decimal domain exactly.");
+        }
     }
 
     private void CheckIntegerBounds()

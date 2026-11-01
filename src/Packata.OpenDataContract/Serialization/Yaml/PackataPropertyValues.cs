@@ -13,11 +13,13 @@ internal static class PackataPropertyValues
         stream.Load(new StringReader(yaml));
         if (stream.Documents[0].RootNode is not YamlMappingNode root || Get(root, "schema") is not YamlSequenceNode schema) return;
         for (var index = 0; index < contract.Schema.Count; index++)
+        {
             if (schema.Children[index] is YamlMappingNode node)
             {
                 Properties(contract.Schema[index].CustomProperties, node);
                 Fields(contract.Schema[index].Properties, node);
             }
+        }
     }
 
     private static bool Recognized(CustomProperties properties) => properties.Any(property =>

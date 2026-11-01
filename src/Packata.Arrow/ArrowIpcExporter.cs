@@ -9,6 +9,9 @@ public sealed record ArrowIpcExportOptions
     public int BatchSize { get; init; } = 1024;
     public int MaxBufferedBytes { get; init; } = 16 * 1024 * 1024;
     /// <summary>Keep the destination open on success, cancellation, or failure. Defaults to true.</summary>
+    /// <value>
+    /// Keep the destination open on success, cancellation, or failure. Defaults to true.
+    /// </value>
     public bool LeaveOpen { get; init; } = true;
 }
 

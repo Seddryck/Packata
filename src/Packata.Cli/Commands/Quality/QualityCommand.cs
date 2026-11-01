@@ -104,8 +104,11 @@ internal sealed class QualityCommand : AsyncCommand<QualitySettings>
             if (!sqlite && !readOnlyCredentials) throw new InvalidOperationException("Read-only credentials are required for this SQL provider.");
             // Enforce the provider's read-only open mode; a rule can turn query_only off again.
             if (sqlite)
+            {
                 location = location with { ConnectionUrl = DatabaseEndpointResolver.BuildConnectionUrl(location,
                     new(Options: new Dictionary<string, string> { ["Mode"] = "ReadOnly" })) };
+            }
+
             var session = await database.Connections.OpenAsync(endpoint with { Location = location }, cancellationToken).ConfigureAwait(false);
             try
             {

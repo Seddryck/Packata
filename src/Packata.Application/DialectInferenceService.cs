@@ -4,7 +4,9 @@ using PocketCsvReader;
 
 namespace Packata.Application;
 
-public enum DialectUpdateFailure { SharedEndpoint, IncompleteSample, Ambiguous }
+public enum DialectUpdateFailure { SharedEndpoint,
+    IncompleteSample,
+    Ambiguous }
 public sealed class DialectUpdateException(DialectUpdateFailure failure, string message) : InvalidOperationException(message)
 {
     public DialectUpdateFailure Failure { get; } = failure;

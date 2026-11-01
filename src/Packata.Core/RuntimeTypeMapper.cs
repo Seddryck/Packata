@@ -29,8 +29,11 @@ public class RuntimeTypeMapper : BaseTypeMapper<Type>
         var children = result.Children.Select(child => ApplyRegistrations(child, options)).ToArray();
         result = result.WithNested(items, children);
         if (options.PreserveLegacyRepresentation)
+        {
             return result.RuntimeType == Map(result.Field.LogicalType, result.SourceFormat) ? result
                 : result.WithRuntime(Map(result.Field.LogicalType, result.SourceFormat), "LegacyRepresentation");
+        }
+
         if (result.LogicalType == "array" && items?.RuntimeType is { } itemType
             && !result.Diagnostics.Any(d => d.FieldPath == result.FieldPath
                 && d.Target == TypeMappingTarget.Source && d.Severity == TypeMappingSeverity.Error))

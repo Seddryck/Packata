@@ -131,6 +131,7 @@ public class CategoryTableTests
     public void Both_formats_round_trip_reference_options_and_all_ordering_states(bool? ordered)
     {
         foreach (var packageName in new string?[] { null, "https://example.com/datapackage.json", "shared-codes" })
+        {
             foreach (var encodedAs in new string?[] { null, "value", "label" })
             {
                 var descriptor = new CategoryDescriptor
@@ -149,6 +150,7 @@ public class CategoryTableTests
                 Assert.That(JObject.Parse(json)["categories"]!["encodedAs"] is null, Is.EqualTo(encodedAs is null));
                 Assert.That(JObject.Parse(json)["categoryFieldMap"]!["ordered"] is null, Is.EqualTo(ordered is null));
             }
+        }
     }
 
     [TestCase("https://example.com/datapackage.json")]

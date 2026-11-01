@@ -35,7 +35,7 @@ public class ExtensionSerializerTests
             _ => throw new NotSupportedException($"The format '{format}' is not supported.")
         };
 
-    public static IEnumerable<(Stream stream, IDataPackageSerializer serializer)> GetData()
+    public static IEnumerable<(Stream Stream, IDataPackageSerializer Serializer)> GetData()
     {
         yield return (GetDataPackageProperties("json"), GetSerializer("json"));
         yield return (GetDataPackageProperties("yaml"), GetSerializer("yaml"));

@@ -106,11 +106,17 @@ internal static class ContractDiffValues
         if (ReferenceEquals(previous, current)) return true;
         if (previous is null || current is null) return false;
         if (previous is ExtensionMetadata leftExtensions && current is ExtensionMetadata rightExtensions)
+        {
             return Equal(leftExtensions.Namespaces.Order(StringComparer.Ordinal).ToArray(), rightExtensions.Namespaces.Order(StringComparer.Ordinal).ToArray())
                 && leftExtensions.Namespaces.All(key => Equal(leftExtensions[key], rightExtensions[key]));
+        }
+
         if (previous is IReadOnlyDictionary<string, object?> leftDictionary && current is IReadOnlyDictionary<string, object?> rightDictionary)
+        {
             return leftDictionary.Count == rightDictionary.Count && leftDictionary.All(pair =>
                 rightDictionary.TryGetValue(pair.Key, out var value) && Equal(pair.Value, value));
+        }
+
         if (previous is IEnumerable left && current is IEnumerable right && previous is not string && current is not string)
         {
             var leftValues = left.Cast<object?>().ToArray();

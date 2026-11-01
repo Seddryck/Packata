@@ -12,7 +12,6 @@ internal class StowageDataPackageContainerTests
     private string? _directory;
     private const string CSV_CONTENT = @"foo;bar\r\n1;Hello\r\n2;World";
 
-
     [OneTimeSetUp]
     public void Setup()
     {

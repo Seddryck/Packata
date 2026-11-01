@@ -30,8 +30,11 @@ public class DbTypeMapper : BaseTypeMapper<DbType>
         var children = result.Children.Select(child => ApplyRegistrations(child, options)).ToArray();
         result = result.WithNested(items, children);
         if (options.PreserveLegacyRepresentation)
+        {
             return result.DatabaseType == Map(field.LogicalType, field.Format) ? result
                 : result.WithDatabase(Map(field.LogicalType, field.Format), "LegacyRepresentation");
+        }
+
         if (TryGetResolutionMapping(result, DbType.DateTimeOffset, out var custom))
             return result.WithDatabase(custom, "CustomRegistration");
         return result;

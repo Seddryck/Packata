@@ -6,8 +6,15 @@ public sealed record ArrowBatchOptions
     public int BatchSize { get; init; } = 1024;
     /// <summary>Maximum logical Arrow buffer bytes per batch, including validity and offsets.
     /// A single row exceeding this limit is rejected. Managed bookkeeping and allocator padding are additional.</summary>
+    /// <value>
+    /// Maximum logical Arrow buffer bytes per batch, including validity and offsets.
+    /// A single row exceeding this limit is rejected. Managed bookkeeping and allocator padding are additional.
+    /// </value>
     public int MaxBufferedBytes { get; init; } = 16 * 1024 * 1024;
     /// <summary>Keep the reader open after completion, failure, cancellation or early enumeration disposal.</summary>
+    /// <value>
+    /// Keep the reader open after completion, failure, cancellation or early enumeration disposal.
+    /// </value>
     public bool LeaveOpen { get; init; }
 
     internal void Validate()

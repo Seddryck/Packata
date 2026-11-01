@@ -4,10 +4,27 @@ using System.Text.Json;
 
 namespace Packata.Core.Contracts;
 
-public enum QualityInputScope { Value, Row, Dataset, Observation }
-public enum QualityProgramKind { Expression, Predicate }
-public enum ExpectationOperator { Equal, NotEqual, Greater, GreaterOrEqual, Less, LessOrEqual, Between, NotBetween }
-public enum QualityValueKind { Scalar, Timestamp, Date, Time, Duration, List, Object }
+public enum QualityInputScope { Value,
+    Row,
+    Dataset,
+    Observation }
+public enum QualityProgramKind { Expression,
+    Predicate }
+public enum ExpectationOperator { Equal,
+    NotEqual,
+    Greater,
+    GreaterOrEqual,
+    Less,
+    LessOrEqual,
+    Between,
+    NotBetween }
+public enum QualityValueKind { Scalar,
+    Timestamp,
+    Date,
+    Time,
+    Duration,
+    List,
+    Object }
 
 /// <summary>Detached typed argument/operand. Scalar membership uses the same ScalarValue as value domains.</summary>
 public sealed record QualityValue

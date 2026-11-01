@@ -43,12 +43,14 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
         private void AddDiagnostics(CompatibilityResult result)
         {
             foreach (var diagnostic in result.Diagnostics)
+            {
                 diagnostics.Add(new(diagnostic.Input, diagnostic.Input switch
                 {
                     "baseline" => settings.Baseline,
                     "candidate" => settings.Candidate,
                     _ => source
                 }, diagnostic.Code, diagnostic.Severity, diagnostic.Path, diagnostic.Message));
+            }
         }
 
         private int ResultExitCode(CompatibilityResult result)
@@ -102,9 +104,14 @@ internal sealed class CompareCommand : AsyncCommand<CompareSettings>
                 output.Commit();
             }
             if (settings.Quiet || settings.OutputFormat == "text")
+            {
                 foreach (var diagnostic in diagnostics)
+                {
                     CommandOutput.Diagnostic(new(diagnostic.Code, diagnostic.Severity,
                         $"{diagnostic.Input} ({diagnostic.Source}) {diagnostic.SourcePath}", diagnostic.Message));
+                }
+            }
+
             return exitCode;
         }
     }

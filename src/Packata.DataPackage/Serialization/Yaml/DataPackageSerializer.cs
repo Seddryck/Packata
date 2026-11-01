@@ -19,7 +19,6 @@ internal class DataPackageSerializer : IDataPackageSerializer
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(new DataPackageNamingConvention())
             .WithAttemptingUnquotedStringTypeDeserialization()
-            
 
             .WithTypeDiscriminatingNodeDeserializer((o) =>
                 {

@@ -74,8 +74,11 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     {
         if (directory is null) return document.Servers.Select(MapEndpoint).ToArray();
         foreach (var schema in document.Schema.Where(schema => string.IsNullOrWhiteSpace(schema.PhysicalName)))
+        {
             diagnostics.Add(new("ODCS006", MappingSeverity.Error, $"schema/{schema.Name}/physicalName",
                 "A local directory server requires an explicit physicalName for each schema object."));
+        }
+
         return document.Schema.Where(schema => !string.IsNullOrWhiteSpace(schema.PhysicalName)).Select(schema =>
             MapEndpoint(directory) with { Id = $"{directory.Server}/{schema.Name}",
                 Location = new PathLocation([Path.Combine(directory.Path, schema.PhysicalName!)]) }).ToArray();
@@ -132,8 +135,10 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         }
 
         if (!relationship.Type.Equals("foreignKey", StringComparison.OrdinalIgnoreCase))
+        {
             diagnostics.Add(new("ODCS002", MappingSeverity.Warning, $"schema/{sourceAsset}/relationships",
                 $"Relationship type '{relationship.Type}' was retained but will not be provisioned as a foreign key."));
+        }
 
         return new([from.Value.Field], to.Value.Asset, [to.Value.Field], relationship.Id,
             relationship.Type, MapCustomProperties(relationship.CustomProperties));
@@ -235,9 +240,14 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         AddRangeAndLengthConstraints(property.LogicalType, constraints);
         // Expose declared type parameters canonically; do not copy native-model defaults.
         if (property.DeclaredLogicalTypeOptions is { } options)
+        {
             foreach (var key in new[] { "timezone", "defaultTimezone", "integerWidth", "signed", "precision" })
+            {
                 if (options.TryGetValue(key, out var value) && !constraints.Any(c => c.Kind == key))
                     constraints.Add(new(key, MetadataSnapshot.CopyValue(value)));
+            }
+        }
+
         if (property.Enum is { Count: > 0 })
             constraints.Add(new("enum", property.Enum.Select(value => MetadataSnapshot.CopyValue(value.Value)).ToArray()));
         return constraints;

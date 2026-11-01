@@ -76,8 +76,11 @@ public static class DescriptorUpdateService
         if (resource[DialectProperty] is null) resource[DialectProperty] = dialect;
         dialect["type"] = DelimitedType;
         foreach (var name in DataPackageDialectOptions)
+        {
             if (options.TryGetValue(name, out var value))
                 dialect[name] = System.Text.Json.JsonSerializer.SerializeToNode(value);
+        }
+
         return new(root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, warnings);
     }
 
@@ -250,9 +253,15 @@ public static class DescriptorUpdateService
             RequiredSchema(inferredAsset).Fields, warnings));
         if (inferredEndpoint.Kind == EndpointKind.Database)
         {
-            if (RequiredSchema(inferredAsset).PrimaryKey.Count == 0) Remove(schema, "primaryKey");
-            else Set(schema, "primaryKey", new YamlSequenceNode(
+            if (RequiredSchema(inferredAsset).PrimaryKey.Count == 0)
+            {
+                Remove(schema, "primaryKey");
+            }
+            else
+            {
+                Set(schema, "primaryKey", new YamlSequenceNode(
                 RequiredSchema(inferredAsset).PrimaryKey.Select(key => new YamlScalarNode(key))));
+            }
         }
         if (HasDialect(inferredEndpoint))
         {
@@ -470,16 +479,22 @@ public static class DescriptorUpdateService
     private static YamlMappingNode? Mapping(YamlMappingNode parent, string key)
     {
         if (parent.Children.TryGetValue(new YamlScalarNode(key), out var value))
+        {
             return value as YamlMappingNode
                 ?? throw new InvalidDataException($"YAML property '{key}' must be a mapping.");
+        }
+
         return null;
     }
 
     private static YamlSequenceNode Sequence(YamlMappingNode parent, string key, bool create = false)
     {
         if (parent.Children.TryGetValue(new YamlScalarNode(key), out var value))
+        {
             return value as YamlSequenceNode
                 ?? throw new InvalidDataException($"YAML property '{key}' must be a sequence.");
+        }
+
         if (!create) throw new InvalidDataException($"YAML property '{key}' was not found.");
         var sequence = new YamlSequenceNode();
         Set(parent, key, sequence);

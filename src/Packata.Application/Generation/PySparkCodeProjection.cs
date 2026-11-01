@@ -54,6 +54,7 @@ internal static class PySparkCodeProjection
     private static string Type(JToken type)
     {
         if (type is JObject shape)
+        {
             return (string?)shape["type"] switch
             {
                 "struct" => $"S.StructType([{string.Join(", ", ((JArray)shape["fields"]!).Select(Field))}])",
@@ -61,6 +62,8 @@ internal static class PySparkCodeProjection
                 "map" => $"S.MapType({Type(shape["keyType"]!)}, {Type(shape["valueType"]!)}, valueContainsNull={Bool(shape["valueContainsNull"]!)})",
                 _ => throw new InvalidOperationException("Unvalidated Spark shape.")
             };
+        }
+
         var scalar = (string)type!;
         if (scalar.StartsWith("decimal(", StringComparison.Ordinal)) return "S.DecimalType(" + scalar[8..];
         var constructor = scalar switch

@@ -65,8 +65,12 @@ public sealed class WorkflowServiceTests
             using var workbook = ExcelWorkbookFixture.Create([["id"], [1], [2]]);
             data = workbook.ToArray();
         }
-        else data = format == "parquet" ? await File.ReadAllBytesAsync(Path.Combine(TestContext.CurrentContext.TestDirectory, "Resources", "iris.parquet"))
+        else
+        {
+            data = format == "parquet" ? await File.ReadAllBytesAsync(Path.Combine(TestContext.CurrentContext.TestDirectory, "Resources", "iris.parquet"))
             : "id\r\n1\r\n2\r\n"u8.ToArray();
+        }
+
         var streams = new InferenceStreams(data);
         var result = await ContractInferenceService.InferFileAsync(new(contract, streams), asset, endpoint,
             new() { Header = format == "parquet" ? "auto" : "present", StagingMaximumBytes = 1024 * 1024 }, CancellationToken.None);

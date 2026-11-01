@@ -55,8 +55,10 @@ internal static class PocketCsvReaderProviderDefaults
             });
         }
         else
+        {
             schema.WithField(type, field.Name,
                 builder => field.LogicalType is null ? builder : builder.WithDataSourceTypeName(field.LogicalType));
+        }
     }
 
     private static string SequenceText(ScalarValue scalar) => scalar.Value switch

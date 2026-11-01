@@ -36,23 +36,30 @@ internal static class InlineDataReader
     private static object[] ReadValues(object? row, DataTable table, bool hasSchema)
     {
         if (TryReadMap(row, out var map))
+        {
             return table.Columns.Cast<DataColumn>()
                 .Select(column => map.TryGetValue(column.ColumnName, out var value)
                     ? ConvertValue(value, column.DataType)
                     : DBNull.Value)
                 .ToArray();
+        }
 
         if (!hasSchema)
             throw new ArgumentException("Positional inline rows require a schema.", nameof(row));
         if (row is not IEnumerable sequence || row is string)
+        {
             throw new ArgumentException(
                 "Each inline row must be a string-keyed dictionary or positional collection.", nameof(row));
+        }
 
         var values = sequence.Cast<object?>().ToArray();
         if (values.Length != table.Columns.Count)
+        {
             throw new ArgumentException(
                 $"A positional inline row contains {values.Length} values but the schema defines {table.Columns.Count} fields.",
                 nameof(row));
+        }
+
         return values.Select((item, index) => ConvertValue(item, table.Columns[index].DataType)).ToArray();
     }
 

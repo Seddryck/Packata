@@ -8,7 +8,8 @@ using Packata.Core.Contracts;
 
 namespace Packata.Rules.Expressif;
 
-public enum MetricReduction { CountSelected, CountExcessOccurrences }
+public enum MetricReduction { CountSelected,
+    CountExcessOccurrences }
 public sealed record MetricArgument(string Name, QualityValueKind Kind, bool Required = false, bool StringItems = false);
 public sealed record ExpressifMetricProgram(string Projection, Func<IReadOnlyDictionary<string, QualityValue>, IPredicate> Selection,
     MetricReduction Reduction = MetricReduction.CountSelected, string RowsFinalization = "@numerator",
@@ -95,7 +96,8 @@ internal static class MetricPredicates
 
     private sealed class MetricPredicationFactory : PredicationFactory
     {
-        public MetricPredicationFactory() : base(new MetricTypeMapper(), new global::Expressif.Predicates.Operators.UnaryOperatorFactory(),
+        public MetricPredicationFactory()
+            : base(new MetricTypeMapper(), new global::Expressif.Predicates.Operators.UnaryOperatorFactory(),
             new global::Expressif.Predicates.Operators.BinaryOperatorFactory()) { }
     }
 

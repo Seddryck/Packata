@@ -4,5 +4,8 @@ namespace Packata.Core.Reading;
 public interface IOriginalColumnNames
 {
     /// <summary>Original decoded headers after reader initialization, or null when unavailable.</summary>
+    /// <value>
+    /// Original decoded headers after reader initialization, or null when unavailable.
+    /// </value>
     IReadOnlyList<string>? OriginalColumnNames { get; }
 }

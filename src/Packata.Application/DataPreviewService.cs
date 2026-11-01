@@ -9,7 +9,9 @@ public sealed record DataPreviewOptions(int Limit = 20, IReadOnlyList<string>? C
     bool RequireUniqueColumnNames = true, bool StructureOnly = false);
 public sealed record DataPreviewColumn(string Name, string Type);
 public sealed record DataPreviewSample(IReadOnlyList<DataPreviewColumn> Columns, IReadOnlyList<object?[]> Rows);
-public enum DataPreviewSelectionFailure { Binding, Endpoint, Column }
+public enum DataPreviewSelectionFailure { Binding,
+    Endpoint,
+    Column }
 
 /// <summary>A selection failure that hosts can project into their own diagnostics.</summary>
 public sealed class DataPreviewSelectionException(DataPreviewSelectionFailure failure, string message) : Exception(message)
@@ -27,16 +29,22 @@ public sealed class DataPreviewService(IDataEndpointReaderFactory readers)
     public static DataEndpointReadRequest SelectRequest(DataContract contract, DataAsset asset, int? bindingIndex = null)
     {
         if (bindingIndex is null && asset.EndpointBindings.Count != 1)
+        {
             throw new DataPreviewSelectionException(DataPreviewSelectionFailure.Binding,
                 $"Asset '{asset.Id}' must have exactly one endpoint binding for preview; none or multiple bindings cannot be selected automatically.");
+        }
+
         var index = bindingIndex ?? 0;
         if (index < 0 || index >= asset.EndpointBindings.Count)
             throw new DataPreviewSelectionException(DataPreviewSelectionFailure.Binding, "The selected endpoint binding does not exist.");
         var binding = asset.EndpointBindings[index];
         var endpoints = contract.Endpoints.Where(endpoint => endpoint.Id == binding.EndpointId).ToArray();
         if (endpoints.Length != 1)
+        {
             throw new DataPreviewSelectionException(DataPreviewSelectionFailure.Endpoint,
                 $"Endpoint '{binding.EndpointId}' for asset '{asset.Id}' could not be resolved uniquely.");
+        }
+
         return new(endpoints[0], asset.Schema, binding.AssetPath ?? asset.PhysicalName ?? asset.Name, contract);
     }
 

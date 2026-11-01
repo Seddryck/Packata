@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -14,9 +14,13 @@ public class HttpStorageHandler : IStorageHandler
     private readonly bool _disposeClient;
     private readonly CancellationToken _cancellationToken;
     /// <summary>The final response location after the client's redirect policy has been applied.</summary>
+    /// <value>
+    /// The final response location after the client's redirect policy has been applied.
+    /// </value>
     public Uri? ResponseUri { get; private set; }
 
-    public HttpStorageHandler(HttpClient? httpClient = null) : this(httpClient, CancellationToken.None) { }
+    public HttpStorageHandler(HttpClient? httpClient = null)
+        : this(httpClient, CancellationToken.None) { }
 
     public HttpStorageHandler(HttpClient? httpClient, CancellationToken cancellationToken)
     {

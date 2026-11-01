@@ -16,8 +16,11 @@ public class OdcsCategoryTableTests
     {
         var document = Document();
         if (labelEncoded)
+        {
             foreach (var property in document.Schema[0].Properties)
                 ((IDictionary)property.CustomProperties[0].Value!)["encodedAs"] = "label";
+        }
+
         var contract = document.ToCanonicalContract().RequireValue();
         var streams = new Streams();
         var factory = ResourceReaderFactory.Create(options => options.DecodeCategories = decode, streams);

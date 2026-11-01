@@ -9,6 +9,9 @@ namespace Packata.ResourceReaders.Parquet;
 public sealed record ParquetDataContractInferenceOptions : FileDataContractInferenceOptions
 {
     /// <summary>Maximum serialized footer size before Parquet.Net decodes metadata.</summary>
+    /// <value>
+    /// Maximum serialized footer size before Parquet.Net decodes metadata.
+    /// </value>
     public int MaximumFooterBytes { get; init; } = 16 * 1024 * 1024;
     public int MaximumFields { get; init; } = 10000;
     public int MaximumDepth { get; init; } = 32;
@@ -84,8 +87,11 @@ public sealed class ParquetDataContractInference
             return new(field.Name, "object", physical, Required: !field.IsNullable, Nullable: field.IsNullable, Children: children);
         }
         if (field is ListField list)
+        {
             return new(field.Name, "array", physical, Required: !field.IsNullable, Nullable: field.IsNullable,
                 Items: Map(list.Item, path, diagnostics, depth + 1, ref count));
+        }
+
         if (field is not global::Parquet.Schema.DataField data || data.IsArray)
         {
             diagnostics.Add(new("PARQUET001", InferenceSeverity.Error, path,
@@ -109,8 +115,11 @@ public sealed class ParquetDataContractInference
         }
         if (data is TimeDataField time) physical = $"{physical} TIME({time.Precision})";
         if (type is null)
+        {
             diagnostics.Add(new("PARQUET002", InferenceSeverity.Error, path,
                 $"Parquet type '{data.ClrType.Name}' has no lossless canonical mapping."));
+        }
+
         return new(data.Name, type, physical, format, Required: !data.IsNullable, Nullable: data.IsNullable);
     }
 }

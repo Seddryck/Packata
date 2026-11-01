@@ -23,7 +23,6 @@ internal class ContractSettings : ContractSourceSettings
             return ValidationResult.Error("--output-format must be text or json.");
         return OptionValidation.Output(Output);
     }
-
 }
 
 internal sealed class ValidateSettings : ContractSettings

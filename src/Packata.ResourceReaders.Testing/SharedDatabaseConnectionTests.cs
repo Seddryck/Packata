@@ -155,7 +155,11 @@ public class SharedDatabaseConnectionTests
                 var asset = contract.Assets.Single();
                 request = new(contract.Endpoints.Single(), asset.Schema, asset.EndpointBindings.Single().AssetPath);
             }
-            else request = new(Endpoint(new("sqlite", Database: "data # %.db", Namespace: "main")), AssetPath: table);
+            else
+            {
+                request = new(Endpoint(new("sqlite", Database: "data # %.db", Namespace: "main")), AssetPath: table);
+            }
+
             var factory = ResourceReaderFactory.Create(options => options.AddDatabase(service));
             using var reader = await factory.OpenAsync(request);
             Assert.Multiple(() =>

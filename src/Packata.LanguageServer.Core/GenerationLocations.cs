@@ -28,7 +28,7 @@ internal sealed class GenerationLocations
             .ToDictionary(g => g.Key, g => g.Single().Location, StringComparer.Ordinal);
     }
 
-    private static void Collect(ContractNode node, string path, List<(string, SourceLocation)> locations)
+    private static void Collect(ContractNode node, string path, List<(string Path, SourceLocation Location)> locations)
     {
         if (node.Location is { } location) locations.Add((path, location));
         foreach (var child in node.Children.Where(n => n.Kind == "field"))

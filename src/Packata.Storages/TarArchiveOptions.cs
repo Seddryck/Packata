@@ -7,10 +7,19 @@ public sealed record TarArchiveOptions
     public long MaxEntryBytes { get; init; } = 1L << 30;
     public long MaxTotalBytes { get; init; } = 4L << 30;
     /// <summary>Bounds the entire decoded TAR stream, including headers, metadata, and padding.</summary>
+    /// <value>
+    /// Bounds the entire decoded TAR stream, including headers, metadata, and padding.
+    /// </value>
     public long MaxArchiveBytes { get; init; } = 5L << 30;
     /// <summary>Maximum combined entry content retained in memory; larger contents spill to disk.</summary>
+    /// <value>
+    /// Maximum combined entry content retained in memory; larger contents spill to disk.
+    /// </value>
     public long MemoryThresholdBytes { get; init; } = 8L << 20;
     /// <summary>A private existing spill directory, or null to use Packata's private per-user directory.</summary>
+    /// <value>
+    /// A private existing spill directory, or null to use Packata's private per-user directory.
+    /// </value>
     public string? TemporaryDirectory { get; init; }
 
     internal void Validate()

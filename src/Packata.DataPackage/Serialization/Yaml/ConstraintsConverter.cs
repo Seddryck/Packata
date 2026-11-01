@@ -42,9 +42,14 @@ internal class ConstraintsConverter : IYamlTypeConverter
         while (!parser.TryConsume<SequenceEnd>(out _))
         {
             if (parser.TryConsume<Scalar>(out var scalar))
+            {
                 values.Add(scalar.Tag == "tag:yaml.org,2002:str" || scalar.Style is ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted or ScalarStyle.Literal or ScalarStyle.Folded
                     ? scalar.Value : Normalize(scalar.Value));
-            else values.Add(Normalize(deserializer(typeof(object))));
+            }
+            else
+            {
+                values.Add(Normalize(deserializer(typeof(object))));
+            }
         }
         return values;
     }

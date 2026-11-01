@@ -50,7 +50,7 @@ public static class GenerationCatalogService
             "Python 3.10+ and PyArrow 23+; presence, uniqueness and quality rules require separate validation.",
             Representation: PythonRepresentation, Extension: ".py", ApplicableOptions: PythonOptions)
     ], ["csharp-record", "csharp-class", "python-class", "python-dataclass", "python-pydantic", "csharp-datatable", "csharp-polars", "csharp-arrow", "python-arrow", "python-pyspark", "csharp-dataframe", "csharp-idataview"],
-        TemplateEngineFactory.Default.AllSupportedExtensions().Select(s => s.TrimStart('.')).Order().ToArray(), "scriban",
+    TemplateEngineFactory.Default.AllSupportedExtensions().Select(s => s.TrimStart('.')).Order().ToArray(), "scriban",
     ["Generation reads descriptor metadata only; it never reads rows, compiles or executes generated code.",
      "Didot rendering is synchronous and cannot be interrupted once entered; cancelled results are discarded.",
      "Only the supplied template is available; filesystem/network includes are not registered."]);

@@ -5,8 +5,15 @@ using Packata.Database;
 
 namespace Packata.Rules.Sql;
 
-public enum SqlDialect { Ansi, Sqlite, PostgreSql, SqlServer, MySql, DuckDb }
-public enum SqlReadOnlyCapability { Unknown, EnforcedByProvider, ReadOnlyCredentials }
+public enum SqlDialect { Ansi,
+    Sqlite,
+    PostgreSql,
+    SqlServer,
+    MySql,
+    DuckDb }
+public enum SqlReadOnlyCapability { Unknown,
+    EnforcedByProvider,
+    ReadOnlyCredentials }
 public sealed record SqlValueParameter(string Name, QualityValue Value, DbType? Type = null);
 public sealed record SqlRuleOptions(SqlDialect? AuthoredDialect = null, IReadOnlyList<string>? ObjectPath = null,
     IReadOnlyList<string>? PropertyPath = null, IReadOnlyList<SqlValueParameter>? Parameters = null,

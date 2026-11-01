@@ -12,7 +12,8 @@ public class HttpDataPackageContainer : HttpStorageHandler, IDocumentContainer
 {
     public Uri BaseUri { get; }
 
-    public HttpDataPackageContainer(Uri baseUri, HttpClient? httpClient = null) : this(baseUri, httpClient, CancellationToken.None) { }
+    public HttpDataPackageContainer(Uri baseUri, HttpClient? httpClient = null)
+        : this(baseUri, httpClient, CancellationToken.None) { }
 
     public HttpDataPackageContainer(Uri baseUri, HttpClient? httpClient, CancellationToken cancellationToken)
         : base(httpClient, cancellationToken)

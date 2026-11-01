@@ -53,8 +53,11 @@ internal static class PreviewPresenter
             for (var column = start; column < end; column++)
                 table.AddColumn(new TableColumn(SingleLine(headers[column])) { Width = widths[column], NoWrap = true });
             for (var row = 0; row < rows.Length; row++)
+            {
                 table.AddRow(new[] { new Text((row + 1).ToString(CultureInfo.InvariantCulture)) }
                     .Concat(rows[row].Skip(start).Take(end - start).Select(SingleLine)).ToArray());
+            }
+
             console.Write(table);
             start = end;
         }
