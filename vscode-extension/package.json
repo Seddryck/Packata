@@ -259,6 +259,18 @@
         "command": "packata.schema.otherTargets",
         "title": "Other Targets…",
         "category": "Packata"
+      },
+      {
+        "command": "packata.schema.arrowCsharp",
+        "title": "Arrow Schema…",
+        "category": "Packata C#",
+        "enablement": "packata.schema.arrowCsharp"
+      },
+      {
+        "command": "packata.schema.arrowPython",
+        "title": "Arrow Schema…",
+        "category": "Packata Python",
+        "enablement": "packata.schema.arrowPython"
       }
     ],
     "menus": {
@@ -365,6 +377,10 @@
         {
           "command": "packata.schema.polars",
           "when": "packata.schema.polars"
+        },
+        {
+          "command": "packata.schema.arrowCsharp",
+          "when": "packata.schema.arrowCsharp"
         }
       ],
       "packata.schema.generate": [
@@ -448,6 +464,12 @@
         {
           "command": "packata.schema.sql.teradata",
           "when": "packata.schema.sql.teradata"
+        }
+      ],
+      "packata.schema.python": [
+        {
+          "command": "packata.schema.arrowPython",
+          "when": "packata.schema.arrowPython"
         }
       ]
     },

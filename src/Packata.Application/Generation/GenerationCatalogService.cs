@@ -24,7 +24,8 @@ public static class GenerationCatalogService
         new("arrow", "Arrow Schema (C#)", "csharp-arrow", "scriban", "csharp", true,
             "Apache.Arrow 23.0.0; presence, uniqueness and quality rules require separate validation."),
         new("arrow", "Arrow Schema (Python)", "python-arrow", "scriban", "python", false,
-            "Python 3.10+ and PyArrow 23+; presence, uniqueness and quality rules require separate validation.")
+            "Python 3.10+ and PyArrow 23+; presence, uniqueness and quality rules require separate validation.",
+            Representation: "Python", Extension: ".py", ApplicableOptions: ["asset", "output", "type-name"])
     ], ["csharp-record", "csharp-datatable", "csharp-polars", "csharp-arrow", "python-arrow"],
         TemplateEngineFactory.Default.AllSupportedExtensions().Select(s => s.TrimStart('.')).Order().ToArray(), "scriban",
     ["Generation reads descriptor metadata only; it never reads rows, compiles or executes generated code.",

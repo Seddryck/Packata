@@ -84,11 +84,11 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         var asset = SelectAsset(assets, options.AssetId, diagnostics);
         if (asset is null) return Result(null, null, null, template, diagnostics);
         var context = new GenerationProjection(options, profile, diagnostics, cancellationToken).Build(contract, asset);
-        return await RenderAsync(context, asset, profile, template, engine, diagnostics, cancellationToken).ConfigureAwait(false);
+        return await RenderAsync(context, asset, profile, options.Language, template, engine, diagnostics, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<GenerationResult> RenderAsync(Dictionary<string, object?> context, DataAsset asset,
-        string? profile, TemplateInput template, string engine, List<GenerationDiagnostic> diagnostics, CancellationToken cancellationToken)
+        string? profile, string? requestedLanguage, TemplateInput template, string engine, List<GenerationDiagnostic> diagnostics, CancellationToken cancellationToken)
     {
         if (profile is "csharp-arrow" or "python-arrow")
             ArrowCodeProjection.Apply(context, asset.Schema!, profile == "python-arrow", diagnostics);
@@ -99,7 +99,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             var content = await (renderer ?? new DidotTemplateRenderer()).RenderAsync(template, engine, plain, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             var name = ((Dictionary<string, object?>)context["asset"]!)["generated_name"]!.ToString()!.TrimStart('@');
-            var (language, extension) = OutputKind(profile);
+            var (language, extension) = OutputKind(profile, requestedLanguage);
             return Result(content.ReplaceLineEndings("\n"), asset.Id, name + extension, template, diagnostics, plain, language);
         }
         catch (OperationCanceledException) { throw; }
@@ -126,13 +126,6 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         if (options.UnsupportedOptions is { Count: > 0 }) throw new ArgumentException("Unsupported generation options; use the generation catalog.");
         if (!Enum.IsDefined(options.Fallback)) throw new ArgumentException("Unknown mapping fallback policy.");
         if ((options.Target is null) == (template is null)) throw new ArgumentException("Select exactly one built-in target or custom template.");
-        ValidateLanguage(options, template);
-    }
-
-    private static void ValidateLanguage(GenerationOptions options, TemplateInput? template)
-    {
-        if (options.Target == "arrow" && options.Language is null) throw new ArgumentException("--target arrow requires --language csharp or python.");
-        if (template is not null && options.Language is not null) throw new ArgumentException("Custom templates select --type-mapping instead of --language.");
     }
 
     private static GenerationTarget? SelectTarget(GenerationOptions options)
@@ -143,10 +136,11 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             ?? throw new ArgumentException("Unsupported target/language pair. Consult the generation catalog.");
     }
 
-    private static (string Language, string Extension) OutputKind(string? profile) => profile switch
+    private static (string Language, string Extension) OutputKind(string? profile, string? requestedLanguage)
     {
-        null => ("plaintext", ".txt"), "python-arrow" => ("python", ".py"), _ => ("csharp", ".cs")
-    };
+        var language = requestedLanguage ?? (profile is null ? "plaintext" : profile == "python-arrow" ? "python" : "csharp");
+        return (language, language switch { "csharp" => ".cs", "python" => ".py", _ => ".txt" });
+    }
 
     private static string? SelectProfile(GenerationOptions options, GenerationTarget? target)
     {

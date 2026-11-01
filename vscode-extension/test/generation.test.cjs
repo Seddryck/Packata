@@ -80,7 +80,7 @@ test('generation opens an editable C# untitled document without writing a descri
 for (const language of ['csharp', 'python']) {
   test('Arrow generation routes the catalog target and ' + language + ' pair', async () => {
     const h = harness({ arrow: true, language }); await h.run();
-    const call = h.calls.find(c => c.command === 'packata.schema.export');
+    const call = h.calls.find(c => c.command === 'packata.schema.generate');
     assert.equal(call.args.options.target, 'arrow');
     assert.equal(call.args.options.language, language);
     assert.equal(h.opened.length, 1);

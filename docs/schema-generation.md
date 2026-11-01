@@ -4,20 +4,6 @@ parent: Reference
 permalink: /reference/dotnet/schema-generation/
 ---
 
-<!-- cli:schema generate -->
-## Generate schema code
-
-`packata schema generate <SOURCE> --target <TARGET> --language <LANGUAGE> [OPTIONS]`
-
-Select a bundled target/language pair or a custom `--template <PATH>`.
-`--input-format` selects the descriptor standard. `--asset` selects one eligible asset.
-`--output` / `-o` writes a protected new file; otherwise complete text goes to stdout.
-`--namespace` and `--type-name` customize supported names. Custom templates accept
-`--engine`, `--type-mapping`, repeatable `--define`, and `--mapping-fallback`.
-Bundled targets fix their template engine and mapping profile.
-<!-- end-cli -->
-
-
 `SchemaGenerationService` in `Packata.Application.Generation` is the shared metadata-only
 workflow for CLI and editor hosts. It accepts `ContractDocument` or descriptor text with
 its original base URI, `GenerationOptions`, optional `TemplateInput` text/identity/version,
@@ -284,7 +270,7 @@ uniqueness, value domains or quality constraints; `ARROW_CONSTRAINTS` reports th
 Use `--type-name` for the exported value/factory name; names are sanitized deterministically.
 Python has no namespace option. Source field names and metadata strings are escaped literals.
 
-Both targets use the same field-aware `Packata.Arrow.ArrowSchemaMapper` projection, also
+Both targets use the same field-aware `Packata.Arrow.ArrowSchemaProjection` projection, also
 available to IPC consumers. Supported types include signed/unsigned integers, floats,
 boolean, UTF-8 string, explicit string/binary, date32, time32/time64, timestamps, decimal128
 (up to 38 digits), decimal256 (up to 76), nested structs and lists. Decimal precision and
