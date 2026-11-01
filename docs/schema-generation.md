@@ -155,7 +155,7 @@ The Required constraint option controls native NOT NULL generation from field nu
 
 `packata schema export sales.odcs.yaml --asset orders --output-format arrow-ipc -o orders.schema.ipc`
 
-Arrow IPC emits one encapsulated Schema message without record batches or trailing stream markers. Redirected stdout receives the exact binary bytes; interactive terminals require `--output`. Editor exports use a protected save dialog. See [Arrow schema documents](arrow-schema-documents.md) for mapping and interoperability details.
+Arrow IPC emits one encapsulated Schema message without record batches or trailing stream markers. Redirected stdout receives the exact binary bytes; interactive terminals require `--output`. Editor exports use a protected save dialog. See [Arrow schema documents]({{ '/reference/dotnet/arrow-schema-documents/' | relative_url }}) for mapping and interoperability details.
 
 ## Structured schema documents
 
