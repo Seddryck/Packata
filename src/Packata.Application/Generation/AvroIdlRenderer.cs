@@ -9,6 +9,8 @@ namespace Packata.Application.Generation;
 internal sealed class AvroIdlRenderer(CancellationToken token)
 {
     private readonly StringBuilder declarations = new();
+    private static readonly HashSet<string> PrimitiveTypes = new(StringComparer.Ordinal)
+        { "null", "boolean", "int", "long", "float", "double", "bytes", "string" };
 
     internal static string Render(JToken schema, CancellationToken token = default)
     {
@@ -24,23 +26,32 @@ internal sealed class AvroIdlRenderer(CancellationToken token)
         if (schema.Type == JTokenType.String)
         {
             var name = schema.Value<string>()!;
-            return name is "null" or "boolean" or "int" or "long" or "float" or "double" or "bytes" or "string" ? name : Identifier(name);
+            return PrimitiveTypes.Contains(name) ? name : Identifier(name);
         }
         if (schema is not JObject obj) throw Unsupported("schema", schema);
+        return ObjectType(obj, inheritedNamespace);
+    }
+
+    private string ObjectType(JObject obj, string? inheritedNamespace)
+    {
         var kind = obj.Value<string>("type");
         if (kind is "record" or "enum" or "fixed") return Named(obj, kind, inheritedNamespace);
         if (kind == "bytes" && obj.Value<string>("logicalType") == "decimal")
+        {
             return Annotations(obj, "type", "logicalType", "precision", "scale")
                 + $"decimal({obj["precision"]}, {obj["scale"]})";
-        var properties = Annotations(obj, "type", "items", "values");
-        return properties + (kind switch
+        }
+        return Annotations(obj, "type", "items", "values") + InlineType(obj, kind, inheritedNamespace);
+    }
+
+    private string InlineType(JObject obj, string? kind, string? inheritedNamespace)
+        => kind switch
         {
             "array" => "array<" + Type(obj["items"]!, inheritedNamespace) + ">",
             "map" => "map<" + Type(obj["values"]!, inheritedNamespace) + ">",
-            "null" or "boolean" or "int" or "long" or "float" or "double" or "bytes" or "string" => kind,
+            not null when PrimitiveTypes.Contains(kind) => kind,
             _ => throw Unsupported("type", obj)
-        });
-    }
+        };
 
     private string Named(JObject schema, string kind, string? inheritedNamespace)
     {

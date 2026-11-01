@@ -47,7 +47,12 @@ exports.run = async function () {
   const generationOptions = await vscode.commands.executeCommand('packata.schema.options', { uri: uri.toString(), schemaVersion: 1 });
   assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'csharp').map(t => t.id).sort(), ['arrow', 'class', 'datatable', 'dotnet-dataframe', 'idataview', 'polars', 'record'], 'Bundled C# targets come from Application');
   assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'python').map(t => t.id).sort(), ['arrow', 'class', 'dataclass', 'pydantic', 'pyspark'], 'Bundled Python targets come from Application');
-  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'export').map(t => t.id).sort(), ['arrow-ipc', 'avro', 'json-schema', 'spark-json'], 'Document formats share the Application catalog');
+  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'export').map(t => t.id).sort(), ['arrow-ipc', 'avro', 'avro-idl', 'json-schema', 'spark-json'], 'Document formats share the Application catalog');
+  const exported = await vscode.commands.executeCommand('packata.schema.export', { uri: uri.toString(), version: document.version,
+    selectionKey: generationOptions.selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', outputFormat: 'avro-idl' }, schemaVersion: 1 });
+  assert.equal(exported.result.isSuccessful, true, JSON.stringify(exported.result.diagnostics));
+  assert.equal(exported.result.suggestedFilename, 'schema.avdl');
+  assert.ok(exported.result.content.startsWith('schema '), 'Avro IDL export works in the packaged server');
   assert.ok(generationOptions.catalog.targets.some(t => t.id === 'ddl' && t.dialects.some(d => d.id === 'sqlite')), 'Offline SQL dialects are advertised');
   const generated = await vscode.commands.executeCommand('packata.schema.generate', { uri: uri.toString(), version: document.version,
     selectionKey: generationOptions.selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', target: 'record', language: 'csharp' }, schemaVersion: 1 });

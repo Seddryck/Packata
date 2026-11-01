@@ -82,12 +82,14 @@ public class AvroIdlExportTests
         Assert.That(first.IsSuccessful && second.IsSuccessful, Is.True);
         Assert.That(first.Content, Is.EqualTo(second.Content));
         if (Environment.GetEnvironmentVariable("PACKATA_AVRO_TOOLS_JAR") is not null)
+        {
             foreach (var source in new[] { dp, odcs })
             {
                 var avro = await service.GenerateAsync(source, options with { OutputFormat = "avro" });
                 var idl = await service.GenerateAsync(source, options);
                 await AssertCompilerEquivalent(avro.Content!, idl.Content!);
             }
+        }
         var multiple = JObject.Parse(dp);
         ((JArray)multiple["resources"]!).Add(JObject.Parse("""{"name":"other","schema":{"fields":[{"name":"id","type":"integer"}]}}"""));
         foreach (var selection in new string?[] { null, "missing" })
@@ -106,7 +108,8 @@ public class AvroIdlExportTests
         Assert.Throws<NotSupportedException>(() => AvroIdlRenderer.Render(schema));
     }
 
-    [Test, Category("AvroIdlInterop")]
+    [Test]
+    [Category("AvroIdlInterop")]
     public async Task Apache_1_12_compiler_preserves_projected_nested_types_enums_logical_types_and_metadata()
     {
         var asset = Asset(new("record", "string", Required: true, Description: "An identifier\nwith documentation"),
@@ -127,7 +130,8 @@ public class AvroIdlExportTests
         await AssertCompilerEquivalent(json.Content!, idl.Content!);
     }
 
-    [Test, Category("AvroIdlInterop")]
+    [Test]
+    [Category("AvroIdlInterop")]
     public async Task Apache_compiler_preserves_native_defaults_aliases_namespaces_and_union_order()
     {
         const string json = """
