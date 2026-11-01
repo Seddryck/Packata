@@ -12,7 +12,9 @@ Wheels are GitHub Release assets only. There is no PyPI or other central package
 import packata
 
 with packata.connect("http://127.0.0.1:8080") as contract:
-    print(contract.assets)  # declared schemas, formats and mapping limitations; no data read
+    print(
+        contract.assets
+    )  # declared schemas, formats and mapping limitations; no data read
     with contract.asset("SERVICE_ASSET_ID").rows() as rows:
         for row in rows:
             process(row)

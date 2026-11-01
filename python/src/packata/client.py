@@ -34,8 +34,11 @@ class _ResponseOwner:
         self.connection.close()
 
 
-MEDIA = {"ndjson": "application/x-ndjson", "avro": "application/avro",
-         "arrow": "application/vnd.apache.arrow.stream"}
+MEDIA = {
+    "ndjson": "application/x-ndjson",
+    "avro": "application/avro",
+    "arrow": "application/vnd.apache.arrow.stream",
+}
 ALIASES = {"application/ndjson": "ndjson", "avro/binary": "avro"}
 
 
@@ -93,19 +96,21 @@ def _long(body, first=None):
     raise PackataError("Invalid Avro integer")
 
 
-def _avro(body):
-    avro = _dependency("fastavro")
-    if _exact(body, 4) != b"Obj\x01":
-        raise PackataError("Invalid Avro container")
+def _metadata_count(body):
+    count = _long(body)
+    if count < 0:
+        count = -count
+        size = _long(body)
+        if not 0 <= size <= body.limit:
+            raise PackataError("Avro metadata block exceeds limit")
+    if count > 1024:
+        raise PackataError("Too many Avro metadata entries")
+    return count
+
+
+def _avro_metadata(body):
     metadata, total = {}, 0
-    while (count := _long(body)) != 0:
-        if count < 0:
-            count = -count
-            size = _long(body)
-            if not 0 <= size <= body.limit:
-                raise PackataError("Avro metadata block exceeds limit")
-        if count > 1024:
-            raise PackataError("Too many Avro metadata entries")
+    while count := _metadata_count(body):
         for _ in range(count):
             key = _exact(body, _long(body)).decode("utf-8")
             value = _exact(body, _long(body))
@@ -113,6 +118,14 @@ def _avro(body):
             if total > body.limit:
                 raise PackataError("Avro metadata exceeds limit")
             metadata[key] = value
+    return metadata
+
+
+def _avro(body):
+    avro = _dependency("fastavro")
+    if _exact(body, 4) != b"Obj\x01":
+        raise PackataError("Invalid Avro container")
+    metadata = _avro_metadata(body)
     if metadata.get("avro.codec", b"null") != b"null":
         raise PackataError("Only the service's Avro null codec is supported")
     schema = avro.parse_schema(json.loads(metadata["avro.schema"]))
@@ -138,23 +151,34 @@ def _logical(row, columns):
             if not column["nullable"]:
                 raise PackataError(f"Null in non-nullable column {name}")
             continue
-        constraints = {item["kind"]: item["value"] for item in column.get("constraints", [])}
-        if kind == "integer":
-            row[name] = int(value)
-        elif kind == "decimal" or kind == "number" and "scale" in constraints:
-            row[name] = Decimal(value)
-        elif kind == "binary":
-            row[name] = base64.b64decode(value, validate=True)
-        elif kind == "date":
-            row[name] = date.fromisoformat(value)
-        elif kind in ("datetime", "timestamp"):
-            # The service emits CLR ticks. Refuse to silently lose sub-microsecond ticks.
-            fraction = value.split(".", 1)[1] if "." in value else ""
-            digits = fraction.split("+", 1)[0].split("-", 1)[0].rstrip("Z")
-            if len(digits) > 6 and any(char != "0" for char in digits[6:]):
-                raise PackataError("Use Arrow batches to preserve sub-microsecond timestamps")
-            row[name] = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        constraints = {
+            item["kind"]: item["value"] for item in column.get("constraints", [])
+        }
+        row[name] = _logical_value(value, kind, constraints)
     return row
+
+
+def _logical_value(value, kind, constraints):
+    if kind == "integer":
+        return int(value)
+    if kind == "decimal" or kind == "number" and "scale" in constraints:
+        return Decimal(value)
+    if kind == "binary":
+        return base64.b64decode(value, validate=True)
+    if kind == "date":
+        return date.fromisoformat(value)
+    if kind in ("datetime", "timestamp"):
+        return _timestamp(value)
+    return value
+
+
+def _timestamp(value):
+    # The service emits CLR ticks. Refuse to silently lose sub-microsecond ticks.
+    fraction = value.split(".", 1)[1] if "." in value else ""
+    digits = fraction.split("+", 1)[0].split("-", 1)[0].rstrip("Z")
+    if len(digits) > 6 and any(char != "0" for char in digits[6:]):
+        raise PackataError("Use Arrow batches to preserve sub-microsecond timestamps")
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def _ndjson(body, columns):
@@ -169,6 +193,21 @@ def _ndjson(body, columns):
             line.clear()
     if line:
         raise PackataError("Truncated NDJSON record (missing newline)")
+
+
+def _arrow(body, batches, limit):
+    with _dependency("pyarrow").ipc.open_stream(body) as reader:
+        for batch in reader:
+            if batch.nbytes > limit:
+                raise PackataError("Arrow batch exceeds max_buffer_bytes")
+            if batches:
+                yield batch
+            else:
+                yield from batch.to_pylist()
+    if body.read(1):
+        raise PackataError("Unexpected data after Arrow end marker")
+    if body.tail != b"\xff\xff\xff\xff\x00\x00\x00\x00":
+        raise PackataError("Missing Arrow end marker")
 
 
 class Stream:
@@ -234,7 +273,9 @@ class Contract:
     def asset(self, name):
         self._check()
         try:
-            return Asset(self, next(asset for asset in self.assets if asset["id"] == name))
+            return Asset(
+                self, next(asset for asset in self.assets if asset["id"] == name)
+            )
         except StopIteration as error:
             raise PackataError(f"Unknown asset {name!r}") from error
 
@@ -259,8 +300,16 @@ class Remote(Contract):
     def __init__(self, url, **options):
         super().__init__(**options)
         self.url = urlsplit(url)
-        if self.url.scheme not in ("http", "https") or not self.url.hostname or self.url.username or self.url.query or self.url.fragment:
-            raise ValueError("Use an HTTP(S) service URL without credentials, query or fragment")
+        if (
+            self.url.scheme not in ("http", "https")
+            or not self.url.hostname
+            or self.url.username
+            or self.url.query
+            or self.url.fragment
+        ):
+            raise ValueError(
+                "Use an HTTP(S) service URL without credentials, query or fragment"
+            )
         if self._json("/").get("protocol") != "packata-http-v1":
             raise PackataError("Unsupported HTTP protocol")
         self.assets = self._json("/assets")
@@ -268,14 +317,24 @@ class Remote(Contract):
     def _request(self, path, accept="application/json"):
         if not path.startswith("/") or path.startswith("//") or urlsplit(path).netloc:
             raise PackataError("Invalid service-relative URL")
-        cls = http.client.HTTPSConnection if self.url.scheme == "https" else http.client.HTTPConnection
+        cls = (
+            http.client.HTTPSConnection
+            if self.url.scheme == "https"
+            else http.client.HTTPConnection
+        )
         connection = cls(self.url.hostname, self.url.port, timeout=self.timeout)
         try:
-            connection.request("GET", self.url.path.rstrip("/") + path, headers={"Accept": accept, "Accept-Encoding": "identity"})
+            connection.request(
+                "GET",
+                self.url.path.rstrip("/") + path,
+                headers={"Accept": accept, "Accept-Encoding": "identity"},
+            )
             transport = connection.sock
             response = connection.getresponse()
             if response.status != 200:
-                raise PackataError(f"HTTP {response.status}: check asset, enabled formats, schema and source prerequisites")
+                raise PackataError(
+                    f"HTTP {response.status}: check asset, enabled formats, schema and source prerequisites"
+                )
             if response.getheader("Content-Encoding", "identity") != "identity":
                 raise PackataError("Unexpected HTTP content encoding")
             return _ResponseOwner(connection, response, transport), response
@@ -286,7 +345,10 @@ class Remote(Contract):
     def _json(self, path):
         connection, response = self._request(path)
         try:
-            if response.getheader("Content-Type", "").split(";", 1)[0] != "application/json":
+            if (
+                response.getheader("Content-Type", "").split(";", 1)[0]
+                != "application/json"
+            ):
                 raise PackataError("Expected JSON metadata")
             data = response.read(self.limit + 1)
             if len(data) > self.limit:
@@ -299,65 +361,97 @@ class Remote(Contract):
         self._check()
         if binding != 0:
             raise PackataError("Remote bindings are selected by the service")
-        if not formats or len(formats) > 3 or len(set(formats)) != len(formats) or any(fmt not in MEDIA for fmt in formats):
+        if (
+            not formats
+            or len(formats) > 3
+            or len(set(formats)) != len(formats)
+            or any(fmt not in MEDIA for fmt in formats)
+        ):
             raise ValueError("Choose unique formats from ndjson, avro, arrow")
         for fmt in formats:
-            if fmt == "arrow": _dependency("pyarrow")
-            if fmt == "avro": _dependency("fastavro")
-        accept = ", ".join(f"{MEDIA[fmt]};q={1-index/10:.1f}" for index, fmt in enumerate(formats))
+            if fmt == "arrow":
+                _dependency("pyarrow")
+            if fmt == "avro":
+                _dependency("fastavro")
+        accept = ", ".join(
+            f"{MEDIA[fmt]};q={1 - index / 10:.1f}" for index, fmt in enumerate(formats)
+        )
         stream = Stream(self, iter(()))
 
-        def iterate():
-            connection, response = self._request("/assets/" + quote(asset.metadata["id"], safe="") + "/data", accept)
-            stream.cleanup = connection.close
-            try:
-                media = response.getheader("Content-Type", "").split(";", 1)[0].strip().lower()
-                fmt = next((key for key, value in MEDIA.items() if value == media), ALIASES.get(media))
-                if fmt not in formats:
-                    raise PackataError("Unexpected Content-Type for requested formats")
-                completion = response.getheader("Packata-Completion", "")
-                transfer_id = response.getheader("Packata-Transfer-Id", "")
-                if not transfer_id or completion != "/transfers/" + transfer_id:
-                    raise PackataError("Missing or invalid completion protocol")
-                body = _Body(response, self.limit)
-                if fmt == "ndjson":
-                    yield from _ndjson(body, asset.schema)
-                elif fmt == "avro":
-                    yield from _avro(body)
-                else:
-                    with _dependency("pyarrow").ipc.open_stream(body) as reader:
-                        for batch in reader:
-                            if batch.nbytes > self.limit:
-                                raise PackataError("Arrow batch exceeds max_buffer_bytes")
-                            if batches:
-                                yield batch
-                            else:
-                                yield from batch.to_pylist()
-                    if body.read(1):
-                        raise PackataError("Unexpected data after Arrow end marker")
-                    if body.tail != b"\xff\xff\xff\xff\x00\x00\x00\x00":
-                        raise PackataError("Missing Arrow end marker")
-                status = self._json(completion)
-                if (status.get("id"), status.get("assetId"), status.get("state"), status.get("bytes"), status.get("sha256")) != (
-                        transfer_id, asset.metadata["id"], "complete", body.bytes, body.sha.hexdigest()):
-                    raise PackataError("Transfer did not complete with matching length and SHA-256")
-            finally:
-                connection.close()
-        stream.generator = iterate()
+        stream.generator = self._iterate(asset, formats, batches, accept, stream)
         return stream
+
+    def _iterate(self, asset, formats, batches, accept, stream):
+        connection, response = self._request(
+            "/assets/" + quote(asset.metadata["id"], safe="") + "/data", accept
+        )
+        stream.cleanup = connection.close
+        try:
+            media = (
+                response.getheader("Content-Type", "").split(";", 1)[0].strip().lower()
+            )
+            fmt = next(
+                (key for key, value in MEDIA.items() if value == media),
+                ALIASES.get(media),
+            )
+            if fmt not in formats:
+                raise PackataError("Unexpected Content-Type for requested formats")
+            completion = response.getheader("Packata-Completion", "")
+            transfer_id = response.getheader("Packata-Transfer-Id", "")
+            if not transfer_id or completion != "/transfers/" + transfer_id:
+                raise PackataError("Missing or invalid completion protocol")
+            body = _Body(response, self.limit)
+            yield from self._decode(body, fmt, batches, asset.schema)
+            status = self._json(completion)
+            if (
+                status.get("id"),
+                status.get("assetId"),
+                status.get("state"),
+                status.get("bytes"),
+                status.get("sha256"),
+            ) != (
+                transfer_id,
+                asset.metadata["id"],
+                "complete",
+                body.bytes,
+                body.sha.hexdigest(),
+            ):
+                raise PackataError(
+                    "Transfer did not complete with matching length and SHA-256"
+                )
+        finally:
+            connection.close()
+
+    def _decode(self, body, fmt, batches, columns):
+        if fmt == "ndjson":
+            yield from _ndjson(body, columns)
+        elif fmt == "avro":
+            yield from _avro(body)
+        else:
+            yield from _arrow(body, batches, self.limit)
 
 
 class _Host:
     def __init__(self, path, timeout, limit):
         override = os.environ.get("PACKATA_HOST")
-        executable = Path(override) if override else Path(__file__).parent / "_host" / ("packata.exe" if os.name == "nt" else "packata")
+        executable_name = "packata.exe" if os.name == "nt" else "packata"
+        executable = Path(__file__).parent / "_host" / executable_name
+        if override:
+            executable = Path(override)
         if not executable.is_absolute():
             raise PackataError("PACKATA_HOST must be an absolute executable path")
         if not executable.is_file():
-            raise PackataError("Bundled host missing; install a supported GitHub Release wheel or set PACKATA_HOST")
+            raise PackataError(
+                "Bundled host missing; install a supported GitHub Release wheel or set PACKATA_HOST"
+            )
         command = [str(executable), "--python-host", str(path)]
-        self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+        self.process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
         self.timeout, self.limit = timeout, limit
         self.queue, self.stopping = queue.Queue(maxsize=2), threading.Event()
         self.worker = threading.Thread(target=self._pump, daemon=True)
@@ -374,11 +468,12 @@ class _Host:
                     raise PackataError("Host frame exceeds max_buffer_bytes")
                 data = bytearray()
                 while len(data) < size:
-                    part = self.process.stdout.read(size-len(data))
+                    part = self.process.stdout.read(size - len(data))
                     if not part:
                         raise PackataError("Truncated host frame")
                     data.extend(part)
-                if not self._put((header[:1], bytes(data))): return
+                if not self._put((header[:1], bytes(data))):
+                    return
         except Exception as error:
             self._put(error)
 
@@ -400,11 +495,18 @@ class _Host:
         if isinstance(value, Exception):
             raise value
         if value[0] == b"E":
-            raise PackataError("Local host failed: check contract, binding, source prerequisites and Arrow schema")
+            raise PackataError(
+                "Local host failed: check contract, binding, source prerequisites and Arrow schema"
+            )
         return value
 
     def request(self, operation, **kwargs):
-        self.process.stdin.write(json.dumps(dict(protocol="packata-pipe-v1", operation=operation, **kwargs)).encode() + b"\n")
+        self.process.stdin.write(
+            json.dumps(
+                dict(protocol="packata-pipe-v1", operation=operation, **kwargs)
+            ).encode()
+            + b"\n"
+        )
         self.process.stdin.flush()
 
     def ready(self):
@@ -436,13 +538,14 @@ class _PipeBody:
             if not self.pending:
                 kind, data = self.host.frame()
                 if kind == b"C":
-                    if data: raise PackataError("Invalid completion frame")
+                    if data:
+                        raise PackataError("Invalid completion frame")
                     self.complete = True
                     break
                 if kind != b"D":
                     raise PackataError("Unexpected host frame")
                 self.pending = data
-            count = min(len(self.pending), size-len(result))
+            count = min(len(self.pending), size - len(result))
             result.extend(self.pending[:count])
             self.pending = self.pending[count:]
         return bytes(result)
@@ -466,7 +569,7 @@ class Local(Contract):
         # Local transport always uses Arrow; rows() keeps the same default API.
         if formats not in (["arrow"], ["ndjson"]):
             raise PackataError("Local transport supports Arrow only")
-        pa = _dependency("pyarrow")
+        _dependency("pyarrow")
         stream = Stream(self, iter(()))
 
         def iterate():
@@ -477,21 +580,15 @@ class Local(Contract):
                 host.request("read", asset=asset.metadata["id"], binding=binding)
                 raw = _PipeBody(host)
                 body = _Body(raw, self.limit)
-                with pa.ipc.open_stream(body) as reader:
-                    for batch in reader:
-                        if batch.nbytes > self.limit:
-                            raise PackataError("Arrow batch exceeds max_buffer_bytes")
-                        if batches: yield batch
-                        else: yield from batch.to_pylist()
-                if body.read(1) or not raw.complete:
+                yield from _arrow(body, batches, self.limit)
+                if not raw.complete:
                     raise PackataError("Local stream lacks completion")
-                if body.tail != b"\xff\xff\xff\xff\x00\x00\x00\x00":
-                    raise PackataError("Missing Arrow end marker")
                 host.request("shutdown")
                 if host.process.wait(timeout=self.timeout) != 0:
                     raise PackataError("Host exited unsuccessfully")
             finally:
                 host.close()
+
         stream.generator = iterate()
         return stream
 

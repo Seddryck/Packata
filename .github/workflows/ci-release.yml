@@ -138,6 +138,7 @@ jobs:
         shell: pwsh
         run: |
           $env:PACKATA_INTEROP_PYTHON = (Get-Command python).Source
+          $env:PYTHONPATH = (Resolve-Path 'python/src').Path
           dotnet test src/Packata.Http.Testing/Packata.Http.Testing.csproj --configuration Release --framework net10.0 --nologo
           if ($LASTEXITCODE -ne 0) { throw 'Live HTTP interoperability failed.' }
 
@@ -987,7 +988,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install isolated Python test and packaging dependencies
-        run: python -m pip install -e "./python[avro]" setuptools wheel
+        run: >-
+          python -m pip install --only-binary :all: -r python/requirements-ci.txt
       - name: Publish private ordinary self-contained host
         run: >-
           dotnet publish src/Packata.Cli/Packata.Cli.csproj -c Release -f net10.0
@@ -999,12 +1001,14 @@ jobs:
         shell: pwsh
         run: |
           $env:PACKATA_HOST = (Resolve-Path '.artifacts/python-host/${{ matrix.executable }}').Path
+          $env:PYTHONPATH = (Resolve-Path 'python/src').Path
           python -m unittest discover -s python/tests -v
           if ($LASTEXITCODE -ne 0) { throw 'Python client tests failed.' }
       - name: Test public client against gated live HTTP writers
         shell: pwsh
         run: |
           $env:PACKATA_INTEROP_PYTHON = (Get-Command python).Source
+          $env:PYTHONPATH = (Resolve-Path 'python/src').Path
           dotnet test src/Packata.Http.Testing/Packata.Http.Testing.csproj -c Release -f net10.0 --filter 'FullyQualifiedName~PythonReadersConsumeLiveResponsesIncrementally' --nologo
           if ($LASTEXITCODE -ne 0) { throw 'Live Python interoperability failed.' }
       - name: Build and validate platform wheel and record size
@@ -1047,7 +1051,7 @@ jobs:
         run: |
           $wheel = @(Get-ChildItem .artifacts/python-release/*.whl)
           if ($wheel.Count -ne 1) { throw 'Expected exactly one platform wheel.' }
-          python -m pip install $wheel[0].FullName fastavro
+          python -m pip install --only-binary :all: -c python/requirements-ci.txt $wheel[0].FullName fastavro==1.13.1
           if ($LASTEXITCODE -ne 0) { throw 'Wheel installation failed.' }
       - name: Smoke bundled host without a separate runtime or CLI
         run: python python/smoke_wheel.py

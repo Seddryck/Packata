@@ -104,22 +104,22 @@ internal static class PythonHost
         public override bool CanWrite => true;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
-        public override Task WriteAsync(byte[] bytes, int offset, int count, CancellationToken token)
-            => WriteAsync(bytes.AsMemory(offset, count), token).AsTask();
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default)
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            while (!bytes.IsEmpty)
+            while (!buffer.IsEmpty)
             {
-                var length = Math.Min(bytes.Length, 1024 * 1024);
-                await Frame(output, (byte)'D', bytes[..length], cancellationToken);
-                bytes = bytes[length..];
+                var length = Math.Min(buffer.Length, 1024 * 1024);
+                await Frame(output, (byte)'D', buffer[..length], cancellationToken);
+                buffer = buffer[length..];
             }
         }
-        public override Task FlushAsync(CancellationToken token) => output.FlushAsync(token);
+        public override Task FlushAsync(CancellationToken cancellationToken) => output.FlushAsync(cancellationToken);
         public override void Flush() => output.Flush();
-        public override void Write(byte[] bytes, int offset, int count) => WriteAsync(bytes, offset, count, default).GetAwaiter().GetResult();
-        public override int Read(byte[] bytes, int offset, int count) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count, default).GetAwaiter().GetResult();
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long length) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
     }
 }
