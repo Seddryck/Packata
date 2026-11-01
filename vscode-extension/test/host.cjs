@@ -45,13 +45,15 @@ exports.run = async function () {
   await vscode.commands.executeCommand('packata.selectView', 'canonical');
   assert.equal(document.getText(), unchanged, 'Switching projections never rewrites the descriptor');
   const generationOptions = await vscode.commands.executeCommand('packata.schema.options', { uri: uri.toString(), schemaVersion: 1 });
-  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'csharp').map(t => t.id).sort(), ['arrow', 'datatable', 'polars', 'record'], 'Bundled C# targets come from Application');
+  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'csharp').map(t => t.id).sort(), ['arrow', 'class', 'datatable', 'polars', 'record'], 'Bundled C# targets come from Application');
+  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'python').map(t => t.id).sort(), ['arrow', 'class', 'dataclass', 'pydantic'], 'Bundled Python targets come from Application');
   assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'export').map(t => t.id).sort(), ['arrow-ipc', 'avro', 'json-schema', 'spark-json'], 'Document formats share the Application catalog');
   assert.ok(generationOptions.catalog.targets.some(t => t.id === 'ddl' && t.dialects.some(d => d.id === 'sqlite')), 'Offline SQL dialects are advertised');
   const generated = await vscode.commands.executeCommand('packata.schema.generate', { uri: uri.toString(), version: document.version,
     selectionKey: generationOptions.selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', target: 'record', language: 'csharp' }, schemaVersion: 1 });
   assert.equal(generated.result.isSuccessful, true, JSON.stringify(generated.result.diagnostics));
   assert.ok(generated.result.content.includes('record Orders'), 'Bundled Didot record template works in the packaged server');
+  await assertModelGeneration(uri, document.version, generationOptions.selectionKey);
   const templateUri = vscode.Uri.file(path.join(process.env.PACKATA_SMOKE_WORKSPACE, 'second', 'bar.template.cs'));
   const template = await vscode.workspace.openTextDocument(templateUri);
   const templateEdit = new vscode.WorkspaceEdit();
@@ -67,3 +69,16 @@ exports.run = async function () {
   // Do not save modified source fixtures. The isolated test host discards this profile.
   console.log('Packata host smoke: activation, mixed roots, navigation, bundled/custom generation, unsaved templates and restart passed.');
 };
+
+async function assertModelGeneration(uri, version, selectionKey) {
+  for (const [target, language, declaration] of [
+    ['class', 'csharp', 'public class Orders'], ['class', 'python', 'class Orders:'],
+    ['dataclass', 'python', '@dataclass(kw_only=True)'], ['pydantic', 'python', 'class Orders(BaseModel):']
+  ]) {
+    const generated = await vscode.commands.executeCommand('packata.schema.generate', { uri: uri.toString(), version,
+      selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', target, language }, schemaVersion: 1 });
+    assert.equal(generated.result.isSuccessful, true, JSON.stringify(generated.result.diagnostics));
+    assert.equal(generated.result.language, language);
+    assert.ok(generated.result.content.includes(declaration), `${target}/${language} template is bundled in the packaged server`);
+  }
+}
