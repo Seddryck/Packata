@@ -14,6 +14,8 @@ $ErrorActionPreference = 'Stop'
 
 $packageIds = @(
     'Packata.Arrow',
+    'Packata.Http',
+    'Packata.Http.Arrow',
     'Packata.Core',
     'Packata.Database',
     'Packata.DataPackage',

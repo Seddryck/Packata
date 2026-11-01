@@ -15,7 +15,7 @@ for trying Packata with a small sample.
 
 Use a .NET 10 or later SDK for the `dotnet tool` commands below. The RID-aware
 NuGet package format is not supported by the .NET 8 or 9 SDK. The installed tool
-runs on a compatible .NET runtime; the .NET CLI chooses the host platform and a
+runs on compatible ASP.NET Core and .NET runtimes; the .NET CLI chooses the host platform and a
 compatible target framework. If you want an executable that includes its runtime,
 use a self-contained [standalone archive](#standalone-archives) instead.
 
@@ -64,7 +64,7 @@ provide two archive families:
 
 | Archive name | What you need |
 | --- | --- |
-| `Packata-cli-<version>-<framework>-<rid>` | The corresponding .NET runtime: `net8.0`, `net9.0` or `net10.0` |
+| `Packata-cli-<version>-<framework>-<rid>` | The corresponding ASP.NET Core runtime (includes .NET): `net8.0`, `net9.0` or `net10.0` |
 | `Packata-cli-<version>-<rid>` | No separate .NET installation; the self-contained archive includes .NET 10 |
 
 Here, `<rid>` identifies the operating system and processor architecture. Choose

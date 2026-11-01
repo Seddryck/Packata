@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Optional embeddable HTTP hosting and row representations for selected Packata contract assets.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
+    <InternalsVisibleTo Include="Packata.Http.Testing" />
+  </ItemGroup>
+</Project>
