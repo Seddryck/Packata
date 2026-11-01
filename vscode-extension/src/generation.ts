@@ -1,4 +1,6 @@
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { artifactBytes } from './schemaDocuments';
 import * as vscode from 'vscode';
 import { requireSchema } from './protocol';
 import { TreeEntry } from './tree';
@@ -218,15 +220,23 @@ async function prepare(request: Request, entry: TreeEntry | undefined, epoch: nu
 
 const bufferVersion = (uri: string): number | null => vscode.workspace.textDocuments.find(d => d.uri.toString() === uri)?.version ?? null;
 
-async function saveBinary(result: Generated, prepared: PreparedGeneration, template: TemplateSnapshot | null): Promise<void> {
+async function saveBinary(result: Generated, prepared: PreparedGeneration, template: TemplateSnapshot | null, current: () => boolean): Promise<void> {
   if (typeof result.result.binaryContent !== 'string') throw new Error('Missing binary artifact.');
-  const destination = await vscode.window.showSaveDialog({ title: 'Save schema artifact', defaultUri: prepared.sourceUri.with({ path: path.posix.join(path.posix.dirname(prepared.sourceUri.path), result.result.suggestedFilename ?? 'schema.bin') }) });
-  if (!destination) return;
+  const filename = result.result.suggestedFilename ?? 'schema.bin';
+  if (filename.includes('/') || filename.includes('\\') || filename === '..') throw new Error('Invalid artifact filename.');
+  const destination = await vscode.window.showSaveDialog({ title: 'Save schema artifact', defaultUri: prepared.sourceUri.with({ path: path.posix.join(path.posix.dirname(prepared.sourceUri.path), filename) }) });
+  if (!destination || destination.scheme !== 'file' || !current()) return;
   if (destination.toString() === prepared.uri || destination.toString() === template?.uri) throw new Error('The source and template are protected.');
   let exists = false;
   try { await vscode.workspace.fs.stat(destination); exists = true; } catch { /* A new destination is required. */ }
   if (exists) throw new Error('Choose a new artifact filename.');
-  await vscode.workspace.fs.writeFile(destination, Buffer.from(result.result.binaryContent, 'base64'));
+  const bytes = artifactBytes(result.result.binaryContent);
+  const temporary = destination.with({ path: destination.path + '.packata-' + randomUUID() + '.tmp' });
+  try {
+    await vscode.workspace.fs.writeFile(temporary, bytes);
+    if (!current()) return;
+    await vscode.workspace.fs.rename(temporary, destination, { overwrite: false });
+  } finally { try { await vscode.workspace.fs.delete(temporary); } catch { /* Already moved or absent. */ } }
 }
 
 async function render(request: Request, prepared: PreparedGeneration, token: vscode.CancellationToken,
@@ -250,7 +260,9 @@ async function render(request: Request, prepared: PreparedGeneration, token: vsc
   if (result.result.diagnostics.some(d => d.severity === 'Warning'))
     void vscode.window.showWarningMessage('Schema code generated with representation warnings.', 'View findings').then(choice => choice && showFindings(result));
   if (result.result.representation === 'binary') {
-    await saveBinary(result, prepared, template);
+    await saveBinary(result, prepared, template, () => !token.isCancellationRequested &&
+      generationCurrent(result, discovery.version, bufferVersion(uri), template?.version ?? null, template ? bufferVersion(template.uri) : null,
+        prepared.epoch === session(), prepared.selectedNode === selection()));
   } else await openGenerated(result, prepared.sourceUri, template);
 }
 

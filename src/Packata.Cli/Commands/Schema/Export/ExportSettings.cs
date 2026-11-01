@@ -5,7 +5,7 @@ namespace Packata.Cli;
 internal sealed class ExportSettings : ContractSourceSettings
 {
     [CommandOption("-f|--output-format <FORMAT>")]
-    [System.ComponentModel.Description("Schema document format: json-schema, avro, spark-json. Use schema generate for source code.")]
+    [System.ComponentModel.Description("Schema document format: json-schema, avro, spark-json, arrow-ipc. Use schema generate for source code.")]
     public string? OutputFormat { get; init; }
     [CommandOption("--profile <PROFILE>")]
     public string? Profile { get; init; }
@@ -22,6 +22,8 @@ internal sealed class ExportSettings : ContractSourceSettings
     {
         var source = base.Validate();
         if (!source.Successful) return source;
+        if (OutputFormat == "arrow-ipc" && Output is null && !Console.IsOutputRedirected)
+            return ValidationResult.Error("Binary schema output requires --output or redirected stdout.");
         var error = SchemaGenerationService.ValidateOptions(Options, null);
         return error is null ? OptionValidation.Output(Output) : ValidationResult.Error(error);
     }

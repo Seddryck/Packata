@@ -46,7 +46,7 @@ exports.run = async function () {
   assert.equal(document.getText(), unchanged, 'Switching projections never rewrites the descriptor');
   const generationOptions = await vscode.commands.executeCommand('packata.schema.options', { uri: uri.toString(), schemaVersion: 1 });
   assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'csharp').map(t => t.id).sort(), ['arrow', 'datatable', 'polars', 'record'], 'Bundled C# targets come from Application');
-  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'export').map(t => t.id).sort(), ['avro', 'json-schema', 'spark-json'], 'Document formats share the Application catalog');
+  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'export').map(t => t.id).sort(), ['arrow-ipc', 'avro', 'json-schema', 'spark-json'], 'Document formats share the Application catalog');
   assert.ok(generationOptions.catalog.targets.some(t => t.id === 'ddl' && t.dialects.some(d => d.id === 'sqlite')), 'Offline SQL dialects are advertised');
   const generated = await vscode.commands.executeCommand('packata.schema.generate', { uri: uri.toString(), version: document.version,
     selectionKey: generationOptions.selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', target: 'record', language: 'csharp' }, schemaVersion: 1 });

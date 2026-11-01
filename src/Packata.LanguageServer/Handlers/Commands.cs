@@ -10,6 +10,20 @@ public sealed record ValidationRequest(string Uri, int SchemaVersion = 1, string
 public sealed record DiscoveryRequest(string[] WorkspaceFolders, int SchemaVersion = 1);
 public sealed record SchemaGenerationOptionsRequest(string Uri, string? SelectionKey = null, int SchemaVersion = 1);
 
+public sealed class SchemaDocumentOptionsHandler(SchemaDocumentOperations documents, ISerializer serializer)
+    : ExecuteTypedResponseCommandHandlerBase<DocumentRequest, SchemaDocumentDiscovery>("packata.schema.document.options", serializer)
+{
+    public override Task<SchemaDocumentDiscovery> Handle(DocumentRequest request, CancellationToken token)
+        => ProtocolVersion.RunAsync(request.SchemaVersion, () => documents.OptionsAsync(WorkspaceUri.Parse(request.Uri), token));
+}
+
+public sealed class SchemaDocumentHandler(SchemaDocumentOperations documents, ISerializer serializer)
+    : ExecuteTypedResponseCommandHandlerBase<SchemaDocumentRequest, SchemaDocumentResponse>("packata.schema.document.export", serializer)
+{
+    public override Task<SchemaDocumentResponse> Handle(SchemaDocumentRequest request, CancellationToken token)
+        => ProtocolVersion.RunAsync(request.SchemaVersion, () => documents.ExportAsync(request, token));
+}
+
 public sealed class SchemaGenerationOptionsHandler(SchemaGenerationOperations generation, ISerializer serializer)
     : ExecuteTypedResponseCommandHandlerBase<SchemaGenerationOptionsRequest, GenerationOptionsResult>("packata.schema.options", serializer)
 {

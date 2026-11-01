@@ -21,9 +21,10 @@ public class SchemaOperationTests
             new(Target: "record", Language: "csharp", OutputFormat: "json-schema"),
             new(Operation: "export", OutputFormat: "json-schema", Language: "csharp"),
             new(Operation: "export", OutputFormat: "json-schema", CompatibilityProfile: "hudi"),
-            new(Operation: "export", OutputFormat: "arrow-ipc"),
+            new(Operation: "export", OutputFormat: "arrow-ipc", CompatibilityProfile: "lance"),
             new(Target: "record", Language: "csharp", Dialect: "sqlite") })
             Assert.That(SchemaGenerationService.ValidateOptions(options, null), Is.Not.Null, options.ToString());
+        Assert.That(SchemaGenerationService.ValidateOptions(new(Operation: "export", OutputFormat: "arrow-ipc"), null), Is.Null);
         Assert.That(SchemaGenerationService.ValidateOptions(new(Target: "record", Language: "csharp"), null), Is.Null);
         Assert.That(SchemaGenerationService.ValidateOptions(new(Language: "python"), new("custom.scriban", "hello")), Is.Null);
     }

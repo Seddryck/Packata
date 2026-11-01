@@ -23,7 +23,7 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
                 diagnostic.Template ?? diagnostic.SourcePath, diagnostic.Message));
         if (!result.IsSuccessful) return result.Diagnostics.Any(d => d.Code == "GEN_OPTIONS") ? ExitCodes.Invocation : ExitCodes.InvalidDocument;
         token.ThrowIfCancellationRequested();
-        Publish(result, output);
+        Publish(result, output, token);
         return ExitCodes.Success;
     }
     private static async Task<TemplateInput?> ReadTemplateAsync(ContractSource source, string? templatePath, CancellationToken token)
@@ -34,12 +34,12 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
         return new(uri.AbsoluteUri, await File.ReadAllTextAsync(uri.LocalPath, token).ConfigureAwait(false));
     }
 
-    private static void Publish(GenerationResult result, string? output)
+    private static void Publish(GenerationResult result, string? output, CancellationToken token)
     {
         if (result.Representation == "binary")
         {
-            if (output is null) throw new ArgumentException("Binary schema artifacts require --output <path>.");
-            ContractDocumentWriter.Write(output, result.BinaryContent!, overwrite: false);
+            if (output is null) Console.OpenStandardOutput().Write(result.BinaryContent!);
+            else ContractDocumentWriter.WriteBytes(output, result.BinaryContent!, token);
         }
         else if (output is null) Console.Write(result.Content);
         else ContractDocumentWriter.Write(output, result.Content!, overwrite: false);

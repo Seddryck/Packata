@@ -21,7 +21,7 @@ function harness(options = {}) {
     ProgressLocation: { Notification: 1 },
     workspace: {
       isTrusted: options.trusted !== false, textDocuments: docs,
-      fs: { stat: async () => { if (!options.existingDestination) throw new Error('absent'); return {}; }, writeFile: async (uri, bytes) => calls.push({ savedBinary: uri.toString(), bytes: [...bytes] }) },
+      fs: { stat: async () => { if (!options.existingDestination) throw new Error('absent'); return {}; }, writeFile: async (uri, bytes) => { calls.push({ savedBinary: uri.toString(), bytes: [...bytes] }); if (options.cancelAfterWrite) token.isCancellationRequested = true; }, rename: async (from, to, options) => calls.push({ renamedBinary: to.toString(), options }), delete: async () => {} },
       getWorkspaceFolder: uri => ({ uri: Uri.parse('file:///workspace/second') }),
       openTextDocument: async uri => {
         let doc = docs.find(d => d.uri.toString() === uri.toString());
@@ -174,4 +174,19 @@ test('implementation gaps remain visible as warnings while keeping a successful 
   await h.run(undefined, { operation: 'export', outputFormat: 'avro' });
   assert.equal(h.opened.length, 1);
   assert.ok(h.errors.some(m => m.includes('warnings')));
+});
+
+for (const condition of ['cancelAfterWrite', 'staleSource', 'restart', 'selectionChange']) test('unified IPC export discards ' + condition, async () => {
+  const h = harness({ binary: true, [condition]: true, targets: [{ id: 'arrow-ipc', label: 'Arrow IPC', operation: 'export', language: 'binary' }] });
+  await h.run(undefined, { operation: 'export', outputFormat: 'arrow-ipc' });
+  assert.ok(!h.calls.some(c => c.renamedBinary));
+  assert.equal(h.opened.length, 0);
+});
+test('unified IPC export saves exact bytes through a protected atomic rename', async () => {
+  const h = harness({ binary: true, targets: [{ id: 'arrow-ipc', label: 'Arrow IPC', operation: 'export', language: 'binary' }] });
+  await h.run(undefined, { operation: 'export', outputFormat: 'arrow-ipc' });
+  assert.equal(h.calls.find(c => c.command === 'packata.schema.export').args.options.outputFormat, 'arrow-ipc');
+  assert.deepEqual(h.calls.find(c => c.savedBinary).bytes, [0, 1, 2, 255]);
+  assert.equal(h.calls.find(c => c.renamedBinary).options.overwrite, false);
+  assert.equal(h.opened.length, 0);
 });

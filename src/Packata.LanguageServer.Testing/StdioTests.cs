@@ -15,12 +15,12 @@ public sealed class StdioTests
         await using var client = await StdioClient.StartAsync();
         Assert.That(client.Commands, Does.Contain("packata.schema.options").And.Contain("packata.schema.generate"));
         var catalog = await client.CommandAsync("packata.schema.catalog", new { });
-        Assert.That(catalog["targets"], Has.Count.EqualTo(9));
+        Assert.That(catalog["targets"], Has.Count.EqualTo(10));
         const string uri = "file:///workspace/generation.yaml";
         await client.NotifyAsync("textDocument/didOpen", new { textDocument = new { uri, languageId = "yaml", version = 1,
             text = "resources:\n  - name: orders\n    schema:\n      fields:\n        - name: id\n          type: integer\n" } });
         var options = await client.CommandAsync("packata.schema.options", new { uri });
-        Assert.That(options["catalog"]?["targets"], Has.Count.EqualTo(9));
+        Assert.That(options["catalog"]?["targets"], Has.Count.EqualTo(10));
         var generated = await client.CommandAsync("packata.schema.generate", new { uri, version = 1,
             selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", target = "record", language = "csharp" } });
         Assert.That((bool?)generated["result"]?["isSuccessful"], Is.True, generated.ToString());
@@ -29,6 +29,14 @@ public sealed class StdioTests
             selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", outputFormat = "avro" } });
         Assert.That((bool?)exported["result"]?["isSuccessful"], Is.True, exported.ToString());
         Assert.That((string?)exported["result"]?["content"], Does.Contain("record"));
+        var ipc = await client.CommandAsync("packata.schema.export", new { uri, version = 1,
+            selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", outputFormat = "arrow-ipc" } });
+        Assert.That((bool?)ipc["result"]?["isSuccessful"], Is.True, ipc.ToString());
+        Assert.That((string?)ipc["result"]?["representation"], Is.EqualTo("binary"));
+        using var stream = new MemoryStream(Convert.FromBase64String((string)ipc["result"]!["binaryContent"]!));
+        using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(stream);
+        Assert.That((await reader.GetSchema()).FieldsList.Single().Name, Is.EqualTo("id"));
+        Assert.That(stream.Position, Is.EqualTo(stream.Length));
         await client.StopAsync();
     }
 

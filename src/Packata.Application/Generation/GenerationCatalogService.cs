@@ -13,6 +13,8 @@ public static class GenerationCatalogService
             "export", "schema-document", "JSON", ".avsc", ["asset", "output", "schema-name", "schema-namespace"], []),
         new("spark-json", "Spark JSON", "", "", "json", false, "Spark 3.x StructType JSON; decimal precision is limited to 38; constraints are descriptive field metadata.",
             "export", "schema-document", "JSON", ".spark.schema.json", ["asset", "output"], []),
+        new("arrow-ipc", "Arrow IPC", "", "", "binary", false, "One encapsulated Arrow IPC Schema message; constraints require separate validation.",
+            "export", "schema-document", "binary", ".schema.ipc", ["asset", "output"], []),
         new("json-schema", "JSON Schema", "", "", "json", false, "Draft 2020-12; preserves canonical JSON Schema semantics.",
             "export", "schema-document", "JSON", ".schema.json", ["asset"], []),
         new("record", "C# record", "csharp-record", "scriban", "csharp", true,

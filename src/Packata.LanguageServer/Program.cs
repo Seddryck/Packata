@@ -15,7 +15,7 @@ public static class Program
             .WithOutput(Console.OpenStandardOutput())
             // Protocol traces and exception details can contain document contents; logging is opt-in on the client.
             .ConfigureLogging(logging => logging.ClearProviders())
-            .WithServices(services => services.AddSingleton<DocumentStore>().AddSingleton<ContractService>().AddSingleton<DiagnosticPublisher>().AddSingleton<SchemaGenerationOperations>())
+            .WithServices(services => services.AddSingleton<DocumentStore>().AddSingleton<ContractService>().AddSingleton<DiagnosticPublisher>().AddSingleton<SchemaGenerationOperations>().AddSingleton<SchemaDocumentOperations>())
             .WithHandler<DocumentSyncHandler>()
             .WithHandler<InspectHandler>()
             .WithHandler<ValidateHandler>()
@@ -23,6 +23,8 @@ public static class Program
             .WithHandler<PreviewHandler>()
             .WithHandler<SchemaGenerationOptionsHandler>()
             .WithHandler<SchemaGenerationHandler>()
+            .WithHandler<SchemaDocumentOptionsHandler>()
+            .WithHandler<SchemaDocumentHandler>()
             .WithHandler<SchemaExportHandler>()
             .WithHandler<SchemaCatalogHandler>()
             .WithHandler<ProtocolHandler>()

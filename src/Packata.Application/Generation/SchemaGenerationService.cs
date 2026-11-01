@@ -54,6 +54,14 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         try {
             var error = ValidateOptions(options, template);
             if (error is not null) return Failure("GEN_OPTIONS", error);
+            if (options.Operation == "export" && options.OutputFormat == "arrow-ipc")
+            {
+                var result = await SchemaDocumentService.ExportAsync(document,
+                    new("arrow-ipc", options.AssetId, options.CompatibilityProfile), cancellationToken).ConfigureAwait(false);
+                return new(null, result.SuggestedFilename, "binary", result.AssetId, null, null,
+                    result.Diagnostics.Select(d => new GenerationDiagnostic(d.Code, d.Severity.ToString(), d.SourcePath, ContractJson.Redact(d.Message))).ToArray())
+                { Representation = "binary", BinaryContent = result.Bytes, MediaType = "application/vnd.apache.arrow.schema" };
+            }
             if (options.Operation == "export") return ExportDocument(document, options, cancellationToken);
             if (options.Target == "ddl") return await DdlGeneration.GenerateAsync(document, options, cancellationToken).ConfigureAwait(false);
             return await GenerateDocumentAsync(document, options, template, cancellationToken).ConfigureAwait(false);

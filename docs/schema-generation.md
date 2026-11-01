@@ -151,6 +151,12 @@ A field-level `primaryKey: true` already represented by the schema primary key i
 The Required constraint option controls native NOT NULL generation from field nullability. Source property presence is independent: a required property may allow null, and an optional property may forbid null when present. Primary-key columns remain NOT NULL as required by the database.
 
 
+## Arrow IPC schema documents
+
+`packata schema export sales.odcs.yaml --asset orders --output-format arrow-ipc -o orders.schema.ipc`
+
+Arrow IPC emits one encapsulated Schema message without record batches or trailing stream markers. Redirected stdout receives the exact binary bytes; interactive terminals require `--output`. Editor exports use a protected save dialog. See [Arrow schema documents]({{ '/reference/dotnet/arrow-schema-documents/' | relative_url }}) for mapping and interoperability details.
+
 ## Structured schema documents
 
 Non-default `allowAdditionalProperties` and `enforcePropertyOrder` policies are preserved independently in schema metadata. They receive Information diagnostics because these documents do not enforce input-record extras or property order.

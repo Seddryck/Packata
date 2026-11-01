@@ -239,6 +239,12 @@
         "enablement": "packata.schema.sql.teradata"
       },
       {
+        "command": "packata.schema.arrowIpc",
+        "title": "Arrow IPC…",
+        "category": "Packata",
+        "enablement": "packata.schema.arrowIpc"
+      },
+      {
         "command": "packata.schema.avro",
         "title": "Avro…",
         "category": "Packata",
@@ -348,6 +354,10 @@
         }
       ],
       "packata.schema.export": [
+        {
+          "command": "packata.schema.arrowIpc",
+          "when": "packata.schema.arrowIpc"
+        },
         {
           "command": "packata.schema.sparkJson",
           "when": "packata.schema.sparkJson"
