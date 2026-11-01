@@ -249,6 +249,56 @@ This is descriptive Packata metadata, not a standard Avro/Spark validation exten
 
 All structured-export format limits use Information, including relational constraints, source requiredness, integer-domain widening, format/physical-type annotations and temporal offset/precision limits that can still produce a safe representation. Existing fatal invalid/unsafe mappings remain errors and publish no partial artifact. Implementation-gap warnings say what the exporter does not yet implement and what is retained as metadata. CLI renders Warning diagnostics in yellow and Information in blue on color-capable terminals. Diagnostics stay on stderr; redirected stderr remains plain text, and schema JSON on stdout stays clean. Information retains success exit code 0; LSP preserves the severity/code/source path, and VS Code opens informational-only results without a warning banner.
 
+## Avro IDL schema documents
+
+Use `avro-idl` for readable `.avdl` files and `avro` for JSON `.avsc` files:
+
+```console
+packata schema export contract.yaml --asset orders --output-format avro-idl -o orders.avdl
+packata schema export contract.yaml --asset orders --output-format avro -o orders.avsc
+```
+
+Both formats use the same Avro projection, field ordering, normalized names, namespaces,
+enum symbols, physical types, logical parameters and residual Packata metadata. IDL adds
+no mapping rules and reads no dataset records. `--schema-name` and `--schema-namespace`
+apply to both. IDL is a schema-document format, not a generation target or profile.
+The VS Code **Export Schema > Avro IDL…** command appears when advertised by the server
+catalog and opens an editable `.avdl` preview for Save As.
+
+Output uses standalone schema syntax from [Apache Avro 1.12+ IDL](https://avro.apache.org/docs/1.12.0/idl-language/),
+with one main schema and supporting named declarations in the same file. No protocols,
+imports or external files are required. Identifiers are escaped consistently, namespaced
+references retain their identities, and explicit unions retain branch order. Decimal
+uses the bytes-based `decimal(precision, scale)` notation; microsecond temporal types
+retain their physical type with `@logicalType` annotations.
+
+The current Avro projection preserves explicit defaults as Packata metadata with a
+`SCHEMA_IMPLEMENTATION_GAP` warning; IDL follows that behavior and never invents native
+defaults for nullable fields. Similarly, native aliases are rendered when present in the
+Avro model; IDL does not independently interpret source annotations as aliases.
+Other residual properties use JSON-valued IDL annotations, including `@packata(...)`.
+Consumers may ignore these descriptive constraints, just as with `.avsc`.
+
+Unrepresentable properties fail with `AVRO_IDL_PROPERTY` and no partial output.
+In particular, IDL documentation comments cannot faithfully preserve empty documentation,
+leading/trailing whitespace, carriage returns, comment terminators (`*/`), or lines beginning
+with indentation or a comment-decoration asterisk. These are rejected instead of changing the Avro doc.
+Annotation property names must follow IDL identifier syntax; arbitrary values inside
+Packata metadata remain JSON and are retained.
+
+Reference compiler validation uses **Apache avro-tools 1.12.0**:
+
+```console
+java -jar avro-tools-1.12.0.jar idl orders.avdl orders.roundtrip.avsc
+```
+
+`AvroIdlExportTests` covers projection reuse, ODCS/Data Package input, selection failures,
+collisions and unsupported annotations. Set `PACKATA_AVRO_TOOLS_JAR` to the compiler JAR
+and optionally `PACKATA_JAVA` to the Java executable to enable its reference-compiler
+round trips. These compare parsed Avro schemas including defaults, union ordering,
+logical parameters, docs, aliases and residual metadata. No Java dependency is shipped
+in production or added to Packata.Core.
+
 ## Apache Arrow schemas (C# and Python)
 
 Use explicit target and language selectors. Generation and portable document export are separate operations:

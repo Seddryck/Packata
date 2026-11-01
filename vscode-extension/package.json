@@ -245,6 +245,12 @@
         "enablement": "packata.schema.arrowIpc"
       },
       {
+        "command": "packata.schema.avroIdl",
+        "title": "Avro IDL…",
+        "category": "Packata",
+        "enablement": "packata.schema.avroIdl"
+      },
+      {
         "command": "packata.schema.avro",
         "title": "Avro…",
         "category": "Packata",
@@ -403,6 +409,10 @@
         {
           "command": "packata.schema.sparkJson",
           "when": "packata.schema.sparkJson"
+        },
+        {
+          "command": "packata.schema.avroIdl",
+          "when": "packata.schema.avroIdl"
         },
         {
           "command": "packata.schema.avro",

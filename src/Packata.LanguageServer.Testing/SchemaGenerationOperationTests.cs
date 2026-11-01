@@ -66,6 +66,7 @@ public class SchemaGenerationOperationTests
                 logicalType: integer
         """;
 
+    [TestCase("avro-idl")]
     [TestCase("avro")]
     [TestCase("spark-json")]
     public async Task Structured_exports_use_unsaved_snapshots_and_selected_assetAsync(string format)

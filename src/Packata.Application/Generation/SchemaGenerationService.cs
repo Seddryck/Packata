@@ -228,7 +228,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
 
     private static void ValidateDocumentOptions(GenerationOptions options, GenerationTarget target)
     {
-        if (options.DocumentOptions is not null && options.OutputFormat != "avro")
+        if (options.DocumentOptions is not null && options.OutputFormat is not ("avro" or "avro-idl"))
             throw new ArgumentException("Schema naming options apply only to Avro export.");
         if (options.CompatibilityProfile is not null && target.CompatibilityProfiles?.Contains(options.CompatibilityProfile) != true)
             throw new ArgumentException("Unknown or incompatible export --profile. Omit --profile for generic output.");
@@ -266,7 +266,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         if (options.AssetId is not null && inspection.Mapping.RequireValue().Assets.Count(a => a.Id == options.AssetId) > 1) return Failure("GEN_ASSET", "The selected asset ID is ambiguous.");
         var asset = SelectAsset(inspection.Mapping.RequireValue().Assets.Where(a => a.Schema is { Fields.Count: > 0 }).ToArray(), options.AssetId, diagnostics);
         if (asset is null) return new(null, null, null, null, null, null, diagnostics);
-        if (options.OutputFormat is "avro" or "spark-json") return new StructuredSchemaExport(options.OutputFormat, diagnostics, token, options.DocumentOptions).Export(asset);
+        if (options.OutputFormat is "avro" or "avro-idl" or "spark-json") return new StructuredSchemaExport(options.OutputFormat, diagnostics, token, options.DocumentOptions).Export(asset);
         try
         {
             var result = ContractExportService.JsonSchema(document, asset.Id, token);

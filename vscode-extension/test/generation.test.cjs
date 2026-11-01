@@ -64,7 +64,7 @@ function harness(options = {}) {
     if (options.restart) session++;
     if (options.selectionChange) selected = 'other';
     return { schemaVersion: 1, uri: source.toString(), version: 1, selectionKey: 'key', findings: [],
-      result: { representation: options.binary ? 'binary' : 'text', binaryContent: options.binary ? 'AAEC/w==' : undefined, isSuccessful: !options.failure, content: options.failure ? null : 'generated', language: options.custom ? 'plaintext' : 'csharp', suggestedFilename: 'Orders.cs',
+      result: { representation: options.binary ? 'binary' : 'text', binaryContent: options.binary ? 'AAEC/w==' : undefined, isSuccessful: !options.failure, content: options.failure ? null : 'generated', language: options.outputLanguage ?? (options.custom ? 'plaintext' : 'csharp'), suggestedFilename: options.filename ?? 'Orders.cs',
         templateVersion: options.custom ? 7 : 1, diagnostics: options.failure ? [{ severity: 'Error', message: 'Mapping failed' }] : (options.diagnostics ?? []) } };
   };
   return { api: module.exports, mock, request, errors, opened, calls, run: (entry, route) => module.exports.generateSchemaCode(request, entry, () => session, () => selected, route) };
@@ -159,7 +159,7 @@ test('direct unavailable dialect fails before rendering', async () => {
   assert.equal(h.opened.length, 0); assert.ok(!h.calls.some(c => c.command === 'packata.schema.generate'));
 });
 
-for (const format of ['avro', 'spark-json']) test('export leaf routes selected asset and generic profile for ' + format, async () => {
+for (const format of ['avro', 'avro-idl', 'spark-json']) test('export leaf routes selected asset and generic profile for ' + format, async () => {
   const h = harness({ targets: [{ id: format, label: format, operation: 'export', language: 'json', compatibilityProfiles: [] }] });
   await h.run({ node: { kind: 'asset', sourcePath: '/schema/0' }, contract: { uri: 'file:///workspace/second/contract.yaml' } }, { operation: 'export', outputFormat: format });
   const call = h.calls.find(c => c.command === 'packata.schema.export');
@@ -171,6 +171,18 @@ test('only advertised compatible profiles are offered after preselecting a forma
   const h = harness({ targets: [{ id: 'avro', label: 'Avro', operation: 'export', language: 'json', compatibilityProfiles: ['hudi'] }], profile: 'hudi' });
   await h.run(undefined, { operation: 'export', outputFormat: 'avro' });
   assert.equal(h.calls.find(c => c.command === 'packata.schema.export').args.options.compatibilityProfile, 'hudi');
+});
+
+for (const condition of ['success', 'staleSource', 'restart', 'selectionChange', 'failure']) test('Avro IDL text preview handles ' + condition, async () => {
+  const h = harness({ [condition]: true, filename: 'schema.avdl', outputLanguage: 'plaintext',
+    targets: [{ id: 'avro-idl', label: 'Avro IDL', operation: 'export', language: 'plaintext', options: ['asset', 'output'] }] });
+  await h.run(undefined, { operation: 'export', outputFormat: 'avro-idl' });
+  assert.equal(h.opened.length, condition === 'success' ? 1 : 0);
+  if (condition === 'success') {
+    assert.ok(h.opened[0].uri.path.endsWith('/schema.avdl'));
+    assert.equal(h.calls.at(-1).outputLanguage, 'plaintext');
+    assert.ok(!h.calls.some(c => c.savedBinary || c.saveDialog));
+  }
 });
 test('binary results require explicit save and never open as text', async () => {
   const h = harness({ binary: true }); await h.run();
