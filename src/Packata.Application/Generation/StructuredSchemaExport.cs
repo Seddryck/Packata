@@ -6,8 +6,9 @@ using Packata.Core.Contracts;
 namespace Packata.Application.Generation;
 
 /// <summary>Target-neutral shape/parameter projection followed by structured document serialization.</summary>
-internal sealed class StructuredSchemaExport(string format, List<GenerationDiagnostic> diagnostics, CancellationToken token, SchemaDocumentOptions? options = null)
+internal sealed class StructuredSchemaExport(string outputFormat, List<GenerationDiagnostic> diagnostics, CancellationToken token, SchemaDocumentOptions? options = null)
 {
+    private readonly string format = outputFormat == "avro-idl" ? "avro" : outputFormat;
     private sealed record Field(string Name, string Path, string Kind, bool Nullable, bool Required,
         TypeParameters Parameters, IReadOnlyList<Field> Children, Field? Items, string? Description, Field? MapKey, Field? MapValue, IReadOnlyList<string>? EnumSymbols, JObject Metadata);
     private readonly HashSet<string> recordNames = new(StringComparer.Ordinal);
@@ -22,6 +23,17 @@ internal sealed class StructuredSchemaExport(string format, List<GenerationDiagn
         var metadata = SchemaConstraintMetadata.Schema(asset, format == "avro" ? Name(options?.Name ?? asset.Name) : null);
         JToken root = format == "spark-json" ? SparkStruct(fields, metadata) : AvroRecord(options?.Name ?? asset.Name, fields, metadata);
         token.ThrowIfCancellationRequested();
+        if (outputFormat == "avro-idl")
+        {
+            string? idl = null;
+            if (!diagnostics.Any(d => d.Severity == "Error"))
+            {
+                try { idl = AvroIdlRenderer.Render(root, token); }
+                catch (NotSupportedException error) { diagnostics.Add(new("AVRO_IDL_PROPERTY", "Error", asset.Id, error.Message, outputFormat)); }
+            }
+            return new(idl, "schema.avdl", "plaintext", asset.Id, null, null,
+                diagnostics.Select(d => d.Target == "avro" ? d with { Target = outputFormat } : d).ToArray());
+        }
         var content = diagnostics.Any(d => d.Severity == "Error") ? null : root.ToString(Formatting.Indented).ReplaceLineEndings("\n");
         return new(content, format == "avro" ? "schema.avsc" : "schema.spark.schema.json", "json", asset.Id, null, null, diagnostics)
             { MediaType = format == "avro" ? "application/avro+json" : "application/json" };

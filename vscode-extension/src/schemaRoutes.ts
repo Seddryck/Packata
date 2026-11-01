@@ -24,6 +24,7 @@ export const schemaRoutes: Record<string, SchemaRoute> = {
   'packata.schema.sql.sqlserver': { operation: 'generate', target: 'ddl', language: 'sql', dialect: 'sqlserver' },
   'packata.schema.sql.teradata': { operation: 'generate', target: 'ddl', language: 'sql', dialect: 'teradata' },
   'packata.schema.arrowIpc': { operation: 'export', outputFormat: 'arrow-ipc' },
+  'packata.schema.avroIdl': { operation: 'export', outputFormat: 'avro-idl' },
   'packata.schema.avro': { operation: 'export', outputFormat: 'avro' },
   'packata.schema.sparkJson': { operation: 'export', outputFormat: 'spark-json' },
   'packata.schema.jsonSchema': { operation: 'export', outputFormat: 'json-schema' },

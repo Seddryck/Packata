@@ -5,7 +5,7 @@ namespace Packata.Cli;
 internal sealed class ExportSettings : ContractSourceSettings
 {
     [CommandOption("-f|--output-format <FORMAT>")]
-    [System.ComponentModel.Description("Schema document format: json-schema, avro, spark-json, arrow-ipc. Use schema generate for source code.")]
+    [System.ComponentModel.Description("Schema document format: json-schema, avro, avro-idl, spark-json, arrow-ipc. Use schema generate for source code.")]
     public string? OutputFormat { get; init; }
     [CommandOption("--profile <PROFILE>")]
     public string? Profile { get; init; }

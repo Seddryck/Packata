@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="../Packata.Arrow/Packata.Arrow.csproj" />
     <InternalsVisibleTo Include="Packata.Cli.Testing" />
+    <InternalsVisibleTo Include="Packata.Application.Testing" />
     <PackageReference Include="JsonSchema.Net" Version="9.4.1" />
     <PackageReference Include="Didot.Core" Version="0.34.0" />
     <EmbeddedResource Include="Generation/Templates/*.scriban" />

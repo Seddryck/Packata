@@ -14,6 +14,8 @@ public static class GenerationCatalogService
             Dialects: Packata.Provisioners.Database.OfflineSqlDialects.Catalog.Select(d => new SchemaDialect(d.Id, d.Label)).ToArray(), WholeContract: true),
         new("avro", "Avro", "", "", "json", false, "Avro 1.12; compatible string enums, null-first unions, decimal bytes; other constraints are descriptive metadata.",
             "export", "schema-document", "JSON", ".avsc", ["asset", "output", "schema-name", "schema-namespace"], []),
+        new("avro-idl", "Avro IDL", "", "", "plaintext", false, "Apache Avro 1.12+ schema IDL; the same Avro projection and metadata as JSON .avsc.",
+            "export", "schema-document", "text", ".avdl", ["asset", "output", "schema-name", "schema-namespace"], []),
         new("spark-json", "Spark JSON", "", "", "json", false, "Spark 3.x StructType JSON; decimal precision is limited to 38; constraints are descriptive field metadata.",
             "export", "schema-document", "JSON", ".spark.schema.json", ["asset", "output"], []),
         new("arrow-ipc", "Arrow IPC", "", "", "binary", false, "One encapsulated Arrow IPC Schema message; constraints require separate validation.",

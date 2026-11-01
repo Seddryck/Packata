@@ -571,7 +571,7 @@ GitHub annotations, validation line/column mapping and MCP registration remain s
 | --- | --- | --- |
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
 | `--asset <ID>` | Optional for exactly one eligible asset | Exact Data Package resource or ODCS schema object name |
-| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema`, `avro`, `spark-json`, `arrow-ipc` | Target representation |
+| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema`, `avro`, `avro-idl`, `spark-json`, `arrow-ipc` | Target representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
 
 | `--profile <PROFILE>` | Omit for generic output | Compatibility profiles are accepted only when advertised; none are currently available |
@@ -630,8 +630,8 @@ Export one asset from an ODCS or Data Package v2 descriptor. You can use the sam
 HTTP(S) and ZIP, TAR, TAR.GZ and TAR.BR sources as inspection. Select the asset by its exact canonical identifier;
 a missing or ambiguous identifier fails.
 
-Select the required document format with `--output-format` or `-f`: `json-schema`, `avro`, `spark-json`, or `arrow-ipc`.
-Avro accepts `--schema-name` and `--schema-namespace`; see the [schema reference]({{ '/reference/dotnet/schema-generation/' | relative_url }}) for representation policies and limitations.
+Select the required document format with `--output-format` or `-f`: `json-schema`, `avro`, `avro-idl`, `spark-json`, or `arrow-ipc`.
+Avro JSON and Avro IDL accept `--schema-name` and `--schema-namespace`; see the [schema reference]({{ '/reference/dotnet/schema-generation/' | relative_url }}) for representation policies and limitations.
 Compatibility profiles are not yet available; omit `--profile` for generic output.
 
 The result is a JSON Schema Draft 2020-12 object describing one dataset record. By default,
