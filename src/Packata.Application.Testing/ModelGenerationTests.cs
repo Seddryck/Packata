@@ -211,7 +211,7 @@ public class ModelGenerationTests
         var folder = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../examples/schema-models"));
         var source = await File.ReadAllTextAsync(Path.Combine(folder, "contract.odcs.yaml"));
         var example = await File.ReadAllTextAsync(Path.Combine(folder, filename));
-        var result = await new SchemaGenerationService().GenerateAsync(source, new(Target: target, Language: language, TypeName: "Order"));
+        var result = await new SchemaGenerationService().GenerateAsync(source, new(Target: target, Language: language, TypeName: "Order", Namespace: language == "csharp" ? "Example.Models" : null));
         Assert.That(result.IsSuccessful, Is.True, string.Join("\n", result.Diagnostics));
         Assert.That(result.Content, Is.EqualTo(example.ReplaceLineEndings("\n")));
         if (language == "csharp") SchemaGenerationTests.Compile(example);
@@ -257,7 +257,7 @@ public class ModelGenerationTests
         Assert.That(result.IsSuccessful, Is.True, string.Join("\n", result.Diagnostics));
         if (language == "csharp") SchemaGenerationTests.Compile(result.Content!);
         else await ExecutePython(result.Content! + "\nassert Sample(labels={'key': None}, lines=[]).labels['key'] is None\n");
-        var bad = await new SchemaGenerationService().GenerateAsync(source.Replace("name: key\n            logicalType: string", "name: key\n            logicalType: integer"), new(Target: target, Language: language));
+        var bad = await new SchemaGenerationService().GenerateAsync(source.ReplaceLineEndings("\n").Replace("name: key\n            logicalType: string", "name: key\n            logicalType: integer"), new(Target: target, Language: language));
         Assert.That(bad.Diagnostics.Any(d => d.Code == "MODEL_MAP_KEY"), Is.True, string.Join("\n", bad.Diagnostics));
     }
 

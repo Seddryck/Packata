@@ -2,6 +2,7 @@
 using System;
 using System.Text.Json.Serialization;
 
+namespace Example.Models;
 
 // A default OptionalValue is absent; a constructed value (including null) is present.
 public readonly struct OptionalValue<T>

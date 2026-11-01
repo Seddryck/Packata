@@ -144,7 +144,8 @@ generated files are [C# class](https://github.com/Seddryck/Packata/blob/main/exa
 [Python class](https://github.com/Seddryck/Packata/blob/main/examples/schema-models/order.py),
 [dataclass](https://github.com/Seddryck/Packata/blob/main/examples/schema-models/order_dataclass.py)
 and [Pydantic](https://github.com/Seddryck/Packata/blob/main/examples/schema-models/order_model.py).
-Reproduce them with the four commands above, using this source and `--type-name Order`.
+Reproduce them with the four commands above, using this source and `--type-name Order`;
+for the C# example also supply `--namespace Example.Models`.
 
 ```python
 # Ordinary class or dataclass:

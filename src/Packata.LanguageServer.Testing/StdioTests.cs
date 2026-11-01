@@ -3,6 +3,7 @@ using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using Packata.Application.Generation;
 
 namespace Packata.LanguageServer.Testing;
 
@@ -15,12 +16,13 @@ public sealed class StdioTests
         await using var client = await StdioClient.StartAsync();
         Assert.That(client.Commands, Does.Contain("packata.schema.options").And.Contain("packata.schema.generate"));
         var catalog = await client.CommandAsync("packata.schema.catalog", new { });
-        Assert.That(catalog["targets"], Has.Count.EqualTo(10));
+        Assert.That(catalog["targets"], Has.Count.EqualTo(SchemaGenerationService.Catalog.Targets.Count));
+        AssertModelCapabilities(catalog);
         const string uri = "file:///workspace/generation.yaml";
         await client.NotifyAsync("textDocument/didOpen", new { textDocument = new { uri, languageId = "yaml", version = 1,
             text = "resources:\n  - name: orders\n    schema:\n      fields:\n        - name: id\n          type: integer\n" } });
         var options = await client.CommandAsync("packata.schema.options", new { uri });
-        Assert.That(options["catalog"]?["targets"], Has.Count.EqualTo(10));
+        Assert.That(JToken.DeepEquals(options["catalog"]?["targets"], catalog["targets"]), Is.True);
         var generated = await client.CommandAsync("packata.schema.generate", new { uri, version = 1,
             selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", target = "record", language = "csharp" } });
         Assert.That((bool?)generated["result"]?["isSuccessful"], Is.True, generated.ToString());
@@ -38,6 +40,13 @@ public sealed class StdioTests
         Assert.That((await reader.GetSchema()).FieldsList.Single().Name, Is.EqualTo("id"));
         Assert.That(stream.Position, Is.EqualTo(stream.Length));
         await client.StopAsync();
+    }
+
+    private static void AssertModelCapabilities(JToken catalog)
+    {
+        var pairs = catalog["targets"]!.Select(target => $"{target["id"]}/{target["language"]}").ToArray();
+        Assert.That(pairs, Does.Contain("class/csharp").And.Contain("class/python")
+            .And.Contain("dataclass/python").And.Contain("pydantic/python"));
     }
 
     [Test]

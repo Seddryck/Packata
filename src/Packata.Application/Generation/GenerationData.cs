@@ -9,6 +9,9 @@ internal static class GenerationData
     internal static Dictionary<string, object?> Object(params (string Key, object? Value)[] entries)
         => entries.ToDictionary(e => e.Key, e => e.Value, StringComparer.Ordinal);
 
+    internal static T Required<T>(IReadOnlyDictionary<string, object?> values, string key)
+        => values[key] is T value ? value : throw new InvalidOperationException($"Generation context member '{key}' has an unexpected type.");
+
     internal static object? Plain(object? value) => value is null ? null : Token(ContractJson.RedactedJson(value));
 
     private static object? Token(JToken token) => token switch
