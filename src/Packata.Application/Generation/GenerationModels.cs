@@ -35,7 +35,10 @@ public sealed record GenerationTarget(string Id, string Label, string Profile, s
 public sealed record SchemaDialect(string Id, string Label);
 public sealed record GenerationCatalog(int SchemaVersion, int ContextVersion,
     IReadOnlyList<GenerationTarget> Targets, IReadOnlyList<string> Profiles,
-    IReadOnlyList<string> Engines, string DefaultEngine, IReadOnlyList<string> Limitations);
+    IReadOnlyList<string> Engines, string DefaultEngine, IReadOnlyList<string> Limitations)
+{
+    public IReadOnlyList<SchemaCompatibilityProfile> CompatibilityProfiles => SchemaCompatibilityProfiles.Catalog;
+}
 public sealed record GenerationAsset(string Id, string Name, int Index, bool Eligible, string? Reason = null);
 public sealed record GenerationDiscovery(GenerationCatalog Catalog, IReadOnlyList<GenerationAsset> Assets,
     IReadOnlyList<GenerationDiagnostic> Diagnostics);

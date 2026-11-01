@@ -325,6 +325,18 @@
         "title": "Pydantic Model…",
         "category": "Packata Python",
         "enablement": "packata.schema.pydanticPython"
+      },
+      {
+        "command": "packata.schema.icebergJson",
+        "title": "Iceberg JSON…",
+        "category": "Packata",
+        "enablement": "packata.schema.icebergJson"
+      },
+      {
+        "command": "packata.schema.paimonJson",
+        "title": "Paimon JSON…",
+        "category": "Packata",
+        "enablement": "packata.schema.paimonJson"
       }
     ],
     "menus": {
@@ -425,6 +437,14 @@
         {
           "command": "packata.schema.otherFormats",
           "when": "packata.schema.other.export"
+        },
+        {
+          "command": "packata.schema.icebergJson",
+          "when": "packata.schema.icebergJson"
+        },
+        {
+          "command": "packata.schema.paimonJson",
+          "when": "packata.schema.paimonJson"
         }
       ],
       "packata.schema.csharp": [

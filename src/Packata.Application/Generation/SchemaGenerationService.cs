@@ -208,6 +208,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
 
     private static void ValidateExport(GenerationOptions options, TemplateInput? template)
     {
+        if (options.UnsupportedOptions is { Count: > 0 }) throw new ArgumentException("Unsupported schema export options.");
         RejectGenerationSelectors(options, template);
         var target = DocumentTarget(options.OutputFormat);
         ValidateDocumentOptions(options, target);
@@ -266,7 +267,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         if (options.AssetId is not null && inspection.Mapping.RequireValue().Assets.Count(a => a.Id == options.AssetId) > 1) return Failure("GEN_ASSET", "The selected asset ID is ambiguous.");
         var asset = SelectAsset(inspection.Mapping.RequireValue().Assets.Where(a => a.Schema is { Fields.Count: > 0 }).ToArray(), options.AssetId, diagnostics);
         if (asset is null) return new(null, null, null, null, null, null, diagnostics);
-        if (options.OutputFormat is "avro" or "avro-idl" or "spark-json") return new StructuredSchemaExport(options.OutputFormat, diagnostics, token, options.DocumentOptions).Export(asset);
+        if (options.OutputFormat is "avro" or "avro-idl" or "spark-json" or "iceberg-json" or "paimon-json") return new StructuredSchemaExport(options.OutputFormat, diagnostics, token, options.DocumentOptions, options.CompatibilityProfile).Export(asset);
         try
         {
             var result = ContractExportService.JsonSchema(document, asset.Id, token);

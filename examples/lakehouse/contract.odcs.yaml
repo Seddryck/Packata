@@ -1,0 +1,64 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: lakehouse-example
+schema:
+  - name: orders
+    description: Order records
+    customProperties:
+      - property: packata.iceberg.schema-id
+        value: 5
+      - property: packata.paimon.schema-id
+        value: 5
+    properties:
+      - name: id
+        description: Order identifier
+        logicalType: integer
+        logicalTypeOptions:
+          integerWidth: 64
+          signed: true
+        required: true
+        customProperties:
+          - property: packata.iceberg.field-id
+            value: 40
+          - property: packata.paimon.field-id
+            value: 40
+      - name: amount
+        logicalType: number
+        logicalTypeOptions:
+          precision: 12
+          scale: 2
+        required: true
+      - name: at
+        logicalType: timestamp
+        logicalTypeOptions:
+          timezone: true
+          precision: 6
+        required: true
+      - name: customer
+        logicalType: object
+        nullable: true
+        properties:
+          - name: name
+            logicalType: string
+            nullable: true
+      - name: tags
+        logicalType: array
+        required: true
+        items:
+          name: element
+          logicalType: object
+          nullable: true
+          properties:
+            - name: label
+              logicalType: string
+              nullable: true
+      - name: lookup
+        logicalType: map
+        map:
+          key:
+            name: key
+            logicalType: string
+          value:
+            name: value
+            logicalType: integer
+            nullable: true

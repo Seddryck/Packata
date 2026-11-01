@@ -1,0 +1,158 @@
+{
+  "type": "record",
+  "name": "orders",
+  "namespace": "packata.generated",
+  "fields": [
+    {
+      "name": "id",
+      "type": "long",
+      "packata": {
+        "version": 1,
+        "field": {
+          "constraints": [
+            {
+              "kind": "integerWidth",
+              "value": "64"
+            },
+            {
+              "kind": "signed",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "doc": "Order identifier"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 12,
+        "scale": 2
+      }
+    },
+    {
+      "name": "at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-micros"
+      },
+      "packata": {
+        "version": 1,
+        "field": {
+          "constraints": [
+            {
+              "kind": "timezone",
+              "value": "true"
+            },
+            {
+              "kind": "precision",
+              "value": "6"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "customer",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "orders_customer",
+          "namespace": "packata.generated",
+          "fields": [
+            {
+              "name": "name",
+              "type": [
+                "null",
+                "string"
+              ],
+              "packata": {
+                "version": 1,
+                "field": {
+                  "required": false
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "packata": {
+        "version": 1,
+        "field": {
+          "required": false
+        }
+      }
+    },
+    {
+      "name": "tags",
+      "type": {
+        "type": "array",
+        "items": [
+          "null",
+          {
+            "type": "record",
+            "name": "orders_tags_item",
+            "namespace": "packata.generated",
+            "fields": [
+              {
+                "name": "label",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "packata": {
+                  "version": 1,
+                  "field": {
+                    "required": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "packata": {
+        "version": 1,
+        "field": {
+          "items": {
+            "name": "element"
+          }
+        }
+      }
+    },
+    {
+      "name": "lookup",
+      "type": {
+        "type": "map",
+        "values": [
+          "null",
+          "int"
+        ]
+      },
+      "packata": {
+        "version": 1,
+        "field": {
+          "required": false,
+          "map": {
+            "key": {
+              "name": "key"
+            },
+            "value": {
+              "name": "value"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "packata": {
+    "version": 1,
+    "schema": {
+      "allowAdditionalProperties": false,
+      "enforcePropertyOrder": true
+    }
+  }
+}

@@ -365,3 +365,5 @@ Focused checks: `SchemaGenerationTests`, `ArrowGenerationTests` (set `PACKATA_TE
 to a Python with PyArrow), CLI `SchemaGenerationCommandTests`, LanguageServer
 `SchemaGenerationOperationTests`, and VS Code `generation.test.cjs`. Python interoperability
 compares generated schemas, including metadata, against IPC serialized from generated C#.
+
+See [Lakehouse schema documents](lakehouse-schema-documents.md) for Iceberg/Paimon exports and Hudi/Delta compatibility profiles.

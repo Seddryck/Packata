@@ -159,7 +159,7 @@ test('direct unavailable dialect fails before rendering', async () => {
   assert.equal(h.opened.length, 0); assert.ok(!h.calls.some(c => c.command === 'packata.schema.generate'));
 });
 
-for (const format of ['avro', 'avro-idl', 'spark-json']) test('export leaf routes selected asset and generic profile for ' + format, async () => {
+for (const format of ['avro', 'avro-idl', 'spark-json', 'iceberg-json', 'paimon-json']) test('export leaf routes selected asset and generic profile for ' + format, async () => {
   const h = harness({ targets: [{ id: format, label: format, operation: 'export', language: 'json', compatibilityProfiles: [] }] });
   await h.run({ node: { kind: 'asset', sourcePath: '/schema/0' }, contract: { uri: 'file:///workspace/second/contract.yaml' } }, { operation: 'export', outputFormat: format });
   const call = h.calls.find(c => c.command === 'packata.schema.export');
@@ -167,10 +167,14 @@ for (const format of ['avro', 'avro-idl', 'spark-json']) test('export leaf route
   assert.equal(call.args.options.compatibilityProfile, undefined); assert.equal(h.opened.length, 1);
   assert.ok(!h.calls.some(c => c.prompt === 'Compatibility profile'));
 });
-test('only advertised compatible profiles are offered after preselecting a format', async () => {
-  const h = harness({ targets: [{ id: 'avro', label: 'Avro', operation: 'export', language: 'json', compatibilityProfiles: ['hudi'] }], profile: 'hudi' });
-  await h.run(undefined, { operation: 'export', outputFormat: 'avro' });
-  assert.equal(h.calls.find(c => c.command === 'packata.schema.export').args.options.compatibilityProfile, 'hudi');
+for (const [format, profile] of [['avro', 'hudi'], ['spark-json', 'delta']]) test('only advertised compatible profiles route for ' + profile, async () => {
+  const h = harness({ targets: [{ id: format, label: format, operation: 'export', language: 'json', compatibilityProfiles: [profile] }], profile });
+  await h.run(undefined, { operation: 'export', outputFormat: format });
+  const options = h.calls.find(c => c.command === 'packata.schema.export').args.options;
+  assert.equal(options.compatibilityProfile, profile);
+  assert.equal(options.outputFormat, format);
+  assert.equal(options.target, undefined);
+  assert.equal(options.language, undefined);
 });
 
 for (const condition of ['success', 'staleSource', 'restart', 'selectionChange', 'failure']) test('Avro IDL text preview handles ' + condition, async () => {

@@ -46,3 +46,13 @@ test('class model menu leaves use exact singular target/language pairs', () => {
     assert.equal(api.available(api.schemaRoutes[command], [{ id: target, operation: 'export', language }]), false);
   }
 });
+
+ test('lakehouse menu routes select exact native serializers without generation options', () => {
+  const api = routes();
+  for (const [id, outputFormat] of [['icebergJson', 'iceberg-json'], ['paimonJson', 'paimon-json']]) {
+    const command = 'packata.schema.' + id;
+    assert.deepEqual(JSON.parse(JSON.stringify(api.schemaRoutes[command])), { operation: 'export', outputFormat });
+    assert.ok(manifest.menus['packata.schema.export'].some(m => m.command === command && m.when === command));
+    assert.equal(api.available(api.schemaRoutes[command], [{ id: outputFormat, operation: 'generate' }]), false);
+  }
+ });
