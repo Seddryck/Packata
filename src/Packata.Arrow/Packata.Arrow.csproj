@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Optional transport-independent conversion of canonical Packata schemas and readers into Apache Arrow record batches.</Description>
+  </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
     <PackageReference Include="Apache.Arrow" Version="23.0.0" />
-    <ProjectReference Include="../Packata.Core/Packata.Core.csproj" />
   </ItemGroup>
 </Project>

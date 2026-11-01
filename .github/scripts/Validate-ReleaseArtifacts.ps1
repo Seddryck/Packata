@@ -13,6 +13,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $packageIds = @(
+    'Packata.Arrow',
     'Packata.Core',
     'Packata.Database',
     'Packata.DataPackage',

@@ -22,7 +22,7 @@ The existing `packata infer` command remains available.
 | `contract diff` | [Factual differences](#compare-two-contract-versions) |
 | `contract compare` | [Consumer compatibility](#assess-consumer-compatibility) |
 | `contract satisfies` | [Producer/consumer satisfaction](#evaluate-producer-and-consumer-contracts) |
-| `schema export`, alias `export` | [JSON Schema](#export-a-dataset-schema) |
+| `schema export` | [JSON Schema](#export-a-dataset-schema) |
 | `schema infer`, alias `infer` | [Schema inference]({{ '/cli-inference/' | relative_url }}) |
 | `data preview` | [Read data](#preview-bound-data) |
 | `data validate` | [Structural validation]({{ '/dataset-validation/' | relative_url }}) |
@@ -39,7 +39,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 | Commands | Codes |
 | --- | --- |
 | data validate | 0 structural checks pass; 1 completed violations or invalid contract; 2 invocation error; 3 read/execution error; 4 incomplete/unsupported checks; 130 cancellation |
-| validate, inspect, diff, schema export/export, dialect export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
+| validate, inspect, diff, schema export, dialect export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
 | contract satisfies | 0 gate passes; 1 Unsatisfied or default Unknown; 2 input/invocation/I/O/cancellation/analysis error or Unknown under error policy |
 | quality run | 0 pass or warning; 1 quality failure without errors; 2 command/contract/execution/report error, cancellation, no matches, or all skipped |
 | contract compare | Same base codes, plus 4 for a completed report failing the selected gate and 5 for incomplete analysis; see [details](#assess-consumer-compatibility) |
@@ -51,8 +51,8 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 ## Shared options
 
 The CLI uses Spectre.Console.Cli. Commands are grouped under `contract`, `schema`,
-`data`, `quality`, `dialect`, `connector`, and `config`. `infer` and `export` remain compatibility
-entry points for `schema infer` and `schema export`, with the same options.
+`data`, `quality`, `dialect`, `connector`, and `config`. `infer` remains a compatibility
+entry point for `schema infer`. Schema export and generation require their explicit grouped commands.
 
 | Option | Meaning |
 | --- | --- |
@@ -561,20 +561,31 @@ failures. JSON already supplies the classifications and explanations needed by #
 GitHub annotations, validation line/column mapping and MCP registration remain separate work.
 
 <!-- cli:schema export -->
-<!-- cli:export -->
 ## Export a dataset schema
 
 `packata schema export <SOURCE> --asset <ID> --output-format json-schema [OPTIONS]`
 
-`packata export <SOURCE> --asset <ID> --output-format json-schema [OPTIONS]`
-
 | Option / alias | Values / default | Meaning |
 | --- | --- | --- |
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
-| `--asset <ID>` | Optional for one eligible asset | Exact Data Package resource or ODCS schema object name |
-| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema` or `arrow-ipc` | Portable schema document representation |
-| `--profile <PROFILE>` | Omit for generic output | Only advertised compatible profiles are accepted; Arrow IPC currently has none |
+| `--asset <ID>` | Optional for exactly one eligible asset | Exact Data Package resource or ODCS schema object name |
+| `--output-format <FORMAT>`, `-f <FORMAT>` | Required; `json-schema`, `avro`, `spark-json`, `arrow-ipc` | Target representation |
 | `--output <PATH>`, `-o <PATH>` | Stdout when omitted | New destination file; existing files are protected |
+
+| `--profile <PROFILE>` | Omit for generic output | Compatibility profiles are accepted only when advertised; none are currently available |
+| `--schema-name <NAME>` | Asset name | Avro record name |
+| `--schema-namespace <NAMESPACE>` | `packata.generated` | Avro namespace |
+
+<!-- cli:schema generate -->
+## Generate schema code or DDL
+
+`packata schema generate <SOURCE> --target <TARGET> --language <LANGUAGE> [OPTIONS]`
+
+Use `--input-format auto|odcs|datapackage` to select the descriptor standard.
+SQL uses `--target ddl --dialect <ID>`; `--language sql` is optional. Omit `--asset`
+for all eligible assets. `--constraints` accepts all, none, or comma-separated
+PrimaryKey,Required,Unique,Checks,ForeignKeys. `--no-descriptions` omits SQL comments.
+No connection URL is required. See the [schema generation reference]({{ '/reference/dotnet/schema-generation/' | relative_url }}) for dialect IDs and selection policies.
 
 Code generation uses `schema generate --target <TARGET> --language <LANGUAGE>` or `schema generate --template <PATH>`
 instead of `schema export --output-format`. Bundled targets include `record`, `datatable`, `polars` (C#) and `arrow` (C# or Python). For generation, `--asset` may be omitted when one eligible
@@ -606,8 +617,6 @@ mapping/template failure, 2 invalid selectors/options, 3 template/output I/O fai
 130 cancellation. See [schema generation]({{ '/reference/dotnet/schema-generation/' | relative_url }})
 for the context, target limits and runnable templates.
 
-Arrow IPC exports one binary schema message, without data batches. For binary output use `--output-format arrow-ipc -o orders.schema.ipc` or byte-preserving stdout redirection. The source and existing outputs are protected. See [Arrow schema documents]({{ '/reference/dotnet/arrow-schema-documents/' | relative_url }}) for readers, encoding and limitations.
-
 All shown positional arguments are required. Use `--help` for command help.
 
 ```console
@@ -619,8 +628,9 @@ Export one asset from an ODCS or Data Package v2 descriptor. You can use the sam
 HTTP(S) and ZIP, TAR, TAR.GZ and TAR.BR sources as inspection. Select the asset by its exact canonical identifier;
 a missing or ambiguous identifier fails.
 
-Select JSON Schema or an Arrow IPC schema message with `--output-format` or its short
-alias, `-f`. The complete syntax and accepted values are listed above.
+Select the required document format with `--output-format` or `-f`: `json-schema`, `avro`, `spark-json`, or `arrow-ipc`.
+Avro accepts `--schema-name` and `--schema-namespace`; see the [schema reference]({{ '/reference/dotnet/schema-generation/' | relative_url }}) for representation policies and limitations.
+Compatibility profiles are not yet available; omit `--profile` for generic output.
 
 The result is a JSON Schema Draft 2020-12 object describing one dataset record. By default,
 only the generated JSON goes to stdout, while diagnostics go to stderr. To save it instead,
@@ -665,7 +675,7 @@ schema.Serialize(stream);
 | Option / alias | Values / default | Meaning |
 | --- | --- | --- |
 | `--input-format <FORMAT>` | `auto`, `odcs`, `datapackage`; `auto` | Source standard; locations remain command-specific |
-| `--asset <ID>` | Optional for one eligible asset | Exact Data Package resource or ODCS schema object name |
+| `--asset <ID>` | Required | Exact Data Package resource or ODCS schema object name |
 | `--limit <COUNT>` | Positive 32-bit integer; `20` | Maximum data rows, excluding headers |
 | `--staging-maximum-bytes <COUNT>` | Positive integer; `268435456` (256 MiB) | Maximum bytes copied for each non-seekable Excel/Parquet resource; ignored for CSV/inline/database reads |
 | `--columns <NAMES>` | All fields | Unique exact names, comma-separated, in output order |

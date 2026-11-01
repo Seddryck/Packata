@@ -20,7 +20,9 @@ internal sealed class DataValidateCommand : AsyncCommand<DataValidateSettings>
             foreach (var diagnostic in mapped.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!mapped.IsSuccessful) return ExitCodes.InvalidDocument;
             var service = CreateService(source, mapped);
-            var report = await service.ValidateAsync(mapped.RequireValue(), settings.Asset, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var contract = mapped.RequireValue();
+            var structuralContract = deferred.Length == 0 ? contract : LocalValidationContract(contract);
+            var report = await service.ValidateAsync(structuralContract, settings.Asset, cancellationToken: cancellationToken).ConfigureAwait(false);
             report = report with { CompilationFindings = report.CompilationFindings.Concat(deferred).ToArray() };
             await DataValidationPresenter.WriteAsync(report, settings.OutputFormat, Console.Out, cancellationToken).ConfigureAwait(false);
             return DataValidationPresenter.ExitCode(report);
@@ -48,6 +50,19 @@ internal sealed class DataValidateCommand : AsyncCommand<DataValidateSettings>
 
     private static bool IsDeferredReference(ValidationFinding finding)
         => finding.Layer == ValidationLayers.Semantic && finding.Code == "SEM_EXTERNAL_REFERENCE";
+
+    private static DataContract LocalValidationContract(DataContract contract) => contract with
+    {
+        // External descriptors are already represented by deferred compilation findings.
+        // Keep their canonical references for DDL, without inventing runtime structure checks here.
+        Assets = contract.Assets.Select(asset => asset.Schema is null ? asset : asset with
+        {
+            Schema = asset.Schema with
+            {
+                Relationships = asset.Schema.Relationships.Where(r => r.TargetAsset.IndexOf("#/schema/", StringComparison.Ordinal) <= 0).ToArray()
+            }
+        }).ToArray()
+    };
 
     private static bool CanRunAvailableChecks(DescriptorValidationReport report)
         => report.Layers.Count > 0

@@ -101,9 +101,9 @@ test('text schema export opens an untitled preview and does not write an artifac
 
 test('manifest declares Arrow IPC only under the schema-document operation', () => {
   const manifest = require('../package.json');
-  const entries = manifest.contributes.menus['packata.exportSchema'];
-  assert.ok(entries.some(e => e.command === 'packata.exportArrowSchema' && e.when === 'packata.arrowIpcAvailable'));
-  assert.ok(manifest.contributes.submenus.some(s => s.id === 'packata.exportSchema'));
-  assert.ok(manifest.contributes.menus['packata.generateCsharp'].some(e => e.command === 'packata.generateArrowCsharp' && e.when === 'packata.arrowCsharpAvailable'));
-  assert.ok(manifest.contributes.menus['packata.generatePython'].some(e => e.command === 'packata.generateArrowPython' && e.when === 'packata.arrowPythonAvailable'));
+  const entries = manifest.contributes.menus['packata.schema.export'];
+  assert.ok(entries.some(e => e.command === 'packata.schema.arrowIpc' && e.when === 'packata.schema.arrowIpc'));
+  assert.ok(manifest.contributes.submenus.some(s => s.id === 'packata.schema.export'));
+  assert.ok(manifest.contributes.menus['packata.schema.csharp'].some(e => e.command === 'packata.schema.arrowCsharp' && e.when === 'packata.schema.arrowCsharp'));
+  assert.ok(manifest.contributes.menus['packata.schema.python'].some(e => e.command === 'packata.schema.arrowPython' && e.when === 'packata.schema.arrowPython'));
 });

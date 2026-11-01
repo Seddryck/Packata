@@ -6,6 +6,17 @@ public static class GenerationCatalogService
 {
     public static GenerationCatalog Catalog { get; } = new(1, 1,
     [
+        new("ddl", "SQL DDL", "", "", "sql", false, "Metadata-only SQL; unsupported constraints are reported. Foreign keys outside a selection are errors.",
+            Category: "table-definition", Representation: "SQL", Extension: ".sql", ApplicableOptions: ["asset", "dialect", "output", "constraints", "no-descriptions"],
+            Dialects: Packata.Provisioners.Database.OfflineSqlDialects.Catalog.Select(d => new SchemaDialect(d.Id, d.Label)).ToArray(), WholeContract: true),
+        new("avro", "Avro", "", "", "json", false, "Avro 1.12; compatible string enums, null-first unions, decimal bytes; other constraints are descriptive metadata.",
+            "export", "schema-document", "JSON", ".avsc", ["asset", "output", "schema-name", "schema-namespace"], []),
+        new("spark-json", "Spark JSON", "", "", "json", false, "Spark 3.x StructType JSON; decimal precision is limited to 38; constraints are descriptive field metadata.",
+            "export", "schema-document", "JSON", ".spark.schema.json", ["asset", "output"], []),
+        new("arrow-ipc", "Arrow IPC", "", "", "binary", false, "One encapsulated Arrow IPC Schema message; constraints require separate validation.",
+            "export", "schema-document", "binary", ".schema.ipc", ["asset", "output"], []),
+        new("json-schema", "JSON Schema", "", "", "json", false, "Draft 2020-12; preserves canonical JSON Schema semantics.",
+            "export", "schema-document", "JSON", ".schema.json", ["asset"], []),
         new("record", "C# record", "csharp-record", "scriban", "csharp", true,
             "C# 11 required properties and nullable annotations describe initialization; they do not validate dataset values."),
         new("datatable", "DataTable", "csharp-datatable", "scriban", "csharp", true,
@@ -15,7 +26,8 @@ public static class GenerationCatalogService
         new("arrow", "Arrow Schema (C#)", "csharp-arrow", "scriban", "csharp", true,
             "Apache.Arrow 23.0.0; presence, uniqueness and quality rules require separate validation."),
         new("arrow", "Arrow Schema (Python)", "python-arrow", "scriban", "python", false,
-            "Python 3.10+ and PyArrow 23+; presence, uniqueness and quality rules require separate validation.")
+            "Python 3.10+ and PyArrow 23+; presence, uniqueness and quality rules require separate validation.",
+            Representation: "Python", Extension: ".py", ApplicableOptions: ["asset", "output", "type-name"])
     ], ["csharp-record", "csharp-datatable", "csharp-polars", "csharp-arrow", "python-arrow"],
         TemplateEngineFactory.Default.AllSupportedExtensions().Select(s => s.TrimStart('.')).Order().ToArray(), "scriban",
     ["Generation reads descriptor metadata only; it never reads rows, compiles or executes generated code.",

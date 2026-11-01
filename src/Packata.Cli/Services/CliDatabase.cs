@@ -107,6 +107,8 @@ internal sealed class CliDatabase : IDisposable
     private sealed class ReportingConnectorService(IConnectorService inner, ProviderPackCatalog catalog) : IConnectorService
     {
         public IReadOnlyList<ConnectorInfo> List() => inner.List();
+        public Task<ConnectorInfo> InstallOfflineAsync(string connector, string archivePath, CancellationToken cancellationToken = default)
+            => inner.InstallOfflineAsync(connector, archivePath, cancellationToken);
         public Task<ConnectorInfo> InstallAsync(string connector, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();

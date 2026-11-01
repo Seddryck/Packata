@@ -10,44 +10,33 @@ namespace Packata.LanguageServer.Testing;
 public sealed class StdioTests
 {
     [Test]
-    public async Task SchemaDocumentsAdvertiseBinaryAndRejectCodeOptionsAsync()
-    {
-        await using var client = await StdioClient.StartAsync();
-        Assert.That(client.Commands, Does.Contain("packata.schema.document.options").And.Contain("packata.schema.document.export"));
-        const string uri = "file:///workspace/document.yaml";
-        await client.NotifyAsync("textDocument/didOpen", new { textDocument = new { uri, languageId = "yaml", version = 1,
-            text = "resources:\n  - name: orders\n    schema:\n      fields:\n        - name: id\n          type: integer\n" } });
-        var options = await client.CommandAsync("packata.schema.document.options", new { uri });
-        Assert.That(options["formats"]!.Any(f => (string?)f["id"] == "arrow-ipc" && (string?)f["representation"] == "binary"), Is.True);
-        var exported = await client.CommandAsync("packata.schema.document.export", new { uri, version = 1,
-            selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", outputFormat = "arrow-ipc" } });
-        Assert.That((bool?)exported["result"]?["isSuccessful"], Is.True, exported.ToString());
-        Assert.That((string?)exported["result"]?["diagnostics"]?[0]?["severity"], Is.EqualTo("Warning"));
-        var bytes = Convert.FromBase64String((string)exported["result"]!["bytes"]!);
-        using var stream = new MemoryStream(bytes);
-        using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(stream);
-        Assert.That((await reader.GetSchema()).FieldsList.Single().Name, Is.EqualTo("id"));
-        Assert.That(stream.Position, Is.EqualTo(stream.Length));
-        var rejected = await client.CommandAsync("packata.schema.document.export", new { uri, version = 1,
-            selectionKey = (string?)options["selectionKey"], options = new { outputFormat = "arrow-ipc", target = "arrow", language = "python" } });
-        Assert.That((bool?)rejected["result"]?["isSuccessful"], Is.False);
-        Assert.That((string?)rejected["result"]?["diagnostics"]?[0]?["code"], Is.EqualTo("EXPORT_OPTIONS"));
-        await client.StopAsync();
-    }
-    [Test]
     public async Task GenerationCommandsAdvertiseCapabilitiesAndReturnContentInsideFramesAsync()
     {
         await using var client = await StdioClient.StartAsync();
-        Assert.That(client.Commands, Does.Contain("packata.schema.export.options").And.Contain("packata.schema.export"));
+        Assert.That(client.Commands, Does.Contain("packata.schema.options").And.Contain("packata.schema.generate"));
+        var catalog = await client.CommandAsync("packata.schema.catalog", new { });
+        Assert.That(catalog["targets"], Has.Count.EqualTo(10));
         const string uri = "file:///workspace/generation.yaml";
         await client.NotifyAsync("textDocument/didOpen", new { textDocument = new { uri, languageId = "yaml", version = 1,
             text = "resources:\n  - name: orders\n    schema:\n      fields:\n        - name: id\n          type: integer\n" } });
-        var options = await client.CommandAsync("packata.schema.export.options", new { uri });
-        Assert.That(options["catalog"]?["targets"], Has.Count.EqualTo(5));
-        var generated = await client.CommandAsync("packata.schema.export", new { uri, version = 1,
-            selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", target = "record" } });
+        var options = await client.CommandAsync("packata.schema.options", new { uri });
+        Assert.That(options["catalog"]?["targets"], Has.Count.EqualTo(10));
+        var generated = await client.CommandAsync("packata.schema.generate", new { uri, version = 1,
+            selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", target = "record", language = "csharp" } });
         Assert.That((bool?)generated["result"]?["isSuccessful"], Is.True, generated.ToString());
         Assert.That((string?)generated["result"]?["content"], Does.Contain("record Orders"));
+        var exported = await client.CommandAsync("packata.schema.export", new { uri, version = 1,
+            selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", outputFormat = "avro" } });
+        Assert.That((bool?)exported["result"]?["isSuccessful"], Is.True, exported.ToString());
+        Assert.That((string?)exported["result"]?["content"], Does.Contain("record"));
+        var ipc = await client.CommandAsync("packata.schema.export", new { uri, version = 1,
+            selectionKey = (string?)options["selectionKey"], sourcePath = "/resources/0", options = new { assetId = "orders", outputFormat = "arrow-ipc" } });
+        Assert.That((bool?)ipc["result"]?["isSuccessful"], Is.True, ipc.ToString());
+        Assert.That((string?)ipc["result"]?["representation"], Is.EqualTo("binary"));
+        using var stream = new MemoryStream(Convert.FromBase64String((string)ipc["result"]!["binaryContent"]!));
+        using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(stream);
+        Assert.That((await reader.GetSchema()).FieldsList.Single().Name, Is.EqualTo("id"));
+        Assert.That(stream.Position, Is.EqualTo(stream.Length));
         await client.StopAsync();
     }
 

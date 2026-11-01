@@ -65,6 +65,29 @@ public class SchemaGenerationCommandTests
         Assert.That(result.Output, Is.Empty);
     }
 
+    [TestCase("--target", "record")]
+    [TestCase("--target", "record", "--language", "python")]
+    [TestCase("--target", "record", "--language", "csharp", "--template", "missing.scriban")]
+    [TestCase("--target", "record", "--language", "csharp", "--output-format", "json-schema")]
+    [TestCase("--target", "record", "--language", "csharp", "--profile", "hudi")]
+    public async Task Canonical_invalid_selections_fail_before_reading(params string[] options)
+    {
+        var result = await CliWorkspace.Run(["schema", "generate", "missing.yaml", .. options]);
+        Assert.That(result.ExitCode, Is.EqualTo(2), result.Error);
+        Assert.That(result.Output, Is.Empty);
+    }
+
+    [Test]
+    public async Task Removed_shortcuts_and_top_level_export_explain_migration()
+    {
+        foreach (var args in new[] { new[] { "export", "missing.yaml" }, new[] { "schema", "export", "missing.yaml", "--record" }, new[] { "schema", "generate", "missing.yaml", "--ddl" }, new[] { "schema", "export", "missing.yaml", "--template", "missing.scriban" } })
+        {
+            var result = await CliWorkspace.Run(args);
+            Assert.That(result.ExitCode, Is.EqualTo(2));
+            Assert.That(result.Error, Does.Contain("schema generate --target").And.Contain("schema export --output-format"));
+        }
+    }
+
     [Test]
     public async Task Missing_templates_and_mapping_errors_emit_no_partial_file()
     {

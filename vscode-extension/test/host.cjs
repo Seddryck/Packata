@@ -44,10 +44,12 @@ exports.run = async function () {
   assert.equal(vscode.window.activeTextEditor.selection.start.line, 0);
   await vscode.commands.executeCommand('packata.selectView', 'canonical');
   assert.equal(document.getText(), unchanged, 'Switching projections never rewrites the descriptor');
-  const generationOptions = await vscode.commands.executeCommand('packata.schema.export.options', { uri: uri.toString(), schemaVersion: 1 });
-  assert.equal(generationOptions.catalog.targets.length, 5, 'Generation targets come from Application');
-  const generated = await vscode.commands.executeCommand('packata.schema.export', { uri: uri.toString(), version: document.version,
-    selectionKey: generationOptions.selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', target: 'record' }, schemaVersion: 1 });
+  const generationOptions = await vscode.commands.executeCommand('packata.schema.options', { uri: uri.toString(), schemaVersion: 1 });
+  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'csharp').map(t => t.id).sort(), ['arrow', 'datatable', 'polars', 'record'], 'Bundled C# targets come from Application');
+  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'export').map(t => t.id).sort(), ['arrow-ipc', 'avro', 'json-schema', 'spark-json'], 'Document formats share the Application catalog');
+  assert.ok(generationOptions.catalog.targets.some(t => t.id === 'ddl' && t.dialects.some(d => d.id === 'sqlite')), 'Offline SQL dialects are advertised');
+  const generated = await vscode.commands.executeCommand('packata.schema.generate', { uri: uri.toString(), version: document.version,
+    selectionKey: generationOptions.selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', target: 'record', language: 'csharp' }, schemaVersion: 1 });
   assert.equal(generated.result.isSuccessful, true, JSON.stringify(generated.result.diagnostics));
   assert.ok(generated.result.content.includes('record Orders'), 'Bundled Didot record template works in the packaged server');
   const templateUri = vscode.Uri.file(path.join(process.env.PACKATA_SMOKE_WORKSPACE, 'second', 'bar.template.cs'));
@@ -55,7 +57,7 @@ exports.run = async function () {
   const templateEdit = new vscode.WorkspaceEdit();
   templateEdit.insert(templateUri, new vscode.Position(0, 0), 'unsaved ');
   await vscode.workspace.applyEdit(templateEdit);
-  const custom = await vscode.commands.executeCommand('packata.schema.export', { uri: uri.toString(), version: document.version,
+  const custom = await vscode.commands.executeCommand('packata.schema.generate', { uri: uri.toString(), version: document.version,
     selectionKey: generationOptions.selectionKey, options: {}, template: { uri: templateUri.toString(), text: template.getText(), version: template.version }, schemaVersion: 1 });
   assert.equal(custom.result.content, 'unsaved orders', 'Custom template uses explicit unsaved text and default Scriban');
   assert.equal(document.getText(), unchanged, 'Generation never changes the source');

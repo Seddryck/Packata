@@ -10,7 +10,7 @@ internal static class ArrowCodeProjection
     internal static void Apply(Dictionary<string, object?> context, DataSchema schema, bool python, List<GenerationDiagnostic> diagnostics)
     {
         ArrowSchemaResult mapping;
-        try { mapping = ArrowSchemaMapper.Map(schema); }
+        try { mapping = ArrowSchemaProjection.Map(schema); }
         catch (NotSupportedException e) { diagnostics.Add(new("ARROW_METADATA", "Error", "$", e.Message)); return; }
         diagnostics.AddRange(mapping.Diagnostics.Select(d => new GenerationDiagnostic(d.Code, d.IsError ? "Error" : "Warning", d.Path, d.Message)));
         if (mapping.Schema is not { } arrow) return;

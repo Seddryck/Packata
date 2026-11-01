@@ -7,7 +7,7 @@ internal sealed record PhysicalTypeDefinition(NativeDatabaseType NativeType, int
     int? Precision = null, int? Scale = null)
 {
     private static readonly Regex TypePattern = new(
-        @"^(?<name>[a-z][a-z0-9 ]*)(?:\((?<first>\d+)(?:\s*,\s*(?<second>\d+))?\))?$",
+        @"^(?<name>[a-z][a-z0-9 ]*)(?:\((?<first>max|\d+)(?:\s*,\s*(?<second>\d+))?\))?$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
     public static bool TryParse(string? value, out PhysicalTypeDefinition? definition)
@@ -33,7 +33,7 @@ internal sealed record PhysicalTypeDefinition(NativeDatabaseType NativeType, int
         second = null;
         if (!TryNumber(match.Groups["first"], out first)
             || !TryNumber(match.Groups["second"], out second)) return false;
-        if (first is <= 0 || second is < 0) return false;
+        if (first is 0 or < -1 || second is < 0) return false;
         return second is null || (first is not null && second <= first);
     }
 
@@ -41,6 +41,7 @@ internal sealed record PhysicalTypeDefinition(NativeDatabaseType NativeType, int
         out PhysicalTypeDefinition? definition)
     {
         definition = null;
+        if (first == VarLengthColumn.Unbounded && name is not ("varchar" or "nvarchar")) return false;
         try
         {
             var nativeType = new NativeDatabaseType(name);
@@ -61,6 +62,7 @@ internal sealed record PhysicalTypeDefinition(NativeDatabaseType NativeType, int
     {
         value = null;
         if (!group.Success) return true;
+        if (group.Value.Equals("max", StringComparison.OrdinalIgnoreCase)) { value = VarLengthColumn.Unbounded; return true; }
         if (!int.TryParse(group.Value, out var parsed)) return false;
         value = parsed;
         return true;

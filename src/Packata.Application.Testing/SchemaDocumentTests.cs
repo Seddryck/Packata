@@ -83,7 +83,7 @@ public class SchemaDocumentTests
         var field = new Packata.Core.Contracts.DataField("map", "object", Children:
             [new("key", "string"), new("value", "integer", Nullable: true)],
             Extensions: Packata.Core.Contracts.ExtensionMetadata.For("arrow", new Dictionary<string, object?> { ["type"] = "map", ["note"] = "quoted\"\\\n" }));
-        var mapping = Packata.Arrow.ArrowSchemaMapper.Map(new([field], Extensions:
+        var mapping = Packata.Arrow.ArrowSchemaProjection.Map(new([field], Extensions:
             Packata.Core.Contracts.ExtensionMetadata.For("arrow", new Dictionary<string, object?> { ["owner"] = "analytics" })));
         var bytes = await Packata.Arrow.ArrowSchemaSerializer.SerializeAsync(mapping.Schema!);
         using var stream = new MemoryStream(bytes);

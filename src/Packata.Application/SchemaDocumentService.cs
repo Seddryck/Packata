@@ -48,7 +48,7 @@ public static class SchemaDocumentService
         }
         try
         {
-            var arrow = ArrowSchemaMapper.Map(asset.Schema!);
+            var arrow = ArrowSchemaProjection.Map(asset.Schema!);
             var diagnostics = mapping.Diagnostics.Concat(arrow.Diagnostics.Select(d => new MappingDiagnostic(d.Code,
                 d.IsError ? MappingSeverity.Error : MappingSeverity.Warning, d.Path, d.Message))).ToArray();
             if (arrow.Schema is null) return new(null, null, filename, asset.Id, "binary", diagnostics);

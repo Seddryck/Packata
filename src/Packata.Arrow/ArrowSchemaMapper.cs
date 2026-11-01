@@ -1,138 +1,92 @@
-using System.Data;
 using Apache.Arrow;
 using Apache.Arrow.Types;
-using Packata.Core;
 using Packata.Core.Contracts;
 
 namespace Packata.Arrow;
 
-public sealed record ArrowDiagnostic(string Code, string Path, string Message, bool IsError = false);
-public sealed record ArrowSchemaResult(Schema? Schema, IReadOnlyList<ArrowDiagnostic> Diagnostics);
-
-/// <summary>One field-aware projection shared by code generation and IPC consumers.</summary>
 public static class ArrowSchemaMapper
 {
-    private static readonly IReadOnlyDictionary<DbType, IArrowType> Scalars = new Dictionary<DbType, IArrowType>
+    public static Schema Map(DataSchema schema)
     {
-        [DbType.SByte] = Int8Type.Default, [DbType.Byte] = UInt8Type.Default,
-        [DbType.Int16] = Int16Type.Default, [DbType.UInt16] = UInt16Type.Default,
-        [DbType.Int32] = Int32Type.Default, [DbType.UInt32] = UInt32Type.Default,
-        [DbType.Int64] = Int64Type.Default, [DbType.UInt64] = UInt64Type.Default,
-        [DbType.Single] = FloatType.Default, [DbType.Double] = DoubleType.Default,
-        [DbType.String] = StringType.Default, [DbType.Boolean] = BooleanType.Default, [DbType.Date] = Date32Type.Default
-    };
-
-    public static ArrowSchemaResult Map(DataSchema schema)
-    {
-        var diagnostics = new List<ArrowDiagnostic>();
-        var fields = schema.Fields.Select(f => Field(FieldTypeResolver.Resolve(f, new(SourcePath: f.Name)), diagnostics)).ToArray();
-        diagnostics.Add(new("ARROW_CONSTRAINTS", "$", "Arrow nullability describes values; field presence, uniqueness, quality rules and other contract constraints require separate validation."));
-        return new(diagnostics.Any(d => d.IsError) ? null : new Schema(fields!, Metadata(schema.Extensions)), diagnostics);
-    }
-
-    private static Field? Field(FieldTypeResolution field, List<ArrowDiagnostic> diagnostics)
-    {
-        foreach (var d in field.Diagnostics.Where(d => d.Target == TypeMappingTarget.Source && d.FieldPath == field.FieldPath))
-            diagnostics.Add(new(d.Code, d.FieldPath, d.Message, d.Severity == TypeMappingSeverity.Error));
-        var type = Type(field, diagnostics);
-        if (type is null)
+        ArgumentNullException.ThrowIfNull(schema);
+        if (schema.Fields.Count == 0) throw new NotSupportedException("Arrow conversion requires at least one field.");
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        return new Schema(schema.Fields.Select(field =>
         {
-            diagnostics.Add(new("ARROW_TYPE", field.FieldPath, "The field has no lossless supported Arrow representation. Dictionary and extension types require an explicit adapter and are not inferred.", true));
-            return null;
-        }
-        var metadata = Metadata(field.Field.Extensions);
-        metadata["packata.required"] = field.Required ? "true" : "false";
-        if (field.Field.Description is { } description) metadata["description"] = description;
-        return new(field.Field.Name, type, field.Nullable, metadata);
+            if (string.IsNullOrWhiteSpace(field.Name) || !names.Add(field.Name))
+                throw Unsupported(field, "Field names must be nonempty and unique.");
+            return new Field(field.Name, MapType(field), field.Nullable);
+        }), null);
     }
 
-    private static IArrowType? Type(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
+    private static IArrowType MapType(DataField field)
     {
-        if (f.Field.Extensions.TryGetNamespace("arrow", out var options) && options.TryGetValue("type", out var representation))
-            return Map(f, representation, diagnostics);
-        if (f.LogicalType == "array") return List(f, diagnostics);
-        if (f.LogicalType == "object") return Struct(f, diagnostics);
-        return Scalar(f, diagnostics);
-    }
-
-    private static IArrowType? List(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
-        => f.Items is not null && Field(f.Items, diagnostics) is { } item ? new ListType(item) : null;
-
-    private static IArrowType? Struct(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
-    {
-        if (f.Children.Count == 0) return null;
-        var fields = f.Children.Select(c => Field(c, diagnostics)).ToArray();
-        return fields.All(c => c is not null) ? new StructType(fields!) : null;
-    }
-
-    private static IArrowType? Scalar(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
-    {
-        // Binary is an explicit annotation on the canonical string type.
-        if (f.LogicalType == "string" && f.SourceFormat == "binary") return BinaryType.Default;
-        if (f.DatabaseType is { } database && Scalars.TryGetValue(database, out var scalar)) return scalar;
-        return ParameterizedType(f, diagnostics);
-    }
-
-    private static IArrowType? Map(FieldTypeResolution f, object? representation, List<ArrowDiagnostic> diagnostics)
-    {
-        if (representation is not "map" || f.Children.Count != 2) return null;
-        var key = Field(f.Children[0], diagnostics);
-        var value = Field(f.Children[1], diagnostics);
-        if (key is null || value is null || key.IsNullable) return null;
-        return new MapType(key, value);
-    }
-
-    private static IArrowType? ParameterizedType(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
-    {
-        return f.DatabaseType switch
+        if (field.Children.Count != 0 || field.Items is not null)
+            throw Unsupported(field, "Nested fields are unsupported.");
+        return field.LogicalType?.ToLowerInvariant() switch
         {
-            DbType.Decimal => Decimal(f.Parameters),
-            DbType.Time when f.Parameters.TemporalPrecision is null or <= 9 => Time(f.Parameters.TemporalPrecision),
-            DbType.DateTime or DbType.DateTimeOffset => Timestamp(f, diagnostics),
-            _ => null
+            "boolean" => BooleanType.Default,
+            "integer" => Integer(field),
+            "number" when Parameter(field, "precision") is null && Parameter(field, "scale") is null => DoubleType.Default,
+            "number" or "decimal" => Decimal(field),
+            "string" => StringType.Default,
+            "binary" => BinaryType.Default,
+            "date" => Date32Type.Default,
+            "timestamp" or "datetime" => Timestamp(field),
+            _ => throw Unsupported(field, $"Unsupported logical type '{field.LogicalType}'.")
         };
     }
 
-    private static IArrowType? Decimal(TypeParameters parameters)
+    private static IArrowType Integer(DataField field)
     {
-        if (parameters.Scale is not >= 0) return null;
-        return parameters.Precision switch
+        var width = Parameter(field, "integerWidth") ?? 64;
+        var signed = Parameter(field, "signed") ?? true;
+        return (width, signed) switch
         {
-            > 0 and <= 38 => new Decimal128Type(parameters.Precision.Value, parameters.Scale.Value),
-            > 38 and <= 76 => new Decimal256Type(parameters.Precision.Value, parameters.Scale.Value),
-            _ => null
+            (8, true) => Int8Type.Default, (16, true) => Int16Type.Default,
+            (32, true) => Int32Type.Default, (64, true) => Int64Type.Default,
+            (8, false) => UInt8Type.Default, (16, false) => UInt16Type.Default,
+            (32, false) => UInt32Type.Default, (64, false) => UInt64Type.Default,
+            _ => throw Unsupported(field, "integerWidth must be an Int32 (8/16/32/64) and signed a Boolean.")
         };
     }
 
-    private static IArrowType Time(int? precision) => precision switch
+    private static Decimal128Type Decimal(DataField field)
     {
-        0 => new Time32Type(TimeUnit.Second), <= 3 => new Time32Type(TimeUnit.Millisecond),
-        <= 6 => new Time64Type(TimeUnit.Microsecond), _ => new Time64Type(TimeUnit.Nanosecond)
-    };
-
-    private static IArrowType? Timestamp(FieldTypeResolution f, List<ArrowDiagnostic> diagnostics)
-    {
-        if (f.Parameters.TemporalPrecision > 9) return null;
-        var zone = f.Parameters.Timezone;
-        if (f.Parameters.TemporalSemantics == TemporalSemantics.Offset && zone is null) return null;
-        if (f.Parameters.TemporalSemantics == TemporalSemantics.Instant) zone ??= "UTC";
-        var unit = f.Parameters.TemporalPrecision switch
-        { 0 => TimeUnit.Second, <= 3 => TimeUnit.Millisecond, <= 6 => TimeUnit.Microsecond, _ => TimeUnit.Nanosecond };
-        diagnostics.Add(new("ARROW_TEMPORAL_RANGE", f.FieldPath, "Arrow timestamps use signed 64-bit epoch units; validate calendar range and precision when converting values. Per-row offsets are not retained."));
-        return new TimestampType(unit, zone);
+        if (Parameter(field, "precision") is not int precision || Parameter(field, "scale") is not int scale
+            || precision is < 1 or > 38 || scale < 0 || scale > precision)
+            throw Unsupported(field, "Decimal requires Int32 precision (1..38) and scale (0..precision).");
+        return new Decimal128Type(precision, scale);
     }
 
-    private static Dictionary<string, string> Metadata(ExtensionMetadata extensions)
+    private static TimestampType Timestamp(DataField field)
     {
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (extensions.TryGetNamespace("arrow", out var values))
-            foreach (var (key, value) in values)
-            {
-                if (key.StartsWith("ARROW:extension:", StringComparison.Ordinal))
-                    throw new NotSupportedException("Arrow extension types require registration and a dedicated adapter.");
-                if (value is not string text) throw new NotSupportedException("Arrow metadata values must be strings.");
-                result.Add(key, text);
-            }
-        return result;
+        // Explicit unit names; default to microseconds. No local timezone inference.
+        var unit = Parameter(field, "precision") switch
+        {
+            null or "microsecond" => TimeUnit.Microsecond,
+            "second" => TimeUnit.Second,
+            "millisecond" => TimeUnit.Millisecond,
+            "nanosecond" => TimeUnit.Nanosecond,
+            _ => throw Unsupported(field, "Timestamp precision must be second, millisecond, microsecond or nanosecond.")
+        };
+        if (Parameter(field, "defaultTimezone") is not null)
+            throw Unsupported(field, "defaultTimezone requires interpretation outside the adapter.");
+        var timezone = Parameter(field, "timezone") switch
+        {
+            null or true => "UTC",
+            false => "",
+            _ => throw Unsupported(field, "timezone must be a Boolean.")
+        };
+        return new TimestampType(unit, timezone);
     }
+
+    internal static object? Parameter(DataField field, string name)
+    {
+        var values = field.Constraints.Where(c => c.Kind == name).ToArray();
+        if (values.Length > 1) throw Unsupported(field, $"Duplicate '{name}' parameter.");
+        return values.SingleOrDefault()?.Value;
+    }
+
+    internal static NotSupportedException Unsupported(DataField field, string message) => new($"Field '{field.Name}': {message}");
 }

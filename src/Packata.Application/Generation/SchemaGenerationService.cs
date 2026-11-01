@@ -23,7 +23,8 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
     {
         try
         {
-            SelectTemplate(options, template);
+            ValidateSelection(options, template);
+            if (options.Operation == "generate" && options.Target != "ddl") SelectTemplate(options, template);
             GenerationData.Variables(options.Defines);
             CSharpNames.Namespace(options.Namespace);
             return null;
@@ -50,7 +51,21 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         TemplateInput? template = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        try { return await GenerateDocumentAsync(document, options, template, cancellationToken).ConfigureAwait(false); }
+        try {
+            var error = ValidateOptions(options, template);
+            if (error is not null) return Failure("GEN_OPTIONS", error);
+            if (options.Operation == "export" && options.OutputFormat == "arrow-ipc")
+            {
+                var result = await SchemaDocumentService.ExportAsync(document,
+                    new("arrow-ipc", options.AssetId, options.CompatibilityProfile), cancellationToken).ConfigureAwait(false);
+                return new(null, result.SuggestedFilename, "binary", result.AssetId, null, null,
+                    result.Diagnostics.Select(d => new GenerationDiagnostic(d.Code, d.Severity.ToString(), d.SourcePath, ContractJson.Redact(d.Message))).ToArray())
+                { Representation = "binary", BinaryContent = result.Bytes, MediaType = "application/vnd.apache.arrow.schema" };
+            }
+            if (options.Operation == "export") return ExportDocument(document, options, cancellationToken);
+            if (options.Target == "ddl") return await DdlGeneration.GenerateAsync(document, options, cancellationToken).ConfigureAwait(false);
+            return await GenerateDocumentAsync(document, options, template, cancellationToken).ConfigureAwait(false);
+        }
         catch (OperationCanceledException) { throw; }
         catch (Exception) { return Failure("GEN_DOCUMENT", "The descriptor cannot be prepared for schema generation. Inspect its mapping and type declarations."); }
     }
@@ -77,11 +92,11 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         var asset = SelectAsset(assets, options.AssetId, diagnostics);
         if (asset is null) return Result(null, null, null, template, diagnostics);
         var context = new GenerationProjection(options, profile, diagnostics, cancellationToken).Build(contract, asset);
-        return await RenderAsync(context, asset, profile, template, engine, diagnostics, cancellationToken).ConfigureAwait(false);
+        return await RenderAsync(context, asset, profile, options.Language, template, engine, diagnostics, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<GenerationResult> RenderAsync(Dictionary<string, object?> context, DataAsset asset,
-        string? profile, TemplateInput template, string engine, List<GenerationDiagnostic> diagnostics, CancellationToken cancellationToken)
+        string? profile, string? requestedLanguage, TemplateInput template, string engine, List<GenerationDiagnostic> diagnostics, CancellationToken cancellationToken)
     {
         if (profile is "csharp-arrow" or "python-arrow")
             ArrowCodeProjection.Apply(context, asset.Schema!, profile == "python-arrow", diagnostics);
@@ -92,7 +107,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             var content = await (renderer ?? new DidotTemplateRenderer()).RenderAsync(template, engine, plain, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             var name = ((Dictionary<string, object?>)context["asset"]!)["generated_name"]!.ToString()!.TrimStart('@');
-            var (language, extension) = OutputKind(profile);
+            var (language, extension) = OutputKind(profile, requestedLanguage);
             return Result(content.ReplaceLineEndings("\n"), asset.Id, name + extension, template, diagnostics, plain, language);
         }
         catch (OperationCanceledException) { throw; }
@@ -105,7 +120,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
 
     private static (TemplateInput Template, string? Profile, string Engine) SelectTemplate(GenerationOptions options, TemplateInput? template)
     {
-        ValidateSelection(options, template);
+        ValidateTemplateSelection(options, template);
         var target = SelectTarget(options);
         var profile = SelectProfile(options, target);
         if (profile == "python-arrow" && options.Namespace is not null) throw new ArgumentException("Python Arrow generation does not support --namespace.");
@@ -114,32 +129,26 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         return (template, profile, GenerationCatalogService.Engine(template, target?.Engine ?? options.Engine));
     }
 
-    private static void ValidateSelection(GenerationOptions options, TemplateInput? template)
+    private static void ValidateTemplateSelection(GenerationOptions options, TemplateInput? template)
     {
         if (options.UnsupportedOptions is { Count: > 0 }) throw new ArgumentException("Unsupported generation options; use the generation catalog.");
         if (!Enum.IsDefined(options.Fallback)) throw new ArgumentException("Unknown mapping fallback policy.");
         if ((options.Target is null) == (template is null)) throw new ArgumentException("Select exactly one built-in target or custom template.");
-        ValidateLanguage(options, template);
-    }
-
-    private static void ValidateLanguage(GenerationOptions options, TemplateInput? template)
-    {
-        if (options.Target == "arrow" && options.Language is null) throw new ArgumentException("--target arrow requires --language csharp or python.");
-        if (template is not null && options.Language is not null) throw new ArgumentException("Custom templates select --type-mapping instead of --language.");
     }
 
     private static GenerationTarget? SelectTarget(GenerationOptions options)
     {
         if (options.Target is null) return null;
         var language = options.Language ?? "csharp";
-        return Catalog.Targets.SingleOrDefault(t => t.Id == options.Target && t.Language == language)
+        return Catalog.Targets.SingleOrDefault(t => t.Operation == "generate" && t.Id == options.Target && t.Language == language)
             ?? throw new ArgumentException("Unsupported target/language pair. Consult the generation catalog.");
     }
 
-    private static (string Language, string Extension) OutputKind(string? profile) => profile switch
+    private static (string Language, string Extension) OutputKind(string? profile, string? requestedLanguage)
     {
-        null => ("plaintext", ".txt"), "python-arrow" => ("python", ".py"), _ => ("csharp", ".cs")
-    };
+        var language = requestedLanguage ?? (profile is null ? "plaintext" : profile == "python-arrow" ? "python" : "csharp");
+        return (language, language switch { "csharp" => ".cs", "python" => ".py", _ => ".txt" });
+    }
 
     private static string? SelectProfile(GenerationOptions options, GenerationTarget? target)
     {
@@ -156,11 +165,101 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             throw new ArgumentException("A built-in target fixes its template engine; engine overrides apply to custom templates.");
     }
 
+    private static void ValidateSelection(GenerationOptions options, TemplateInput? template)
+    {
+        if (options.AssetId is not null && string.IsNullOrWhiteSpace(options.AssetId))
+            throw new ArgumentException("--asset must be a non-empty canonical ID.");
+        switch (options.Operation)
+        {
+            case "export": ValidateExport(options, template); break;
+            case "generate": ValidateGeneration(options, template); break;
+            default: throw new ArgumentException("Unknown schema operation. Use export or generate.");
+        }
+    }
+
+    private static bool HasTemplateOptions(GenerationOptions options)
+        => options.Engine is not null || options.Profile is not null || options.Defines?.Count > 0
+            || options.Fallback != Packata.Core.TypeMappingFallback.Reject || HasSourceNames(options);
+
+    private static bool HasSourceNames(GenerationOptions options)
+        => options.Namespace is not null || options.TypeName is not null;
+
+    private static void ValidateExport(GenerationOptions options, TemplateInput? template)
+    {
+        RejectGenerationSelectors(options, template);
+        var target = DocumentTarget(options.OutputFormat);
+        ValidateDocumentOptions(options, target);
+    }
+
+    private static bool HasGenerationSelectors(GenerationOptions options)
+        => options.Target is not null || options.Language is not null || options.Dialect is not null || HasTemplateOptions(options);
+
+    private static void RejectGenerationSelectors(GenerationOptions options, TemplateInput? template)
+    {
+        if (HasGenerationSelectors(options) || template is not null || options.DdlOptions is not null)
+            throw new ArgumentException("Export accepts --output-format and optional --profile; use schema generate for code and templates.");
+    }
+
+    private static GenerationTarget DocumentTarget(string? format)
+        => Catalog.Targets.SingleOrDefault(t => t.Operation == "export" && t.Id == format)
+            ?? throw new ArgumentException("Unknown or missing --output-format. Discover available schema export formats.");
+
+    private static void ValidateDocumentOptions(GenerationOptions options, GenerationTarget target)
+    {
+        if (options.DocumentOptions is not null && options.OutputFormat != "avro")
+            throw new ArgumentException("Schema naming options apply only to Avro export.");
+        if (options.CompatibilityProfile is not null && target.CompatibilityProfiles?.Contains(options.CompatibilityProfile) != true)
+            throw new ArgumentException("Unknown or incompatible export --profile. Omit --profile for generic output.");
+    }
+
+    private static bool HasDocumentSelectors(GenerationOptions options)
+        => options.OutputFormat is not null || options.CompatibilityProfile is not null || options.DocumentOptions is not null;
+
+    private static void ValidateGeneration(GenerationOptions options, TemplateInput? template)
+    {
+        if (HasDocumentSelectors(options))
+            throw new ArgumentException("Use schema export --output-format for schema documents; --profile is export-only.");
+        if (options.Target == "ddl") { ValidateDdl(options, template); return; }
+        if (options.DdlOptions is not null) throw new ArgumentException("Relational options apply only to target ddl.");
+        if (options.Dialect is not null) throw new ArgumentException("--dialect applies only to target ddl.");
+        if (options.Target is not null && options.Language is null)
+            throw new ArgumentException("Bundled generation requires --target and --language (for example --target record --language csharp).");
+    }
+
+    private static void ValidateDdl(GenerationOptions options, TemplateInput? template)
+    {
+        if (template is not null || HasTemplateOptions(options))
+            throw new ArgumentException("DDL does not accept templates or code-generation options.");
+        if (options.Language is not null && options.Language != "sql")
+            throw new ArgumentException("DDL requires SQL; omit --language or supply --language sql.");
+        if (options.Dialect is null) throw new ArgumentException("DDL requires --dialect. Use an ID from the schema catalog.");
+        Packata.Provisioners.Database.OfflineSqlDialects.Resolve(options.Dialect);
+    }
+
+    private static GenerationResult ExportDocument(ContractDocument document, GenerationOptions options, CancellationToken token)
+    {
+        var inspection = ContractInspector.Inspect(document, token);
+        var diagnostics = inspection.Mapping.Diagnostics.Select(d => new GenerationDiagnostic(d.Code, d.Severity.ToString(), d.SourcePath, ContractJson.Redact(d.Message))).ToList();
+        if (!inspection.Mapping.IsSuccessful) return new(null, null, null, null, null, null, diagnostics);
+        if (options.AssetId is not null && inspection.Mapping.RequireValue().Assets.Count(a => a.Id == options.AssetId) > 1) return Failure("GEN_ASSET", "The selected asset ID is ambiguous.");
+        var asset = SelectAsset(inspection.Mapping.RequireValue().Assets.Where(a => a.Schema is { Fields.Count: > 0 }).ToArray(), options.AssetId, diagnostics);
+        if (asset is null) return new(null, null, null, null, null, null, diagnostics);
+        if (options.OutputFormat is "avro" or "spark-json") return new StructuredSchemaExport(options.OutputFormat, diagnostics, token, options.DocumentOptions).Export(asset);
+        try
+        {
+            var result = ContractExportService.JsonSchema(document, asset.Id, token);
+            return new(result.Content, "schema.schema.json", "json", asset.Id, null, null, diagnostics) { MediaType = "application/schema+json" };
+        }
+        catch (JsonSchemaConversionException error) { return Failure("GEN_SCHEMA", ContractJson.Redact(error.Message)); }
+    }
+
     private static DataAsset? SelectAsset(DataAsset[] assets, string? id, List<GenerationDiagnostic> diagnostics)
     {
         if (id is not null)
         {
-            var asset = assets.SingleOrDefault(a => a.Id == id);
+            var matches = assets.Where(a => a.Id == id).ToArray();
+            if (matches.Length > 1) { diagnostics.Add(new("GEN_ASSET", "Error", "$.assets", "The selected asset ID is ambiguous.")); return null; }
+            var asset = matches.SingleOrDefault();
             if (asset is not null) return asset;
             diagnostics.Add(new("GEN_ASSET", "Error", "$.assets", "The selected asset does not exist or has no usable schema."));
         }

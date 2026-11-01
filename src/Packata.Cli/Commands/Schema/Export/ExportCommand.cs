@@ -2,56 +2,46 @@ using Packata.Application;
 using Packata.Core.Contracts;
 using Spectre.Console.Cli;
 using Packata.Application.Generation;
-
 namespace Packata.Cli;
-
 internal sealed class ExportCommand : AsyncCommand<ExportSettings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, ExportSettings settings, CancellationToken cancellationToken)
     {
         try
         {
-            using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken).ConfigureAwait(false);
-            var result = await SchemaDocumentService.ExportAsync(source.ParsedDocument,
-                new(settings.OutputFormat!, settings.Asset, settings.Profile), cancellationToken).ConfigureAwait(false);
-            foreach (var diagnostic in result.Diagnostics) CommandOutput.Diagnostic(diagnostic);
-            if (!result.IsSuccessful) return ExitCodes.InvalidDocument;
-            return await PublishAsync(result, settings.Output, cancellationToken).ConfigureAwait(false);
+            using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken);
+            return await GenerateAsync(source, settings.Options, null, settings.Output, cancellationToken);
         }
-        catch (JsonSchemaConversionException exception)
-        {
-            CommandOutput.Diagnostic(new("CLI020", MappingSeverity.Error, "$.schema", exception.Message));
-            return ExitCodes.InvalidDocument;
-        }
-        catch (Exception exception)
-        {
-            CommandOutput.Diagnostic(CommandOutput.Failure(exception));
-            return CommandOutput.FailureExitCode(exception);
-        }
+        catch (Exception error) { CommandOutput.Diagnostic(CommandOutput.Failure(error)); return CommandOutput.FailureExitCode(error); }
+    }
+    internal static async Task<int> GenerateAsync(ContractSource source, GenerationOptions options, string? templatePath, string? output, CancellationToken token)
+    {
+        var template = await ReadTemplateAsync(source, templatePath, token);
+        var result = await new SchemaGenerationService().GenerateAsync(source.ParsedDocument, options, template, token).ConfigureAwait(false);
+        foreach (var diagnostic in result.Diagnostics)
+            CommandOutput.Diagnostic(new(diagnostic.Code, Enum.Parse<MappingSeverity>(diagnostic.Severity),
+                diagnostic.Template ?? diagnostic.SourcePath, diagnostic.Message));
+        if (!result.IsSuccessful) return result.Diagnostics.Any(d => d.Code == "GEN_OPTIONS") ? ExitCodes.Invocation : ExitCodes.InvalidDocument;
+        token.ThrowIfCancellationRequested();
+        Publish(result, output, token);
+        return ExitCodes.Success;
+    }
+    private static async Task<TemplateInput?> ReadTemplateAsync(ContractSource source, string? templatePath, CancellationToken token)
+    {
+        if (templatePath is null) return null;
+        var uri = Uri.TryCreate(templatePath, UriKind.Absolute, out var absolute) ? absolute : new Uri(source.BaseUri, templatePath);
+        if (!uri.IsFile) throw new NotSupportedException("Custom templates must be local files.");
+        return new(uri.AbsoluteUri, await File.ReadAllTextAsync(uri.LocalPath, token).ConfigureAwait(false));
     }
 
-    private static async Task<int> PublishAsync(SchemaDocumentResult result, string? output, CancellationToken cancellationToken)
+    private static void Publish(GenerationResult result, string? output, CancellationToken token)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (result.Bytes is { } bytes)
+        if (result.Representation == "binary")
         {
-            if (output is null)
-            {
-                await Console.OpenStandardOutput().WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
-            }
-            else ContractDocumentWriter.WriteBytes(output, bytes, cancellationToken);
+            if (output is null) Console.OpenStandardOutput().Write(result.BinaryContent!);
+            else ContractDocumentWriter.WriteBytes(output, result.BinaryContent!, token);
         }
-        else if (output is null) Console.Write(result.Content + Environment.NewLine);
-        else
-        {
-            try { ContractDocumentWriter.Write(output, result.Content + Environment.NewLine, overwrite: false); }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                CommandOutput.Diagnostic(new("CLI003", MappingSeverity.Error, "$.output",
-                    "Unable to write output. Choose a new file and check directory permissions."));
-                return ExitCodes.Io;
-            }
-        }
-        return ExitCodes.Success;
+        else if (output is null) Console.Write(result.Content);
+        else ContractDocumentWriter.Write(output, result.Content!, overwrite: false);
     }
 }

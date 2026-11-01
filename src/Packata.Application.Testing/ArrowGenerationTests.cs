@@ -121,13 +121,13 @@ public class ArrowGenerationTests
     {
         var map = new DataField("values", "object", Children: [new("key", "string"), new("value", "integer", Nullable: true)],
             Extensions: ExtensionMetadata.For("arrow", new Dictionary<string, object?> { ["type"] = "map" }));
-        var schema = ArrowSchemaMapper.Map(new([map], Extensions: ExtensionMetadata.For("arrow", new Dictionary<string, object?> { ["owner"] = "sales" })));
+        var schema = ArrowSchemaProjection.Map(new([map], Extensions: ExtensionMetadata.For("arrow", new Dictionary<string, object?> { ["owner"] = "sales" })));
         Assert.That(schema.Schema!.GetFieldByIndex(0).DataType, Is.TypeOf<MapType>());
         Assert.That(schema.Schema.Metadata["owner"], Is.EqualTo("sales"));
         var dictionary = map with { Extensions = ExtensionMetadata.For("arrow", new Dictionary<string, object?> { ["type"] = "dictionary" }) };
-        Assert.That(ArrowSchemaMapper.Map(new([dictionary])).Schema, Is.Null);
+        Assert.That(ArrowSchemaProjection.Map(new([dictionary])).Schema, Is.Null);
         var extension = map with { Extensions = ExtensionMetadata.For("arrow", new Dictionary<string, object?> { ["ARROW:extension:name"] = "custom" }) };
-        Assert.That(() => ArrowSchemaMapper.Map(new([extension])), Throws.TypeOf<NotSupportedException>());
+        Assert.That(() => ArrowSchemaProjection.Map(new([extension])), Throws.TypeOf<NotSupportedException>());
     }
 
     private static async Task VerifyPython(string content)

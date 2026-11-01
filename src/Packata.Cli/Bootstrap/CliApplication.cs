@@ -7,6 +7,12 @@ internal static class CliApplication
 {
     private static int HandleInvocation(string[] args, Exception exception)
     {
+        if (args.FirstOrDefault() == "schema" && args.ElementAtOrDefault(1) is "export" or "generate")
+        {
+            CliErrorHandler.Invocation(exception);
+            Console.Error.WriteLine("Use schema export --output-format <format> for documents, or schema generate --target <target> --language <language> (or --template <path>) for code. DDL uses --target ddl --dialect <id>.");
+            return ExitCodes.Invocation;
+        }
         if (args.FirstOrDefault() == "quality")
         {
             CliErrorHandler.Invocation(exception);
@@ -22,11 +28,16 @@ internal static class CliApplication
     }
     internal static int Run(string[] args, CancellationToken cancellationToken)
     {
+        if (args.FirstOrDefault() == "export" || (args.FirstOrDefault() == "schema" && args.Any(a => new[] { "--record", "--datatable", "--polars", "--pyspark", "--arrow", "--dataframe", "--idataview", "--ddl", "--json-schema", "--spark-json", "--avro", "--format", "--dataset" }.Contains(a.Split('=')[0]))))
+        {
+            Console.Error.WriteLine("Removed schema syntax. Use schema export --output-format <format> or schema generate --target <target> --language <language>; use --asset for selection.");
+            return ExitCodes.Invocation;
+        }
         if (args.Length == 1 && args[0] is "contract" or "data" or "schema" or "config" or "connector" or "dialect" or "quality") args = [args[0], "--help"];
         var app = new CommandApp<RootCommand>();
         app.Configure(configuration =>
         {
-            if (args.Length >= 2 && args[0] == "schema" && args[1] is "generate" or "export") configuration.UseStrictParsing();
+            if (args.FirstOrDefault() == "schema") configuration.UseStrictParsing();
             configuration.SetApplicationName("packata");
             configuration.SetApplicationVersion(ApplicationVersion.Value);
             configuration.ConfigureConsole(AnsiConsole.Create(new AnsiConsoleSettings
@@ -40,9 +51,6 @@ internal static class CliApplication
             DialectCommands.Configure(configuration);
             DataCommands.Configure(configuration);
             QualityCommands.Configure(configuration);
-            configuration.AddCommand<ExportCommand>("export")
-                .WithDescription("Export an asset as JSON Schema; compatibility alias for schema export.")
-                .WithExample(["export", "sales.odcs.yaml", "--output-format", "json-schema", "--asset", "orders"]);
             configuration.AddCommand<InferCommand>("infer")
                 .WithDescription("Infer a bound CSV, Excel, Parquet, or database schema; compatibility alias for schema infer.")
                 .WithExample(["infer", "datapackage.json", "--asset", "customers"]);

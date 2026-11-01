@@ -134,15 +134,16 @@ public sealed class CliOptionConsistencyTests
     }
 
     [Test]
-    public async Task SchemaExport_AndCompatibilityPathProduceIdenticalJson()
+    public async Task SchemaExport_requires_the_canonical_grouped_command()
     {
         using var workspace = new CliWorkspace();
         var source = workspace.Write("descriptor", CliWorkspace.Odcs.Replace("physicalType: file", "physicalType: file\n    properties:\n      - name: id\n        logicalType: integer"));
         var canonical = await CliWorkspace.Run("schema", "export", source, "--input-format", "odcs", "--asset", "customers", "--output-format", "json-schema");
         var compatibility = await CliWorkspace.Run("export", source, "--input-format", "odcs", "--asset", "customers", "-f", "json-schema");
         Assert.That(canonical.ExitCode, Is.Zero, canonical.Error);
-        Assert.That(compatibility.ExitCode, Is.Zero, compatibility.Error);
-        Assert.That(canonical.Output, Is.EqualTo(compatibility.Output));
+        Assert.That(compatibility.ExitCode, Is.EqualTo(2), compatibility.Error);
+        Assert.That(compatibility.Output, Is.Empty);
+        Assert.That(compatibility.Error, Does.Contain("schema export --output-format"));
         Assert.That((string?)JObject.Parse(canonical.Output)["properties"]!["id"]!["type"], Is.EqualTo("integer"));
     }
 

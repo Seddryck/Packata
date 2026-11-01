@@ -511,6 +511,7 @@ public class DubUrlProvisionerTests
             NativeTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "varchar", "decimal" }
         });
         var schemaRenderer = new Mock<ISchemaSqlRenderer>();
+        schemaRenderer.Setup(x => x.SupportsCommentRendering).Returns(scheme is "postgres");
         schemaRenderer.Setup(x => x.RenderObjectName(dialect.Object,
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string>()))
             .Returns((IDialect _, string? catalog, string? database, string? schema, string name) =>

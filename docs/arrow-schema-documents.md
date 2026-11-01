@@ -67,7 +67,7 @@ discards the result; CLI file publication writes a sibling temporary file and mo
 without overwrite, cleaning up on failure. Cancellation during raw stdout I/O may leave
 a truncated pipe; a nonzero exit status and a failed schema read must be treated as failure.
 
-Both Arrow code targets and this serializer use `ArrowSchemaMapper`, outside Core.
+Both Arrow code targets and this serializer use `ArrowSchemaProjection`, outside Core.
 They retain field order/names, nesting, nullability, supported schema/field string metadata,
 decimal precision/scale, and temporal units/zones. See [schema generation](../schema-generation/)
 for the complete mapping profile. Decimal precision and scale must be explicit; values
@@ -91,11 +91,12 @@ are separate source-code commands under **Generate Schema Code > C#/Python > Arr
 the commands validate their exact target/language pair against the generation catalog.
 Unavailable catalog entries are hidden, including after server disconnects.
 
-LanguageServer advertises `packata.schema.document.options` and
-`packata.schema.document.export`, with schema version 1. The options response contains
-formats and eligible assets; export requires the source URI, version, selection hash,
-optional clicked source path, and `SchemaDocumentOptions`. Results include representation,
-suggested filename, diagnostics and `bytes` (base64 on JSON transport) or text `content`.
+LanguageServer advertises the shared `packata.schema.options`, `packata.schema.catalog`
+and `packata.schema.export` commands, with schema version 1. Export requires the source
+URI, version, selection hash, optional clicked source path, and options selecting
+`outputFormat: "arrow-ipc"`. Results include representation, suggested filename,
+diagnostics and `binaryContent` (base64 on JSON transport) or text `content`.
+The schema-document commands remain available for clients using that protocol.
 No CLI process is spawned by editor operations.
 
 Focused validation covers .NET/PyArrow round trips, comparison with generated Python,

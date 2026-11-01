@@ -2,6 +2,8 @@
   "solution": {
     "path": "Packata.sln",
     "projects": [
+      "src\\Packata.Arrow\\Packata.Arrow.csproj",
+      "src\\Packata.Arrow.Testing\\Packata.Arrow.Testing.csproj",
       "src\\Packata.Core.Testing\\Packata.Core.Testing.csproj",
       "src\\Packata.Core\\Packata.Core.csproj",
       "src\\Packata.Database\\Packata.Database.csproj",

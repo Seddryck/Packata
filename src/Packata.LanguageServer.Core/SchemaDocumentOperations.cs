@@ -8,7 +8,7 @@ namespace Packata.LanguageServer.Core;
 public sealed record SchemaDocumentDiscovery(int SchemaVersion, string Uri, int? Version, string SelectionKey,
     IReadOnlyList<SchemaDocumentFormat> Formats, IReadOnlyList<GenerationAssetOption> Assets,
     IReadOnlyList<GenerationDiagnostic> Diagnostics);
-public sealed record SchemaDocumentRequest(string Uri, string SelectionKey, SchemaDocumentOptions Options,
+public sealed record SchemaDocumentRequest(string Uri, string SelectionKey, Packata.Application.SchemaDocumentOptions Options,
     int? Version = null, string? SourcePath = null, int SchemaVersion = 1);
 public sealed record SchemaDocumentResponse(int SchemaVersion, string Uri, int? Version, string SelectionKey,
     SchemaDocumentArtifact Result);

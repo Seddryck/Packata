@@ -25,6 +25,8 @@ public static class Program
             .WithHandler<SchemaGenerationHandler>()
             .WithHandler<SchemaDocumentOptionsHandler>()
             .WithHandler<SchemaDocumentHandler>()
+            .WithHandler<SchemaExportHandler>()
+            .WithHandler<SchemaCatalogHandler>()
             .WithHandler<ProtocolHandler>()
             .WithHandler<DiscoverHandler>());
         await server.WaitForExit;

@@ -59,7 +59,7 @@ public class SchemaGenerationTests
     [Test]
     public void Catalog_shares_profiles_engines_and_embedded_template_contract()
     {
-        Assert.That(SchemaGenerationService.Catalog.Targets.Select(t => t.Id), Is.EqualTo(new[] { "record", "datatable", "polars", "arrow", "arrow" }));
+        Assert.That(SchemaGenerationService.Catalog.Targets.Where(t => t.Operation == "generate" && t.Engine.Length > 0).Select(t => t.Id), Is.EqualTo(new[] { "record", "datatable", "polars", "arrow", "arrow" }));
         Assert.That(SchemaGenerationService.Catalog.Engines, Does.Contain("scriban").And.Contain("hbs"));
         Assert.That(SchemaGenerationService.Catalog.ContextVersion, Is.EqualTo(1));
     }
@@ -69,7 +69,7 @@ public class SchemaGenerationTests
     [TestCase("polars")]
     public async Task Builtins_generate_compilable_CSharp_without_executing_Polars(string target)
     {
-        var result = await new SchemaGenerationService().GenerateAsync(Descriptor, new(Target: target, Namespace: "Example.Generated", TypeName: "Orders"));
+        var result = await new SchemaGenerationService().GenerateAsync(Descriptor, new(Target: target, Language: "csharp", Namespace: "Example.Generated", TypeName: "Orders"));
         Assert.That(result.IsSuccessful, Is.True, string.Join("\n", result.Diagnostics));
         Assert.That(result.Language, Is.EqualTo("csharp"));
         Assert.That(result.SuggestedFilename, Is.EqualTo("Orders.cs"));
@@ -111,11 +111,11 @@ public class SchemaGenerationTests
     {
         var source = Descriptor.Replace("precision: 18", "precision: 38");
         var service = new SchemaGenerationService(new RejectRenderer());
-        var failed = await service.GenerateAsync(source, new(Target: "record"));
+        var failed = await service.GenerateAsync(source, new(Target: "record", Language: "csharp"));
         Assert.That(failed.IsSuccessful, Is.False);
         Assert.That(failed.Content, Is.Null);
         Assert.That(failed.Diagnostics.Any(d => d.Code == "RepresentationLoss" && d.Target == "Runtime" && d.Severity == "Error"), Is.True);
-        var polars = await new SchemaGenerationService().GenerateAsync(source, new(Target: "polars"));
+        var polars = await new SchemaGenerationService().GenerateAsync(source, new(Target: "polars", Language: "csharp"));
         Assert.That(polars.IsSuccessful, Is.True, string.Join("\n", polars.Diagnostics));
         Assert.That(polars.Content, Does.Contain("DataType.Decimal(38, 2)"));
         Compile(polars.Content!);
@@ -125,13 +125,13 @@ public class SchemaGenerationTests
     public async Task Selection_options_template_failures_and_invalid_documents_are_structured()
     {
         var service = new SchemaGenerationService();
-        var conflict = await service.GenerateAsync(Descriptor, new(Target: "record"), new("test.scriban", "hello"));
+        var conflict = await service.GenerateAsync(Descriptor, new(Target: "record", Language: "csharp"), new("test.scriban", "hello"));
         Assert.That(conflict.Diagnostics[0].Code, Is.EqualTo("GEN_OPTIONS"));
-        var duplicate = await service.GenerateAsync(Descriptor, new(Target: "record", Defines: ["x=1", "x=2"]));
+        var duplicate = await service.GenerateAsync(Descriptor, new(Target: "record", Language: "csharp", Defines: ["x=1", "x=2"]));
         Assert.That(duplicate.Diagnostics[0].Code, Is.EqualTo("GEN_OPTIONS"));
-        var bad = await service.GenerateAsync("broken: [", new(Target: "record"));
+        var bad = await service.GenerateAsync("broken: [", new(Target: "record", Language: "csharp"));
         Assert.That(bad.Diagnostics[0].Code, Is.EqualTo("GEN_DOCUMENT"));
-        var missing = await service.GenerateAsync(Descriptor, new(AssetId: "absent", Target: "record"));
+        var missing = await service.GenerateAsync(Descriptor, new(AssetId: "absent", Target: "record", Language: "csharp"));
         Assert.That(missing.Diagnostics.Any(d => d.Code == "GEN_ASSET"), Is.True);
         var template = await service.GenerateAsync(Descriptor, new(), new("broken.scriban", "{{ if }}"));
         Assert.That(template.Content, Is.Null);
@@ -157,8 +157,8 @@ public class SchemaGenerationTests
                       format: i64
             """;
         var service = new SchemaGenerationService();
-        var left = await service.GenerateAsync(dp, new(Target: "record"));
-        var right = await service.GenerateAsync(odcs, new(Target: "record"));
+        var left = await service.GenerateAsync(dp, new(Target: "record", Language: "csharp"));
+        var right = await service.GenerateAsync(odcs, new(Target: "record", Language: "csharp"));
         Assert.That(left.IsSuccessful && right.IsSuccessful, Is.True, string.Join("\n", left.Diagnostics.Concat(right.Diagnostics)));
         Assert.That(left.Content, Is.EqualTo(right.Content));
         Assert.That(ContractJson.Serialize(left.Context!), Does.Not.Contain("mysql://"));
@@ -169,7 +169,7 @@ public class SchemaGenerationTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        Assert.That(async () => await new SchemaGenerationService().GenerateAsync(Descriptor, new(Target: "record"), cancellationToken: cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await new SchemaGenerationService().GenerateAsync(Descriptor, new(Target: "record", Language: "csharp"), cancellationToken: cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
     }
 
     [Test]
@@ -177,7 +177,7 @@ public class SchemaGenerationTests
     {
         using var cancellation = new CancellationTokenSource();
         var renderer = new CancellingRenderer(cancellation);
-        Assert.That(async () => await new SchemaGenerationService(renderer).GenerateAsync(Descriptor, new(Target: "record"), cancellationToken: cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await new SchemaGenerationService(renderer).GenerateAsync(Descriptor, new(Target: "record", Language: "csharp"), cancellationToken: cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
         await Task.CompletedTask;
     }
 
@@ -193,7 +193,7 @@ public class SchemaGenerationTests
     public async Task Generated_names_avoid_target_import_and_synthesized_member_collisions(string target, string name)
     {
         var source = Descriptor.Replace("name: id", "name: Clone").Replace("name: a-b", "name: ToString");
-        var result = await new SchemaGenerationService().GenerateAsync(source, new(Target: target, TypeName: name));
+        var result = await new SchemaGenerationService().GenerateAsync(source, new(Target: target, Language: "csharp", TypeName: name));
         Assert.That(result.IsSuccessful, Is.True, string.Join("\n", result.Diagnostics));
         Compile(result.Content!);
         if (target == "record") Assert.That(result.Content, Does.Contain("Clone_2").And.Contain("ToString_2"));
@@ -218,13 +218,13 @@ public class SchemaGenerationTests
                     nullable: {nullable.ToString().ToLowerInvariant()}
             """;
         var service = new SchemaGenerationService();
-        var tableCode = await service.GenerateAsync(source, new(Target: "datatable"));
+        var tableCode = await service.GenerateAsync(source, new(Target: "datatable", Language: "csharp"));
         Assert.That(tableCode.IsSuccessful, Is.True, string.Join("\n", tableCode.Diagnostics));
         using var table = (DataTable)Compile(tableCode.Content!).GetType("Orders")!.GetMethod("Create")!.Invoke(null, null)!;
         Assert.That(table.Columns[0].DataType, Is.EqualTo(typeof(int)));
         Assert.That(table.Columns[0].AllowDBNull, Is.EqualTo(nullable));
         Assert.That(table.Columns[0].ExtendedProperties["packata.required"], Is.EqualTo(required));
-        var record = await service.GenerateAsync(source, new(Target: "record"));
+        var record = await service.GenerateAsync(source, new(Target: "record", Language: "csharp"));
         Assert.That(record.Content, Does.Contain("public " + (required ? "required " : "") + "int" + (nullable ? "?" : "") + " value"));
         Compile(record.Content!);
     }
@@ -248,12 +248,12 @@ public class SchemaGenerationTests
                         label: High
             """;
         var service = new SchemaGenerationService();
-        var result = await service.GenerateAsync(source, new(Target: "record"));
+        var result = await service.GenerateAsync(source, new(Target: "record", Language: "csharp"));
         Assert.That(result.IsSuccessful, Is.True, string.Join("\n", result.Diagnostics));
         Assert.That(ContractJson.Serialize(result.Context!), Does.Contain("Low").And.Contain("allowed_values"));
         Assert.That(result.Content, Does.Contain("int code").And.Not.Contain("enum "));
         var multiple = source + "\n  - name: another\n    properties:\n      - name: id\n        logicalType: string\n";
-        var ambiguous = await service.GenerateAsync(multiple, new(Target: "record"));
+        var ambiguous = await service.GenerateAsync(multiple, new(Target: "record", Language: "csharp"));
         Assert.That(ambiguous.Content, Is.Null);
         Assert.That(ambiguous.Diagnostics.Any(d => d.Code == "GEN_ASSET" && d.Message.Contains("--asset")), Is.True);
     }
