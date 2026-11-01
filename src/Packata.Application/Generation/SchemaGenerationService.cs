@@ -6,6 +6,7 @@ namespace Packata.Application.Generation;
 /// <summary>Metadata-only generation workflow shared by command-line and editor hosts.</summary>
 public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = null)
 {
+    private const string GenerateOperation = "generate";
     public static GenerationCatalog Catalog => GenerationCatalogService.Catalog;
 
     public static GenerationDiscovery Discover(ContractDocument document, CancellationToken cancellationToken = default)
@@ -24,7 +25,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         try
         {
             ValidateSelection(options, template);
-            if (options.Operation == "generate" && options.Target != "ddl") SelectTemplate(options, template);
+            if (options.Operation == GenerateOperation && options.Target != "ddl") SelectTemplate(options, template);
             GenerationData.Variables(options.Defines);
             CSharpNames.Namespace(options.Namespace);
             return null;
@@ -100,6 +101,8 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
     {
         if (profile is "csharp-arrow" or "python-arrow")
             ArrowCodeProjection.Apply(context, asset.Schema!, profile == "python-arrow", diagnostics);
+        if (profile is { } modelProfile && ModelCodeProjection.Supports(modelProfile))
+            new ModelCodeProjection(modelProfile, diagnostics).Apply(context, asset.Schema ?? throw new InvalidOperationException("The selected asset has no schema."));
         var plain = (IReadOnlyDictionary<string, object?>)GenerationData.Plain(context)!;
         if (diagnostics.Any(d => d.Severity == "Error")) return Result(null, asset.Id, null, template, diagnostics, plain);
         try
@@ -108,7 +111,10 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             cancellationToken.ThrowIfCancellationRequested();
             var name = ((Dictionary<string, object?>)context["asset"]!)["generated_name"]!.ToString()!.TrimStart('@');
             var (language, extension) = OutputKind(profile, requestedLanguage);
-            return Result(content.ReplaceLineEndings("\n"), asset.Id, name + extension, template, diagnostics, plain, language);
+            var normalized = content.ReplaceLineEndings("\n");
+            if (ModelCodeProjection.Supports(profile) && template.Identity.StartsWith("builtin:", StringComparison.Ordinal))
+                normalized = normalized.TrimEnd('\n') + "\n";
+            return Result(normalized, asset.Id, name + extension, template, diagnostics, plain, language);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception error)
@@ -123,10 +129,17 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         ValidateTemplateSelection(options, template);
         var target = SelectTarget(options);
         var profile = SelectProfile(options, target);
-        if (profile == "python-arrow" && options.Namespace is not null) throw new ArgumentException("Python Arrow generation does not support --namespace.");
+        if (profile?.StartsWith("python-", StringComparison.Ordinal) == true && options.Namespace is not null) throw new ArgumentException("Python generation does not support --namespace.");
         CheckEngine(options, target);
-        template ??= GenerationCatalogService.BuiltIn(target!.Id == "arrow" ? target.Profile : target.Id);
+        template ??= BuiltInTemplate(target);
         return (template, profile, GenerationCatalogService.Engine(template, target?.Engine ?? options.Engine));
+    }
+
+    private static TemplateInput BuiltInTemplate(GenerationTarget? target)
+    {
+        if (target is null) throw new InvalidOperationException("No bundled target was selected.");
+        var name = target.Id is "arrow" or "class" or "dataclass" or "pydantic" ? target.Profile : target.Id;
+        return GenerationCatalogService.BuiltIn(name);
     }
 
     private static void ValidateTemplateSelection(GenerationOptions options, TemplateInput? template)
@@ -140,14 +153,20 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
     {
         if (options.Target is null) return null;
         var language = options.Language ?? "csharp";
-        return Catalog.Targets.SingleOrDefault(t => t.Operation == "generate" && t.Id == options.Target && t.Language == language)
-            ?? throw new ArgumentException("Unsupported target/language pair. Consult the generation catalog.");
+        return Catalog.Targets.SingleOrDefault(t => t.Operation == GenerateOperation && t.Id == options.Target && t.Language == language)
+            ?? throw new ArgumentException("Unsupported target/language pair. Supported alternatives: " + string.Join(", ", Catalog.Targets.Where(t => t.Operation == GenerateOperation).Select(t => t.Id + "/" + t.Language)));
     }
 
     private static (string Language, string Extension) OutputKind(string? profile, string? requestedLanguage)
     {
-        var language = requestedLanguage ?? (profile is null ? "plaintext" : profile == "python-arrow" ? "python" : "csharp");
+        var language = requestedLanguage ?? DefaultLanguage(profile);
         return (language, language switch { "csharp" => ".cs", "python" => ".py", _ => ".txt" });
+    }
+
+    private static string DefaultLanguage(string? profile)
+    {
+        if (profile is null) return "plaintext";
+        return profile.StartsWith("python-", StringComparison.Ordinal) ? "python" : "csharp";
     }
 
     private static string? SelectProfile(GenerationOptions options, GenerationTarget? target)
@@ -172,7 +191,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         switch (options.Operation)
         {
             case "export": ValidateExport(options, template); break;
-            case "generate": ValidateGeneration(options, template); break;
+            case GenerateOperation: ValidateGeneration(options, template); break;
             default: throw new ArgumentException("Unknown schema operation. Use export or generate.");
         }
     }

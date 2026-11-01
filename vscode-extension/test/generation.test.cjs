@@ -77,6 +77,25 @@ test('generation opens an editable C# untitled document without writing a descri
   assert.equal(h.calls.at(-1).outputLanguage, 'csharp');
 });
 
+for (const [target, language] of [['class', 'csharp'], ['class', 'python'], ['dataclass', 'python'], ['pydantic', 'python']]) {
+  test('model menu routes exact pair and offers only applicable options: ' + target + '/' + language, async () => {
+    const h = harness({ targets: [{ id: target, language, operation: 'generate', options: language === 'python' ? ['asset', 'output', 'type-name'] : ['asset', 'output', 'namespace', 'type-name'], supportsCSharpOptions: language === 'csharp' }] });
+    const original = h.mock.window.showQuickPick;
+    h.mock.window.showQuickPick = async (items, settings) => {
+      if (settings.title === 'Generation options') assert.equal(items.includes('Namespace…'), language === 'csharp');
+      return original(items, settings);
+    };
+    await h.run(undefined, { operation: 'generate', target, language });
+    const call = h.calls.find(c => c.command === 'packata.schema.generate');
+    assert.equal(call.args.options.target, target);
+    assert.equal(call.args.options.language, language);
+    assert.equal(call.args.options.assetId, 'orders');
+    assert.ok(!h.calls.some(c => c.prompt === 'Generate Schema Code'));
+    assert.ok(h.calls.some(c => c.prompt === 'Generation options'));
+    assert.equal(h.opened.length, 1);
+  });
+}
+
 for (const language of ['csharp', 'python']) {
   test('Arrow generation routes the catalog target and ' + language + ' pair', async () => {
     const h = harness({ arrow: true, language }); await h.run();

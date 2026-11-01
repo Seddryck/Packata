@@ -1,0 +1,23 @@
+#nullable enable
+using System;
+using System.Text.Json.Serialization;
+
+{{ if model.target.namespace }}namespace {{ model.target.namespace }};
+{{ end }}
+// A default OptionalValue is absent; a constructed value (including null) is present.
+public readonly struct OptionalValue<T>
+{
+    public bool HasValue { get; }
+    private readonly T value;
+    public T Value => HasValue ? value : throw new InvalidOperationException("The field is absent.");
+    public OptionalValue(T value) { this.value = value; HasValue = true; }
+    public static implicit operator OptionalValue<T>(T value) => new(value);
+}
+
+{{ for declaration in model.target.declarations }}public class {{ declaration.name }}
+{
+{{ for field in declaration.fields }}    [JsonPropertyName({{ field.target.source_name_literal }})]
+    public {{ field.target.required_keyword }}{{ field.target.type_expression }} {{ field.generated_name }} { get; set; }
+{{ end }}}
+
+{{ end }}

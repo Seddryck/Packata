@@ -4,6 +4,9 @@ namespace Packata.Application.Generation;
 
 public static class GenerationCatalogService
 {
+    private const string PythonLanguage = "python";
+    private const string PythonRepresentation = "Python";
+    private static readonly string[] PythonOptions = ["asset", "output", "type-name"];
     public static GenerationCatalog Catalog { get; } = new(1, 1,
     [
         new("ddl", "SQL DDL", "", "", "sql", false, "Metadata-only SQL; unsupported constraints are reported. Foreign keys outside a selection are errors.",
@@ -19,16 +22,27 @@ public static class GenerationCatalogService
             "export", "schema-document", "JSON", ".schema.json", ["asset"], []),
         new("record", "C# record", "csharp-record", "scriban", "csharp", true,
             "C# 11 required properties and nullable annotations describe initialization; they do not validate dataset values."),
+        new("class", "C# class", "csharp-class", "scriban", "csharp", true,
+            "C# 11/.NET 8+; OptionalValue<T> distinguishes absence from null. Annotations do not validate values."),
+        new("class", "Python class", "python-class", "scriban", PythonLanguage, false,
+            "Python 3.10+; keyword-only initialization and UNSET distinguish absence from null; annotations do not validate values.",
+            Representation: PythonRepresentation, Extension: ".py", ApplicableOptions: PythonOptions),
+        new("dataclass", "Python dataclass", "python-dataclass", "scriban", PythonLanguage, false,
+            "Python 3.10+ standard library; keyword-only fields and UNSET; annotations do not validate values.",
+            Representation: PythonRepresentation, Extension: ".py", ApplicableOptions: PythonOptions),
+        new("pydantic", "Pydantic model", "python-pydantic", "scriban", PythonLanguage, false,
+            "Python 3.10+, Pydantic 2; strict validation. Optional non-nullable fields are rejected; use model_fields_set to inspect presence.",
+            Representation: PythonRepresentation, Extension: ".py", ApplicableOptions: PythonOptions),
         new("datatable", "DataTable", "csharp-datatable", "scriban", "csharp", true,
             "AllowDBNull is enforced; requiredness, constraints, categories and parameters are retained as metadata."),
         new("polars", "Polars.NET", "csharp-polars", "scriban", "csharp", true,
             "Polars.NET 1.0.1; schema types do not enforce field requiredness, nullability or contract quality rules."),
         new("arrow", "Arrow Schema (C#)", "csharp-arrow", "scriban", "csharp", true,
             "Apache.Arrow 23.0.0; presence, uniqueness and quality rules require separate validation."),
-        new("arrow", "Arrow Schema (Python)", "python-arrow", "scriban", "python", false,
+        new("arrow", "Arrow Schema (Python)", "python-arrow", "scriban", PythonLanguage, false,
             "Python 3.10+ and PyArrow 23+; presence, uniqueness and quality rules require separate validation.",
-            Representation: "Python", Extension: ".py", ApplicableOptions: ["asset", "output", "type-name"])
-    ], ["csharp-record", "csharp-datatable", "csharp-polars", "csharp-arrow", "python-arrow"],
+            Representation: PythonRepresentation, Extension: ".py", ApplicableOptions: PythonOptions)
+    ], ["csharp-record", "csharp-class", "python-class", "python-dataclass", "python-pydantic", "csharp-datatable", "csharp-polars", "csharp-arrow", "python-arrow"],
         TemplateEngineFactory.Default.AllSupportedExtensions().Select(s => s.TrimStart('.')).Order().ToArray(), "scriban",
     ["Generation reads descriptor metadata only; it never reads rows, compiles or executes generated code.",
      "Didot rendering is synchronous and cannot be interrupted once entered; cancelled results are discarded.",

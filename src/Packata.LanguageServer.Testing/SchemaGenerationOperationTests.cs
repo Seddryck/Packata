@@ -6,6 +6,23 @@ namespace Packata.LanguageServer.Testing;
 
 public class SchemaGenerationOperationTests
 {
+    [TestCase("class", "csharp")]
+    [TestCase("class", "python")]
+    [TestCase("dataclass", "python")]
+    [TestCase("pydantic", "python")]
+    public async Task Model_catalog_routes_exact_pair_from_unsaved_assetAsync(string target, string language)
+    {
+        var store = new DocumentStore(); store.Update(Source, Text.Replace("logicalType: integer", "logicalType: integer\n        required: true"), 4);
+        var operations = new SchemaGenerationOperations(store);
+        var discovery = await operations.OptionsAsync(Source, null, default);
+        Assert.That(discovery.Catalog.Targets.Count(t => t.Id == target && t.Language == language && t.Operation == "generate"), Is.EqualTo(1));
+        var response = await operations.GenerateAsync(new(Source.AbsoluteUri, discovery.SelectionKey,
+            new(AssetId: "orders", Target: target, Language: language), 4, "/schema/0"), default);
+        Assert.That(response.Result.IsSuccessful, Is.True, string.Join("\n", response.Result.Diagnostics));
+        Assert.That(response.Result.Language, Is.EqualTo(language));
+        Assert.That(response.Result.Representation, Is.EqualTo("text"));
+        Assert.That(response.Version, Is.EqualTo(4));
+    }
     [TestCase("drill")]
     [TestCase("questdb")]
     public async Task Disabled_DDL_dialects_are_not_offered_or_accepted_in_the_editorAsync(string dialect)

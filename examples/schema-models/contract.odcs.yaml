@@ -1,0 +1,18 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: model-example
+version: 1.0.0
+status: draft
+schema:
+  - name: orders
+    properties:
+      - name: id
+        logicalType: integer
+        required: true
+      - name: label
+        logicalType: string
+        required: true
+        nullable: true
+      - name: note
+        logicalType: string
+        nullable: true

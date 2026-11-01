@@ -29,3 +29,17 @@ test('generation has declarative intermediate language submenus', () => {
     assert.ok(manifest.menus['packata.schema.generate'].some(m => m.submenu === 'packata.schema.' + lang));
   }
 });
+
+test('class model menu leaves use exact singular target/language pairs', () => {
+  const api = routes();
+  for (const [id, target, language, label] of [
+    ['classCsharp', 'class', 'csharp', 'Class…'], ['classPython', 'class', 'python', 'Class…'],
+    ['dataclassPython', 'dataclass', 'python', 'Dataclass…'], ['pydanticPython', 'pydantic', 'python', 'Pydantic Model…']
+  ]) {
+    const command = 'packata.schema.' + id;
+    assert.deepEqual(JSON.parse(JSON.stringify(api.schemaRoutes[command])), { operation: 'generate', target, language });
+    assert.equal(manifest.commands.find(c => c.command === command).title, label);
+    assert.ok(manifest.menus['packata.schema.' + language].some(m => m.command === command && m.when === command));
+    assert.equal(api.available(api.schemaRoutes[command], [{ id: target, operation: 'export', language }]), false);
+  }
+});

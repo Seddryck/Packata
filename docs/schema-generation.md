@@ -4,6 +4,10 @@ parent: Reference
 permalink: /reference/dotnet/schema-generation/
 ---
 
+For ordinary C# classes and Python classes, dataclasses and Pydantic models, see the
+[model generation reference]({{ '/reference/dotnet/model-generation/' | relative_url }}),
+including presence policies, mapping profiles and complete generated examples.
+
 `SchemaGenerationService` in `Packata.Application.Generation` is the shared metadata-only
 workflow for CLI and editor hosts. It accepts `ContractDocument` or descriptor text with
 its original base URI, `GenerationOptions`, optional `TemplateInput` text/identity/version,

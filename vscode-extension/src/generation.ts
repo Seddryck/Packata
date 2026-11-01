@@ -192,7 +192,7 @@ function findTarget(discovery: GenerationDiscovery, options: Options): Target | 
 
 async function customizeSource(options: Options, target: Target | undefined, custom: boolean): Promise<boolean> {
   if (options.operation !== 'generate') return true;
-  if (!custom && !target?.supportsCSharpOptions) return true;
+  if (!custom && !target?.supportsCSharpOptions && !target?.options?.includes('type-name')) return true;
   return customize(options, custom);
 }
 

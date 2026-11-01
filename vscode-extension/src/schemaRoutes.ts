@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { Target, SchemaRoute } from './generation';
 export const schemaRoutes: Record<string, SchemaRoute> = {
+  'packata.schema.pydanticPython': { operation: 'generate', target: 'pydantic', language: 'python' },
+  'packata.schema.dataclassPython': { operation: 'generate', target: 'dataclass', language: 'python' },
+  'packata.schema.classPython': { operation: 'generate', target: 'class', language: 'python' },
+  'packata.schema.classCsharp': { operation: 'generate', target: 'class', language: 'csharp' },
   'packata.schema.sql.ansi': { operation: 'generate', target: 'ddl', language: 'sql', dialect: 'ansi' },
   'packata.schema.sql.access': { operation: 'generate', target: 'ddl', language: 'sql', dialect: 'access' },
   'packata.schema.sql.db2': { operation: 'generate', target: 'ddl', language: 'sql', dialect: 'db2' },
