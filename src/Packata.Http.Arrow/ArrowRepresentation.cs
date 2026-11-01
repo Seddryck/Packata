@@ -9,7 +9,7 @@ public sealed class ArrowRepresentation : IAssetRepresentation
     public IReadOnlyList<string> Aliases => [];
     public RepresentationSupport Describe(ServedAsset asset)
     {
-        var schema = ArrowSchemaMapper.Map(asset.Asset.Schema!);
+        var schema = ArrowSchemaMapper.Map(asset.Schema);
         return new(true, "Arrow adapter flat primitive mappings; strict lossless conversion and declared timestamp units.",
             new { encoding = "arrow-ipc-schema", schemaIpcBase64 = Convert.ToBase64String(
                 ArrowSchemaSerializer.SerializeAsync(schema).GetAwaiter().GetResult()) });
@@ -27,7 +27,7 @@ public sealed class ArrowRepresentation : IAssetRepresentation
         catch (InvalidDataException error) when (error.InnerException is not null)
         {
             // Publish only a declared field identity, never provider or inner exception details.
-            var field = asset.Asset.Schema!.Fields.FirstOrDefault(field =>
+            var field = asset.Schema.Fields.FirstOrDefault(field =>
                 error.Message.StartsWith($"Cannot convert field '{field.Name}' to ", StringComparison.Ordinal));
             if (field is not null) throw new AssetEncodingException(field.Name, field.LogicalType ?? "unknown", error);
             throw;

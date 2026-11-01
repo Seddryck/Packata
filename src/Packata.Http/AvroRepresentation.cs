@@ -33,14 +33,7 @@ public sealed class AvroRepresentation : IAssetRepresentation
         using var block = new BoundedBuffer(options.MaxBufferedBytes);
         using var prefix = new BoundedBuffer(32);
         var sync = RandomNumberGenerator.GetBytes(16);
-        var numberBytes = new byte[8];
-        block.Reset();
-        block.Write([0x4f, 0x62, 0x6a, 0x01]);
-        Long(block, 2);
-        Bytes(block, Utf8.GetBytes("avro.schema")); Bytes(block, Utf8.GetBytes(schema));
-        Bytes(block, Utf8.GetBytes("avro.codec")); Bytes(block, Utf8.GetBytes("null"));
-        Long(block, 0);
-        block.Write(sync);
+        BuildHeader(block, schema, sync);
         await destination.WriteAsync(block.GetBuffer().AsMemory(0, (int)block.Length), cancellationToken).ConfigureAwait(false);
         await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
         block.Reset();
@@ -52,28 +45,7 @@ public sealed class AvroRepresentation : IAssetRepresentation
             cancellationToken.ThrowIfCancellationRequested();
             ordinals ??= !hasRow && reader.FieldCount == 0 ? [] : projection.ResolveOrdinals(reader);
             if (!hasRow) break;
-            row.Reset();
-            for (var i = 0; i < projection.Columns.Length; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var column = projection.Columns[i];
-                var value = projection.Normalize(reader.GetValue(ordinals[i]), column, options.MaxBufferedBytes);
-                if (column.Field.Nullable) Long(row, value is null ? 0 : 1);
-                if (value is null) continue;
-                switch (value)
-                {
-                    case BigInteger integer: Long(row, (long)integer); break;
-                    case decimal amount: Bytes(row, RowProjection.DecimalBytes(amount, column)); break;
-                    case double number:
-                        BinaryPrimitives.WriteInt64LittleEndian(numberBytes, BitConverter.DoubleToInt64Bits(number));
-                        row.Write(numberBytes); break;
-                    case bool flag: row.WriteByte(flag ? (byte)1 : (byte)0); break;
-                    case string text: Bytes(row, Utf8.GetBytes(text)); break;
-                    case byte[] bytes: Bytes(row, bytes); break;
-                    case DateOnly day: Long(row, day.DayNumber - DateOnly.FromDateTime(DateTime.UnixEpoch).DayNumber); break;
-                    case DateTime instant: Long(row, (instant.Ticks - DateTime.UnixEpoch.Ticks) / 10); break;
-                }
-            }
+            BuildRow(reader, projection, ordinals, row, options.MaxBufferedBytes, cancellationToken);
             if (block.Length + row.Length > options.MaxBufferedBytes) await Flush().ConfigureAwait(false);
             block.Write(row.GetBuffer().AsSpan(0, (int)row.Length));
             if (++count >= options.BatchSize) await Flush().ConfigureAwait(false);
@@ -93,12 +65,56 @@ public sealed class AvroRepresentation : IAssetRepresentation
         }
     }
 
+    private static void BuildHeader(BoundedBuffer block, string schema, byte[] sync)
+    {
+        block.Reset();
+        block.Write([0x4f, 0x62, 0x6a, 0x01]);
+        Long(block, 2);
+        Bytes(block, Utf8.GetBytes("avro.schema")); Bytes(block, Utf8.GetBytes(schema));
+        Bytes(block, Utf8.GetBytes("avro.codec")); Bytes(block, Utf8.GetBytes("null"));
+        Long(block, 0);
+        block.Write(sync);
+    }
+
+    private static void BuildRow(System.Data.IDataReader reader, RowProjection projection, int[] ordinals,
+        BoundedBuffer row, int limit, CancellationToken token)
+    {
+        row.Reset();
+        for (var i = 0; i < projection.Columns.Length; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var column = projection.Columns[i];
+            var value = RowProjection.Normalize(reader.GetValue(ordinals[i]), column, limit);
+            if (column.Field.Nullable) Long(row, value is null ? 0 : 1);
+            WriteValue(row, value, column);
+        }
+    }
+
+    private static void WriteValue(BoundedBuffer row, object? value, RowProjection.Column column)
+    {
+        switch (value)
+        {
+            case BigInteger integer: Long(row, (long)integer); break;
+            case decimal amount: Bytes(row, RowProjection.DecimalBytes(amount, column)); break;
+            case double number:
+                Span<byte> bytes = stackalloc byte[8];
+                BinaryPrimitives.WriteInt64LittleEndian(bytes, BitConverter.DoubleToInt64Bits(number));
+                row.Write(bytes); break;
+            case bool flag: row.WriteByte(flag ? (byte)1 : (byte)0); break;
+            case string text: Bytes(row, Utf8.GetBytes(text)); break;
+            case byte[] binary: Bytes(row, binary); break;
+            case DateOnly day: Long(row, day.DayNumber - DateOnly.FromDateTime(DateTime.UnixEpoch).DayNumber); break;
+            case DateTime instant: Long(row, (instant.Ticks - DateTime.UnixEpoch.Ticks) / 10); break;
+        }
+    }
+
     private static RowProjection Project(ServedAsset asset)
     {
-        var projection = new RowProjection(asset.Asset.Schema!, avro: true);
-        foreach (var column in projection.Columns)
-            if (!Regex.IsMatch(column.Field.Name, "^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant))
-                throw new NotSupportedException($"Field '{column.Field.Name}': Avro names must match [A-Za-z_][A-Za-z0-9_]*; names are never silently changed.");
+        var projection = new RowProjection(asset.Schema, avro: true);
+        var invalid = projection.Columns.FirstOrDefault(column => !Regex.IsMatch(column.Field.Name,
+            "^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking, TimeSpan.FromMilliseconds(250)));
+        if (invalid is not null)
+            throw new NotSupportedException($"Field '{invalid.Field.Name}': Avro names must match [A-Za-z_][A-Za-z0-9_]*; names are never silently changed.");
         return projection;
     }
 
@@ -108,7 +124,7 @@ public sealed class AvroRepresentation : IAssetRepresentation
         {
             object type = column.Kind switch
             {
-                "integer" => column.Width < 32 || column.Width == 32 && column.Signed ? "int" : "long",
+                "integer" => column.Width < 32 || (column.Width == 32 && column.Signed) ? "int" : "long",
                 "number" => "double", "boolean" => "boolean", "string" => "string", "binary" => "bytes",
                 "decimal" => new { type = "bytes", logicalType = "decimal", precision = column.Precision, scale = column.Scale },
                 "date" => new { type = "int", logicalType = "date" },

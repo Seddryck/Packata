@@ -16,18 +16,21 @@ internal sealed class ServeCommand : AsyncCommand<ServeSettings>
         {
             using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken,
                 retainArchive: true).ConfigureAwait(false);
-            var mapped = ContractSelection.Map(source);
+            var mapped = ContractSelection.Map(source, cancellationToken);
             foreach (var diagnostic in mapped.Diagnostics) CommandOutput.Diagnostic(diagnostic);
             if (!mapped.IsSuccessful) return ExitCodes.InvalidDocument;
-            var contract = mapped.Value!;
-            var selections = settings.Assets.Select(id => new ServedAsset(contract, id, settings.Binding!.Value)).ToArray();
+            var contract = mapped.RequireValue();
+            var binding = settings.Binding ?? throw new ArgumentException("An explicit source binding is required.");
+            var selections = settings.Assets.Select(id => new ServedAsset(contract, id, binding)).ToArray();
             CliDatabase.ResolveOverrides(contract.Endpoints, settings.ConnectionEnvironment);
             CliDatabase.ParsePairs(settings.Connectors, "--connector");
+            var root = source.BaseUri.IsFile ? source.BaseUri.LocalPath : string.Empty;
             using var database = selections.Any(asset => asset.Request.Endpoint.Kind == EndpointKind.Database)
-                ? new CliDatabase(new CliConfiguration(), source.BaseUri.IsFile ? source.BaseUri.LocalPath : string.Empty,
+                ? new CliDatabase(new CliConfiguration(), root,
                     contract.Endpoints, settings.Connectors, settings.ConnectionEnvironment) : null;
             var streams = source.Archive is null ? null
-                : new PreviewService.ArchiveStreamResolver(source.Archive, source.ArchiveDescriptor!);
+                : new PreviewService.ArchiveStreamResolver(source.Archive, source.ArchiveDescriptor
+                    ?? throw new InvalidOperationException("Missing archive descriptor."));
             var readers = database?.CreateReaders(source.BaseUri)
                 ?? PreviewService.CreateFactory(source.BaseUri, streams: streams, stagingMaximumBytes: settings.StagingMaximumBytes);
             var representations = settings.Formats.Split(',', StringSplitOptions.TrimEntries).Select(format => format switch
@@ -44,7 +47,8 @@ internal sealed class ServeCommand : AsyncCommand<ServeSettings>
                 SourceLimitation = request => SourceLimitation(request.Endpoint),
                 Log = Console.Error.WriteLine
             }, cancellationToken).ConfigureAwait(false);
-            Console.Out.WriteLine(JsonSerializer.Serialize(host.Readiness, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            await Console.Out.WriteLineAsync(JsonSerializer.Serialize(host.Readiness, new JsonSerializerOptions(JsonSerializerDefaults.Web)))
+                .ConfigureAwait(false);
             await Console.Out.FlushAsync(cancellationToken).ConfigureAwait(false);
             await host.WaitForShutdownAsync(cancellationToken).ConfigureAwait(false);
             return ExitCodes.Success;
@@ -53,7 +57,8 @@ internal sealed class ServeCommand : AsyncCommand<ServeSettings>
         catch (Exception exception)
         {
             // Connection strings and provider exception messages can contain secrets.
-            Console.Error.WriteLine($"CLI140: Unable to start the asset HTTP service ({exception.GetType().Name}). Check contract selection, binding, address and reader configuration.");
+            await Console.Error.WriteLineAsync($"CLI140: Unable to start the asset HTTP service ({exception.GetType().Name}). Check contract selection, binding, address and reader configuration.")
+                .ConfigureAwait(false);
             return ExitCodes.Invocation;
         }
     }
@@ -63,7 +68,7 @@ internal sealed class ServeCommand : AsyncCommand<ServeSettings>
         if (endpoint.Location is InlineLocation or ConnectionLocation) return null;
         var format = new DataFormatResolver().Resolve(endpoint);
         return endpoint.Location is PathLocation && (format.Name is "csv" or "tsv" or "psv" or "xls" or "xlsx" or "parquet"
-            || string.IsNullOrEmpty(format.Name) && endpoint.Format?.Options.ContainsKey("delimiter") == true)
+            || (string.IsNullOrEmpty(format.Name) && endpoint.Format?.Options.ContainsKey("delimiter") == true))
             ? null : "This source has no reader registered by the CLI. Embedded hosts can register additional reader providers.";
     }
 }

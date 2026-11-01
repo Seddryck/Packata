@@ -32,7 +32,8 @@ public sealed class ArrowIpcExporter(IDataEndpointReaderFactory readers)
         };
         batches.Validate();
         var request = SelectRequest(contract, assetId, bindingIndex);
-        var schema = ArrowSchemaMapper.Map(request.Schema!);
+        var contractSchema = request.Schema ?? throw new InvalidOperationException("The selected asset must declare a schema.");
+        var schema = ArrowSchemaMapper.Map(contractSchema);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -40,7 +41,7 @@ public sealed class ArrowIpcExporter(IDataEndpointReaderFactory readers)
             cancellationToken.ThrowIfCancellationRequested();
             using var writer = new ArrowStreamWriter(destination, schema, leaveOpen: true);
             await writer.WriteStartAsync(cancellationToken).ConfigureAwait(false);
-            foreach (var batch in ArrowRecordBatches.Read(reader, request.Schema!, batches, cancellationToken))
+            foreach (var batch in ArrowRecordBatches.Read(reader, contractSchema, batches, cancellationToken))
             {
                 using (batch)
                     await writer.WriteRecordBatchAsync(batch, cancellationToken).ConfigureAwait(false);
@@ -64,7 +65,7 @@ public sealed class ArrowIpcExporter(IDataEndpointReaderFactory readers)
         options ??= new();
         new ArrowBatchOptions { BatchSize = options.BatchSize, MaxBufferedBytes = options.MaxBufferedBytes }.Validate();
         var request = SelectRequest(contract, assetId, bindingIndex);
-        _ = ArrowSchemaMapper.Map(request.Schema!);
+        _ = ArrowSchemaMapper.Map(request.Schema ?? throw new InvalidOperationException("The selected asset must declare a schema."));
         cancellationToken.ThrowIfCancellationRequested();
         await using var destination = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
             4096, FileOptions.Asynchronous);

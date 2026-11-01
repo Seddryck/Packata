@@ -33,15 +33,33 @@ internal sealed class ServeSettings : StagingCommandSettings
     {
         var result = base.Validate();
         if (!result.Successful) return result;
+        var selection = ValidateSelection();
+        if (!selection.Successful) return selection;
+        var listener = ValidateListener();
+        return listener.Successful ? ValidateFormats() : listener;
+    }
+
+    private ValidationResult ValidateSelection()
+    {
         if (Assets.Length == 0 || Assets.Any(string.IsNullOrWhiteSpace) || Assets.Distinct().Count() != Assets.Length)
             return ValidationResult.Error("--asset must select at least one unique asset ID.");
         if (Binding is null or < 0) return ValidationResult.Error("--binding must explicitly select a zero-based binding index.");
+        return ValidationResult.Success();
+    }
+
+    private ValidationResult ValidateListener()
+    {
         if (!IPAddress.TryParse(Address, out _)) return ValidationResult.Error("--address must be an IP address.");
         if (Port is < 0 or > 65535) return ValidationResult.Error("--port must be between 0 and 65535.");
+        if (BatchSize <= 0 || MaximumBufferBytes <= 0) return ValidationResult.Error("Buffer limits must be positive.");
+        return ValidationResult.Success();
+    }
+
+    private ValidationResult ValidateFormats()
+    {
         var formats = Formats.Split(',', StringSplitOptions.TrimEntries);
         if (formats.Any(format => format is not ("ndjson" or "avro" or "arrow")) || formats.Distinct().Count() != formats.Length)
             return ValidationResult.Error("--formats must contain unique names from ndjson,avro,arrow.");
-        if (BatchSize <= 0 || MaximumBufferBytes <= 0) return ValidationResult.Error("Buffer limits must be positive.");
         return ValidationResult.Success();
     }
 }

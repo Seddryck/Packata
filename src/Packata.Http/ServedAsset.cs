@@ -11,6 +11,7 @@ public sealed class ServedAsset
 {
     public DataContract Contract { get; }
     public DataAsset Asset { get; }
+    public DataSchema Schema => Asset.Schema ?? throw new InvalidOperationException("The selected asset no longer declares its schema.");
     public int BindingIndex { get; }
     public DataEndpointReadRequest Request { get; }
     public string Id { get; }

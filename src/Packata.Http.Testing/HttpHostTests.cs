@@ -224,6 +224,7 @@ public class HttpHostTests
         using var http = new HttpClient { BaseAddress = host.BaseUri };
         using var response = await http.GetAsync($"assets/{asset.Id}/data");
         Assert.That((int)response.StatusCode, Is.EqualTo(422));
+        Assert.That(response.Content.Headers.ContentType!.MediaType, Is.EqualTo("application/problem+json"));
         Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("ASSET_READ_FAILED").And.Not.Contain("secret"));
     }
 

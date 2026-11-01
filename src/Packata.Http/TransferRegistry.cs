@@ -54,7 +54,11 @@ internal sealed class TransferStream(Stream inner) : Stream
     public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
     public override Task FlushAsync(CancellationToken cancellationToken) => inner.FlushAsync(cancellationToken);
-    protected override void Dispose(bool disposing) { if (disposing) hash.Dispose(); base.Dispose(disposing); }
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) hash.Dispose();
+        base.Dispose(disposing);
+    }
     public override bool CanRead => false;
     public override bool CanSeek => false;
     public override bool CanWrite => true;

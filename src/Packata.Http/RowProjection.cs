@@ -6,129 +6,171 @@ using Packata.Core.Contracts;
 
 namespace Packata.Http;
 
-/// <summary>Flat, lossless row mappings independent of Arrow. Only declared primitive tabular types are supported.</summary>
+/// <summary>Flat, lossless row mappings independent of Arrow.</summary>
 internal sealed class RowProjection
 {
+    private const string DecimalKind = "decimal";
+    private const string TimestampKind = "timestamp";
+    private const string PrecisionParameter = "precision";
+    private const string Microsecond = "microsecond";
+    private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
     internal sealed record Column(DataField Field, string Kind, int Precision, int Scale, int Width, bool Signed,
         string Unit, bool Timezone);
     public Column[] Columns { get; }
-    private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
 
     public RowProjection(DataSchema schema, bool avro = false)
     {
         if (schema.Fields.Count == 0) throw new NotSupportedException("At least one field is required.");
         var names = new HashSet<string>(StringComparer.Ordinal);
-        Columns = schema.Fields.Select(field =>
-        {
-            void Reject(string message) => throw new NotSupportedException($"Field '{field.Name}': {message}");
-            if (string.IsNullOrWhiteSpace(field.Name) || !names.Add(field.Name)) Reject("Names must be unique and nonempty.");
-            if (field.Children.Count > 0 || field.Items is not null || field.Map is not null) Reject("Nested types are unsupported.");
-            object? Parameter(string name)
-            {
-                var matches = field.Constraints.Where(constraint => constraint.Kind == name).ToArray();
-                if (matches.Length > 1) Reject($"Duplicate {name} parameter.");
-                return matches.SingleOrDefault()?.Value;
-            }
-            var kind = field.LogicalType?.ToLowerInvariant() ?? "";
-            if (kind == "datetime") kind = "timestamp";
-            if (kind == "number" && (Parameter("precision") is not null || Parameter("scale") is not null)) kind = "decimal";
-            if (kind is not ("integer" or "number" or "decimal" or "boolean" or "string" or "binary" or "date" or "timestamp"))
-                Reject($"Unsupported logical type '{kind}'.");
-            var precision = 0;
-            var scale = 0;
-            if (kind == "decimal")
-            {
-                if (Parameter("precision") is not int p || Parameter("scale") is not int s || p is < 1 or > 38 || s < 0 || s > p)
-                    Reject("Decimal requires integer precision 1..38 and scale 0..precision.");
-                precision = (int)Parameter("precision")!;
-                scale = (int)Parameter("scale")!;
-            }
-            var width = 64;
-            var signed = true;
-            if (kind == "integer")
-            {
-                if ((Parameter("integerWidth") ?? 64) is not int w || w is not (8 or 16 or 32 or 64)
-                    || (Parameter("signed") ?? true) is not bool) Reject("Invalid integer width or signedness.");
-                width = (int)(Parameter("integerWidth") ?? 64);
-                signed = (bool)(Parameter("signed") ?? true);
-                if (avro && !signed && width == 64) Reject("Avro has no unsigned 64-bit integer type.");
-            }
-            var unit = "microsecond";
-            var timezone = true;
-            if (kind == "timestamp")
-            {
-                if (Parameter("defaultTimezone") is not null) Reject("Implicit timezone interpretation is unsupported.");
-                if ((Parameter("timezone") ?? true) is not bool) Reject("timezone must be a Boolean.");
-                timezone = (bool)(Parameter("timezone") ?? true);
-                unit = Parameter("precision") as string ?? "microsecond";
-                if (Parameter("precision") is not null and not string || unit is not ("second" or "millisecond" or "microsecond" or "nanosecond"))
-                    Reject("Unsupported timestamp precision.");
-                if (avro && unit == "nanosecond") Reject("Avro output supports at most microsecond precision.");
-            }
-            return new Column(field, kind, precision, scale, width, signed, unit, timezone);
-        }).ToArray();
+        foreach (var field in schema.Fields)
+            if (string.IsNullOrWhiteSpace(field.Name) || !names.Add(field.Name))
+                throw Unsupported(field, "Names must be unique and nonempty.");
+        Columns = schema.Fields.Select(field => CreateColumn(field, avro)).ToArray();
+    }
+
+    private static Column CreateColumn(DataField field, bool avro)
+    {
+        if (field.Children.Count > 0 || field.Items is not null || field.Map is not null)
+            throw Unsupported(field, "Nested types are unsupported.");
+        var kind = Kind(field);
+        var (precision, scale) = kind == DecimalKind ? DecimalParameters(field) : (0, 0);
+        var (width, signed) = kind == "integer" ? IntegerParameters(field, avro) : (64, true);
+        var (unit, timezone) = kind == TimestampKind ? TimestampParameters(field, avro) : (Microsecond, true);
+        return new(field, kind, precision, scale, width, signed, unit, timezone);
+    }
+
+    private static string Kind(DataField field)
+    {
+        var kind = field.LogicalType?.ToLowerInvariant() ?? "";
+        if (kind == "datetime") kind = TimestampKind;
+        if (kind == "number" && (Parameter(field, PrecisionParameter) is not null || Parameter(field, "scale") is not null))
+            kind = DecimalKind;
+        if (kind is not ("integer" or "number" or DecimalKind or "boolean" or "string" or "binary" or "date" or TimestampKind))
+            throw Unsupported(field, $"Unsupported logical type '{kind}'.");
+        return kind;
+    }
+
+    private static (int, int) DecimalParameters(DataField field)
+    {
+        if (Parameter(field, PrecisionParameter) is int precision && Parameter(field, "scale") is int scale
+            && precision is >= 1 and <= 38 && scale >= 0 && scale <= precision)
+            return (precision, scale);
+        throw Unsupported(field, "Decimal requires integer precision 1..38 and scale 0..precision.");
+    }
+
+    private static (int, bool) IntegerParameters(DataField field, bool avro)
+    {
+        if ((Parameter(field, "integerWidth") ?? 64) is not int width || width is not (8 or 16 or 32 or 64)
+            || (Parameter(field, "signed") ?? true) is not bool signed)
+            throw Unsupported(field, "Invalid integer width or signedness.");
+        if (avro && !signed && width == 64) throw Unsupported(field, "Avro has no unsigned 64-bit integer type.");
+        return (width, signed);
+    }
+
+    private static (string, bool) TimestampParameters(DataField field, bool avro)
+    {
+        if (Parameter(field, "defaultTimezone") is not null) throw Unsupported(field, "Implicit timezone interpretation is unsupported.");
+        if ((Parameter(field, "timezone") ?? true) is not bool timezone) throw Unsupported(field, "timezone must be a Boolean.");
+        var precision = Parameter(field, PrecisionParameter) ?? Microsecond;
+        if (precision is not string unit || unit is not ("second" or "millisecond" or Microsecond or "nanosecond"))
+            throw Unsupported(field, "Unsupported timestamp precision.");
+        if (avro && unit == "nanosecond") throw Unsupported(field, "Avro output supports at most microsecond precision.");
+        return (unit, timezone);
+    }
+
+    private static object? Parameter(DataField field, string name)
+    {
+        var matches = field.Constraints.Where(constraint => constraint.Kind == name).ToArray();
+        if (matches.Length > 1) throw Unsupported(field, $"Duplicate {name} parameter.");
+        return matches.SingleOrDefault()?.Value;
     }
 
     public int[] ResolveOrdinals(IDataReader reader) => Columns.Select(column =>
     {
         var name = column.Field.PhysicalName ?? column.Field.Name;
         var matches = Enumerable.Range(0, reader.FieldCount).Where(index => reader.GetName(index) == name).ToArray();
-        return matches.Length == 1 ? matches[0] : throw new NotSupportedException($"Field '{column.Field.Name}': source column must resolve uniquely.");
+        return matches.Length == 1 ? matches[0] : throw Unsupported(column.Field, "Source column must resolve uniquely.");
     }).ToArray();
 
-    public object? Normalize(object? value, Column column, int limit)
+    public static object? Normalize(object? value, Column column, int limit)
     {
         try
         {
             if (value is null or DBNull)
                 return column.Field.Nullable ? null : throw new InvalidDataException("Null in a non-nullable field.");
-            switch (column.Kind)
-            {
-                case "integer":
-                    if (value is not (sbyte or byte or short or ushort or int or uint or long or ulong)) break;
-                    var integer = BigInteger.Parse(Convert.ToString(value, CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture);
-                    var minimum = column.Signed ? -(BigInteger.One << (column.Width - 1)) : BigInteger.Zero;
-                    var maximum = (BigInteger.One << (column.Signed ? column.Width - 1 : column.Width)) - 1;
-                    if (integer < minimum || integer > maximum) throw new OverflowException("Integer exceeds declared width.");
-                    return integer;
-                case "number" when value is double or float:
-                    var number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
-                    if (!double.IsFinite(number)) throw new InvalidDataException("Non-finite floating-point values are unsupported.");
-                    return number;
-                case "decimal" when value is decimal amount:
-                    _ = DecimalBytes(amount, column);
-                    return amount;
-                case "boolean" when value is bool: return value;
-                case "string" when value is string text:
-                    if (Utf8.GetByteCount(text) > limit) throw new InvalidDataException("String exceeds the buffer limit.");
-                    return value;
-                case "binary" when value is byte[] bytes:
-                    if (bytes.Length > limit) throw new InvalidDataException("Binary exceeds the buffer limit.");
-                    return value;
-                case "date":
-                    if (value is DateOnly day) return day;
-                    if (value is DateTime date && date.Kind != DateTimeKind.Local && date.TimeOfDay == TimeSpan.Zero)
-                        return DateOnly.FromDateTime(date);
-                    break;
-                case "timestamp":
-                    DateTime instant;
-                    if (column.Timezone && value is DateTimeOffset offset) instant = offset.UtcDateTime;
-                    else if (column.Timezone && value is DateTime utc && utc.Kind == DateTimeKind.Utc) instant = utc;
-                    else if (!column.Timezone && value is DateTime naive && naive.Kind == DateTimeKind.Unspecified) instant = naive;
-                    else throw new InvalidDataException("Use UTC DateTime/DateTimeOffset, or Unspecified DateTime for timezone=false.");
-                    var ticks = instant.Ticks - DateTime.UnixEpoch.Ticks;
-                    var divisor = column.Unit switch { "second" => TimeSpan.TicksPerSecond, "millisecond" => TimeSpan.TicksPerMillisecond,
-                        "microsecond" => 10, _ => 1 };
-                    if (ticks % divisor != 0) throw new InvalidDataException("Timestamp would lose precision.");
-                    if (column.Unit == "nanosecond") _ = checked(ticks * 100);
-                    return instant;
-            }
-            throw new InvalidDataException($"Unsupported CLR type '{value.GetType().Name}'.");
+            return NormalizeValue(value, column, limit);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             throw new AssetEncodingException(column.Field.Name, column.Kind, exception);
         }
+    }
+
+    private static object NormalizeValue(object value, Column column, int limit) => column.Kind switch
+    {
+        "integer" => NormalizeInteger(value, column),
+        "number" when value is double or float => NormalizeNumber(value),
+        DecimalKind when value is decimal amount => NormalizeDecimal(amount, column),
+        "boolean" when value is bool => value,
+        "string" when value is string text => NormalizeString(text, limit),
+        "binary" when value is byte[] bytes => NormalizeBinary(bytes, limit),
+        "date" => NormalizeDate(value),
+        TimestampKind => NormalizeTimestamp(value, column),
+        _ => throw new InvalidDataException($"Unsupported CLR type '{value.GetType().Name}'.")
+    };
+
+    private static BigInteger NormalizeInteger(object value, Column column)
+    {
+        if (value is not (sbyte or byte or short or ushort or int or uint or long or ulong))
+            throw new InvalidDataException("An integral CLR value is required.");
+        var text = Convert.ToString(value, CultureInfo.InvariantCulture) ?? throw new InvalidDataException("An integer is required.");
+        var integer = BigInteger.Parse(text, CultureInfo.InvariantCulture);
+        var minimum = column.Signed ? -(BigInteger.One << (column.Width - 1)) : BigInteger.Zero;
+        var maximum = (BigInteger.One << (column.Signed ? column.Width - 1 : column.Width)) - 1;
+        if (integer < minimum || integer > maximum) throw new OverflowException("Integer exceeds declared width.");
+        return integer;
+    }
+
+    private static double NormalizeNumber(object value)
+    {
+        var number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+        return double.IsFinite(number) ? number : throw new InvalidDataException("Non-finite floating-point values are unsupported.");
+    }
+
+    private static decimal NormalizeDecimal(decimal amount, Column column)
+    {
+        _ = DecimalBytes(amount, column);
+        return amount;
+    }
+
+    private static string NormalizeString(string text, int limit)
+        => Utf8.GetByteCount(text) <= limit ? text : throw new InvalidDataException("String exceeds the buffer limit.");
+    private static byte[] NormalizeBinary(byte[] bytes, int limit)
+        => bytes.Length <= limit ? bytes : throw new InvalidDataException("Binary exceeds the buffer limit.");
+    private static DateOnly NormalizeDate(object value) => value switch
+    {
+        DateOnly day => day,
+        DateTime date when date.Kind != DateTimeKind.Local && date.TimeOfDay == TimeSpan.Zero => DateOnly.FromDateTime(date),
+        _ => throw new InvalidDataException("DateOnly or a non-local midnight DateTime is required.")
+    };
+
+    private static DateTime ResolveTimestamp(object value, bool timezone) => value switch
+    {
+        DateTimeOffset offset when timezone => offset.UtcDateTime,
+        DateTime utc when timezone && utc.Kind == DateTimeKind.Utc => utc,
+        DateTime naive when !timezone && naive.Kind == DateTimeKind.Unspecified => naive,
+        _ => throw new InvalidDataException("Use UTC DateTime/DateTimeOffset, or Unspecified DateTime for timezone=false.")
+    };
+
+    private static DateTime NormalizeTimestamp(object value, Column column)
+    {
+        var instant = ResolveTimestamp(value, column.Timezone);
+        var ticks = instant.Ticks - DateTime.UnixEpoch.Ticks;
+        var divisor = column.Unit switch { "second" => TimeSpan.TicksPerSecond, "millisecond" => TimeSpan.TicksPerMillisecond,
+            Microsecond => 10, _ => 1 };
+        if (ticks % divisor != 0) throw new InvalidDataException("Timestamp would lose precision.");
+        if (column.Unit == "nanosecond") _ = checked(ticks * 100);
+        return instant;
     }
 
     internal static byte[] DecimalBytes(decimal value, Column column)
@@ -146,6 +188,8 @@ internal sealed class RowProjection
         if (bits[3] < 0) unscaled = -unscaled;
         return unscaled.ToByteArray(isUnsigned: false, isBigEndian: true);
     }
+
+    private static NotSupportedException Unsupported(DataField field, string message) => new($"Field '{field.Name}': {message}");
 }
 
 internal sealed class BoundedBuffer : MemoryStream

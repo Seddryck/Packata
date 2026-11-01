@@ -44,7 +44,7 @@ public class StreamingTests
     {
         var schema = new DataSchema([new("value", "string")]);
         var asset = HttpHostTests.Asset(schema: schema);
-        var source = new TestReader(["value"], 10_000, i => [new string((char)('a' + i % 26), 100)]);
+        var source = new TestReader(["value"], 10_000, i => [new string((char)('a' + (i % 26)), 100)]);
         using var sink = new BackpressureStream(() => false);
         await Encoder(format).WriteAsync(asset, new TestFactory((_, _) => source), sink,
             new() { BatchSize = 1000, MaxBufferedBytes = 4096 }, default);

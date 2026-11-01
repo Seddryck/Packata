@@ -7,12 +7,33 @@ import base64
 import hashlib
 import json
 import sys
-import urllib.request
+import http.client
+from contextlib import contextmanager
+from urllib.parse import urlsplit
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import fastavro
 import pyarrow as pa
+
+
+@contextmanager
+def open_http(url, headers=None):
+    parts = urlsplit(url)
+    if parts.scheme != "http" or not parts.hostname or parts.username is not None:
+        raise ValueError("Use an HTTP asset-service URL without credentials")
+    connection = http.client.HTTPConnection(parts.hostname, parts.port, timeout=10)
+    try:
+        target = parts.path or "/"
+        if parts.query:
+            target += "?" + parts.query
+        connection.request("GET", target, headers=headers or {})
+        response = connection.getresponse()
+        if response.status != 200:
+            raise RuntimeError(f"HTTP request failed: {response.status}")
+        yield response
+    finally:
+        connection.close()
 
 
 class CheckedBody:
@@ -50,7 +71,7 @@ def expected(i):
 
 
 base = sys.argv[1].rstrip("/")
-with urllib.request.urlopen(base + "/assets") as response:
+with open_http(base + "/assets") as response:
     assets = json.load(response)
 media_types = ["application/x-ndjson", "application/avro", "application/vnd.apache.arrow.stream"]
 for asset in assets:
@@ -62,8 +83,7 @@ for asset in assets:
     avro_schema = json.loads(formats["application/avro"]["schema"])
     assert avro_schema["fields"][2]["type"][1]["logicalType"] == "decimal"
     for media in media_types:
-        request = urllib.request.Request(base + asset["dataUrl"], headers={"Accept": media})
-        with urllib.request.urlopen(request) as response:
+        with open_http(base + asset["dataUrl"], headers={"Accept": media}) as response:
             assert response.headers["Content-Type"] == media
             completion_url = base + response.headers["Packata-Completion"]
             body = CheckedBody(response)
@@ -100,7 +120,7 @@ for asset in assets:
             while body.read(8192):
                 pass
         assert count == (0 if asset["assetId"] == "empty" else 5), (media, count)
-        with urllib.request.urlopen(completion_url) as response:
+        with open_http(completion_url) as response:
             completion = json.load(response)
         assert completion["state"] == "complete", completion
         assert completion["assetId"] == asset["id"], completion

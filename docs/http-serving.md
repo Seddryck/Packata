@@ -157,7 +157,7 @@ Provider details and inner exception messages remain private.
 ## Incremental clients and embedding
 
 The [working Python example](https://github.com/Seddryck/Packata/blob/main/src/Packata.Http.Testing/Interop/validate_http.py)
-uses `urllib.request`, per-line JSON parsing, `fastavro.reader` and
+uses `http.client`, per-line JSON parsing, `fastavro.reader` and
 `pyarrow.ipc.open_stream`. Its `CheckedBody` hashes/counts bytes as the decoders
 read; it never performs an unbounded read. Arrow is consumed by record batch and
 Avro/NDJSON by row. Install `pyarrow`, `fastavro` and timezone data (`tzdata` on
