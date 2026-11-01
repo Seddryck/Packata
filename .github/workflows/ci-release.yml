@@ -962,6 +962,98 @@ jobs:
           path: .artifacts/cli-release
           if-no-files-found: error
 
+  package-python-wheels:
+    name: Python · package ${{ matrix.rid }} wheel
+    needs: calculate-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            rid: win-x64
+            platform: win_amd64
+            executable: packata.exe
+          - runner: ubuntu-22.04
+            rid: linux-x64
+            platform: manylinux_2_35_x86_64
+            executable: packata
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.403
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install isolated Python test and packaging dependencies
+        run: python -m pip install -e "./python[avro]" setuptools wheel
+      - name: Publish private ordinary self-contained host
+        run: >-
+          dotnet publish src/Packata.Cli/Packata.Cli.csproj -c Release -f net10.0
+          -r ${{ matrix.rid }} --self-contained true
+          -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:PackAsTool=false
+          -p:Version=${{ needs.calculate-version.outputs.semver }}
+          -o .artifacts/python-host
+      - name: Test Python client, bounded decoders and local protocol
+        shell: pwsh
+        run: |
+          $env:PACKATA_HOST = (Resolve-Path '.artifacts/python-host/${{ matrix.executable }}').Path
+          python -m unittest discover -s python/tests -v
+          if ($LASTEXITCODE -ne 0) { throw 'Python client tests failed.' }
+      - name: Test public client against gated live HTTP writers
+        shell: pwsh
+        run: |
+          $env:PACKATA_INTEROP_PYTHON = (Get-Command python).Source
+          dotnet test src/Packata.Http.Testing/Packata.Http.Testing.csproj -c Release -f net10.0 --filter 'FullyQualifiedName~PythonReadersConsumeLiveResponsesIncrementally' --nologo
+          if ($LASTEXITCODE -ne 0) { throw 'Live Python interoperability failed.' }
+      - name: Build and validate platform wheel and record size
+        shell: pwsh
+        run: |
+          python python/build_wheel.py --version '${{ needs.calculate-version.outputs.semver }}' --host .artifacts/python-host --platform '${{ matrix.platform }}' --assets src/Packata.Cli/obj/project.assets.json --output .artifacts/python-release
+          if ($LASTEXITCODE -ne 0) { throw 'Wheel packaging failed.' }
+          Get-ChildItem .artifacts/python-release/*.whl | ForEach-Object { "$($_.Name): $($_.Length) bytes" >> $env:GITHUB_STEP_SUMMARY }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-wheel-${{ matrix.rid }}-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/python-release/*.whl
+          if-no-files-found: error
+
+  test-python-wheels:
+    name: Python · installed wheel · ${{ matrix.rid }} · ${{ matrix.python }}
+    needs: [calculate-version, package-python-wheels]
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.14']
+        include:
+          - rid: win-x64
+            runner: windows-latest
+          - rid: linux-x64
+            runner: ubuntu-22.04
+        rid: [win-x64, linux-x64]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v7
+        with:
+          name: python-wheel-${{ matrix.rid }}-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/python-release
+      - name: Install actual wheel and optional test codec
+        shell: pwsh
+        run: |
+          $wheel = @(Get-ChildItem .artifacts/python-release/*.whl)
+          if ($wheel.Count -ne 1) { throw 'Expected exactly one platform wheel.' }
+          python -m pip install $wheel[0].FullName fastavro
+          if ($LASTEXITCODE -ne 0) { throw 'Wheel installation failed.' }
+      - name: Smoke bundled host without a separate runtime or CLI
+        run: python python/smoke_wheel.py
+      - name: Run focused tests against installed wheel
+        run: python -m unittest discover -s python/tests -v
+
   validate-release-artifacts:
     name: Artifacts · validate complete release set
     needs:
@@ -973,6 +1065,7 @@ jobs:
       - package-cli-framework-archives
       - package-cli-self-contained-archives
       - build-package-language-support
+      - test-python-wheels
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -1010,6 +1103,16 @@ jobs:
           pattern: cli-self-contained-*-${{ needs.calculate-version.outputs.semver }}
           path: .artifacts/release
           merge-multiple: true
+
+      - name: Download packaged Python wheels
+        uses: actions/download-artifact@v7
+        with:
+          pattern: python-wheel-*-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/release
+          merge-multiple: true
+
+      - name: Validate complete Python wheel set
+        run: python3 python/validate_wheels.py --directory .artifacts/release --version '${{ needs.calculate-version.outputs.semver }}'
 
       - name: Download packaged VSIX artifacts
         uses: actions/download-artifact@v7
@@ -1220,6 +1323,16 @@ jobs:
           pattern: cli-self-contained-*-${{ needs.calculate-version.outputs.semver }}
           path: .artifacts/release
           merge-multiple: true
+
+      - name: Download validated Python wheels for GitHub Release only
+        uses: actions/download-artifact@v7
+        with:
+          pattern: python-wheel-*-${{ needs.calculate-version.outputs.semver }}
+          path: .artifacts/release
+          merge-multiple: true
+
+      - name: Revalidate Python wheels before GitHub Release upload
+        run: python3 python/validate_wheels.py --directory .artifacts/release --version '${{ needs.calculate-version.outputs.semver }}'
 
       - name: Download validated VSIX artifacts
         uses: actions/download-artifact@v7

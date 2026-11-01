@@ -2,6 +2,8 @@
 
 See [file schema inference](docs/file-schema-inference.md) for Parquet metadata extraction, Excel profiling, and CLI usage.
 
+See the [Python client](python/README.md) for incremental local and HTTP reads. Self-contained Python wheels are distributed exclusively as GitHub Release assets.
+
 ![Logo](https://raw.githubusercontent.com/Seddryck/Packata/main/assets/packata-icon-256.png)
 
 Packata is a standards-neutral .NET library for working with Data Package v2 and Open Data Contract Standard (ODCS) documents. It maps both formats to a shared model for data assets, schemas, metadata, and endpoints, with optional packages for reading and provisioning data.
