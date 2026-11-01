@@ -240,7 +240,7 @@ public class ArrowRecordBatchesTests
         Assert.That(reader.Disposals, Is.Zero);
     }
 
-    private sealed class RowsReader(string[] names, int count, Func<int, object?[]> getRow) : DbDataReader
+    internal sealed class RowsReader(string[] names, int count, Func<int, object?[]> getRow) : DbDataReader
     {
         private int index = -1;
         private object?[] row = [];
