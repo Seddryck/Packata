@@ -7,7 +7,8 @@ using NUnit.Framework.Internal;
 
 namespace Packata.DataPackage.Testing.Serialization.Json;
 
-public abstract class AbstractConverterTests<T, U> where T : JsonConverter
+public abstract class AbstractConverterTests<T, TValue>
+    where T : JsonConverter
 {
     protected JsonSerializerSettings Settings { get; }
 
@@ -57,18 +58,19 @@ public abstract class AbstractConverterTests<T, U> where T : JsonConverter
 
     protected class Wrapper
     {
-        public U? Object { get; set; }
+        public TValue? Object { get; set; }
     }
 
     [Test]
     public void CanConvert_FieldType_ReturnsTrue()
     {
         var converter = CreateConverter();
-        Assert.That(converter.CanConvert(typeof(U)), Is.True);
+        Assert.That(converter.CanConvert(typeof(TValue)), Is.True);
     }
 }
 
-public abstract class BaseConverterTests<T, U> : AbstractConverterTests<T, U> where T : JsonConverter, new()
+public abstract class BaseConverterTests<T, TValue> : AbstractConverterTests<T, TValue>
+    where T : JsonConverter, new()
 {
     protected BaseConverterTests(string propertyName)
         : base(propertyName)

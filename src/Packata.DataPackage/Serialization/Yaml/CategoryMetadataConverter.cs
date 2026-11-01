@@ -11,12 +11,16 @@ internal sealed class CategoryMetadataConverter : IYamlTypeConverter
     {
         var reference = type == typeof(CategoryTableReference);
         var values = ReadProperties(parser, reference);
-        if (reference) return new CategoryTableReference
+        if (reference)
+        {
+            return new CategoryTableReference
         {
             Resource = (string?)values.GetValueOrDefault("resource"),
             Package = (string?)values.GetValueOrDefault("package"),
             EncodedAs = (string?)values.GetValueOrDefault("encodedAs")
         };
+        }
+
         return new CategoryFieldMap
         {
             Value = (string?)values.GetValueOrDefault("value"),
@@ -35,8 +39,14 @@ internal sealed class CategoryMetadataConverter : IYamlTypeConverter
         {
             var key = parser.Consume<Scalar>().Value;
             if (!keys.Add(key)) throw new YamlException($"Duplicate category metadata property {key}.");
-            if (IsStringProperty(key, reference)) values.Add(key, ReadString(parser, key, reference));
-            else if (!reference && key == "ordered") values.Add(key, ReadOrdered(parser));
+            if (IsStringProperty(key, reference))
+            {
+                values.Add(key, ReadString(parser, key, reference));
+            }
+            else if (!reference && key == "ordered")
+            {
+                values.Add(key, ReadOrdered(parser));
+            }
             else if (!reference && key == "labels")
             {
                 var labels = new List<string>();
@@ -44,7 +54,10 @@ internal sealed class CategoryMetadataConverter : IYamlTypeConverter
                 while (!parser.TryConsume<SequenceEnd>(out _)) labels.Add(ReadString(parser, key, false));
                 values.Add(key, labels);
             }
-            else parser.SkipThisAndNestedEvents();
+            else
+            {
+                parser.SkipThisAndNestedEvents();
+            }
         }
         return values;
     }

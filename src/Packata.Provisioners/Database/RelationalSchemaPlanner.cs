@@ -80,9 +80,11 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         if (options.Descriptions && !ScriptRenderer.SupportsComments
             && contract.Assets.Any(asset => !string.IsNullOrWhiteSpace(asset.Description)
                 || asset.Schema?.Fields.Any(field => !string.IsNullOrWhiteSpace(field.Description)) == true))
+        {
             diagnostics.Add(ScriptRenderer.EngineSupportsComments
                 ? new("PROV006", "*", $"The current DubUrl renderer does not implement database comments for dialect '{Dialect.GetType().Name}'; descriptions were omitted.")
                 : new("PROV012", "*", $"Dialect '{Dialect.GetType().Name}' cannot express database comments; descriptions were omitted."));
+        }
     }
 
     private Dictionary<DataAsset, DatabaseObjectName> ResolveIdentities(DataContract contract,
@@ -198,8 +200,11 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         }
         var constraints = ApplyPhysicalDimensions(typeBuilder, physicalType!);
         if (!NativeTypeRegistry.Default.TryResolve(Dialect, physicalType!.NativeType, out _))
+        {
             diagnostics.Add(new("PROV005", asset.Id,
                 $"Physical type '{field.PhysicalType}' on field '{field.Name}' is not supported by target dialect '{Dialect.GetType().Name}'; logical type mapping was used."));
+        }
+
         constraints.WithNativeType(physicalType.NativeType, NativeTypeFallback.LogicalType);
         return constraints;
     }
@@ -233,10 +238,15 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         {
             if (IsStorageLengthBound(column, constraint)) continue;
             var check = MapCheck(column, constraint, asset, field, diagnostics);
-            if (check is not null) builder.WithCheck(_ => check);
+            if (check is not null)
+            {
+                builder.WithCheck(_ => check);
+            }
             else if (!IsSpecialCheck(constraint))
+            {
                 diagnostics.Add(new("PROV004", asset.Id,
                     $"Constraint '{constraint.Kind}' on field '{field.Name}' is not supported."));
+            }
         }
     }
 
@@ -373,9 +383,12 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
     {
         if (constraint.Value is string pattern
             && (Dialect.Capabilities ?? DialectCapabilities.Default).SupportsRegularExpressionChecks)
+        {
             return ((ICheckBuilder)new CheckBuilder(column)).WithRegex(
                 expression => expression.WithCurrentColumn(), pattern,
                 field.Required ? RegexNullBehavior.RejectNull : RegexNullBehavior.AllowNull);
+        }
+
         diagnostics.Add(new("PROV004", asset.Id,
             $"Constraint 'pattern' on field '{field.Name}' is not supported by target dialect '{Dialect.GetType().Name}'."));
         return null;

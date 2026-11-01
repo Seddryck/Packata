@@ -93,8 +93,11 @@ internal sealed class CliConfiguration
     {
         if (string.IsNullOrWhiteSpace(value)) throw new CliException("A configuration value must not be empty.");
         if (key == "connectors.offline")
+        {
             return bool.TryParse(value, out var offline) ? offline.ToString().ToLowerInvariant()
                 : throw new CliException("connectors.offline requires true or false; it controls connector downloads only.");
+        }
+
         if (key is "connectors.store" or "connectors.catalog")
         {
             if (value.Contains("://", StringComparison.Ordinal)) throw new CliException("Connector paths must be local filesystem paths.");

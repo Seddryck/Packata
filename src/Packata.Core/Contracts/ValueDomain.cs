@@ -15,6 +15,9 @@ public sealed class ValueDomain
 {
     public IReadOnlyList<ValueOption>? Entries { get; }
     /// <summary>Null means finite membership is unknown, not unrestricted. Empty means no values are allowed.</summary>
+    /// <value>
+    /// Null means finite membership is unknown, not unrestricted. Empty means no values are allowed.
+    /// </value>
     public IReadOnlyList<ScalarValue>? AllowedValues { get; }
     public bool? Ordered { get; }
     public ValueDomainReference? Reference { get; }
@@ -64,7 +67,8 @@ public sealed class ValueDomain
     }
 }
 
-public enum PackageLocatorKind { DescriptorUri, RegistryName }
+public enum PackageLocatorKind { DescriptorUri,
+    RegistryName }
 public sealed record PackageLocator
 {
     public PackageLocatorKind Kind { get; }
@@ -78,7 +82,8 @@ public sealed record PackageLocator
         (Kind, Value) = (kind, value);
     }
 }
-public enum ValueEncoding { Value, Label }
+public enum ValueEncoding { Value,
+    Label }
 public sealed record ValueDomainReference
 {
     public string ResourceName { get; }

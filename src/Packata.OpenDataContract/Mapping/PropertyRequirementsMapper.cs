@@ -11,8 +11,11 @@ internal static class PropertyRequirementsMapper
         var path = $"schema/{schema.Name}/customProperties";
         foreach (var (property, index) in schema.CustomProperties.Select((p, i) => (p, i)))
             if (property is { Vendor: "packata", Property: "propertyMatching" or "propertyOrder" })
+            {
                 diagnostics.Add(new("ODCS008", MappingSeverity.Error, $"{path}/{index}",
                     "Obsolete Packata propertyMatching/propertyOrder: use allowAdditionalProperties and enforcePropertyOrder booleans, and per-property required."));
+            }
+
         return (Read(schema.CustomProperties, "allowAdditionalProperties", path, false, diagnostics),
             Read(schema.CustomProperties, "enforcePropertyOrder", path, true, diagnostics));
     }
@@ -25,8 +28,11 @@ internal static class PropertyRequirementsMapper
         if (matches.Length == 0) return fallback;
         if (matches.Length == 1 && matches[0].property.Value is bool value) return value;
         foreach (var match in matches)
+        {
             diagnostics.Add(new("ODCS008", MappingSeverity.Error, $"{path}/{match.index}",
                 $"Packata {name} must be declared once with a boolean value: false or true."));
+        }
+
         return fallback;
     }
 
@@ -34,9 +40,13 @@ internal static class PropertyRequirementsMapper
     {
         if (properties is null) return;
         for (var index = 0; index < properties.Count; index++)
+        {
             if (properties[index] is { Vendor: "packata", Property: "propertyMatching" or "propertyOrder" or "allowAdditionalProperties" or "enforcePropertyOrder" })
+            {
                 diagnostics.Add(new("ODCS008", MappingSeverity.Error, $"{path}/customProperties/{index}",
                     "Packata allowAdditionalProperties and enforcePropertyOrder are supported only on schema objects; propertyMatching/propertyOrder are obsolete."));
+            }
+        }
     }
 
     internal static void CheckPlacements(DataContract document, ICollection<MappingDiagnostic> diagnostics)

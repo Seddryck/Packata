@@ -4,5 +4,8 @@ namespace Packata.DataPackage;
 public class TableDatabaseDialect : TableDialect
 {
     /// <summary>Packata extension for a database schema or namespace.</summary>
+    /// <value>
+    /// Packata extension for a database schema or namespace.
+    /// </value>
     public string? Namespace { get; set; }
 }

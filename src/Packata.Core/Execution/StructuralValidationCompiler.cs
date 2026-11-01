@@ -47,8 +47,11 @@ public sealed class StructuralValidationCompiler : IRuleCompiler<DataAsset>
         if (schema.EnforcePropertyOrder)
             yield return Plan(asset, input, prefix, "enforcePropertyOrder", null, () => MatchOrder(names, input));
         if (input.TypesAvailable)
+        {
             foreach (var field in schema.Fields.Where(f => IsPresent(input, f)))
                 yield return Plan(asset, input, prefix, "schemaType", field.Name, () => MatchType(field, input));
+        }
+
         for (var relationshipIndex = 0; relationshipIndex < schema.Relationships.Count; relationshipIndex++)
         {
             var relationship = schema.Relationships[relationshipIndex];
@@ -135,8 +138,11 @@ public sealed class StructuralValidationCompiler : IRuleCompiler<DataAsset>
         DatasetStructure target, DataRelationship relationship)
     {
         for (var index = 0; index < relationship.Fields.Count; index++)
+        {
             if (CompareKey(fromAsset, toAsset, source, target, relationship.Fields[index], relationship.TargetFields[index]) is { } comparison)
                 return comparison;
+        }
+
         return null;
     }
 
@@ -149,8 +155,11 @@ public sealed class StructuralValidationCompiler : IRuleCompiler<DataAsset>
         var sourceColumns = source.Columns!.Where(c => c.Name == PhysicalName(from[0])).ToArray();
         var targetColumns = target.Columns!.Where(c => c.Name == PhysicalName(to[0])).ToArray();
         if (sourceColumns.Length != 1 || targetColumns.Length != 1)
+        {
             return Boolean(false, 1, new("sourceProperty", QualityValue.From(from[0].Name)), new("targetProperty", QualityValue.From(to[0].Name)),
                 new("targetInput", QualityValue.From(target.Source)));
+        }
+
         var sourceType = source.TypesAvailable ? sourceColumns[0].LogicalType : from[0].LogicalType;
         var targetType = target.TypesAvailable ? targetColumns[0].LogicalType : to[0].LogicalType;
         if (!KnownType(sourceType) || !KnownType(targetType)) return Unknown("RELATIONSHIP_TYPE_UNSUPPORTED");

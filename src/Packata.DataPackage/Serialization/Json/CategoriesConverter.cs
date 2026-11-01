@@ -87,7 +87,10 @@ internal class CategoriesConverter : JsonConverter
                 { writer.WritePropertyName("label"); writer.WriteValue(category.Label); }
                 writer.WriteEndObject();
             }
-            else serializer.Serialize(writer, category.Value);
+            else
+            {
+                serializer.Serialize(writer, category.Value);
+            }
         }
         writer.WriteEndArray();
     }

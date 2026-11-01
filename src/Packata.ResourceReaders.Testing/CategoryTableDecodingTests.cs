@@ -133,8 +133,11 @@ public class CategoryTableDecodingTests
         var contract = Contract();
         var request = Request(contract);
         if (kind is "external" or "missing")
+        {
             request = request with { Schema = new DataSchema([new DataField("code", "string", ValueDomain: new(reference:
                 new(kind == "missing" ? "missing" : "lookup", kind == "external" ? new(PackageLocatorKind.RegistryName, "other") : null)))]) };
+        }
+
         if (kind == "context") request = request with { Contract = null };
         if (kind == "cycle")
         {

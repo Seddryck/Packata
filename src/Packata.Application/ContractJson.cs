@@ -36,13 +36,17 @@ public static class ContractJson
     private static void Scrub(JToken token)
     {
         if (token is JObject obj)
+        {
             ScrubObject(obj);
+        }
         else if (token is JArray array)
         {
             foreach (var child in array) Scrub(child);
         }
         else if (token is JValue { Type: JTokenType.String } text)
+        {
             text.Value = Redact((string?)text.Value ?? string.Empty);
+        }
     }
 
     private static void ScrubObject(JObject obj)

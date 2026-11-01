@@ -40,8 +40,10 @@ internal sealed record RelationalDdlCapabilities(bool Tables = true, bool Unique
             schema.Relationships.Any(r => r.Kind.Equals("foreignKey", StringComparison.OrdinalIgnoreCase)), ForeignKeys, "FOREIGN KEY"));
         if (!Checks && options.Constraints.HasFlag(ContractConstraintOptions.Checks)
             && schema.Fields.Any(f => f.Constraints.Any(c => IsCheck(c.Kind))))
+        {
             diagnostics.Add(new("PROV009", asset.Id,
                 $"Dialect '{dialect.GetType().Name}' does not support the requested CHECK constraints. Disable Checks explicitly or choose another dialect; no SQL was generated."));
+        }
     }
 
     private static bool HasUnique(DataSchema schema, ContractProvisioningOptions options)
@@ -52,10 +54,16 @@ internal sealed record RelationalDdlCapabilities(bool Tables = true, bool Unique
         ICollection<ProvisioningDiagnostic> diagnostics, (ContractConstraintOptions Option, bool Present, bool Supported, string Name) key)
     {
         if (!key.Present || !options.Constraints.HasFlag(key.Option)) return;
-        if (!key.Supported) diagnostics.Add(new("PROV009", assetId,
+        if (!key.Supported)
+        {
+            diagnostics.Add(new("PROV009", assetId,
             $"Dialect '{dialect.GetType().Name}' cannot enforce the requested {key.Name} constraint. Disable that constraint explicitly or choose another dialect; no SQL was generated."));
-        else if (!EnforcesKeys) diagnostics.Add(new("PROV010", assetId,
+        }
+        else if (!EnforcesKeys)
+        {
+            diagnostics.Add(new("PROV010", assetId,
             $"{key.Name} is declared as metadata but is not enforced on Snowflake standard tables. NOT NULL and CHECK constraints are enforced."));
+        }
     }
 
     private static bool IsCheck(string kind) => kind.ToLowerInvariant() is

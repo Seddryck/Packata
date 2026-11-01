@@ -132,8 +132,10 @@ public static class ContractDiffer
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var identifier in identifiers)
+            {
                 if (string.IsNullOrEmpty(identifier) || !seen.Add(identifier))
                     throw new ArgumentException($"Missing or duplicate semantic identifier at '{path}': '{identifier}'.");
+            }
         }
     }
 

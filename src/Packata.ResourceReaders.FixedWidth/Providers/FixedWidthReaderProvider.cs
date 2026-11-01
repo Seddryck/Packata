@@ -36,9 +36,12 @@ internal sealed class FixedWidthReaderProvider : IDataEndpointReaderProvider
         }
 
         if (layout is null)
+        {
             throw new ArgumentException(
                 $"Fixed-width format was recognized, but no registered layout resolver could determine field offsets and widths for endpoint '{context.Endpoint.Id}'.",
                 nameof(context));
+        }
+
         ValidateLayout(schema, layout.Offsets, layout.Widths, layout.RecordWidth);
 
         var builder = new FixedWidthReaderBuilder()
@@ -61,8 +64,11 @@ internal sealed class FixedWidthReaderProvider : IDataEndpointReaderProvider
         var builder = new SchemaDescriptorBuilder().Indexed();
         var mapper = new RuntimeTypeMapper();
         foreach (var field in schema.Fields)
+        {
             builder.WithField(mapper.Resolve(field, TypeMappingOptions.LegacyCompatibility).RuntimeType!, field.Name,
                 value => field.LogicalType is null ? value : value.WithDataSourceTypeName(field.LogicalType));
+        }
+
         return builder;
     }
 

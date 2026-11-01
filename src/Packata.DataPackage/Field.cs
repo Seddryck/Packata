@@ -11,14 +11,23 @@ public class Field
     /// <summary>
     /// A name for this field.
     /// </summary>
+    /// <value>
+    /// A name for this field.
+    /// </value>
     public string? Name { get; set; }
 
     /// <summary>Optional Packata extension identifying the physical database column.</summary>
+    /// <value>
+    /// Optional Packata extension identifying the physical database column.
+    /// </value>
     [Newtonsoft.Json.JsonProperty("x-packata-physicalName")]
     [YamlDotNet.Serialization.YamlMember(Alias = "x-packata-physicalName", ApplyNamingConventions = false)]
     public string? PhysicalName { get; set; }
 
     /// <summary>Optional Packata extension identifying the physical database type.</summary>
+    /// <value>
+    /// Optional Packata extension identifying the physical database type.
+    /// </value>
     [Newtonsoft.Json.JsonProperty("x-packata-physicalType")]
     [YamlDotNet.Serialization.YamlMember(Alias = "x-packata-physicalType", ApplyNamingConventions = false)]
     public string? PhysicalType { get; set; }
@@ -26,63 +35,99 @@ public class Field
     /// <summary>
     /// The type keyword, which identifies the class inheriting from `Field` to deserialize
     /// </summary>
+    /// <value>
+    /// The type keyword, which identifies the class inheriting from `Field` to deserialize
+    /// </value>
     public string? Type { get; set; }
 
     /// <summary>
     /// The format keyword, which provides a hint for the field's formatting.
     /// </summary>
+    /// <value>
+    /// The format keyword, which provides a hint for the field's formatting.
+    /// </value>
     public string? Format { get; set; }
 
     /// <summary>
     /// A human-readable title.
     /// </summary>
+    /// <value>
+    /// A human-readable title.
+    /// </value>
     public string? Title { get; set; }
 
     /// <summary>
     /// A text description. Markdown is encouraged.
     /// </summary>
+    /// <value>
+    /// A text description. Markdown is encouraged.
+    /// </value>
     public string? Description { get; set; }
 
     /// <summary>Language tag for textual content (Packata extension).</summary>
+    /// <value>
+    /// Language tag for textual content (Packata extension).
+    /// </value>
     public string? Language { get; set; }
 
     /// <summary>
     /// An example value for the field.
     /// </summary>
+    /// <value>
+    /// An example value for the field.
+    /// </value>
     public object? Example { get; set; }
 
     /// <summary>
     /// Values that when encountered in the source, should be considered as `null`, 'not present', or 'blank' values.
     /// context: Many datasets arrive with missing data values, either because a value was not collected or it never existed.\nMissing values may be indicated simply by the value being empty in other cases a special value may have been used e.g. `-`, `NaN`, `0`, `-9999` etc.\nThe `missingValues` property provides a way to indicate that these values should be interpreted as equivalent to null.\n\n`missingValues` are strings rather than being the data type of the particular field. This allows for comparison prior to casting and for fields to have missing value which are not of their type, for example a `number` field to have missing values indicated by `-`.\n\nThe default value of `missingValue` for a non-string type field is the empty string `''`. For string type fields there is no default for `missingValue` (for string fields the empty string `''` is a valid value and need not indicate null).
     /// </summary>
-    /// <example>
+    ///
+    /// <value>
+    /// Values that when encountered in the source, should be considered as `null`, 'not present', or 'blank' values.
+    /// context: Many datasets arrive with missing data values, either because a value was not collected or it never existed.\nMissing values may be indicated simply by the value being empty in other cases a special value may have been used e.g. `-`, `NaN`, `0`, `-9999` etc.\nThe `missingValues` property provides a way to indicate that these values should be interpreted as equivalent to null.\n\n`missingValues` are strings rather than being the data type of the particular field. This allows for comparison prior to casting and for fields to have missing value which are not of their type, for example a `number` field to have missing values indicated by `-`.\n\nThe default value of `missingValue` for a non-string type field is the empty string `''`. For string type fields there is no default for `missingValue` (for string fields the empty string `''` is a valid value and need not indicate null).
+    /// </value><example>
     /// "examples": [
     ///     "{\n  \"missingValues\": [\n    \"-\",\n    \"NaN\",\n    \"\"\n  ]\n}\n",
-    ///     "{\n  \"missingValues\": []\n}\n"   
-    /// ]   
-    /// <example>   
+    ///     "{\n  \"missingValues\": []\n}\n"
+    /// ]
+    /// <example>
     public List<MissingValue>? MissingValues { get; set; } = null;
 
     /// <summary>
     /// The RDF type for this field.
     /// </summary>
+    /// <value>
+    /// The RDF type for this field.
+    /// </value>
     public string? RdfType { get; set; }
 
     /// <summary>
     /// The constraints applicable to this field.
     /// </summary>
+    /// <value>
+    /// The constraints applicable to this field.
+    /// </value>
     public FieldConstraintCollection? Constraints { get; set; }
 
     /// <summary>
     /// Standard DPv2 inline category values, or a resource reference from the Category Tables recipe.
     /// Inline values must be strings or signed 64-bit integers matching the field's logical type.
     /// </summary>
+    /// <value>
+    /// Standard DPv2 inline category values, or a resource reference from the Category Tables recipe.
+    /// Inline values must be strings or signed 64-bit integers matching the field's logical type.
+    /// </value>
     public CategoryCollection? Categories { get; set; }
 
     /// <summary>
     /// Whether inline category sequence expresses natural order. Null makes no ordering assumption.
     /// Recipe category tables additionally retain their resource-level categoryFieldMap.ordered metadata.
     /// </summary>
+    /// <value>
+    /// Whether inline category sequence expresses natural order. Null makes no ordering assumption.
+    /// Recipe category tables additionally retain their resource-level categoryFieldMap.ordered metadata.
+    /// </value>
     [Newtonsoft.Json.JsonConverter(typeof(Serialization.Json.CategoriesOrderedConverter))]
     public bool? CategoriesOrdered { get; set; }
 }
@@ -98,11 +143,17 @@ public abstract class NumericField : Field
     /// <summary>
     /// A boolean field with a default of `true`. If `true` the physical contents of this field must follow the formatting constraints already set out. If `false` the contents of this field may contain leading and/or trailing non-numeric characters (which implementors MUST therefore strip). The purpose of `bareNumber` is to allow publishers to publish numeric data that contains trailing characters such as percentages e.g. `95%` or leading characters such as currencies e.g. `€95` or `EUR 95`. Note that it is entirely up to implementors what, if anything, they do with stripped text.
     /// </summary>
+    /// <value>
+    /// A boolean field with a default of `true`. If `true` the physical contents of this field must follow the formatting constraints already set out. If `false` the contents of this field may contain leading and/or trailing non-numeric characters (which implementors MUST therefore strip). The purpose of `bareNumber` is to allow publishers to publish numeric data that contains trailing characters such as percentages e.g. `95%` or leading characters such as currencies e.g. `€95` or `EUR 95`. Note that it is entirely up to implementors what, if anything, they do with stripped text.
+    /// </value>
     public bool BareNumber { get; set; } = true;
 
     /// <summary>
     /// A string whose value is used to group digits within the number. This property does not have a default value. A common value is `,` e.g. '100,000'.
     /// </summary>
+    /// <value>
+    /// A string whose value is used to group digits within the number. This property does not have a default value. A common value is `,` e.g. '100,000'.
+    /// </value>
     public char? GroupChar { get; set; }
 }
 
@@ -117,6 +168,9 @@ public class NumberField : NumericField
     /// <summary>
     /// A string whose value is used to represent a decimal point within the number. The default value is `.`.
     /// </summary>
+    /// <value>
+    /// A string whose value is used to represent a decimal point within the number. The default value is `.`.
+    /// </value>
     public char? DecimalChar { get; set; }
 }
 

@@ -6,7 +6,9 @@ using OdcsDocument = Packata.OpenDataContract.DataContract;
 
 namespace Packata.Cli;
 
-internal enum ContractDocumentKind { DataPackageJson, DataPackageYaml, OpenDataContractYaml }
+internal enum ContractDocumentKind { DataPackageJson,
+    DataPackageYaml,
+    OpenDataContractYaml }
 
 internal sealed record ContractDocument(
     string SourcePath,

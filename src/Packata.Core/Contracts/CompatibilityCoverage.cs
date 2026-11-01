@@ -78,7 +78,7 @@ internal static class CompatibilityCoverage
             if (context is OdcsField or DataPackageConstraints && key is Required or "nullable" or "unique" or "primaryKey")
                 return bool.TryParse(text, out _);
             if (context is not (OdcsOptions or DataPackageConstraints)) return true;
-            if (key is "uniqueItems" || context == OdcsOptions && key is ExclusiveMinimum or ExclusiveMaximum)
+            if (key is "uniqueItems" || (context == OdcsOptions && key is ExclusiveMinimum or ExclusiveMaximum))
                 return bool.TryParse(text, out _);
             if (key is "minLength" or "maxLength" or "minItems" or "maxItems" or "minProperties" or "maxProperties")
                 return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) && count >= 0;
@@ -94,7 +94,7 @@ internal static class CompatibilityCoverage
             // ODCS decimal mapping currently uses the process culture. Refuse ambiguous
             // representations instead of silently trusting a dropped/misread bound.
             return decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var invariant)
-                && (context != OdcsOptions || decimal.TryParse(text, out var mapped) && mapped == invariant);
+                && (context != OdcsOptions || (decimal.TryParse(text, out var mapped) && mapped == invariant));
         }
 
         private string? Rule(string context, string key, string? type) => context switch

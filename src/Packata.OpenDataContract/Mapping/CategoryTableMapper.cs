@@ -165,7 +165,8 @@ internal static class CategoryTableMapper
             : throw Invalid($"'{key}' must be a non-empty string when present.");
     }
 
-    private static T? Try<T>(Func<T?> map, string path, ICollection<MappingDiagnostic> diagnostics) where T : class
+    private static T? Try<T>(Func<T?> map, string path, ICollection<MappingDiagnostic> diagnostics)
+        where T : class
     {
         try { return map(); }
         catch (ArgumentException exception)

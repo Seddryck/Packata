@@ -227,7 +227,10 @@ public class SchemaMetadataExportTests
         var result = SchemaDocumentSerializer.Serialize(Plain(new DataField("small", "integer", Required: true,
             Constraints: [new("integerWidth", 8), new("signed", true)])), format);
         var schema = RoundTrip(result.Content!, format);
-        if (format == "spark-json") Assert.That(schema.SelectTokens("$..packata.field"), Is.Empty);
+        if (format == "spark-json")
+        {
+            Assert.That(schema.SelectTokens("$..packata.field"), Is.Empty);
+        }
         else
         {
             var constraints = FieldMetadata(schema["fields"]![0]!, format)["constraints"]!;
@@ -294,8 +297,11 @@ public class SchemaMetadataExportTests
         Assert.That(JToken.DeepEquals(values, new JArray(1, 2, JValue.CreateNull())), Is.True);
         Assert.That(result.Diagnostics.Any(d => d.Severity is "Warning" or "Error"), Is.False);
         Assert.That(result.Diagnostics.Where(d => d.Code.StartsWith("SCHEMA_")).All(d => d.Severity == "Information"), Is.True);
-        if (format == "spark-json") Assert.That(schema["fields"]![1]!["metadata"]!["packata"]!["schema"], Is.Null,
+        if (format == "spark-json")
+        {
+            Assert.That(schema["fields"]![1]!["metadata"]!["packata"]!["schema"], Is.Null,
             "Asset metadata is anchored once on the first top-level field.");
+        }
     }
 
     [TestCase("avro")]

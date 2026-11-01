@@ -71,8 +71,10 @@ internal sealed class DiffCommand : AsyncCommand<ContractComparisonSettings>
         private void WriteDiagnostics()
         {
             foreach (var diagnostic in diagnostics)
+            {
                 CommandOutput.Diagnostic(new(diagnostic.Code, diagnostic.Severity,
                     $"{diagnostic.Input} ({diagnostic.Source}) {diagnostic.SourcePath}", diagnostic.Message));
+            }
         }
 
         private int Invalid()

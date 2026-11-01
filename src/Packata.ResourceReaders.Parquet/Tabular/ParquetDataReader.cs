@@ -48,7 +48,10 @@ public class ParquetDataReader : IDataReader
     private void SetSchema(DataField[] fields)
     {
         if (_fieldCount == -1) { _fieldCount = fields.Length; _dataFields = fields; }
-        else if (!AreSchemasEqual(_dataFields, fields)) throw new InvalidOperationException("Inconsistent schema across parquet files.");
+        else if (!AreSchemasEqual(_dataFields, fields))
+        {
+            throw new InvalidOperationException("Inconsistent schema across parquet files.");
+        }
     }
 
     private void DisposeAfterFailure()

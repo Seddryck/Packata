@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,6 +11,9 @@ public interface IDatabaseAware
     /// <summary>
     /// The name of the database.
     /// </summary>
+    /// <value>
+    /// The name of the database.
+    /// </value>
     [Label("Database")]
     public string Database { get; set; }
 }

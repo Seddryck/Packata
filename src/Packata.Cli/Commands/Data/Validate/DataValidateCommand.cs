@@ -73,8 +73,11 @@ internal sealed class DataValidateCommand : AsyncCommand<DataValidateSettings>
     {
         IEndpointStreamResolver? streams = null;
         if (source.Archive is { } archive)
+        {
             streams = new PreviewService.ArchiveStreamResolver(archive,
                 source.ArchiveDescriptor ?? throw new InvalidOperationException("The archive descriptor is unavailable."));
+        }
+
         var readers = PreviewService.CreateFactory(source.BaseUri, streams: streams);
         var document = new ContractDocument(source.Source, source.OriginalText, DocumentKind(source),
             source.NativeDocument, mapped.RequireValue(), mapped.Diagnostics) { Source = source };

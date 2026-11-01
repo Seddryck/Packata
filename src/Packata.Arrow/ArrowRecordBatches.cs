@@ -195,7 +195,11 @@ public static class ArrowRecordBatches
             unscaled = BigInteger.DivRem(unscaled, BigInteger.Pow(10, sourceScale - type.Scale), out var remainder);
             if (remainder != 0) throw new InvalidOperationException("Decimal would lose fractional digits.");
         }
-        else unscaled *= BigInteger.Pow(10, type.Scale - sourceScale);
+        else
+        {
+            unscaled *= BigInteger.Pow(10, type.Scale - sourceScale);
+        }
+
         if (unscaled >= BigInteger.Pow(10, type.Precision)) throw new OverflowException("Decimal exceeds declared precision.");
         return value;
     }

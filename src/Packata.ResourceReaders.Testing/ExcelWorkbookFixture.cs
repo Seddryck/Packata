@@ -54,8 +54,12 @@ internal static class ExcelWorkbookFixture
                 data.Add(row);
             }
             var sheet = new XElement(ns + "worksheet", data);
-            if (merged) sheet.Add(new XElement(ns + "mergeCells", new XAttribute("count", 1),
+            if (merged)
+            {
+                sheet.Add(new XElement(ns + "mergeCells", new XAttribute("count", 1),
                 new XElement(ns + "mergeCell", new XAttribute("ref", "A1:B1"))));
+            }
+
             Write(zip, "xl/worksheets/sheet1.xml", sheet.ToString());
         }
         stream.Position = 0;
@@ -73,7 +77,11 @@ internal static class ExcelWorkbookFixture
         { cell.Add(new XAttribute("t", "inlineStr")); cell.Add(new XElement(ns + "is", new XElement(ns + "t", text))); }
         else if (item.Value is bool flag)
         { cell.Add(new XAttribute("t", "b")); cell.Add(new XElement(ns + "v", flag ? 1 : 0)); }
-        else if (item.Value is not null) cell.Add(new XElement(ns + "v", Convert.ToString(item.Value, CultureInfo.InvariantCulture)));
+        else if (item.Value is not null)
+        {
+            cell.Add(new XElement(ns + "v", Convert.ToString(item.Value, CultureInfo.InvariantCulture)));
+        }
+
         return cell;
     }
 

@@ -193,10 +193,18 @@ public sealed class DatabaseDataContractInference
             && index.Columns.ContainsKey(column.Name)))
             constraints.Add(new("unique", true));
         foreach (var check in checks)
-            if (TryMapCheck(check, column.Name, out var mapped)) constraints.Add(mapped);
-            else if (References(check, column.Name)) diagnostics.Add(new(
+        {
+            if (TryMapCheck(check, column.Name, out var mapped))
+            {
+                constraints.Add(mapped);
+            }
+            else if (References(check, column.Name))
+            {
+                diagnostics.Add(new(
                 "DBI002", InferenceSeverity.Information, sourcePath,
                 $"Check constraint on '{table}.{column.Name}' was preserved in extension metadata."));
+            }
+        }
 
         var required = column.Constraints.OfType<NotNullableConstraint>().Any();
         return new DataField(column.Name, logicalType, column.NativeType?.Name ?? column.Type.ToString(),
@@ -297,13 +305,17 @@ public sealed class DatabaseDataContractInference
             ["schema"] = identity.Schema
         };
         if (indexes.Count > 0)
+        {
             values["indexes"] = indexes.Select(index => new Dictionary<string, object?>
             {
                 ["name"] = index.Identity.ToString(),
                 ["unique"] = index.IsUnique,
                 ["columns"] = index.Columns.Keys.ToArray()
             }).ToArray();
+        }
+
         if (checks.Count > 0)
+        {
             values["checks"] = checks.Select(check => new Dictionary<string, object?>
             {
                 ["name"] = check.Name,
@@ -311,6 +323,8 @@ public sealed class DatabaseDataContractInference
                 ["operator"] = check.Operator,
                 ["right"] = Describe(check.Right)
             }).ToArray();
+        }
+
         return ExtensionMetadata.For(ExtensionNamespace, values);
     }
 
@@ -331,8 +345,11 @@ public sealed class DatabaseDataContractInference
             values["expression"] = Describe(generated.Expression);
         }
         if (column.NativeType is not null)
+        {
             values["nativeTypeDialects"] = column.NativeType.Dialects
                 .Select(x => x.FullName ?? x.Name).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        }
+
         return ExtensionMetadata.For(ExtensionNamespace, values);
     }
 
@@ -409,8 +426,11 @@ public sealed class DatabaseDataContractInference
         FunctionColumnIdentityExpression value => new Dictionary<string, object?>
             { ["kind"] = "function", ["name"] = value.Function, ["column"] = value.Name },
         FunctionExpression value => new Dictionary<string, object?>
-            { ["kind"] = "function", ["name"] = value.Function,
-                ["arguments"] = value.Expressions.Select(Describe).ToArray() },
+        {
+            ["kind"] = "function",
+            ["name"] = value.Function,
+            ["arguments"] = value.Expressions.Select(Describe).ToArray()
+        },
         ValueExpression value => new Dictionary<string, object?>
             { ["kind"] = "value", ["value"] = value.Value },
         _ => new Dictionary<string, object?> { ["kind"] = expression.GetType().Name }

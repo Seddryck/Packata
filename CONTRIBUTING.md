@@ -74,3 +74,18 @@ Use `--input-format`, `--output-format`, `--output` for file paths, and `--asset
 with the semantics documented in `docs/cli.md`. Do not parse raw argument arrays
 in bootstrap code to compensate for settings conversion or validation. Add focused
 CLI process tests for option behavior and file safety when adding commands.
+
+## Local style checks
+
+After cloning, enable the repository's pre-push hook and restore the solution:
+
+```sh
+git config --local core.hooksPath .githooks
+dotnet restore Packata.sln
+```
+
+The hook runs `dotnet format Packata.sln analyzers --verify-no-changes --no-restore`
+with the StyleCop policy in `.editorconfig`. A failing check blocks the push.
+Run `dotnet format Packata.sln analyzers --no-restore` to apply available fixes,
+resolve any remaining diagnostics, and rerun the verification command before pushing.
+Restore again after changing package references or creating a fresh worktree.

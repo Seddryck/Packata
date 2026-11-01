@@ -18,6 +18,9 @@ public class Source
     /// <example>
     /// My Source Title
     /// </example>
+    /// <value>
+    /// A human-readable title.
+    /// </value>
     public string? Title { get; set; }
 
     /// <summary>
@@ -28,6 +31,10 @@ public class Source
     /// file.csv
     /// http://example.com/file.csv
     /// </example>
+    /// <value>
+    /// A fully qualified URL, or a POSIX file path.
+    /// Context: Implementations need to negotiate the type of path provided, and dereference the data accordingly.
+    /// </value>
     public string? Path { get; set; }
 
     /// <summary>
@@ -36,9 +43,15 @@ public class Source
     /// <example>
     /// example@example.com
     /// </example>
+    /// <value>
+    /// An email address.
+    /// </value>
     [EmailAddress(ErrorMessage = "Invalid email address.")]
     public string? Email { get; set; }
 
     /// <summary>The version of the source used by the descriptor.</summary>
+    /// <value>
+    /// The version of the source used by the descriptor.
+    /// </value>
     public string? Version { get; set; }
 }

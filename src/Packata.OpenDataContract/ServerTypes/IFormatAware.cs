@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,6 +11,9 @@ public interface IFormatAware
     /// <summary>
     /// The format of the file(s)
     /// </summary>
+    /// <value>
+    /// The format of the file(s)
+    /// </value>
     [Label("Format")]
     public string Format { get; set; }
 }

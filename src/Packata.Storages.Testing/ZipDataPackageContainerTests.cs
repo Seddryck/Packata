@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
@@ -11,8 +11,8 @@ namespace Packata.Storages.Testing;
 internal class ZipDataPackageContainerTests
 {
     private const string CSV_CONTENT = "foo;bar\r\n1;Hello\r\n2;World";
-    private MemoryStream _zipStream;
     private readonly Uri _baseUri = new ("zip:///");
+    private MemoryStream _zipStream;
 
     [SetUp]
     public void SetUp()

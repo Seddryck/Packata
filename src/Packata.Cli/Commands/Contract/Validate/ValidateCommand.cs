@@ -50,7 +50,9 @@ internal sealed class ValidateCommand : AsyncCommand<ValidateSettings>
     {
         using var output = new OutputDestination(settings.Output);
         if (settings.OutputFormat == "json")
+        {
             CommandOutput.Json(CommandOutput.RedactedJson(new { schemaVersion = 1, source = settings.Source, valid, profile, layers, diagnostics }), output.Writer);
+        }
         else
         {
             output.Writer.WriteLine(valid ? "Contract is valid." : "Contract is invalid.");

@@ -4,8 +4,14 @@ namespace Packata.Application;
 [Flags]
 public enum InferenceOptions
 {
-    None = 0, MaximumRecords = 1, MaximumBytes = 2, Culture = 4, Header = 8,
-    DialectInference = 16, SheetName = 32, SheetNumber = 64
+    None = 0,
+    MaximumRecords = 1,
+    MaximumBytes = 2,
+    Culture = 4,
+    Header = 8,
+    DialectInference = 16,
+    SheetName = 32,
+    SheetNumber = 64
 }
 
 public sealed class UnsupportedInferenceOptionsException(string format, InferenceOptions options)

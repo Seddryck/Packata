@@ -50,7 +50,7 @@ internal sealed class RowProjection
         return kind;
     }
 
-    private static (int, int) DecimalParameters(DataField field)
+    private static (int Precision, int Scale) DecimalParameters(DataField field)
     {
         if (Parameter(field, PrecisionParameter) is int precision && Parameter(field, "scale") is int scale
             && precision is >= 1 and <= 38 && scale >= 0 && scale <= precision)
@@ -58,7 +58,7 @@ internal sealed class RowProjection
         throw Unsupported(field, "Decimal requires integer precision 1..38 and scale 0..precision.");
     }
 
-    private static (int, bool) IntegerParameters(DataField field, bool avro)
+    private static (int Width, bool Signed) IntegerParameters(DataField field, bool avro)
     {
         if ((Parameter(field, "integerWidth") ?? 64) is not int width || width is not (8 or 16 or 32 or 64)
             || (Parameter(field, "signed") ?? true) is not bool signed)
@@ -67,7 +67,7 @@ internal sealed class RowProjection
         return (width, signed);
     }
 
-    private static (string, bool) TimestampParameters(DataField field, bool avro)
+    private static (string Unit, bool Timezone) TimestampParameters(DataField field, bool avro)
     {
         if (Parameter(field, "defaultTimezone") is not null) throw Unsupported(field, "Implicit timezone interpretation is unsupported.");
         if ((Parameter(field, "timezone") ?? true) is not bool timezone) throw Unsupported(field, "timezone must be a Boolean.");
@@ -183,7 +183,11 @@ internal sealed class RowProjection
             unscaled = BigInteger.DivRem(unscaled, BigInteger.Pow(10, scale - column.Scale), out var remainder);
             if (remainder != 0) throw new InvalidDataException("Decimal would lose fractional digits.");
         }
-        else unscaled *= BigInteger.Pow(10, column.Scale - scale);
+        else
+        {
+            unscaled *= BigInteger.Pow(10, column.Scale - scale);
+        }
+
         if (unscaled >= BigInteger.Pow(10, column.Precision)) throw new OverflowException("Decimal exceeds precision.");
         if (bits[3] < 0) unscaled = -unscaled;
         return unscaled.ToByteArray(isUnsigned: false, isBigEndian: true);
@@ -195,7 +199,8 @@ internal sealed class RowProjection
 internal sealed class BoundedBuffer : MemoryStream
 {
     private readonly int limit;
-    public BoundedBuffer(int limit) : base(new byte[limit], 0, limit, true, true) { this.limit = limit; }
+    public BoundedBuffer(int limit)
+        : base(new byte[limit], 0, limit, true, true) { this.limit = limit; }
     public override void Write(byte[] buffer, int offset, int count) { Check(count); base.Write(buffer, offset, count); }
     public override void Write(ReadOnlySpan<byte> buffer) { Check(buffer.Length); base.Write(buffer); }
     public override void WriteByte(byte value) { Check(1); base.WriteByte(value); }

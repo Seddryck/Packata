@@ -74,8 +74,11 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
     public static IReadOnlyList<MappingDiagnostic> Validate(object native)
     {
         if (native is Packata.DataPackage.DataPackage package)
+        {
             return DataPackageValidator.Validate(package).Issues.Select(issue =>
                 new MappingDiagnostic("DPV001", MappingSeverity.Error, issue.Path, issue.Message)).ToArray();
+        }
+
         var odcs = (Packata.OpenDataContract.DataContract)native;
         var diagnostics = new List<MappingDiagnostic>();
         foreach (var (path, value) in new[] { ("id", odcs.Id), ("version", odcs.Version), ("status", odcs.Status) })

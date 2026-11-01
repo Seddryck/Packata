@@ -180,10 +180,16 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         Native.DataPackage package, string sourcePath, ICollection<MappingDiagnostic> diagnostics)
     {
         var target = foreignKey.Reference?.Resource;
-        if (string.IsNullOrWhiteSpace(target)) target = assetId;
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            target = assetId;
+        }
         else if (!package.Resources.Any(resource => resource.Name == target))
+        {
             diagnostics.Add(new("DP005", MappingSeverity.Warning, $"{sourcePath}.schema.foreignKeys",
                 $"Foreign key target resource '{target}' is not present in the package."));
+        }
+
         return new(foreignKey.Fields, target, foreignKey.Reference?.Fields ?? []);
     }
 
@@ -278,8 +284,11 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
     {
         if (categories is null) return null;
         if (categories.Reference is { } reference)
+        {
             return MetadataSnapshot.CopyDictionary(new Dictionary<string, object?>
             { ["resource"] = reference.Resource, ["package"] = reference.Package, ["encodedAs"] = reference.EncodedAs });
+        }
+
         return Array.AsReadOnly(categories.Select(category => category is Native.Category
             ? (object?)MetadataSnapshot.CopyDictionary(new Dictionary<string, object?> { ["value"] = category.Value, ["label"] = category.Label })
             : MetadataSnapshot.CopyValue(category.Value)).ToArray());

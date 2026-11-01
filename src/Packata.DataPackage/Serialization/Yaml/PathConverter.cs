@@ -23,7 +23,7 @@ internal class PathConverter : IYamlTypeConverter
     {
         var paths = new List<IPath>();
         if (parser.TryConsume<SequenceStart>(out var _))
-        { 
+        {
             while (parser.TryConsume<Scalar>(out var scalar))
                 paths.Add(_factory.Create(scalar.Value));
 
@@ -34,7 +34,10 @@ internal class PathConverter : IYamlTypeConverter
             paths.Add(_factory.Create(scalar.Value));
         }
         else
+        {
             throw new SerializationException("Unexpected YAML format.");
+        }
+
         return paths;
     }
 

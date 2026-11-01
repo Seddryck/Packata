@@ -116,7 +116,9 @@ public sealed class DataPreviewServiceTests
         reader.Setup(value => value.GetValue(1)).Returns(2);
         var service = new DataPreviewService(Factory(reader.Object));
         if (requireUnique)
+        {
             await Assert.ThrowsAsync<DataPreviewSelectionException>(() => service.ReadAsync(Request(), new(1)));
+        }
         else
         {
             var sample = await service.ReadAsync(Request(), new(1, RequireUniqueColumnNames: false));

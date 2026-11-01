@@ -7,12 +7,21 @@ namespace Packata.ResourceReaders;
 public sealed record CsvDataContractInferenceOptions
 {
     /// <summary>Sampling, culture, header, dialect, and resource options delegated to PocketCsvReader.</summary>
+    /// <value>
+    /// Sampling, culture, header, dialect, and resource options delegated to PocketCsvReader.
+    /// </value>
     public CsvInferenceOptions InferenceOptions { get; init; } = new() { InferDialect = true };
 
     /// <summary>Overrides the generated contract identity.</summary>
+    /// <value>
+    /// Overrides the generated contract identity.
+    /// </value>
     public ContractIdentity? ContractIdentity { get; init; }
 
     /// <summary>Overrides the generated contract metadata.</summary>
+    /// <value>
+    /// Overrides the generated contract metadata.
+    /// </value>
     public ContractMetadata? ContractMetadata { get; init; }
 
     public string? AssetId { get; init; }

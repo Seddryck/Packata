@@ -19,8 +19,11 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
         var template = await ReadTemplateAsync(source, templatePath, token);
         var result = await new SchemaGenerationService().GenerateAsync(source.ParsedDocument, options, template, token).ConfigureAwait(false);
         foreach (var diagnostic in result.Diagnostics)
+        {
             CommandOutput.Diagnostic(new(diagnostic.Code, Enum.Parse<MappingSeverity>(diagnostic.Severity),
                 diagnostic.Template ?? diagnostic.SourcePath, diagnostic.Message));
+        }
+
         if (!result.IsSuccessful) return result.Diagnostics.Any(d => d.Code == "GEN_OPTIONS") ? ExitCodes.Invocation : ExitCodes.InvalidDocument;
         token.ThrowIfCancellationRequested();
         Publish(result, output, token);
@@ -41,7 +44,13 @@ internal sealed class ExportCommand : AsyncCommand<ExportSettings>
             if (output is null) Console.OpenStandardOutput().Write(result.BinaryContent!);
             else ContractDocumentWriter.WriteBytes(output, result.BinaryContent!, token);
         }
-        else if (output is null) Console.Write(result.Content);
-        else ContractDocumentWriter.Write(output, result.Content!, overwrite: false);
+        else if (output is null)
+        {
+            Console.Write(result.Content);
+        }
+        else
+        {
+            ContractDocumentWriter.Write(output, result.Content!, overwrite: false);
+        }
     }
 }

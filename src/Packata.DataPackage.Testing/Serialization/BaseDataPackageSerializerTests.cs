@@ -194,7 +194,7 @@ public abstract class BaseDataPackageSerializerTests
         var dataPackage = GetSerializer().Deserialize(streamReader, new LocalDirectoryDocumentContainer(), new StorageProvider());
         Assert.That(dataPackage, Is.Not.Null);
         Assert.That(dataPackage.Resources[0], Is.Not.Null);
-        Assert.That(dataPackage.Resources[0].Paths, Is.Not.Null.Or.Empty);
+        Assert.That(dataPackage.Resources[0].Paths, Is.Not.Null.And.Not.Empty);
         Assert.That(dataPackage.Resources[0].Paths.Select(p => p.ToString()), Does.Contain("data_1.csv"));
         Assert.That(dataPackage.Resources[0].Paths.Select(p => p.ToString()), Does.Contain("data_2.csv"));
     }

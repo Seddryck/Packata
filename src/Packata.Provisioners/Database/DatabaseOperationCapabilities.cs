@@ -3,7 +3,9 @@ using DubUrl.Querying.Dialects;
 
 namespace Packata.Provisioners.Database;
 
-public enum DatabaseOperation { Reading, SchemaDeployment, BulkLoading }
+public enum DatabaseOperation { Reading,
+    SchemaDeployment,
+    BulkLoading }
 
 public sealed record DatabaseOperationSupport(bool Reading, bool SchemaDeployment, bool BulkLoading)
 {

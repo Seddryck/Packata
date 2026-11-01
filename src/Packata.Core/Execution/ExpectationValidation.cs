@@ -61,13 +61,19 @@ internal static class ExpectationValidation
         {
             var comparison = _lower is null ? 1 : TypedComparison.Compare(value, _lower);
             if (comparison > 0) { _lower = value; _lowerInclusive = inclusive; }
-            else if (comparison == 0) _lowerInclusive &= inclusive;
+            else if (comparison == 0)
+            {
+                _lowerInclusive &= inclusive;
+            }
         }
         private void Upper(QualityValue value, bool inclusive)
         {
             var comparison = _upper is null ? -1 : TypedComparison.Compare(value, _upper);
             if (comparison < 0) { _upper = value; _upperInclusive = inclusive; }
-            else if (comparison == 0) _upperInclusive &= inclusive;
+            else if (comparison == 0)
+            {
+                _upperInclusive &= inclusive;
+            }
         }
 
         internal string? ValidateConsistency(IReadOnlyList<QualityExpectation> expectations)

@@ -21,8 +21,10 @@ internal static class CliOutput
         writer ??= Console.Out;
         if (format == "json") { Json(values, writer); return; }
         foreach (var value in values)
+        {
             writer.WriteLine($"{value.Key} = {value.Value} ({value.Origin})" +
                 (value.Origin.StartsWith("environment:", StringComparison.Ordinal) && value.UserValue is not null
                     ? $" [user override masked: {value.UserValue}]" : ""));
+        }
     }
 }

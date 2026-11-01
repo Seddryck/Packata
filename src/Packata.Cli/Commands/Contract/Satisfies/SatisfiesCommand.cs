@@ -66,8 +66,11 @@ internal sealed class SatisfiesCommand : AsyncCommand<SatisfiesSettings>
                 else SatisfiesPresenter.Text(payload, output.Writer);
                 output.Commit();
                 if (settings.EffectiveFormat == "text")
+                {
                     foreach (var diagnostic in diagnostics)
                         CommandOutput.Diagnostic(new(diagnostic.Code, diagnostic.Severity, diagnostic.Path, diagnostic.Message));
+                }
+
                 return code;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)

@@ -71,8 +71,11 @@ internal sealed class CategoryTableLoader(IEndpointStreamResolver streams, DataF
         if (_checked.Contains(asset.Id)) return;
         if (!visiting.Add(asset.Id)) throw Error(asset.Name, "cyclic category-table references are unsupported");
         foreach (var field in asset.Schema!.Fields)
+        {
             if (field.ValueDomain?.Reference is { } reference)
                 CheckCycles(contract, Resolve(contract, reference), visiting, token);
+        }
+
         visiting.Remove(asset.Id);
         _checked.Add(asset.Id);
     }

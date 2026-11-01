@@ -21,6 +21,9 @@ public sealed record AssetHttpOptions
     public TimeSpan TransferRetention { get; init; } = TimeSpan.FromMinutes(10);
     public TimeSpan ShutdownTimeout { get; init; } = TimeSpan.FromSeconds(5);
     /// <summary>Return a safe public capability diagnostic without opening data.</summary>
+    /// <value>
+    /// Return a safe public capability diagnostic without opening data.
+    /// </value>
     public Func<DataEndpointReadRequest, string?>? SourceLimitation { get; init; }
     public Action<string>? Log { get; init; }
 }

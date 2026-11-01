@@ -19,9 +19,13 @@ public sealed class ArchiveCommandTests
     public static IEnumerable<object[]> Commands()
     {
         foreach (var suffix in Suffixes)
-        foreach (var remote in new[] { false, true })
-        foreach (var command in new[] { "validate", "inspect", "diff", "compare", "schema-export", "dialect-export" })
+        {
+            foreach (var remote in new[] { false, true })
+            {
+                foreach (var command in new[] { "validate", "inspect", "diff", "compare", "schema-export", "dialect-export" })
             yield return [suffix, remote, command];
+            }
+        }
     }
 
     [TestCaseSource(nameof(Commands))]
@@ -170,19 +174,25 @@ public sealed class ArchiveCommandTests
         if (suffix == "zip")
         {
             using (var writer = new ZipArchive(archive, ZipArchiveMode.Create, leaveOpen: true))
+            {
                 foreach (var (name, content) in entries)
                 {
                     using var text = new StreamWriter(writer.CreateEntry(name).Open());
                     text.Write(content);
                 }
+            }
+
             return archive.ToArray();
         }
         using (var writer = new TarWriter(archive, leaveOpen: true))
+        {
             foreach (var (name, content) in entries)
             {
                 using var data = new MemoryStream(Encoding.UTF8.GetBytes(content));
                 writer.WriteEntry(new UstarTarEntry(TarEntryType.RegularFile, name) { DataStream = data });
             }
+        }
+
         if (suffix == "tar") return archive.ToArray();
         using var output = new MemoryStream();
         using (Stream encoder = suffix == "tar.gz"

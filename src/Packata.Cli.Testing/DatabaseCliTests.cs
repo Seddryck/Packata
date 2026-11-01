@@ -197,7 +197,8 @@ public sealed class DatabaseCliTests
         Assert.That(previewJson.RootElement.GetProperty("rows")[0][0].GetInt64(), Is.EqualTo(42));
     }
 
-    [Test, Explicit("Downloads the pinned SQLite connector from the public DubUrl GitHub Release into an isolated store.")]
+    [Test]
+    [Explicit("Downloads the pinned SQLite connector from the public DubUrl GitHub Release into an isolated store.")]
     public void Published_catalog_acquires_sqlite_on_first_inference_and_reuses_it_for_offline_preview()
     {
         Configuration.Set("connectors.store", Path.Combine(_root, "published-store"));

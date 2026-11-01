@@ -13,16 +13,16 @@ public class ContributorValidatorTests
     public void IsValid_AllPropertiesNull_ReturnsFalse()
     {
         var validator = new ContributorValidator();
-        var Contributor = new Contributor() {};
-        Assert.That(validator.IsValid(Contributor), Is.False);
+        var contributor = new Contributor() {};
+        Assert.That(validator.IsValid(contributor), Is.False);
     }
 
     [Test]
     public void IsValid_AtLeastAPropertySet_ReturnsTrue()
     {
         var validator = new ContributorValidator();
-        var Contributor = new Contributor() { GivenName = "Hero" };
-        Assert.That(validator.IsValid(Contributor), Is.True);
+        var contributor = new Contributor() { GivenName = "Hero" };
+        Assert.That(validator.IsValid(contributor), Is.True);
     }
 
     [Test]
@@ -39,8 +39,8 @@ public class ContributorValidatorTests
     public void IsValid_WithEmail_ReturnsFalse(string email)
     {
         var validator = new ContributorValidator();
-        var Contributor = new Contributor() { Email = email };
-        Assert.That(validator.IsValid(Contributor), Is.False);
+        var contributor = new Contributor() { Email = email };
+        Assert.That(validator.IsValid(contributor), Is.False);
     }
 
     [Test]
@@ -48,8 +48,8 @@ public class ContributorValidatorTests
     public void IsValid_WithName_ReturnsTrue(string email)
     {
         var validator = new ContributorValidator();
-        var Contributor = new Contributor() { Email = email };
-        Assert.That(validator.IsValid(Contributor), Is.True);
+        var contributor = new Contributor() { Email = email };
+        Assert.That(validator.IsValid(contributor), Is.True);
     }
 
     [Test]
@@ -63,8 +63,8 @@ public class ContributorValidatorTests
     public void IsValid_WithPath_ReturnsFalse(string path)
     {
         var validator = new ContributorValidator();
-        var Contributor = new Contributor() { Path = path };
-        Assert.That(validator.IsValid(Contributor), Is.False);
+        var contributor = new Contributor() { Path = path };
+        Assert.That(validator.IsValid(contributor), Is.False);
     }
 
     [Test]
@@ -77,7 +77,7 @@ public class ContributorValidatorTests
     public void IsValid_WithPath_ReturnsTrue(string path)
     {
         var validator = new ContributorValidator();
-        var Contributor = new Contributor() { Path = path };
-        Assert.That(validator.IsValid(Contributor), Is.True);
+        var contributor = new Contributor() { Path = path };
+        Assert.That(validator.IsValid(contributor), Is.True);
     }
 }

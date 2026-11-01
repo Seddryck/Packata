@@ -142,11 +142,17 @@ internal static class CompatibilityRules
         private void Field(DataField previous, DataField current)
         {
             if (previous.Required != current.Required)
+            {
                 Add("requiredness", current.Required ? CompatibilityClassification.NonBreaking : CompatibilityClassification.Breaking,
                     current.Required ? "The candidate guarantees field presence." : "The candidate no longer guarantees field presence.", Required);
+            }
+
             if (previous.Nullable != current.Nullable)
+            {
                 Add("nullability", current.Nullable ? CompatibilityClassification.Breaking : CompatibilityClassification.NonBreaking,
                     current.Nullable ? "Candidate data may contain nulls that baseline consumers did not accept." : "The candidate strengthens the non-null guarantee.", "nullable");
+            }
+
             if (previous.Format != current.Format || previous.PhysicalType != current.PhysicalType || previous.PhysicalName != current.PhysicalName)
                 Add("physical-representation", CompatibilityClassification.PotentiallyBreaking, "Format, physical type, or physical name changed; representation-dependent consumers may be affected.");
             if (!Equal(previous.Extensions, current.Extensions))
@@ -259,7 +265,7 @@ internal static class CompatibilityRules
         }
 
         private static bool EnumValueEqual(object? previous, object? current) => Equal(previous, current)
-            || Number(previous, out var left) && Number(current, out var right) && left == right;
+            || (Number(previous, out var left) && Number(current, out var right) && left == right);
 
         private static CompatibilityClassification NumericConstraint(string kind, object? previous, object? current)
         {
@@ -293,7 +299,10 @@ internal static class CompatibilityRules
                     lastWasItems = false;
                 }
                 else if (segments[index] == "items") { index++; lastWasItems = true; }
-                else return false;
+                else
+                {
+                    return false;
+                }
             }
             return lastWasItems;
         }
@@ -306,9 +315,15 @@ internal static class CompatibilityRules
             foreach (var character in path.Value)
             {
                 if (escaped) { segment.Append(character); escaped = false; }
-                else if (character == '\\') escaped = true;
+                else if (character == '\\')
+                {
+                    escaped = true;
+                }
                 else if (character == '.') { segments.Add(segment.ToString()); segment.Clear(); }
-                else segment.Append(character);
+                else
+                {
+                    segment.Append(character);
+                }
             }
             segments.Add(segment.ToString());
             return segments;
@@ -323,7 +338,7 @@ internal static class CompatibilityRules
             {
                 if (!constraints.TryGetValue(kind, out var value)) continue;
                 if (!Number(value, out var number)) return false;
-                if (bound is null || IsTighterBound(number, bound.Value, lower) || number == bound && kind == exclusive)
+                if (bound is null || IsTighterBound(number, bound.Value, lower) || (number == bound && kind == exclusive))
                 {
                     bound = number;
                     isExclusive = kind == exclusive;
@@ -344,5 +359,4 @@ internal static class CompatibilityRules
         return value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal
             && decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out result);
     }
-
 }

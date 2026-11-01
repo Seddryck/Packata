@@ -113,8 +113,12 @@ public sealed class ContractService(DocumentStore documents)
     public async Task<PreviewResult> PreviewAsync(Uri uri, string sourcePath, CancellationToken token,
         int limit = ResourcePreview.DefaultLimit, int? bindingIndex = null, string? selectionKey = null)
     {
-        if (limit <= 0) return new(1, uri.AbsoluteUri, null, limit, [], [],
+        if (limit <= 0)
+        {
+            return new(1, uri.AbsoluteUri, null, limit, [], [],
             new("PREVIEW_LIMIT", "Error", "$", "The row limit must be a positive integer.", null));
+        }
+
         return await ResourcePreview.ReadAsync(await documents.ReadAsync(uri, token), sourcePath, limit, bindingIndex, token, selectionKey: selectionKey);
     }
 
@@ -169,7 +173,10 @@ public sealed class ContractService(DocumentStore documents)
                 if (Path.GetFileName(entry) is ".git" or ".worktrees" or "node_modules" or "bin" or "obj" or ".vs") continue;
                 foreach (var child in Files(entry, token)) yield return child;
             }
-            else if (Candidate(entry) && new FileInfo(entry).Length <= MaximumDocumentBytes) yield return entry;
+            else if (Candidate(entry) && new FileInfo(entry).Length <= MaximumDocumentBytes)
+            {
+                yield return entry;
+            }
         }
     }
 

@@ -25,8 +25,14 @@ public static class SqlPlaceholderBinder
             {
                 var end = ProtectedEnd(query, _index, dialect);
                 if (end is { } boundary) { Copy(boundary); continue; }
-                if (At(query, _index, "{object}")) Substitute(objects, "{object}".Length);
-                else if (At(query, _index, "{property}")) Substitute(properties, "{property}".Length);
+                if (At(query, _index, "{object}"))
+                {
+                    Substitute(objects, "{object}".Length);
+                }
+                else if (At(query, _index, "{property}"))
+                {
+                    Substitute(properties, "{property}".Length);
+                }
                 else { _result.Append(query[_index]); _index++; }
             }
             return _result.ToString();
@@ -88,7 +94,10 @@ public static class SqlPlaceholderBinder
                     index += 2;
                     if (depth == 0) return index;
                 }
-                else index++;
+                else
+                {
+                    index++;
+                }
             }
             throw new ArgumentException("Unterminated SQL comment.");
         }

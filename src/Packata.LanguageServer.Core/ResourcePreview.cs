@@ -28,8 +28,11 @@ public static class ResourcePreview
             var asset = contract.Assets[assetIndex];
             var source = $"/{(document.Format == "odcs" ? "schema" : "resources")}/{assetIndex}";
             if (asset.EndpointBindings.Count == 0)
+            {
                 yield return new(new(source, null, ContractJson.Redact(asset.Name), false,
                     "No unambiguous endpoint binding. Select or configure a single server in the descriptor."), null);
+            }
+
             for (var bindingIndex = 0; bindingIndex < asset.EndpointBindings.Count; bindingIndex++)
             {
                 DataEndpointReadRequest? request;
@@ -37,8 +40,10 @@ public static class ResourcePreview
                 {
                     request = DataPreviewService.SelectRequest(contract, asset, bindingIndex);
                     if (request.Endpoint.Location is PathLocation paths)
+                    {
                         request = request with { Endpoint = request.Endpoint with
                         { Location = new PathLocation(paths.Paths.Select(path => Resolve(baseUri, path).AbsoluteUri).ToArray()) } };
+                    }
                 }
                 catch (Exception error) when (error is DataPreviewSelectionException or UriFormatException) { request = null; }
                 var endpoint = request?.Endpoint;

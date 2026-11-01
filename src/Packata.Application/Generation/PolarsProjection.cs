@@ -65,10 +65,18 @@ internal static class PolarsProjection
             return null;
         }
         if (field.Parameters.TemporalSemantics == TemporalSemantics.Instant) zone ??= "UTC";
-        if (unit == "Nanoseconds") diagnostics.Add(new("GEN_POLARS_RANGE", "Warning", field.FieldPath,
+        if (unit == "Nanoseconds")
+        {
+            diagnostics.Add(new("GEN_POLARS_RANGE", "Warning", field.FieldPath,
             "Nanosecond datetime storage has a narrower calendar range than CLR datetime; generated schema does not validate source bounds."));
-        if (zone is not null) diagnostics.Add(new("GEN_POLARS_ZONE", "Warning", field.FieldPath,
+        }
+
+        if (zone is not null)
+        {
+            diagnostics.Add(new("GEN_POLARS_ZONE", "Warning", field.FieldPath,
             "Polars stores one timezone per column. Original per-value offsets are not retained."));
+        }
+
         return $"DataType.Datetime(TimeUnit.{unit}, {(zone is null ? "null" : GenerationData.Literal(zone))})";
     }
 }

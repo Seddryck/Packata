@@ -85,7 +85,9 @@ public static class DatabaseEndpointResolver
     private static void ValidateEncoding(string value)
     {
         for (var i = 0; i < value.Length; i++)
+        {
             if (value[i] == '%' && (i + 2 >= value.Length || !Uri.IsHexDigit(value[i + 1]) || !Uri.IsHexDigit(value[i + 2])))
                 throw new ArgumentException("The connection URL contains invalid percent encoding.");
+        }
     }
 }

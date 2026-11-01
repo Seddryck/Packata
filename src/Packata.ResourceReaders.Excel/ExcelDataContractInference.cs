@@ -4,7 +4,9 @@ using Packata.Core.Contracts;
 
 namespace Packata.ResourceReaders.Excel;
 
-public enum ExcelHeaderMode { Auto, Present, Absent }
+public enum ExcelHeaderMode { Auto,
+    Present,
+    Absent }
 
 /// <summary>Bounds profiling of a single rectangular worksheet. Identity options match other file inferrers.</summary>
 public sealed record ExcelDataContractInferenceOptions : FileDataContractInferenceOptions
@@ -17,6 +19,9 @@ public sealed record ExcelDataContractInferenceOptions : FileDataContractInferen
     public int MaximumColumns { get; init; } = 1024;
     public int MaximumLeadingRows { get; init; } = 1000;
     /// <summary>Existing worksheet hints; unsupported ranges/tables/multi-row headers are rejected.</summary>
+    /// <value>
+    /// Existing worksheet hints; unsupported ranges/tables/multi-row headers are rejected.
+    /// </value>
     public DataFormat? SourceFormat { get; init; }
 }
 
@@ -76,8 +81,11 @@ public sealed class ExcelDataContractInference
         SkipLeadingRows(reader, skip, cancellationToken);
         var rows = Sample(reader, ref skip, cancellationToken);
         if (reader.MergeCells.Length > 0)
+        {
             diagnostics.Add(new("EXCEL003", InferenceSeverity.Warning, path,
                 "Merged cells are read at their stored positions without forward filling; the sheet may not be rectangular."));
+        }
+
         var header = ResolveHeader(rows, path, diagnostics);
         var truncated = rows.Count > _options.MaximumRecords + (header ? 1 : 0);
         var data = rows.Skip(header ? 1 : 0).Take(_options.MaximumRecords).ToArray();
@@ -85,14 +93,20 @@ public sealed class ExcelDataContractInference
         var names = SpreadsheetLayout.Names(Enumerable.Range(0, width)
             .Select(index => header ? rows[0][index] : null).ToArray());
         if (header && names.Where((name, index) => name != Convert.ToString(rows[0][index], System.Globalization.CultureInfo.InvariantCulture)).Any())
+        {
             diagnostics.Add(new("EXCEL004", InferenceSeverity.Warning, path,
                 "Blank or duplicate headers were assigned deterministic column names. Reading with the inferred schema uses these names."));
+        }
+
         var fields = Enumerable.Range(0, width).Select(index => Column(names[index], index, data, path, diagnostics)).ToArray();
         diagnostics.Add(new("EXCEL005", truncated ? InferenceSeverity.Warning : InferenceSeverity.Information, path,
             $"Profiled {data.Length} data rows; sample {(truncated ? "truncated at MaximumRecords" : "reached worksheet end")}. Leading rows skipped: {skip}."));
         if (width == 0 || data.Length == 0)
+        {
             diagnostics.Add(new("EXCEL006", InferenceSeverity.Warning, path,
                 "Empty or header-only worksheet supplies no evidence for column types."));
+        }
+
         var format = new DataFormat(IsXls(sourcePath) ? "xls" : "xlsx", Options: new Dictionary<string, object?>
         {
             ["sheetName"] = reader.Name, ["header"] = header,
@@ -161,12 +175,18 @@ public sealed class ExcelDataContractInference
         var types = values.Select(value => value!.GetType()).Distinct().ToArray();
         var (logical, format) = ColumnType(types);
         if (logical is null || types.Length > 1)
+        {
             diagnostics.Add(new("EXCEL008", InferenceSeverity.Warning, $"{path}/{name}",
                 types.Length == 0 ? "No nonblank cells observed; column type is unknown."
                     : "Mixed or unsupported cell types require a conservative mapping; inspect source values before relying on the inferred type."));
+        }
+
         if (types.Any(IsNumeric))
+        {
             diagnostics.Add(new("EXCEL009", InferenceSeverity.Information, $"{path}/{name}",
                 "Numeric values retain underlying numeric semantics; display formats, leading-zero masks and decimal precision are not inferred."));
+        }
+
         return new(name, logical, Format: format, Required: false, Nullable: true,
             Extensions: ExtensionMetadata.For("packata.inference", new Dictionary<string, object?>
             { ["observedBlank"] = values.Length < rows.Length, ["sampleRows"] = rows.Length }));

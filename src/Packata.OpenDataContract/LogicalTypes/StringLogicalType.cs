@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,21 +30,35 @@ public class StringLogicalType : ILogicalType
     /// Provides extra context about what format the string follows.
     /// For example: password, byte, binary, email, uuid, uri, hostname, ipv4, ipv6.
     /// </summary>
+    /// <value>
+    /// Provides extra context about what format the string follows.
+    /// For example: password, byte, binary, email, uuid, uri, hostname, ipv4, ipv6.
+    /// </value>
     public string? Format { get; set; }
 
     /// <summary>
     /// Maximum length of the string.
     /// </summary>
+    /// <value>
+    /// Maximum length of the string.
+    /// </value>
     public int? MaxLength { get; set; }
 
     /// <summary>
     /// Minimum length of the string.
     /// </summary>
+    /// <value>
+    /// Minimum length of the string.
+    /// </value>
     public int? MinLength { get; set; }
 
     /// <summary>
     /// Regular expression pattern to define valid values.
     /// Follows the regular expression syntax from ECMA-262 (https://262.ecma-international.org/5.1/#sec-15.10.1).
     /// </summary>
+    /// <value>
+    /// Regular expression pattern to define valid values.
+    /// Follows the regular expression syntax from ECMA-262 (https://262.ecma-international.org/5.1/#sec-15.10.1).
+    /// </value>
     public string? Pattern { get; set; }
 }

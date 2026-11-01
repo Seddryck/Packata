@@ -18,6 +18,9 @@ public partial class Resource
 
     /// <summary>
     /// The root path of the data package.
-    /// </summary> 
+    /// </summary>
+    /// <value>
+    /// The root path of the data package.
+    /// </value>
     public string RootPath { get; }
 }

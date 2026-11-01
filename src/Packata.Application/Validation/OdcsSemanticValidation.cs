@@ -213,9 +213,13 @@ internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFin
     {
         if (type == MapToken && property[MapToken] is not JsonObject) Error("SEM_MAP", At(path, MapToken), "A map requires key and value declarations.");
         if (property[MapToken] is JsonObject map)
+        {
             foreach (var key in new[] { "key", ValueToken })
+            {
                 if (map[key] is JsonObject member) Property(member, At(path, MapToken, key));
                 else Error("SEM_MAP", At(path, MapToken, key), "A map member declaration is required.");
+            }
+        }
     }
 
     private void Positions(List<(JsonObject Node, string Path)> properties, string flag, string position)
@@ -244,8 +248,11 @@ internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFin
         foreach (var (minimum, maximum) in new[] { ("minLength", "maxLength"), ("minItems", "maxItems"), ("minProperties", "maxProperties") })
         {
             foreach (var key in new[] { minimum, maximum })
+            {
                 if (options.ContainsKey(key) && (Number(options[key]) is not { } n || n < 0 || decimal.Truncate(n) != n))
                     Error(SemBoundsToken, At(path, key), "A non-negative integer bound is required.");
+            }
+
             if (Number(options[minimum]) is { } min && Number(options[maximum]) is { } max && min > max)
                 Error(SemBoundsToken, path, "Minimum bound must not exceed maximum bound.");
         }
@@ -268,10 +275,12 @@ internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFin
         foreach (var key in lows.Concat(highs).Where(key => !ValidBound(options[key], type)))
             Error(SemBoundsToken, At(path, key), "Bound must match the numeric or temporal logical type without coercion.");
         foreach (var low in lows)
+        {
             foreach (var high in highs)
             {
                 Interval(options, low, high, type, path);
             }
+        }
     }
 
     private void Interval(JsonObject options, string low, string high, string? type, string path)
@@ -434,8 +443,11 @@ internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFin
     private void QualityExpectations(JsonObject rule, string rulePath, string type)
     {
         foreach (var key in new[] { "mustBeBetween", "mustNotBeBetween" })
+        {
             if (rule.ContainsKey(key) && (rule[key] is not JsonArray { Count: 2 } range || Compare(range[0], range[1], null) is not < 0))
                 Error(SemQualityToken, At(rulePath, key), "Range expectations require two ascending numeric bounds.");
+        }
+
         OrderingExpectations(rule, rulePath);
         if (type is LibraryToken or "sql" && !rule.Any(p => p.Key.StartsWith("must", StringComparison.Ordinal))) Error(SemQualityToken, rulePath, "A measured quality declaration requires an expectation.");
     }
@@ -464,9 +476,14 @@ internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFin
 
     private void NestedMetadata(JsonNode? node, string path)
     {
-        if (node is JsonObject child) Metadata(child, path);
+        if (node is JsonObject child)
+        {
+            Metadata(child, path);
+        }
         else if (node is JsonArray array)
+        {
             for (var index = 0; index < array.Count; index++)
                 if (array[index] is JsonObject item) Metadata(item, At(path, index));
+        }
     }
 }

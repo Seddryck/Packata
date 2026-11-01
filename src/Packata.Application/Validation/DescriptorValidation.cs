@@ -10,20 +10,31 @@ using YamlDotNet.RepresentationModel;
 namespace Packata.Application.Validation;
 
 [Flags]
-public enum ValidationLayers { None = 0, Schema = 1, Semantic = 2 }
-public enum ValidationState { Passed, Failed, Skipped }
-public enum ValidationPrerequisiteStatus { Satisfied, Failed }
+public enum ValidationLayers { None = 0,
+    Schema = 1,
+    Semantic = 2 }
+public enum ValidationState { Passed,
+    Failed,
+    Skipped }
+public enum ValidationPrerequisiteStatus { Satisfied,
+    Failed }
 public sealed record ValidationFinding(ValidationLayers Layer, string Code, MappingSeverity Severity, string SourcePath, string Message);
 public sealed record LayerValidation(ValidationLayers Layer, ValidationState State, string? Reason = null)
 {
     public bool Executed => State != ValidationState.Skipped;
     /// <summary>Partial execution may still fail a declaration prerequisite; hosts must not infer this from diagnostic codes.</summary>
+    /// <value>
+    /// Partial execution may still fail a declaration prerequisite; hosts must not infer this from diagnostic codes.
+    /// </value>
     public ValidationPrerequisiteStatus Prerequisites { get; init; } = State == ValidationState.Skipped
         ? ValidationPrerequisiteStatus.Failed : ValidationPrerequisiteStatus.Satisfied;
 }
 public sealed record DescriptorValidationReport(IReadOnlyList<LayerValidation> Layers, IReadOnlyList<ValidationFinding> Diagnostics, DescriptorProfile? Profile = null)
 {
     /// <summary>Source syntax retained for host-specific diagnostic locations.</summary>
+    /// <value>
+    /// Source syntax retained for host-specific diagnostic locations.
+    /// </value>
     public ContractSyntax? Syntax { get; init; }
     public string? Format { get; init; }
     public IReadOnlyList<SyntaxDiagnostic> SyntaxDiagnostics { get; init; } = [];
@@ -144,13 +155,18 @@ public static class DescriptorValidation
         {
             var document = ContractDocument.Parse(syntax, format, baseUri);
             foreach (var finding in ContractDocument.Validate(document.NativeDocument))
+            {
                 findings.Add(new(ValidationLayers.Semantic, finding.Code, finding.Severity, finding.SourcePath,
                     ContractJson.Redact(finding.Message)));
+            }
+
             if (!odcs) return;
             foreach (var finding in document.Map().Diagnostics.Where(f => f.Code is "ODCS004" or "ODCS005" or "ODCS_QUALITY"))
+            {
                 findings.Add(new(ValidationLayers.Semantic, finding.Code,
                     finding.Code == "ODCS005" ? MappingSeverity.Error : finding.Severity,
                     finding.SourcePath, NormalizationMessage(finding.Code)));
+            }
         }
         catch (Exception exception) when (exception is YamlException or FormatException or InvalidOperationException or ArgumentException or OverflowException or NullReferenceException or NotSupportedException or InvalidCastException)
         {

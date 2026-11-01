@@ -3,7 +3,11 @@ using System.Text.Json;
 
 namespace Packata.Core.Contracts;
 
-public enum ScalarKind { Null, String, Integer, Number, Boolean }
+public enum ScalarKind { Null,
+    String,
+    Integer,
+    Number,
+    Boolean }
 
 /// <summary>A lossless scalar in Packata's supported CLR range. Integer and number remain distinct.</summary>
 public readonly record struct ScalarValue

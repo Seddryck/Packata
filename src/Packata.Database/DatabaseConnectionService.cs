@@ -57,6 +57,9 @@ public sealed class DatabaseConnectionServiceOptions
     public IConnectorService? ConnectorService { get; set; }
     public bool DownloadsEnabled { get; set; } = true;
     /// <summary>Map a scheme to a curated canonical connector ID when several technologies match.</summary>
+    /// <value>
+    /// Map a scheme to a curated canonical connector ID when several technologies match.
+    /// </value>
     public IDictionary<string, string> ConnectorPreferences { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     public Func<DataEndpoint, DatabaseRuntimeOptions?>? RuntimeConfiguration { get; set; }
 }
@@ -251,7 +254,9 @@ public sealed class DubUrlConnectionService : IDatabaseConnectionService, IConne
             var dialect = connectionUrl.Dialect;
             connection = connectionUrl.Connect();
             if (connection is DbConnection asyncConnection)
+            {
                 await asyncConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            }
             else { cancellationToken.ThrowIfCancellationRequested(); connection.Open(); }
             cancellationToken.ThrowIfCancellationRequested();
             return new(connection, value => DatabaseIdentifierRenderer.Render(dialect, value));
@@ -312,8 +317,11 @@ public sealed class DubUrlConnectionService : IDatabaseConnectionService, IConne
                     builder.AddModule(module); // Explicit/installed collisions fail with both registration names.
                 }
                 foreach (var pack in installed)
+                {
                     if (loadingDiagnostics.Any(d => d.Message.StartsWith($"Provider '{pack.Manifest.Provider}' ", StringComparison.Ordinal)))
                         unloadable.Add(pack.Manifest.Provider);
+                }
+
                 diagnostics.AddRange(loadingDiagnostics);
             }
             if (_discover) builder.AddApplicationProviders();
@@ -331,7 +339,8 @@ public sealed class DubUrlConnectionService : IDatabaseConnectionService, IConne
     {
         public IProviderCatalogBuilder AddProvider(ProviderRegistration registration)
         { registrations.Add(registration); inner.AddProvider(registration); return this; }
-        public IProviderCatalogBuilder AddOdbcLocatorOption<TOption>() where TOption : struct, Enum
+        public IProviderCatalogBuilder AddOdbcLocatorOption<TOption>()
+            where TOption : struct, Enum
         { inner.AddOdbcLocatorOption<TOption>(); return this; }
     }
 

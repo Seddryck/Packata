@@ -56,8 +56,11 @@ public class TarDataPackageContainerTests
                 FileSystemRights.ReadAndExecute, AccessControlType.Allow));
             directory.SetAccessControl(security);
         }
-        else File.SetUnixFileMode(_directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+        else
+        {
+            File.SetUnixFileMode(_directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
             | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        }
 
         var input = new NonSeekableStream(Bundle());
         await Assert.ThrowsAsync<UnauthorizedAccessException>(async () => await TarDataPackageContainer.CreateAsync(
@@ -89,8 +92,11 @@ public class TarDataPackageContainerTests
                     Assert.That(rule.IdentityReference, Is.EqualTo(identity.User));
             }
         }
-        else Assert.That(File.GetUnixFileMode(path), Is.EqualTo(
+        else
+        {
+            Assert.That(File.GetUnixFileMode(path), Is.EqualTo(
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute));
+        }
     }
 
     [TestCase(ArchiveCompression.None, "tar")]
@@ -348,11 +354,14 @@ public class TarDataPackageContainerTests
     {
         using var output = new MemoryStream();
         using (var writer = new TarWriter(output, leaveOpen: true))
+        {
             foreach (var (name, content) in entries)
             {
                 using var data = new MemoryStream(Encoding.UTF8.GetBytes(content));
                 writer.WriteEntry(new UstarTarEntry(TarEntryType.RegularFile, name) { DataStream = data });
             }
+        }
+
         return output.ToArray();
     }
 

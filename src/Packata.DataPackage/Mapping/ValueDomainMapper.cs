@@ -79,7 +79,7 @@ internal static class ValueDomainMapper
             return null;
         }
         var valueField = target.Schema!.Fields.First(item => item.Name == table.ValueField.Segments[0]);
-        if (FieldTypeNames.Get(valueField) != type || encoding == ValueEncoding.Label && table.LabelField is null)
+        if (FieldTypeNames.Get(valueField) != type || (encoding == ValueEncoding.Label && table.LabelField is null))
         {
             Warn(diagnostics, path + ".categories", "The referenced table's value type or label mapping is incompatible with this field.");
             return null;
@@ -113,7 +113,7 @@ internal static class ValueDomainMapper
         var result = new List<ScalarValue>();
         foreach (var value in values)
         {
-            if (!ScalarValue.TryCreate(value, out var scalar) || scalar.Kind == ScalarKind.Null && !allowNull || scalar.Kind != ScalarKind.Null && !scalar.IsCompatibleWith(type))
+            if (!ScalarValue.TryCreate(value, out var scalar) || (scalar.Kind == ScalarKind.Null && !allowNull) || (scalar.Kind != ScalarKind.Null && !scalar.IsCompatibleWith(type)))
                 throw new ArgumentException($"Value at index {result.Count} is non-scalar, outside the supported scalar range, or incompatible with the field type.");
             result.Add(scalar);
         }

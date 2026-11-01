@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,18 +11,27 @@ public class AzureServer : BaseServer, ILocationAware, IFormatAware, IEncodingAw
     /// <summary>
     /// Fully qualified path to Azure Blob Storage or Azure Data Lake Storage (ADLS), supports globs.
     /// </summary>
+    /// <value>
+    /// Fully qualified path to Azure Blob Storage or Azure Data Lake Storage (ADLS), supports globs.
+    /// </value>
     [Label("Location")]
     public required string Location { get; set; }
 
     /// <summary>
     /// File format.
     /// </summary>
+    /// <value>
+    /// File format.
+    /// </value>
     [Label("Format")]
     public required string Format { get; set; }
 
     /// <summary>
     /// Only for format = json. How multiple json documents are delimited within one file
     /// </summary>
+    /// <value>
+    /// Only for format = json. How multiple json documents are delimited within one file
+    /// </value>
     [Label("Delimiter")]
     public string? Delimiter { get; set; }
 

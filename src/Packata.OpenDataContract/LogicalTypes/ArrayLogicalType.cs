@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,15 +30,24 @@ public class ArrayLogicalType : ILogicalType
     /// <summary>
     /// If set to true, all items in the array are unique.
     /// </summary>
+    /// <value>
+    /// If set to true, all items in the array are unique.
+    /// </value>
     public bool UniqueItems { get; set; } = false;
 
     /// <summary>
     /// Maximum number of items.
     /// </summary>
+    /// <value>
+    /// Maximum number of items.
+    /// </value>
     public int? MaxItems { get; set; }
 
     /// <summary>
     /// Minimum number of items.
     /// </summary>
+    /// <value>
+    /// Minimum number of items.
+    /// </value>
     public int? MinItems { get; set; }
 }

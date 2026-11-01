@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,6 +11,9 @@ public interface ILocationAware
     /// <summary>
     /// The location of the server.
     /// </summary>
+    /// <value>
+    /// The location of the server.
+    /// </value>
     [Label("Location")]
     public string Location { get; set; }
 }

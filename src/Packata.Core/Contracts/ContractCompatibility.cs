@@ -1,8 +1,17 @@
 namespace Packata.Core.Contracts;
 
-public enum ContractStandard { Canonical, Odcs, DataPackage }
-public enum CompatibilityClassification { Breaking, PotentiallyBreaking, NonBreaking, Unknown }
-public enum CompatibilityOutcome { Compatible, Breaking, PotentiallyBreaking, Unknown, Failed }
+public enum ContractStandard { Canonical,
+    Odcs,
+    DataPackage }
+public enum CompatibilityClassification { Breaking,
+    PotentiallyBreaking,
+    NonBreaking,
+    Unknown }
+public enum CompatibilityOutcome { Compatible,
+    Breaking,
+    PotentiallyBreaking,
+    Unknown,
+    Failed }
 
 /// <summary>Input provenance and mapping diagnostics travel with the canonical model.
 /// Descriptor is the original parsed JSON/YAML tree (string keys, lists, and scalar values).
@@ -103,8 +112,10 @@ public static class ContractCompatibility
     private static void Extra(List<CompatibilityFinding> findings, string path, object? previous, object? current)
     {
         if (!ContractDiffValues.Equal(previous, current))
+        {
             findings.Add(new(ContractPath.Root(path), CompatibilityClassification.Unknown, "unclassified-model-facet",
                 "This canonical facet changed but is not covered by the factual differ or compatibility policy.", null));
+        }
     }
 
     // Native presence and nullability defaults are normalized by the adapters.

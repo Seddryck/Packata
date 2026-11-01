@@ -67,6 +67,8 @@ public sealed record ContractInferenceOptions
     }
 }
 
-public enum DescriptorDocumentKind { DataPackageJson, DataPackageYaml, OpenDataContractYaml }
+public enum DescriptorDocumentKind { DataPackageJson,
+    DataPackageYaml,
+    OpenDataContractYaml }
 public sealed record EditableContract(string OriginalText, DescriptorDocumentKind Kind);
 public sealed record QualityReportSource(string Source, string OriginalText, string RunnerVersion, string Process);

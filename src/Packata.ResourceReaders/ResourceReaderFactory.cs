@@ -69,8 +69,10 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         if (provider is null) throw UnsupportedEndpoint(endpoint, format);
 
         if (_categories.Enabled)
+        {
             request = await new CategoryTableLoader(_streams, _formats, _providers, _categories)
                 .ExpandAsync(request, cancellationToken).ConfigureAwait(false);
+        }
 
         var opened = new List<Stream>();
         try
@@ -78,8 +80,11 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
             if (endpoint.Location is PathLocation paths)
             {
                 if (paths.Paths.Count == 0)
+                {
                     throw new NotSupportedException(
                         $"Endpoint '{endpoint.Id}' does not expose readable paths, inline data, or a connection.");
+                }
+
                 foreach (var path in paths.Paths)
                     opened.Add(await _streams.OpenAsync(path, cancellationToken).ConfigureAwait(false));
             }

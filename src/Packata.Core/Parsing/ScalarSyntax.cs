@@ -21,7 +21,10 @@ public static class ScalarSyntax
             var fractionalDigits = ReadDigits(text, ref position);
             if (!integralDigits && !fractionalDigits) return false;
         }
-        else if (!integralDigits) return false;
+        else if (!integralDigits)
+        {
+            return false;
+        }
 
         if (position < text.Length && text[position] is 'e' or 'E')
         {

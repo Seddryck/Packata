@@ -6,26 +6,49 @@ public sealed class ResourceReaderFactoryOptions
     /// <summary>Decode inline and local category-table values to labels for the PocketCsvReader delimited engine only.
     /// Disabled by default. Columns with labels return strings, including fallback code text.
     /// Native sequences match exact unquoted CSV text; quoted codes remain unchanged.</summary>
+    /// <value>
+    /// Decode inline and local category-table values to labels for the PocketCsvReader delimited engine only.
+    /// Disabled by default. Columns with labels return strings, including fallback code text.
+    /// Native sequences match exact unquoted CSV text; quoted codes remain unchanged.
+    /// </value>
     public bool DecodeCategories { get; set; }
 
     /// <summary>Select category labels by language; implies DecodeCategories. Exclusive with DecodeCategoriesLabel.</summary>
+    /// <value>
+    /// Select category labels by language; implies DecodeCategories. Exclusive with DecodeCategoriesLabel.
+    /// </value>
     public string? DecodeCategoriesLanguage { get; set; }
 
     /// <summary>Select an exact declared logical label field; implies DecodeCategories. Exclusive with DecodeCategoriesLanguage.</summary>
+    /// <value>
+    /// Select an exact declared logical label field; implies DecodeCategories. Exclusive with DecodeCategoriesLanguage.
+    /// </value>
     public string? DecodeCategoriesLabel { get; set; }
 
     /// <summary>Receives one fallback diagnostic per affected category table per reader opening.</summary>
+    /// <value>
+    /// Receives one fallback diagnostic per affected category table per reader opening.
+    /// </value>
     public Action<string>? CategoryDecodingDiagnostic { get; set; }
 
     /// <summary>Maximum total category-table rows loaded per reader opening. Defaults to 100,000.</summary>
+    /// <value>
+    /// Maximum total category-table rows loaded per reader opening. Defaults to 100,000.
+    /// </value>
     public int CategoryTableRowLimit { get; set; } = 100_000;
 
     /// <summary>Maximum total uncompressed lookup bytes read per reader opening. Defaults to 16 MiB.</summary>
+    /// <value>
+    /// Maximum total uncompressed lookup bytes read per reader opening. Defaults to 16 MiB.
+    /// </value>
     public long CategoryTableByteLimit { get; set; } = 16 * 1024 * 1024;
 
     private readonly List<IDataEndpointReaderProvider> _providers = [];
 
     /// <summary>Configures format-name and path-extension mappings used before provider dispatch.</summary>
+    /// <value>
+    /// Configures format-name and path-extension mappings used before provider dispatch.
+    /// </value>
     public DataFormatResolutionOptions Formats { get; } = new();
 
     /// <summary>
@@ -36,8 +59,11 @@ public sealed class ResourceReaderFactoryOptions
     {
         ArgumentNullException.ThrowIfNull(provider);
         if (_providers.Any(candidate => candidate.GetType() == provider.GetType()))
+        {
             throw new InvalidOperationException(
                 $"Reader provider '{provider.GetType().FullName}' is already registered.");
+        }
+
         _providers.Add(provider);
         return this;
     }

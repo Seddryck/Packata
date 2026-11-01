@@ -52,7 +52,7 @@ internal class HttpDataPackageContainerTests
             .Respond("text/csv", CSV_CONTENT);
 
         using var httpClient = mockHttp.ToHttpClient();
-        
+
         using var container = new HttpDataPackageContainer(_baseUri, httpClient);
         using var stream = await container.OpenAsync("foo.csv");
 

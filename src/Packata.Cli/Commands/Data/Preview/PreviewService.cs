@@ -62,7 +62,10 @@ internal static class PreviewService
                 {
                     if (--depth < 0) throw new InvalidDataException("Resource path escapes the archive root.");
                 }
-                else if (part != ".") depth++;
+                else if (part != ".")
+                {
+                    depth++;
+                }
             }
             var entry = Uri.UnescapeDataString(new Uri(_descriptor, path).AbsolutePath).TrimStart('/');
             if (!await archive.ExistsAsync(entry).ConfigureAwait(false))

@@ -102,8 +102,11 @@ public class DdlCapabilityTests
         var result = await new SchemaGenerationService().GenerateAsync(Relationship, new(Target: "ddl", Dialect: dialect));
         Assert.That(result.IsSuccessful, Is.True, string.Join(";", result.Diagnostics));
         Assert.That(result.Content, Does.Contain("FOREIGN KEY").And.Contain("REFERENCES").And.Not.Contain("ALTER TABLE"));
-        if (dialect == "duckdb") Assert.That(result.Content!.IndexOf("CREATE TABLE countries", StringComparison.Ordinal),
+        if (dialect == "duckdb")
+        {
+            Assert.That(result.Content!.IndexOf("CREATE TABLE countries", StringComparison.Ordinal),
             Is.LessThan(result.Content.IndexOf("CREATE TABLE members", StringComparison.Ordinal)));
+        }
     }
 
     [Test]

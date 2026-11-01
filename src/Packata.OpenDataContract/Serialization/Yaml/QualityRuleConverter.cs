@@ -61,7 +61,11 @@ internal sealed class QualityRuleConverter : IYamlTypeConverter
                 if (!rule.DeclaredExpectations.ContainsKey(property.Name)
                     && operand is not System.Collections.ICollection { Count: > 0 }) continue;
             }
-            else if (operand is null) continue;
+            else if (operand is null)
+            {
+                continue;
+            }
+
             emitter.Emit(new Scalar(char.ToLowerInvariant(property.Name[0]) + property.Name[1..]));
             serializer(operand);
         }
