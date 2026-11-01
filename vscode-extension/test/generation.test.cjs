@@ -77,7 +77,7 @@ test('generation opens an editable C# untitled document without writing a descri
   assert.equal(h.calls.at(-1).outputLanguage, 'csharp');
 });
 
-for (const [target, language] of [['class', 'csharp'], ['class', 'python'], ['dataclass', 'python'], ['pydantic', 'python']]) {
+for (const [target, language] of [['class', 'csharp'], ['class', 'python'], ['dataclass', 'python'], ['pydantic', 'python'], ['pyspark', 'python'], ['dotnet-dataframe', 'csharp'], ['idataview', 'csharp']]) {
   test('model menu routes exact pair and offers only applicable options: ' + target + '/' + language, async () => {
     const h = harness({ targets: [{ id: target, language, operation: 'generate', options: language === 'python' ? ['asset', 'output', 'type-name'] : ['asset', 'output', 'namespace', 'type-name'], supportsCSharpOptions: language === 'csharp' }] });
     const original = h.mock.window.showQuickPick;

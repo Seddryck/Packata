@@ -1,0 +1,4 @@
+import json
+from pyspark.sql import types as S
+
+{{ model.target.name }} = {{ model.target.schema_expression }}

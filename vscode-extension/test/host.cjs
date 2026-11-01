@@ -45,8 +45,8 @@ exports.run = async function () {
   await vscode.commands.executeCommand('packata.selectView', 'canonical');
   assert.equal(document.getText(), unchanged, 'Switching projections never rewrites the descriptor');
   const generationOptions = await vscode.commands.executeCommand('packata.schema.options', { uri: uri.toString(), schemaVersion: 1 });
-  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'csharp').map(t => t.id).sort(), ['arrow', 'class', 'datatable', 'polars', 'record'], 'Bundled C# targets come from Application');
-  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'python').map(t => t.id).sort(), ['arrow', 'class', 'dataclass', 'pydantic'], 'Bundled Python targets come from Application');
+  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'csharp').map(t => t.id).sort(), ['arrow', 'class', 'datatable', 'dotnet-dataframe', 'idataview', 'polars', 'record'], 'Bundled C# targets come from Application');
+  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'python').map(t => t.id).sort(), ['arrow', 'class', 'dataclass', 'pydantic', 'pyspark'], 'Bundled Python targets come from Application');
   assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'export').map(t => t.id).sort(), ['arrow-ipc', 'avro', 'json-schema', 'spark-json'], 'Document formats share the Application catalog');
   assert.ok(generationOptions.catalog.targets.some(t => t.id === 'ddl' && t.dialects.some(d => d.id === 'sqlite')), 'Offline SQL dialects are advertised');
   const generated = await vscode.commands.executeCommand('packata.schema.generate', { uri: uri.toString(), version: document.version,
@@ -73,7 +73,9 @@ exports.run = async function () {
 async function assertModelGeneration(uri, version, selectionKey) {
   for (const [target, language, declaration] of [
     ['class', 'csharp', 'public class Orders'], ['class', 'python', 'class Orders:'],
-    ['dataclass', 'python', '@dataclass(kw_only=True)'], ['pydantic', 'python', 'class Orders(BaseModel):']
+    ['dataclass', 'python', '@dataclass(kw_only=True)'], ['pydantic', 'python', 'class Orders(BaseModel):'],
+    ['pyspark', 'python', 'S.StructType(['], ['dotnet-dataframe', 'csharp', 'DataFrame Create()'],
+    ['idataview', 'csharp', 'DataViewSchema Create()']
   ]) {
     const generated = await vscode.commands.executeCommand('packata.schema.generate', { uri: uri.toString(), version,
       selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', target, language }, schemaVersion: 1 });

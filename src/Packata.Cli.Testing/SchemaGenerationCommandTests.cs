@@ -17,6 +17,9 @@ public class SchemaGenerationCommandTests
         """;
 
     [TestCase("class", "csharp", "public class Orders")]
+    [TestCase("pyspark", "python", "S.StructType([")]
+    [TestCase("dotnet-dataframe", "csharp", "DataFrame Create()")]
+    [TestCase("idataview", "csharp", "DataViewSchema Create()")]
     [TestCase("class", "python", "class Orders:")]
     [TestCase("dataclass", "python", "@dataclass(kw_only=True)")]
     [TestCase("pydantic", "python", "class Orders(BaseModel):")]
@@ -52,6 +55,29 @@ public class SchemaGenerationCommandTests
         Assert.That(result.Error, Does.Not.Contain("Error"));
     }
 
+    [TestCase("pyspark", "python", "python-pyspark", "S.IntegerType()")]
+    [TestCase("dotnet-dataframe", "csharp", "csharp-dataframe", "PrimitiveDataFrameColumn<int>")]
+    [TestCase("idataview", "csharp", "csharp-idataview", "NumberDataViewType.Int32")]
+    public async Task Framework_profiles_asset_selection_and_failed_mapping_preserve_output(string target, string language, string profile, string expression)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Source + "\n  - name: other\n    properties:\n      - name: value\n        logicalType: integer\n");
+        var ambiguous = await CliWorkspace.Run("schema", "generate", source, "--target", target, "--language", language);
+        Assert.That(ambiguous.ExitCode, Is.Not.Zero);
+        var template = workspace.Write("custom.scriban", "{{ model.fields[0].target.type_expression }}");
+        var custom = await CliWorkspace.Run("schema", "generate", source, "--asset", "orders", "--template", template, "--type-mapping", profile);
+        Assert.That(custom.ExitCode, Is.Zero, custom.Error);
+        Assert.That(custom.Output, Does.Contain(expression));
+        var output = Path.Combine(workspace.Path, "schema.txt");
+        var invalid = workspace.Write("invalid.yaml", Source.Replace("logicalType: integer", "logicalType: time"));
+        var failed = await CliWorkspace.Run("schema", "generate", invalid, "--target", target, "--language", language, "-o", output);
+        Assert.That(failed.ExitCode, Is.Not.Zero);
+        Assert.That(File.Exists(output), Is.False);
+        Assert.That(Directory.GetFiles(workspace.Path, "*.tmp"), Is.Empty);
+        var oldCommand = await CliWorkspace.Run("schema", "export", source, "--target", target, "--language", language);
+        Assert.That(oldCommand.ExitCode, Is.Not.Zero);
+    }
+
     [Test]
     public async Task Custom_templates_resolve_from_descriptor_and_files_are_protected()
     {
@@ -77,6 +103,16 @@ public class SchemaGenerationCommandTests
     [TestCase("--target", "arrow", "--language", "python", "--template", "missing.scriban")]
     [TestCase("--target", "arrow", "--language", "python", "--output-format", "json-schema")]
     [TestCase("--arrow")]
+    [TestCase("--pyspark")]
+    [TestCase("--dataframe")]
+    [TestCase("--idataview")]
+    [TestCase("--target", "pyspark")]
+    [TestCase("--target", "dotnet-dataframe")]
+    [TestCase("--target", "idataview")]
+    [TestCase("--target", "pyspark", "--language", "csharp")]
+    [TestCase("--target", "dotnet-dataframe", "--language", "python")]
+    [TestCase("--target", "idataview", "--language", "python")]
+    [TestCase("--target", "pyspark", "--language", "python", "--template", "missing.scriban")]
     [TestCase("--python")]
     [TestCase("--class")]
     [TestCase("--dataclass")]

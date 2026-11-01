@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { Target, SchemaRoute } from './generation';
 export const schemaRoutes: Record<string, SchemaRoute> = {
+  'packata.schema.pysparkPython': { operation: 'generate', target: 'pyspark', language: 'python' },
+  'packata.schema.dataframeCsharp': { operation: 'generate', target: 'dotnet-dataframe', language: 'csharp' },
+  'packata.schema.idataviewCsharp': { operation: 'generate', target: 'idataview', language: 'csharp' },
   'packata.schema.pydanticPython': { operation: 'generate', target: 'pydantic', language: 'python' },
   'packata.schema.dataclassPython': { operation: 'generate', target: 'dataclass', language: 'python' },
   'packata.schema.classPython': { operation: 'generate', target: 'class', language: 'python' },

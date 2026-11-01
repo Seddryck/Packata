@@ -59,7 +59,7 @@ public class SchemaGenerationTests
     [Test]
     public void Catalog_shares_profiles_engines_and_embedded_template_contract()
     {
-        Assert.That(SchemaGenerationService.Catalog.Targets.Where(t => t.Operation == "generate" && t.Engine.Length > 0).Select(t => t.Id), Is.EqualTo(new[] { "record", "class", "class", "dataclass", "pydantic", "datatable", "polars", "arrow", "arrow" }));
+        Assert.That(SchemaGenerationService.Catalog.Targets.Where(t => t.Operation == "generate" && t.Engine.Length > 0).Select(t => t.Id), Is.EqualTo(new[] { "record", "class", "class", "dataclass", "pydantic", "datatable", "polars", "pyspark", "dotnet-dataframe", "idataview", "arrow", "arrow" }));
         Assert.That(SchemaGenerationService.Catalog.Engines, Does.Contain("scriban").And.Contain("hbs"));
         Assert.That(SchemaGenerationService.Catalog.ContextVersion, Is.EqualTo(1));
     }
@@ -267,7 +267,9 @@ public class SchemaGenerationTests
     internal static Assembly Compile(string content)
     {
         var paths = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Concat(Directory.GetFiles(AppContext.BaseDirectory, "Polars*.dll").Concat(Directory.GetFiles(AppContext.BaseDirectory, "Apache.Arrow.dll"))).Distinct(StringComparer.OrdinalIgnoreCase);
+            .Concat(Directory.GetFiles(AppContext.BaseDirectory, "Polars*.dll").Concat(Directory.GetFiles(AppContext.BaseDirectory, "Apache.Arrow.dll")))
+            .Concat(Directory.GetFiles(AppContext.BaseDirectory, "Microsoft.Data.Analysis.dll"))
+            .Concat(Directory.GetFiles(AppContext.BaseDirectory, "Microsoft.ML.DataView.dll")).Distinct(StringComparer.OrdinalIgnoreCase);
         var compilation = CSharpCompilation.Create("Generated" + Guid.NewGuid().ToString("N"),
             [CSharpSyntaxTree.ParseText(content, new CSharpParseOptions(LanguageVersion.CSharp11))],
             paths.Select(p => MetadataReference.CreateFromFile(p)), new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));

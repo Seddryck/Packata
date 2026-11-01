@@ -33,6 +33,9 @@ test('generation has declarative intermediate language submenus', () => {
 test('class model menu leaves use exact singular target/language pairs', () => {
   const api = routes();
   for (const [id, target, language, label] of [
+    ['pysparkPython', 'pyspark', 'python', 'PySpark Schema…'],
+    ['dataframeCsharp', 'dotnet-dataframe', 'csharp', 'DataFrame…'],
+    ['idataviewCsharp', 'idataview', 'csharp', 'ML.NET Schema…'],
     ['classCsharp', 'class', 'csharp', 'Class…'], ['classPython', 'class', 'python', 'Class…'],
     ['dataclassPython', 'dataclass', 'python', 'Dataclass…'], ['pydanticPython', 'pydantic', 'python', 'Pydantic Model…']
   ]) {

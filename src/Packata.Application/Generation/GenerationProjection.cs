@@ -11,7 +11,9 @@ internal sealed class GenerationProjection(GenerationOptions options, string? pr
         "TimeUnit", "Dictionary", "JsonPropertyName", "Create", "Schema", "Field", "StructType", "ListType", "MapType",
         "TimestampType", "Time32Type", "Time64Type", "Decimal128Type", "Decimal256Type", "Int8Type", "UInt8Type",
         "Int16Type", "UInt16Type", "Int32Type", "UInt32Type", "Int64Type", "UInt64Type", "FloatType", "DoubleType",
-        "StringType", "BinaryType", "BooleanType", "Date32Type"], StringComparer.Ordinal);
+        "StringType", "BinaryType", "BooleanType", "Date32Type", "DataFrame", "DataFrameColumn", "StringDataFrameColumn",
+        "PrimitiveDataFrameColumn", "DataViewSchema", "TextDataViewType", "BooleanDataViewType", "NumberDataViewType",
+        "VectorDataViewType", "KeyDataViewType", "ReadOnlyMemory", "Microsoft"], StringComparer.Ordinal);
     private readonly List<Dictionary<string, object?>> _declarations = [];
 
     internal Dictionary<string, object?> Build(DataContract contract, DataAsset asset)
@@ -71,7 +73,7 @@ internal sealed class GenerationProjection(GenerationOptions options, string? pr
         if (profile is null) return [];
         var expression = profile == "csharp-polars" ? PolarsProjection.Expression(resolution, children, items, diagnostics)
             : ClrExpression(resolution, nestedName, items);
-        if (expression is null && profile is not ("csharp-arrow" or "python-arrow") && !ModelCodeProjection.Supports(profile))
+        if (expression is null && profile is not ("csharp-arrow" or "python-arrow" or "python-pyspark" or "csharp-dataframe" or "csharp-idataview") && !ModelCodeProjection.Supports(profile))
             diagnostics.Add(new("GEN_MAPPING", "Error", resolution.FieldPath, "The selected target cannot represent this field. Inspect its mapping diagnostics."));
         return GenerationData.Object(("type_expression", expression),
             ("runtime_type_expression", resolution.RuntimeType is null ? null : CSharpNames.TypeExpression(resolution.RuntimeType)),
@@ -113,7 +115,7 @@ internal sealed class GenerationProjection(GenerationOptions options, string? pr
         foreach (var diagnostic in resolution.Diagnostics.Where(d => d.FieldPath == resolution.FieldPath))
         {
             // The model projection handles canonical maps independently of CLR scalar resolution.
-            if (ModelCodeProjection.Supports(profile) && resolution.Field.Map is not null && diagnostic.Code == "UnsupportedType") continue;
+            if ((ModelCodeProjection.Supports(profile) || profile == "python-pyspark") && resolution.Field.Map is not null && diagnostic.Code == "UnsupportedType") continue;
             var relevant = diagnostic.Target == TypeMappingTarget.Source
                 || (diagnostic.Target == TypeMappingTarget.Runtime && profile is "csharp-record" or "csharp-datatable");
             var severity = relevant ? diagnostic.Severity.ToString() : "Information";
