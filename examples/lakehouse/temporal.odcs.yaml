@@ -1,0 +1,20 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: temporal-example
+schema:
+  - name: temporal
+    properties:
+      - name: local
+        logicalType: timestamp
+        logicalTypeOptions:
+          timezone: false
+          precision: 3
+        nullable: true
+      - name: clock
+        logicalType: time
+        logicalTypeOptions:
+          precision: 6
+        required: true
+      - name: day
+        logicalType: date
+        required: true

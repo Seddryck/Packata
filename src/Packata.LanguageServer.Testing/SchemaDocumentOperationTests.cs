@@ -41,4 +41,27 @@ public class SchemaDocumentOperationTests
         await cancellation.CancelAsync();
         Assert.That(async () => await operations.ExportAsync(new(Source.AbsoluteUri, discovery.SelectionKey, new("arrow-ipc", "orders"), 1), cancellation.Token), Throws.InstanceOf<OperationCanceledException>());
     }
+
+    [TestCase("iceberg-json", null)]
+    [TestCase("paimon-json", null)]
+    [TestCase("avro", "hudi")]
+    [TestCase("spark-json", "delta")]
+    public async Task Lakehouse_exports_use_catalog_profiles_and_unsaved_textAsync(string format, string? profile)
+    {
+        var store = new DocumentStore();
+        store.Update(Source, Text, 9);
+        var operations = new SchemaDocumentOperations(store);
+        var discovery = await operations.OptionsAsync(Source, default);
+        var capability = discovery.Formats.Single(f => f.Id == format);
+        Assert.That(capability.Representation, Is.EqualTo("text"));
+        if (profile is not null) Assert.That(capability.Profiles, Does.Contain(profile));
+        var result = await operations.ExportAsync(new(Source.AbsoluteUri, discovery.SelectionKey, new(format, "orders", profile), 9, "/resources/0"), default);
+        Assert.That(result.Result.IsSuccessful, Is.True, string.Join(";", result.Result.Diagnostics));
+        Assert.That(result.Result.Content, Is.Not.Empty);
+        Assert.That(result.Result.Bytes, Is.Null);
+        Assert.That(result.Version, Is.EqualTo(9));
+        var wrong = await operations.ExportAsync(new(Source.AbsoluteUri, discovery.SelectionKey, new(format, "orders", "unknown"), 9, "/resources/0"), default);
+        Assert.That(wrong.Result.IsSuccessful, Is.False);
+        Assert.That(wrong.Result.Content, Is.Null);
+    }
 }

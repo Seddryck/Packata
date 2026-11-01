@@ -19,11 +19,9 @@ public sealed record SchemaDocumentResult(string? Content, byte[]? Bytes, string
 /// <summary>Metadata-only portable schema documents. Hosts publish completed text or exact binary bytes.</summary>
 public static class SchemaDocumentService
 {
-    public static IReadOnlyList<SchemaDocumentFormat> Formats { get; } = Array.AsReadOnly(new SchemaDocumentFormat[]
-    {
-        new("json-schema", "JSON Schema", "text", ".schema.json", []),
-        new("arrow-ipc", "Arrow IPC", "binary", ".schema.ipc", [])
-    });
+    public static IReadOnlyList<SchemaDocumentFormat> Formats { get; } = Array.AsReadOnly(
+        Generation.SchemaGenerationService.Catalog.Targets.Where(t => t.Operation == "export")
+            .Select(t => new SchemaDocumentFormat(t.Id, t.Label, t.Representation == "binary" ? "binary" : "text", t.Extension, t.CompatibilityProfiles ?? [])).ToArray());
 
     public static string? ValidateOptions(SchemaDocumentOptions options)
         => options.UnsupportedOptions is { Count: > 0 } ? "Unsupported schema export options; code targets and languages belong to generation."
@@ -35,6 +33,14 @@ public static class SchemaDocumentService
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (ValidateOptions(options) is { } error) return Failure("EXPORT_OPTIONS", error);
+        if (options.OutputFormat is not ("json-schema" or "arrow-ipc"))
+        {
+            var result = await new Generation.SchemaGenerationService().GenerateAsync(document,
+                new(Operation: "export", OutputFormat: options.OutputFormat, AssetId: options.AssetId, CompatibilityProfile: options.Profile),
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            return new(result.Content, result.BinaryContent, result.SuggestedFilename, result.AssetId, result.Representation,
+                result.Diagnostics.Select(d => new MappingDiagnostic(d.Code, Enum.Parse<MappingSeverity>(d.Severity), d.SourcePath, d.Message)).ToArray());
+        }
         var mapping = ContractInspector.Inspect(document, cancellationToken).Mapping;
         if (!mapping.IsSuccessful) return new(null, null, null, null, "binary", mapping.Diagnostics);
         var selection = SelectAsset(mapping.RequireValue(), options.AssetId);

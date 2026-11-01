@@ -48,11 +48,17 @@ export async function exportSchemaDocument(request: Request, entry?: TreeEntry, 
     const asset = assets.length === 1 ? assets[0]
       : (await vscode.window.showQuickPick(assets.map(a => ({ label: a.name, description: a.id, asset: a })), { title: 'Select an asset' }))?.asset;
     if (!asset) return;
+    let profile: string | undefined;
+    if (format.profiles.length) {
+      const choice = await vscode.window.showQuickPick(['Generic', ...format.profiles], { title: 'Compatibility profile' });
+      if (!choice) return;
+      if (choice !== 'Generic') profile = choice;
+    }
     const version = source.version;
     const current = () => source.version === version && discovery.version === version && epoch === session() && selected === selection();
     await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Exporting schema…', cancellable: true }, async (_progress, token) => {
       const response = await request<Result>('packata.schema.document.export', { uri: identity, version: discovery.version,
-        selectionKey: discovery.selectionKey, sourcePath: asset.sourcePath, options: { outputFormat: format.id, assetId: asset.id } }, token);
+        selectionKey: discovery.selectionKey, sourcePath: asset.sourcePath, options: { outputFormat: format.id, assetId: asset.id, ...(profile ? { profile } : {}) } }, token);
       requireSchema(response);
       if (token.isCancellationRequested || !current() || response.uri !== identity || response.selectionKey !== discovery.selectionKey || response.version !== version) return;
       if (!response.result.isSuccessful) {

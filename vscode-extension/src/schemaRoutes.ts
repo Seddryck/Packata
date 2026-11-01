@@ -26,6 +26,8 @@ export const schemaRoutes: Record<string, SchemaRoute> = {
   'packata.schema.arrowIpc': { operation: 'export', outputFormat: 'arrow-ipc' },
   'packata.schema.avroIdl': { operation: 'export', outputFormat: 'avro-idl' },
   'packata.schema.avro': { operation: 'export', outputFormat: 'avro' },
+  'packata.schema.icebergJson': { operation: 'export', outputFormat: 'iceberg-json' },
+  'packata.schema.paimonJson': { operation: 'export', outputFormat: 'paimon-json' },
   'packata.schema.sparkJson': { operation: 'export', outputFormat: 'spark-json' },
   'packata.schema.jsonSchema': { operation: 'export', outputFormat: 'json-schema' },
   'packata.schema.record': { operation: 'generate', target: 'record', language: 'csharp' },
