@@ -1,0 +1,17 @@
+# Python 3.10+. Annotations describe values; they do not validate them.
+from dataclasses import dataclass
+from datetime import date, time, datetime
+from decimal import Decimal
+from enum import Enum
+
+class Unset(Enum):
+    TOKEN = 0
+
+UNSET = Unset.TOKEN
+
+{{ for declaration in model.target.declarations }}@dataclass(kw_only=True)
+class {{ declaration.name }}:
+{{ for field in declaration.fields }}    {{ field.generated_name }}: {{ field.target.type_expression }}{{ field.target.initializer }}
+{{ end }}
+
+{{ end }}

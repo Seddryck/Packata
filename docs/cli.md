@@ -590,12 +590,12 @@ PrimaryKey,Required,Unique,Checks,ForeignKeys. `--no-descriptions` omits SQL com
 No connection URL is required. See the [schema generation reference]({{ '/reference/dotnet/schema-generation/' | relative_url }}) for dialect IDs and selection policies.
 
 Code generation uses `schema generate --target <TARGET> --language <LANGUAGE>` or `schema generate --template <PATH>`
-instead of `schema export --output-format`. Bundled targets include `record`, `datatable`, `polars` (C#) and `arrow` (C# or Python). For generation, `--asset` may be omitted when one eligible
+instead of `schema export --output-format`. Bundled targets include `record`, `datatable`, `polars` (C#), `class` (C# or Python), `dataclass` and `pydantic` (Python), and `arrow` (C# or Python). For generation, `--asset` may be omitted when one eligible
 asset exists. `--engine <ENGINE>` overrides a custom template's engine; recognized suffixes
 such as `.scriban` and `.hbs` otherwise select Didot's engine, with Scriban as the fallback
 for `bar.template.cs`. Relative templates resolve from the descriptor directory.
 `--type-mapping <PROFILE>` optionally prepares `csharp-record`, `csharp-datatable`, or
-`csharp-polars`, `csharp-arrow`, or `python-arrow` expressions for a custom template. Built-ins fix their engine/profile.
+`csharp-polars`, `csharp-arrow`, `python-arrow`, `csharp-class`, `python-class`, `python-dataclass`, or `python-pydantic` expressions for a custom template. Built-ins fix their engine/profile.
 `--namespace <NAMESPACE>` and `--type-name <NAME>` customize generated names.
 Repeat `--define <KEY=VALUE>` for user variables; duplicate keys are errors. Values parse
 as null, boolean, integer, decimal, then string, and appear only under `model.variables`.

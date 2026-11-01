@@ -59,7 +59,7 @@ public class SchemaGenerationTests
     [Test]
     public void Catalog_shares_profiles_engines_and_embedded_template_contract()
     {
-        Assert.That(SchemaGenerationService.Catalog.Targets.Where(t => t.Operation == "generate" && t.Engine.Length > 0).Select(t => t.Id), Is.EqualTo(new[] { "record", "datatable", "polars", "arrow", "arrow" }));
+        Assert.That(SchemaGenerationService.Catalog.Targets.Where(t => t.Operation == "generate" && t.Engine.Length > 0).Select(t => t.Id), Is.EqualTo(new[] { "record", "class", "class", "dataclass", "pydantic", "datatable", "polars", "arrow", "arrow" }));
         Assert.That(SchemaGenerationService.Catalog.Engines, Does.Contain("scriban").And.Contain("hbs"));
         Assert.That(SchemaGenerationService.Catalog.ContextVersion, Is.EqualTo(1));
     }

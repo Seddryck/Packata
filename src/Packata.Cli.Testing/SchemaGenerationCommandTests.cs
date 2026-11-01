@@ -16,6 +16,29 @@ public class SchemaGenerationCommandTests
                 required: true
         """;
 
+    [TestCase("class", "csharp", "public class Orders")]
+    [TestCase("class", "python", "class Orders:")]
+    [TestCase("dataclass", "python", "@dataclass(kw_only=True)")]
+    [TestCase("pydantic", "python", "class Orders(BaseModel):")]
+    public async Task Model_pairs_route_explicitly_and_protect_atomic_output(string target, string language, string expected)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Source);
+        var stdout = await CliWorkspace.Run("schema", "generate", source, "--target", target, "--language", language);
+        Assert.That(stdout.ExitCode, Is.Zero, stdout.Error);
+        Assert.That(stdout.Output, Does.Contain(expected));
+        var output = Path.Combine(workspace.Path, "deliberately-wrong-suffix.txt");
+        var first = await CliWorkspace.Run("schema", "generate", source, "--target", target, "--language", language, "-o", output);
+        Assert.That(first.ExitCode, Is.Zero, first.Error);
+        Assert.That(File.ReadAllText(output), Does.Contain(expected));
+        var again = await CliWorkspace.Run("schema", "generate", source, "--target", target, "--language", language, "-o", output);
+        Assert.That(again.ExitCode, Is.EqualTo(3));
+        var protectedSource = await CliWorkspace.Run("schema", "generate", source, "--target", target, "--language", language, "-o", source);
+        Assert.That(protectedSource.ExitCode, Is.EqualTo(3));
+        Assert.That(File.ReadAllText(source), Is.EqualTo(Source));
+        Assert.That(Directory.GetFiles(workspace.Path, "*.tmp"), Is.Empty);
+    }
+
     [TestCase("record", "record Orders")]
     [TestCase("datatable", "DataTable Create()")]
     [TestCase("polars", "PolarsSchema Create()")]
@@ -55,6 +78,11 @@ public class SchemaGenerationCommandTests
     [TestCase("--target", "arrow", "--language", "python", "--output-format", "json-schema")]
     [TestCase("--arrow")]
     [TestCase("--python")]
+    [TestCase("--class")]
+    [TestCase("--dataclass")]
+    [TestCase("--pydantic")]
+    [TestCase("--target", "dataclass", "--language", "csharp")]
+    [TestCase("--target", "pydantic", "--language", "python", "--namespace", "Bad")]
     [TestCase("--record")]
     [TestCase("--template", "missing.scriban", "--engine", "absent")]
     [TestCase("--target", "arrow", "--language", "python", "--define", "x=1", "--define", "x=2")]

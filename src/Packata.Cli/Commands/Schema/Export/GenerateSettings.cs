@@ -38,7 +38,7 @@ internal sealed class GenerateSettings : ContractSourceSettings
     public string? Engine { get; init; }
 
     [CommandOption("--type-mapping <PROFILE>")]
-    [Description("Prepared profile: csharp-record, csharp-datatable, or csharp-polars.")]
+    [Description("Prepared mapping profile from the shared generation catalog.")]
     public string? TypeMapping { get; init; }
 
     [CommandOption("--namespace <NAMESPACE>")]
@@ -46,7 +46,7 @@ internal sealed class GenerateSettings : ContractSourceSettings
     public string? Namespace { get; init; }
 
     [CommandOption("--type-name <NAME>")]
-    [Description("Generated root C# type name.")]
+    [Description("Generated root type name.")]
     public string? TypeName { get; init; }
 
     [CommandOption("--define <KEY=VALUE>")]

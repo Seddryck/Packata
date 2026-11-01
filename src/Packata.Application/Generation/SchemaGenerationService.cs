@@ -100,6 +100,8 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
     {
         if (profile is "csharp-arrow" or "python-arrow")
             ArrowCodeProjection.Apply(context, asset.Schema!, profile == "python-arrow", diagnostics);
+        if (ModelCodeProjection.Supports(profile))
+            new ModelCodeProjection(profile!, diagnostics).Apply(context, asset.Schema!);
         var plain = (IReadOnlyDictionary<string, object?>)GenerationData.Plain(context)!;
         if (diagnostics.Any(d => d.Severity == "Error")) return Result(null, asset.Id, null, template, diagnostics, plain);
         try
@@ -108,7 +110,10 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
             cancellationToken.ThrowIfCancellationRequested();
             var name = ((Dictionary<string, object?>)context["asset"]!)["generated_name"]!.ToString()!.TrimStart('@');
             var (language, extension) = OutputKind(profile, requestedLanguage);
-            return Result(content.ReplaceLineEndings("\n"), asset.Id, name + extension, template, diagnostics, plain, language);
+            var normalized = content.ReplaceLineEndings("\n");
+            if (ModelCodeProjection.Supports(profile) && template.Identity.StartsWith("builtin:", StringComparison.Ordinal))
+                normalized = normalized.TrimEnd('\n') + "\n";
+            return Result(normalized, asset.Id, name + extension, template, diagnostics, plain, language);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception error)
@@ -123,9 +128,9 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         ValidateTemplateSelection(options, template);
         var target = SelectTarget(options);
         var profile = SelectProfile(options, target);
-        if (profile == "python-arrow" && options.Namespace is not null) throw new ArgumentException("Python Arrow generation does not support --namespace.");
+        if (profile?.StartsWith("python-", StringComparison.Ordinal) == true && options.Namespace is not null) throw new ArgumentException("Python generation does not support --namespace.");
         CheckEngine(options, target);
-        template ??= GenerationCatalogService.BuiltIn(target!.Id == "arrow" ? target.Profile : target.Id);
+        template ??= GenerationCatalogService.BuiltIn(target!.Id is "arrow" or "class" or "dataclass" or "pydantic" ? target.Profile : target.Id);
         return (template, profile, GenerationCatalogService.Engine(template, target?.Engine ?? options.Engine));
     }
 
@@ -141,12 +146,12 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         if (options.Target is null) return null;
         var language = options.Language ?? "csharp";
         return Catalog.Targets.SingleOrDefault(t => t.Operation == "generate" && t.Id == options.Target && t.Language == language)
-            ?? throw new ArgumentException("Unsupported target/language pair. Consult the generation catalog.");
+            ?? throw new ArgumentException("Unsupported target/language pair. Supported alternatives: " + string.Join(", ", Catalog.Targets.Where(t => t.Operation == "generate").Select(t => t.Id + "/" + t.Language)));
     }
 
     private static (string Language, string Extension) OutputKind(string? profile, string? requestedLanguage)
     {
-        var language = requestedLanguage ?? (profile is null ? "plaintext" : profile == "python-arrow" ? "python" : "csharp");
+        var language = requestedLanguage ?? (profile is null ? "plaintext" : profile.StartsWith("python-", StringComparison.Ordinal) ? "python" : "csharp");
         return (language, language switch { "csharp" => ".cs", "python" => ".py", _ => ".txt" });
     }
 

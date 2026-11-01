@@ -1,0 +1,12 @@
+# Python 3.10+, Pydantic 2. Strict Python-value validation; no coercion.
+from datetime import date, time, datetime
+from decimal import Decimal
+from typing import Annotated, Literal
+from pydantic import BaseModel, ConfigDict, Field
+
+{{ for declaration in model.target.declarations }}class {{ declaration.name }}(BaseModel):
+    model_config = ConfigDict(strict=True, populate_by_name=True)
+{{ for field in declaration.fields }}    {{ field.generated_name }}: {{ field.target.type_expression }} = Field({{ field.target.field_arguments }})
+{{ end }}
+
+{{ end }}

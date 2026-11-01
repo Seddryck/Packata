@@ -53,11 +53,13 @@ internal sealed class GenerationProjection(GenerationOptions options, string? pr
         if (nestedName is not null)
             _declarations.Add(GenerationData.Object(("name", nestedName), ("fields", children)));
         var constraints = field.Constraints.Select(c => GenerationData.Object(("kind", c.Kind), ("value", GenerationData.Plain(c.Value)))).ToArray();
-        var context = GenerationData.Object(("name", field.Name), ("generated_name", name),
+        var context = GenerationData.Object(("name", field.Name), ("generated_name", name), ("source_path", resolution.FieldPath),
             ("description", field.Description), ("logical_type", resolution.LogicalType), ("physical_type", field.PhysicalType),
             ("format", field.Format), ("required", field.Required), ("nullable", field.Nullable),
             ("parameters", Parameters(resolution.Parameters)), ("constraints", constraints),
             ("value_domain", Domain(field.ValueDomain)), ("children", children), ("items", items),
+            ("map_key", field.Map is null ? null : Field(FieldTypeResolver.Resolve(field.Map.Key, new(options.Fallback, resolution.FieldPath + "/key")), "Key", owner + "_Key")),
+            ("map_value", field.Map is null ? null : Field(FieldTypeResolver.Resolve(field.Map.Value, new(options.Fallback, resolution.FieldPath + "/value")), "Value", owner + "_Value")),
             ("extensions", GenerationData.Plain(field.Extensions)), ("mapping_diagnostics", GenerationData.Plain(resolution.Diagnostics)));
         context["target"] = Project(resolution, nestedName, children, items, constraints);
         return context;
@@ -69,7 +71,7 @@ internal sealed class GenerationProjection(GenerationOptions options, string? pr
         if (profile is null) return [];
         var expression = profile == "csharp-polars" ? PolarsProjection.Expression(resolution, children, items, diagnostics)
             : ClrExpression(resolution, nestedName, items);
-        if (expression is null && profile is not ("csharp-arrow" or "python-arrow"))
+        if (expression is null && profile is not ("csharp-arrow" or "python-arrow") && !ModelCodeProjection.Supports(profile))
             diagnostics.Add(new("GEN_MAPPING", "Error", resolution.FieldPath, "The selected target cannot represent this field. Inspect its mapping diagnostics."));
         return GenerationData.Object(("type_expression", expression),
             ("runtime_type_expression", resolution.RuntimeType is null ? null : CSharpNames.TypeExpression(resolution.RuntimeType)),
@@ -110,6 +112,8 @@ internal sealed class GenerationProjection(GenerationOptions options, string? pr
     {
         foreach (var diagnostic in resolution.Diagnostics.Where(d => d.FieldPath == resolution.FieldPath))
         {
+            // The model projection handles canonical maps independently of CLR scalar resolution.
+            if (ModelCodeProjection.Supports(profile) && resolution.Field.Map is not null && diagnostic.Code == "UnsupportedType") continue;
             var relevant = diagnostic.Target == TypeMappingTarget.Source
                 || (diagnostic.Target == TypeMappingTarget.Runtime && profile is "csharp-record" or "csharp-datatable");
             var severity = relevant ? diagnostic.Severity.ToString() : "Information";

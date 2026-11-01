@@ -277,6 +277,30 @@
         "title": "Arrow Schema…",
         "category": "Packata Python",
         "enablement": "packata.schema.arrowPython"
+      },
+      {
+        "command": "packata.schema.classCsharp",
+        "title": "Class…",
+        "category": "Packata C#",
+        "enablement": "packata.schema.classCsharp"
+      },
+      {
+        "command": "packata.schema.classPython",
+        "title": "Class…",
+        "category": "Packata Python",
+        "enablement": "packata.schema.classPython"
+      },
+      {
+        "command": "packata.schema.dataclassPython",
+        "title": "Dataclass…",
+        "category": "Packata Python",
+        "enablement": "packata.schema.dataclassPython"
+      },
+      {
+        "command": "packata.schema.pydanticPython",
+        "title": "Pydantic Model…",
+        "category": "Packata Python",
+        "enablement": "packata.schema.pydanticPython"
       }
     ],
     "menus": {
@@ -391,6 +415,10 @@
         {
           "command": "packata.schema.arrowCsharp",
           "when": "packata.schema.arrowCsharp"
+        },
+        {
+          "command": "packata.schema.classCsharp",
+          "when": "packata.schema.classCsharp"
         }
       ],
       "packata.schema.generate": [
@@ -480,6 +508,18 @@
         {
           "command": "packata.schema.arrowPython",
           "when": "packata.schema.arrowPython"
+        },
+        {
+          "command": "packata.schema.classPython",
+          "when": "packata.schema.classPython"
+        },
+        {
+          "command": "packata.schema.dataclassPython",
+          "when": "packata.schema.dataclassPython"
+        },
+        {
+          "command": "packata.schema.pydanticPython",
+          "when": "packata.schema.pydanticPython"
         }
       ]
     },
