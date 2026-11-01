@@ -358,3 +358,10 @@ codecov.exe
 vscode-extension/dist/
 vscode-extension/server/
 *.vsix
+
+# Python client build and test outputs
+.venv/
+__pycache__/
+*.egg-info/
+python/build/
+python/dist/

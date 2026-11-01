@@ -1,0 +1,10 @@
+# Locked tools/codecs for repeatable binary-only CI installs.
+pyarrow==23.0.1; python_version < '3.11'
+pyarrow==26.0.0; python_version >= '3.11'
+# fastavro 1.13.x no longer provides CPython 3.10 binary wheels.
+fastavro==1.12.2; python_version < '3.11'
+fastavro==1.13.1; python_version >= '3.11'
+tzdata==2026.6
+setuptools==84.2.1
+wheel==0.48.0
+packaging==26.3

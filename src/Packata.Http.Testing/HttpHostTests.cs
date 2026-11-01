@@ -228,8 +228,9 @@ public class HttpHostTests
         Assert.That(await response.Content.ReadAsStringAsync(), Does.Contain("ASSET_READ_FAILED").And.Not.Contain("secret"));
     }
 
-    [Test]
-    public async Task PythonReadersConsumeLiveResponsesIncrementally()
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task PythonReadersConsumeLiveResponsesIncrementally(bool packagedClient)
     {
         var python = Environment.GetEnvironmentVariable("PACKATA_INTEROP_PYTHON");
         if (python is null) Assert.Ignore("Set PACKATA_INTEROP_PYTHON to Python with pyarrow, fastavro and timezone data for live interoperability checks.");
@@ -251,7 +252,8 @@ public class HttpHostTests
         await using var host = await AssetHttpHost.StartAsync([Asset(), Asset(0, id: "empty")], factory, Encoders,
             new() { Streaming = new() { BatchSize = 2 } });
         var start = new ProcessStartInfo(python!) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
-        start.ArgumentList.Add(Path.Combine(TestContext.CurrentContext.TestDirectory, "Interop", "validate_http.py"));
+        start.ArgumentList.Add(Path.Combine(TestContext.CurrentContext.TestDirectory, "Interop",
+            packagedClient ? "validate_client.py" : "validate_http.py"));
         start.ArgumentList.Add(host.BaseUri.AbsoluteUri);
         using var process = Process.Start(start)!;
         var stderr = process.StandardError.ReadToEndAsync();

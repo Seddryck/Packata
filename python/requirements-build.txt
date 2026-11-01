@@ -1,0 +1,16 @@
+# SHA-256 digests from official PyPI release metadata.
+# Binaries for the Python 3.12 Windows/Linux x64 build jobs; no source distributions.
+pyarrow==26.0.0 \
+    --hash=sha256:6a628922ba20705fa964ca73e4ef959c2fb2f14b9bbec5589a6a1e68e6257c85 \
+    --hash=sha256:cc903e1069e9dd5e9dcf780324c0112e27e051e422ecfaff574fb33ed65d9160
+fastavro==1.13.1 \
+    --hash=sha256:0994c545a4e2038b6d0b3ca54214d9573024e659fc5e618c4577329c89b9e016 \
+    --hash=sha256:2f56a127d71e45083306d2650efff827cad0f4b0744dd42cb69c631d77943b1d
+tzdata==2026.6 \
+    --hash=sha256:0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec
+setuptools==84.2.1 \
+    --hash=sha256:ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2
+wheel==0.48.0 \
+    --hash=sha256:3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab
+packaging==26.3 \
+    --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
