@@ -7,6 +7,9 @@ namespace Packata.LanguageServer.Testing;
 public class SchemaGenerationOperationTests
 {
     [TestCase("class", "csharp")]
+    [TestCase("pyspark", "python")]
+    [TestCase("dotnet-dataframe", "csharp")]
+    [TestCase("idataview", "csharp")]
     [TestCase("class", "python")]
     [TestCase("dataclass", "python")]
     [TestCase("pydantic", "python")]

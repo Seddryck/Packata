@@ -1,0 +1,10 @@
+#nullable enable
+using Microsoft.Data.Analysis;
+{{ if model.target.namespace }}namespace {{ model.target.namespace }};
+{{ end }}
+public static class {{ model.target.name }}
+{
+    public static DataFrame Create() => new DataFrame(new DataFrameColumn[] {
+{{ for field in model.fields }}        {{ field.target.column_expression }},
+{{ end }}    });
+}

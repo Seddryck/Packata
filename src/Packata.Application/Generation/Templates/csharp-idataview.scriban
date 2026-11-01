@@ -1,0 +1,17 @@
+#nullable enable
+using System;
+using Microsoft.ML;
+using Microsoft.ML.Data;
+{{ if model.target.namespace }}namespace {{ model.target.namespace }};
+{{ end }}
+public static class {{ model.target.name }}
+{
+    public static DataViewSchema Create()
+    {
+        var builder = new DataViewSchema.Builder();
+{{ for field in model.fields }}        var metadata{{ for.index }} = new DataViewSchema.Annotations.Builder();
+        metadata{{ for.index }}.Add("packata.schema", TextDataViewType.Instance, (ref ReadOnlyMemory<char> value) => value = {{ field.target.schema_literal }}.AsMemory());
+        builder.AddColumn({{ field.target.source_name_literal }}, {{ field.target.type_expression }}, metadata{{ for.index }}.ToAnnotations());
+{{ end }}        return builder.ToSchema();
+    }
+}
