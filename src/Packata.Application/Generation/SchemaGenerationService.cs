@@ -93,6 +93,9 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
         var asset = SelectAsset(assets, options.AssetId, diagnostics);
         if (asset is null) return Result(null, null, null, template, diagnostics);
         var context = new GenerationProjection(options, profile, diagnostics, cancellationToken).Build(contract, asset);
+        if (profile == "python-pyspark") PySparkCodeProjection.Apply(context, asset, diagnostics, cancellationToken);
+        if (profile is "csharp-dataframe" or "csharp-idataview")
+            new FrameworkCodeProjection(profile, diagnostics).Apply(context, asset);
         return await RenderAsync(context, asset, profile, options.Language, template, engine, diagnostics, cancellationToken).ConfigureAwait(false);
     }
 
@@ -138,7 +141,7 @@ public sealed class SchemaGenerationService(ISchemaTemplateRenderer? renderer = 
     private static TemplateInput BuiltInTemplate(GenerationTarget? target)
     {
         if (target is null) throw new InvalidOperationException("No bundled target was selected.");
-        var name = target.Id is "arrow" or "class" or "dataclass" or "pydantic" ? target.Profile : target.Id;
+        var name = target.Id is "arrow" or "class" or "dataclass" or "pydantic" or "pyspark" or "dotnet-dataframe" or "idataview" ? target.Profile : target.Id;
         return GenerationCatalogService.BuiltIn(name);
     }
 

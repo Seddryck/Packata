@@ -4,6 +4,8 @@ parent: Reference
 permalink: /reference/dotnet/schema-generation/
 ---
 
+For PySpark, Arrow, DataFrame and ML.NET, see [framework schema code]({{ '/reference/dotnet/framework-schema-generation/' | relative_url }}).
+
 For ordinary C# classes and Python classes, dataclasses and Pydantic models, see the
 [model generation reference]({{ '/reference/dotnet/model-generation/' | relative_url }}),
 including presence policies, mapping profiles and complete generated examples.

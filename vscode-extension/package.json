@@ -273,6 +273,24 @@
         "enablement": "packata.schema.arrowCsharp"
       },
       {
+        "command": "packata.schema.pysparkPython",
+        "title": "PySpark Schema…",
+        "category": "Packata Python",
+        "enablement": "packata.schema.pysparkPython"
+      },
+      {
+        "command": "packata.schema.dataframeCsharp",
+        "title": "DataFrame…",
+        "category": "Packata C#",
+        "enablement": "packata.schema.dataframeCsharp"
+      },
+      {
+        "command": "packata.schema.idataviewCsharp",
+        "title": "ML.NET Schema…",
+        "category": "Packata C#",
+        "enablement": "packata.schema.idataviewCsharp"
+      },
+      {
         "command": "packata.schema.arrowPython",
         "title": "Arrow Schema…",
         "category": "Packata Python",
@@ -401,6 +419,14 @@
       ],
       "packata.schema.csharp": [
         {
+          "command": "packata.schema.dataframeCsharp",
+          "when": "packata.schema.dataframeCsharp"
+        },
+        {
+          "command": "packata.schema.idataviewCsharp",
+          "when": "packata.schema.idataviewCsharp"
+        },
+        {
           "command": "packata.schema.record",
           "when": "packata.schema.record"
         },
@@ -505,6 +531,10 @@
         }
       ],
       "packata.schema.python": [
+        {
+          "command": "packata.schema.pysparkPython",
+          "when": "packata.schema.pysparkPython"
+        },
         {
           "command": "packata.schema.arrowPython",
           "when": "packata.schema.arrowPython"
