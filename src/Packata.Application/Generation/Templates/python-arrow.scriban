@@ -1,0 +1,3 @@
+import pyarrow as pa
+
+{{ model.target.name }} = {{ model.target.schema_expression }}

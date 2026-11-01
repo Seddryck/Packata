@@ -36,7 +36,7 @@ export function generationCurrent(result: Generated, sourceVersion: number | nul
 
 async function customize(options: Options, custom: boolean): Promise<boolean> {
   while (true) {
-    const choices = ['Generate', 'Namespace…', 'Type name…', ...(custom ? ['User variable…'] : [])];
+    const choices = ['Generate', ...(options.language === 'python' ? [] : ['Namespace…']), 'Type name…', ...(custom ? ['User variable…'] : [])];
     const choice = await vscode.window.showQuickPick(choices, { title: 'Generation options', placeHolder: 'Generate with defaults, or customize an option' });
     if (choice === undefined) return false;
     if (choice === 'Generate') return true;

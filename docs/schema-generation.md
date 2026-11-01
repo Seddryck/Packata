@@ -236,3 +236,70 @@ primary_key = asset_details.get("primaryKey", [])
 This is descriptive Packata metadata, not a standard Avro/Spark validation extension. Native consumers may ignore it; transformations dropping the first Spark field also drop the asset-level anchor. Nested item/map restrictions remain in their owning field's recursive metadata even when a primitive element has no native metadata slot. Native Avro enum symbols enforce compatible string membership; numeric, mixed, or invalid-symbol sets retain their source values/type as metadata and produce `SCHEMA_ENUM_FORMAT_LIMIT` at Information severity. Spark membership is metadata-only and informational because StructType has no enum type. Empty/multiple string membership declarations are an explicitly unimplemented native-enum case and remain `SCHEMA_IMPLEMENTATION_GAP` warnings, as do uninterpreted custom constraints and Avro explicit defaults. No default or category value is inferred.
 
 All structured-export format limits use Information, including relational constraints, source requiredness, integer-domain widening, format/physical-type annotations and temporal offset/precision limits that can still produce a safe representation. Existing fatal invalid/unsafe mappings remain errors and publish no partial artifact. Implementation-gap warnings say what the exporter does not yet implement and what is retained as metadata. CLI renders Warning diagnostics in yellow and Information in blue on color-capable terminals. Diagnostics stay on stderr; redirected stderr remains plain text, and schema JSON on stdout stays clean. Information retains success exit code 0; LSP preserves the severity/code/source path, and VS Code opens informational-only results without a warning banner.
+
+## Apache Arrow schemas (C# and Python)
+
+Use explicit target and language selectors. Generation and portable document export are separate operations:
+
+```console
+packata schema generate contract.yaml --asset orders --target arrow --language csharp --type-name Orders -o Orders.cs
+packata schema generate contract.yaml --asset orders --target arrow --language python --type-name Orders -o orders_arrow_schema.py
+```
+
+C# consumers reference Apache.Arrow **23.0.0** and call `Orders.Create()` to obtain an
+`Apache.Arrow.Schema`. Python consumers need Python **3.10+** and PyArrow **23+**:
+
+```python
+from orders_arrow_schema import Orders
+import pyarrow as pa
+assert isinstance(Orders, pa.Schema)
+print(Orders.field("id"))
+```
+
+For a contract with one required, non-nullable integer `id`, the complete Python output is:
+
+```python
+import pyarrow as pa
+
+Orders = pa.schema([pa.field("id", pa.int32(), nullable=False, metadata={"packata.required": "true"})], metadata={})
+```
+
+Field order and value nullability are retained. Presence requiredness is separately stored
+in field metadata as `packata.required`. Arrow schemas do not enforce field presence,
+uniqueness, value domains or quality constraints; `ARROW_CONSTRAINTS` reports this limitation.
+Use `--type-name` for the exported value/factory name; names are sanitized deterministically.
+Python has no namespace option. Source field names and metadata strings are escaped literals.
+
+Both targets use the same field-aware `Packata.Arrow.ArrowSchemaProjection` projection, also
+available to IPC consumers. Supported types include signed/unsigned integers, floats,
+boolean, UTF-8 string, explicit string/binary, date32, time32/time64, timestamps, decimal128
+(up to 38 digits), decimal256 (up to 76), nested structs and lists. Decimal precision and
+scale must be declared. Temporal precision selects seconds/milliseconds/microseconds/
+nanoseconds; an omitted precision uses nanoseconds to retain CLR ticks. Instants default
+to UTC. Arbitrary per-row offsets without a declared zone are rejected. Epoch range and
+conversion precision require separate value validation (`ARROW_TEMPORAL_RANGE`).
+
+Canonical schema/field `Extensions["arrow"]` string values become Arrow metadata. A
+canonical object with `arrow.type = "map"` and exactly two children (non-nullable key,
+then value) becomes an Arrow map. This is an explicit canonical adapter convention;
+native ODCS/Data Package metadata remains source-specific unless mapped to that namespace.
+Dictionary types are not inferred from categorical domains. Unsupported dictionary/extension
+representations and `ARROW:extension:*` metadata fail instead of changing meaning; extension
+registration and storage adapters are outside this generation target.
+
+Custom templates select `--type-mapping csharp-arrow` or `python-arrow` and can render
+`model.target.schema_expression` or each field's `target.field_expression` and
+`target.type_expression`. Python uses public [schema](https://arrow.apache.org/docs/python/generated/pyarrow.schema.html)
+and [field](https://arrow.apache.org/docs/python/generated/pyarrow.field.html) APIs; string
+metadata becomes PyArrow UTF-8 bytes. Production only renders text; Python execution and
+package installation occur exclusively in interoperability tests.
+
+The editor picker discovers both `arrow/csharp` and `arrow/python` through the Application
+catalog and sends the selected language with the target through LanguageServer. Unsaved
+snapshots, cancellation, diagnostics, and untitled editable output retain their existing
+safeguards. Common hierarchical menu infrastructure remains owned by #699.
+
+Focused checks: `SchemaGenerationTests`, `ArrowGenerationTests` (set `PACKATA_TEST_PYTHON`
+to a Python with PyArrow), CLI `SchemaGenerationCommandTests`, LanguageServer
+`SchemaGenerationOperationTests`, and VS Code `generation.test.cjs`. Python interoperability
+compares generated schemas, including metadata, against IPC serialized from generated C#.

@@ -21,6 +21,8 @@ export const schemaRoutes: Record<string, SchemaRoute> = {
   'packata.schema.jsonSchema': { operation: 'export', outputFormat: 'json-schema' },
   'packata.schema.record': { operation: 'generate', target: 'record', language: 'csharp' },
   'packata.schema.datatable': { operation: 'generate', target: 'datatable', language: 'csharp' },
+  'packata.schema.arrowCsharp': { operation: 'generate', target: 'arrow', language: 'csharp' },
+  'packata.schema.arrowPython': { operation: 'generate', target: 'arrow', language: 'python' },
   'packata.schema.polars': { operation: 'generate', target: 'polars', language: 'csharp' }
 };
 export function available(route: SchemaRoute, targets: Target[]): boolean {

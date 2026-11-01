@@ -20,8 +20,13 @@ public static class GenerationCatalogService
         new("datatable", "DataTable", "csharp-datatable", "scriban", "csharp", true,
             "AllowDBNull is enforced; requiredness, constraints, categories and parameters are retained as metadata."),
         new("polars", "Polars.NET", "csharp-polars", "scriban", "csharp", true,
-            "Polars.NET 1.0.1; schema types do not enforce field requiredness, nullability or contract quality rules.")
-    ], ["csharp-record", "csharp-datatable", "csharp-polars"],
+            "Polars.NET 1.0.1; schema types do not enforce field requiredness, nullability or contract quality rules."),
+        new("arrow", "Arrow Schema (C#)", "csharp-arrow", "scriban", "csharp", true,
+            "Apache.Arrow 23.0.0; presence, uniqueness and quality rules require separate validation."),
+        new("arrow", "Arrow Schema (Python)", "python-arrow", "scriban", "python", false,
+            "Python 3.10+ and PyArrow 23+; presence, uniqueness and quality rules require separate validation.",
+            Representation: "Python", Extension: ".py", ApplicableOptions: ["asset", "output", "type-name"])
+    ], ["csharp-record", "csharp-datatable", "csharp-polars", "csharp-arrow", "python-arrow"],
         TemplateEngineFactory.Default.AllSupportedExtensions().Select(s => s.TrimStart('.')).Order().ToArray(), "scriban",
     ["Generation reads descriptor metadata only; it never reads rows, compiles or executes generated code.",
      "Didot rendering is synchronous and cannot be interrupted once entered; cancelled results are discarded.",
