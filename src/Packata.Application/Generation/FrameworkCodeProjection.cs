@@ -20,20 +20,28 @@ internal sealed class FrameworkCodeProjection(string profile, List<GenerationDia
             var field = asset.Schema!.Fields[i];
             var path = asset.Id + "/" + field.Name;
             if (!names.Add(field.Name)) Error(path, "Duplicate column names cannot be represented. Rename the conflicting field.");
-            var target = (Dictionary<string, object?>)fields[i]["target"]!;
-            target["schema_literal"] = GenerationData.Literal(JsonConvert.SerializeObject(GenerationData.Plain(field)));
-            target["type_expression"] = dataframe ? DataFrame(field, path) : MlType(field, path);
-            target["column_expression"] = target["type_expression"];
-            if (field.Constraints.Count > 0 || field.QualityRules.Count > 0 || field.ValueDomain is not null || field.Format is not null)
-                Warn(path, "Contract constraints, formats, quality rules and categories require separate validation.");
-            if (!field.Required || field.Nullable || dataframe)
-                Warn(path, dataframe
-                    ? "DataFrame columns permit nulls; requiredness and value nullability must be validated separately. No rows are generated."
-                    : "ML.NET cannot enforce presence or represent nullable values separately from its type-specific missing values (NaN, empty text, or key zero).");
+            ApplyField(fields[i], field, path);
         }
         if (asset.Schema!.PrimaryKey.Count > 0 || asset.Schema.Relationships.Count > 0 || !asset.Schema.AllowAdditionalProperties || asset.Schema.EnforcePropertyOrder)
             Warn(asset.Id, "Keys, relationships and schema property policies require separate validation.");
     }
+
+    private void ApplyField(Dictionary<string, object?> context, DataField field, string path)
+    {
+        var target = (Dictionary<string, object?>)context["target"]!;
+        target["schema_literal"] = GenerationData.Literal(JsonConvert.SerializeObject(GenerationData.Plain(field)));
+        target["type_expression"] = dataframe ? DataFrame(field, path) : MlType(field, path);
+        target["column_expression"] = target["type_expression"];
+        if (HasValidationRules(field) || field.Format is not null)
+            Warn(path, "Contract constraints, formats, quality rules and categories require separate validation.");
+        if (!field.Required || field.Nullable || dataframe)
+            Warn(path, dataframe
+                ? "DataFrame columns permit nulls; requiredness and value nullability must be validated separately. No rows are generated."
+                : "ML.NET cannot enforce presence or represent nullable values separately from its type-specific missing values (NaN, empty text, or key zero).");
+    }
+
+    private static bool HasValidationRules(DataField field)
+        => field.Constraints.Count > 0 || field.QualityRules.Count > 0 || field.ValueDomain is not null;
 
     private string DataFrame(DataField field, string path)
     {
@@ -59,35 +67,43 @@ internal sealed class FrameworkCodeProjection(string profile, List<GenerationDia
     {
         var options = MlOptions(field, path);
         if (field.LogicalType == "array" && field.Items is { } item)
-        {
-            var itemType = MlScalar(item, path + "/items", MlOptions(item, path + "/items"));
-            if (item.Nullable) Warn(path + "/items", "ML.NET vectors use item-specific missing values and cannot retain an independent null bitmap.");
-            var dimensions = options["dimensions"] ?? new JArray(0);
-            if (dimensions is not JArray { Count: > 0 } shape || shape.Any(v => !Integer(v, out var n) || n > int.MaxValue))
-            { Error(path, "mlnet.dimensions must be a nonempty array of nonnegative Int32 sizes; zero means variable length."); return ""; }
-            long size = 1;
-            foreach (var dimension in shape) { Integer(dimension, out var n); size *= (int)n; if (size > int.MaxValue) { Error(path, "Vector size exceeds Int32 capacity."); break; } }
-            if (options["keyCount"] is not null) Error(path, "Place keyCount on the vector item schema, not on the array.");
-            return $"new VectorDataViewType({itemType}, new int[] {{ {string.Join(", ", shape.Select(v => ((int)v).ToString(CultureInfo.InvariantCulture)))} }})";
-        }
+            return MlVector(item, path, options);
         return MlScalar(field, path, options);
+    }
+
+    private string MlVector(DataField item, string path, JObject options)
+    {
+        var itemType = MlScalar(item, path + "/items", MlOptions(item, path + "/items"));
+        if (item.Nullable) Warn(path + "/items", "ML.NET vectors use item-specific missing values and cannot retain an independent null bitmap.");
+        var shape = VectorDimensions(options["dimensions"] ?? new JArray(0), path);
+        if (shape is null) return "";
+        if (options["keyCount"] is not null) Error(path, "Place keyCount on the vector item schema, not on the array.");
+        return $"new VectorDataViewType({itemType}, new int[] {{ {string.Join(", ", shape.Select(v => ((int)v).ToString(CultureInfo.InvariantCulture)))} }})";
+    }
+
+    private JArray? VectorDimensions(JToken dimensions, string path)
+    {
+        if (dimensions is not JArray { Count: > 0 } shape || shape.Any(v => !Integer(v, out var n) || n > int.MaxValue))
+        { Error(path, "mlnet.dimensions must be a nonempty array of nonnegative Int32 sizes; zero means variable length."); return null; }
+        long size = 1;
+        foreach (var dimension in shape)
+        {
+            Integer(dimension, out var n);
+            size *= (int)n;
+            if (size > int.MaxValue) { Error(path, "Vector size exceeds Int32 capacity."); return null; }
+        }
+        return shape;
     }
 
     private string MlScalar(DataField field, string path, JObject options)
     {
         if (options["dimensions"] is not null) Error(path, "mlnet.dimensions applies only to an array with scalar items.");
-        if (path.EndsWith("/items", StringComparison.Ordinal) && (field.Constraints.Count > 0 || field.ValueDomain is not null || field.QualityRules.Count > 0))
+        if (path.EndsWith("/items", StringComparison.Ordinal) && HasValidationRules(field))
             Warn(path, "Vector item constraints, categories and quality rules require separate validation; declarations remain in packata.schema metadata.");
         var resolution = FieldTypeResolver.Resolve(field, new(SourcePath: path));
         var type = resolution.RuntimeType;
         if (options["keyCount"] is { } key)
-        {
-            var maximum = type == typeof(byte) ? byte.MaxValue : type == typeof(ushort) ? ushort.MaxValue : type == typeof(uint) ? uint.MaxValue : type == typeof(ulong) ? ulong.MaxValue : 0UL;
-            if (!Integer(key, out var count) || count == 0 || count > maximum)
-            { Error(path, "mlnet.keyCount requires an unsigned integer field and a positive cardinality within its storage range. Keys are one-based; zero is missing."); return ""; }
-            Warn(path, "ML.NET keys are one-based categorical indices; zero is reserved for missing values. No category encoding or data conversion is generated.");
-            return $"new KeyDataViewType(typeof({CSharpNames.TypeExpression(type!)}), {count.ToString(CultureInfo.InvariantCulture)}UL)";
-        }
+            return MlKey(type, key, path);
         if (resolution.LogicalType == "string") return "TextDataViewType.Instance";
         if (resolution.LogicalType == "boolean") return "BooleanDataViewType.Instance";
         if (resolution.LogicalType is "integer" or "number" && type is not null && type != typeof(decimal))
@@ -95,6 +111,21 @@ internal sealed class FrameworkCodeProjection(string profile, List<GenerationDia
         Error(path, "ML.NET supports boolean, text, integer, fp32/fp64 and vectors of these scalars. Decimal, temporal, nested object/map and nested vector types require explicit conversion.");
         return "";
     }
+
+    private string MlKey(Type? type, JToken key, string path)
+    {
+        var maximum = type is not null && KeyCapacities.TryGetValue(type, out var capacity) ? capacity : 0UL;
+        if (!Integer(key, out var count) || count == 0 || count > maximum)
+        { Error(path, "mlnet.keyCount requires an unsigned integer field and a positive cardinality within its storage range. Keys are one-based; zero is missing."); return ""; }
+        Warn(path, "ML.NET keys are one-based categorical indices; zero is reserved for missing values. No category encoding or data conversion is generated.");
+        return $"new KeyDataViewType(typeof({CSharpNames.TypeExpression(type!)}), {count.ToString(CultureInfo.InvariantCulture)}UL)";
+    }
+
+    private static readonly IReadOnlyDictionary<Type, ulong> KeyCapacities = new Dictionary<Type, ulong>
+    {
+        [typeof(byte)] = byte.MaxValue, [typeof(ushort)] = ushort.MaxValue,
+        [typeof(uint)] = uint.MaxValue, [typeof(ulong)] = ulong.MaxValue
+    };
 
     private JObject MlOptions(DataField field, string path)
     {
