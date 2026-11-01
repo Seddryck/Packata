@@ -231,4 +231,3 @@ public class ArrowIpcExporterTests
             => FailFlush ? Task.FromException(new IOException("Flush failed.")) : base.FlushAsync(cancellationToken);
     }
 }
-
