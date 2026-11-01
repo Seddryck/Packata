@@ -13,6 +13,7 @@ internal sealed class RowProjection
     private const string TimestampKind = "timestamp";
     private const string PrecisionParameter = "precision";
     private const string Microsecond = "microsecond";
+    private static readonly HashSet<string> TimestampUnits = ["second", "millisecond", Microsecond, "nanosecond"];
     private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
     internal sealed record Column(DataField Field, string Kind, int Precision, int Scale, int Width, bool Signed,
         string Unit, bool Timezone);
@@ -22,9 +23,8 @@ internal sealed class RowProjection
     {
         if (schema.Fields.Count == 0) throw new NotSupportedException("At least one field is required.");
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var field in schema.Fields)
-            if (string.IsNullOrWhiteSpace(field.Name) || !names.Add(field.Name))
-                throw Unsupported(field, "Names must be unique and nonempty.");
+        var invalid = schema.Fields.FirstOrDefault(field => string.IsNullOrWhiteSpace(field.Name) || !names.Add(field.Name));
+        if (invalid is not null) throw Unsupported(invalid, "Names must be unique and nonempty.");
         Columns = schema.Fields.Select(field => CreateColumn(field, avro)).ToArray();
     }
 
@@ -32,14 +32,14 @@ internal sealed class RowProjection
     {
         if (field.Children.Count > 0 || field.Items is not null || field.Map is not null)
             throw Unsupported(field, "Nested types are unsupported.");
-        var kind = Kind(field);
+        var kind = ReadKind(field);
         var (precision, scale) = kind == DecimalKind ? DecimalParameters(field) : (0, 0);
         var (width, signed) = kind == "integer" ? IntegerParameters(field, avro) : (64, true);
         var (unit, timezone) = kind == TimestampKind ? TimestampParameters(field, avro) : (Microsecond, true);
         return new(field, kind, precision, scale, width, signed, unit, timezone);
     }
 
-    private static string Kind(DataField field)
+    private static string ReadKind(DataField field)
     {
         var kind = field.LogicalType?.ToLowerInvariant() ?? "";
         if (kind == "datetime") kind = TimestampKind;
@@ -72,7 +72,7 @@ internal sealed class RowProjection
         if (Parameter(field, "defaultTimezone") is not null) throw Unsupported(field, "Implicit timezone interpretation is unsupported.");
         if ((Parameter(field, "timezone") ?? true) is not bool timezone) throw Unsupported(field, "timezone must be a Boolean.");
         var precision = Parameter(field, PrecisionParameter) ?? Microsecond;
-        if (precision is not string unit || unit is not ("second" or "millisecond" or Microsecond or "nanosecond"))
+        if (precision is not string unit || !TimestampUnits.Contains(unit))
             throw Unsupported(field, "Unsupported timestamp precision.");
         if (avro && unit == "nanosecond") throw Unsupported(field, "Avro output supports at most microsecond precision.");
         return (unit, timezone);

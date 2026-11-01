@@ -83,5 +83,4 @@ public sealed class NdjsonRepresentation : IAssetRepresentation
             case DateTime instant: json.WriteStringValue(instant.ToString("O", CultureInfo.InvariantCulture)); break;
         }
     }
-
 }
