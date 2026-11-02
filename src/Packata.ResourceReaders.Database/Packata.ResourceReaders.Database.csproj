@@ -8,7 +8,7 @@
     <PackageReference Include="DubUrl.Application" Version="0.55.1" />
     <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
     <ProjectReference Include="..\Packata.Database\Packata.Database.csproj" />
-    <PackageReference Include="DubUrl.Schema" Version="0.55.1" />
+    <PackageReference Include="DubUrl.Schema" Version="0.100.1" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Packata.ResourceReaders.Testing" />
