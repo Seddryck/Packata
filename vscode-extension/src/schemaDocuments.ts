@@ -48,12 +48,9 @@ export async function exportSchemaDocument(request: Request, entry?: TreeEntry, 
     const asset = assets.length === 1 ? assets[0]
       : (await vscode.window.showQuickPick(assets.map(a => ({ label: a.name, description: a.id, asset: a })), { title: 'Select an asset' }))?.asset;
     if (!asset) return;
-    let profile: string | undefined;
-    if (format.profiles.length) {
-      const choice = await vscode.window.showQuickPick(['Generic', ...format.profiles], { title: 'Compatibility profile' });
-      if (!choice) return;
-      if (choice !== 'Generic') profile = choice;
-    }
+    const chosenProfile = await selectProfile(format);
+    if (!chosenProfile) return;
+    const { profile } = chosenProfile;
     const version = source.version;
     const current = () => source.version === version && discovery.version === version && epoch === session() && selected === selection();
     await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Exporting schema…', cancellable: true }, async (_progress, token) => {
@@ -67,6 +64,13 @@ export async function exportSchemaDocument(request: Request, entry?: TreeEntry, 
       await presentDocument(response.result, format, uri, current, token);
     });
   } catch { void vscode.window.showErrorMessage('Unable to export schema. Choose a new output file and check source/server compatibility and permissions.'); }
+}
+
+async function selectProfile(format: Format): Promise<{ profile?: string } | undefined> {
+  if (!format.profiles.length) return {};
+  const choice = await vscode.window.showQuickPick(['Generic', ...format.profiles], { title: 'Compatibility profile' });
+  if (!choice) return undefined;
+  return choice === 'Generic' ? {} : { profile: choice };
 }
 
 async function presentDocument(result: Result['result'], format: Format, uri: vscode.Uri, current: () => boolean, token: vscode.CancellationToken): Promise<void> {

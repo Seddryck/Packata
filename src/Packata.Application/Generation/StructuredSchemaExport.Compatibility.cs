@@ -32,26 +32,29 @@ internal sealed partial class StructuredSchemaExport
         {
             token.ThrowIfCancellationRequested();
             if (!names.Add(field.Name)) ProfileError(field.Path, "Field names collide under the selected profile's name comparison.");
-            if (profile == "delta" && (field.Name.Length == 0 || field.Name.IndexOfAny(" ,;{}()\n\t=".ToCharArray()) >= 0))
-                ProfileError(field.Path, "Delta without column mapping forbids spaces and characters ,;{}()\n\t= in field names. Rename the field.");
-            if (profile == "hudi") ValidateHudiField(field);
-            if (profile == "delta") ValidateDeltaMetadata(field.Source.Extensions, field.Path);
-            ValidateProfileFields(field.Children);
-            if (field.Items is not null) ValidateProfileElement(field.Items);
-            if (field.MapKey is not null) ValidateProfileElement(field.MapKey);
-            if (field.MapValue is not null) ValidateProfileElement(field.MapValue);
+            ValidateProfileField(field, named: true);
+            ValidateProfileChildren(field);
         }
     }
 
-    // Collection element labels are not native struct field names.
-    private void ValidateProfileElement(Field field)
+    private void ValidateProfileField(Field field, bool named)
     {
-        if (profile == "hudi") ValidateHudiField(field, named: false);
-        if (profile == "delta") ValidateDeltaMetadata(field.Source.Extensions, field.Path);
+        if (profile == "hudi") ValidateHudiField(field, named);
+        if (profile != "delta") return;
+        if (named && (field.Name.Length == 0 || field.Name.IndexOfAny(" ,;{}()\n\t=".ToCharArray()) >= 0))
+            ProfileError(field.Path, "Delta without column mapping forbids spaces and characters ,;{}()\n\t= in field names. Rename the field.");
+        ValidateDeltaMetadata(field.Source.Extensions, field.Path);
+    }
+
+    private void ValidateProfileChildren(Field field)
+    {
         ValidateProfileFields(field.Children);
-        if (field.Items is not null) ValidateProfileElement(field.Items);
-        if (field.MapKey is not null) ValidateProfileElement(field.MapKey);
-        if (field.MapValue is not null) ValidateProfileElement(field.MapValue);
+        // Collection element labels are not native struct field names.
+        foreach (var element in CollectionElements(field))
+        {
+            ValidateProfileField(element, named: false);
+            ValidateProfileChildren(element);
+        }
     }
 
     private void ValidateDeltaMetadata(ExtensionMetadata metadata, string path)
@@ -68,6 +71,11 @@ internal sealed partial class StructuredSchemaExport
         if (named && !AvroIdentifier(field.Name)) ProfileError(field.Path, "Hudi profile requires valid Avro identifiers without name normalization. Rename the field.");
         if (named && field.Name.StartsWith("_hoodie_", StringComparison.OrdinalIgnoreCase))
             ProfileError(field.Path, "Hudi-managed metadata columns must not be supplied as user fields.");
+        ValidateHudiTypes(field);
+    }
+
+    private void ValidateHudiTypes(Field field)
+    {
         if (field.Kind == "time" || (field.Parameters.TemporalSemantics == TemporalSemantics.Local && field.Kind is "timestamp" or "datetime"))
             ProfileError(field.Path, "This Hudi/Spark baseline does not support time-only or local-timestamp logical types. Use an instant timestamp or an explicitly modeled string.");
         if (field.Kind == "decimal" && field.Parameters.Precision > 38)

@@ -1,3 +1,9 @@
+---
+title: Lakehouse schema documents
+parent: Reference
+permalink: /reference/dotnet/lakehouse-schema-documents/
+---
+
 # Lakehouse schema documents
 
 Export one canonical ODCS or Data Package asset without reading rows:
@@ -51,7 +57,7 @@ IDs are identities, not hashes of mutable names. The exporter first reserves all
 
 Both exporters conservatively permit field IDs through 2147483447, excluding Iceberg’s upper system-reserved range and conservatively retaining the same headroom for Paimon, and reject duplicate, negative, fractional or malformed IDs. Iceberg also rejects 0. Numeric ODCS custom-property strings are accepted as integer declarations. The same unchanged input produces identical output. Adding or reordering fields can change automatically allocated IDs: this policy does **not** make fresh IDs stable across edits.
 
-The canonical API accepts ExtensionMetadata namespaces iceberg and paimon. ODCS hosts accept named custom properties at the asset/field scopes (see the [complete source](../examples/lakehouse/contract.odcs.yaml)):
+The canonical API accepts ExtensionMetadata namespaces iceberg and paimon. ODCS hosts accept named custom properties at the asset/field scopes (see the [complete source](https://github.com/Seddryck/Packata/blob/main/examples/lakehouse/contract.odcs.yaml)):
 
 | Scope | ODCS custom property | Meaning |
 | --- | --- | --- |
@@ -81,14 +87,14 @@ Unknown/incompatible profiles fail before serialization; no-profile Avro/Spark o
 
 ## Complete artifacts and native consumption
 
-The [source fixture](../examples/lakehouse/contract.odcs.yaml) exports complete checked-in examples with decimals, timestamps, nested records, lists and maps:
+The [source fixture](https://github.com/Seddryck/Packata/blob/main/examples/lakehouse/contract.odcs.yaml) exports complete checked-in examples with decimals, timestamps, nested records, lists and maps:
 
-- [Iceberg JSON](../examples/lakehouse/orders.iceberg.schema.json)
-- [Paimon JSON](../examples/lakehouse/orders.paimon.schema.json)
-- [Hudi Avro](../examples/lakehouse/orders.hudi.avsc)
-- [Delta Spark JSON](../examples/lakehouse/orders.delta.schema.json)
+- [Iceberg JSON](https://github.com/Seddryck/Packata/blob/main/examples/lakehouse/orders.iceberg.schema.json)
+- [Paimon JSON](https://github.com/Seddryck/Packata/blob/main/examples/lakehouse/orders.paimon.schema.json)
+- [Hudi Avro](https://github.com/Seddryck/Packata/blob/main/examples/lakehouse/orders.hudi.avsc)
+- [Delta Spark JSON](https://github.com/Seddryck/Packata/blob/main/examples/lakehouse/orders.delta.schema.json)
 
-Java consumption uses the supported APIs below; see the [executable validation harness](../validation/schema-consumers/README.md) for pinned dependencies and assertions of IDs, descriptions, types and nullability:
+Java consumption uses the supported APIs below; see the [executable validation harness](https://github.com/Seddryck/Packata/blob/main/validation/schema-consumers/README.md) for pinned dependencies and assertions of IDs, descriptions, types and nullability:
 
 ```java
 var iceberg = org.apache.iceberg.SchemaParser.fromJson(icebergJson);

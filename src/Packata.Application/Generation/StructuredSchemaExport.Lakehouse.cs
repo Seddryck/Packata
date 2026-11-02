@@ -52,12 +52,19 @@ internal sealed partial class StructuredSchemaExport
             "array" when field.Items is { } item => new JObject { ["type"] = "list", ["element-id"] = fieldIds[item], ["element"] = IcebergType(item), ["element-required"] = !item.Nullable },
             "map" when LakehouseMap(field) => new JObject { ["type"] = "map", ["key-id"] = fieldIds[field.MapKey!], ["key"] = IcebergType(field.MapKey!),
                 ["value-id"] = fieldIds[field.MapValue!], ["value"] = IcebergType(field.MapValue!), ["value-required"] = !field.MapValue!.Nullable },
-            "decimal" => new JValue($"decimal({field.Parameters.Precision}, {field.Parameters.Scale})"),
-            "timestamp" or "datetime" => new JValue(field.Parameters.TemporalSemantics == TemporalSemantics.Local ? "timestamp" : "timestamptz"),
-            "time" when field.Parameters.TemporalSemantics is TemporalSemantics.Instant or TemporalSemantics.Offset => Unsupported(field),
-            "string" or "boolean" or "int" or "long" or "float" or "double" or "date" or "time" => new JValue(field.Kind),
-            _ => Unsupported(field)
+            _ => IcebergScalar(field)
         };
+    }
+
+    private static readonly HashSet<string> IcebergPrimitives = new(["string", "boolean", "int", "long", "float", "double", "date", "time"], StringComparer.Ordinal);
+
+    private JToken IcebergScalar(Field field)
+    {
+        if (field.Kind == "decimal") return new JValue($"decimal({field.Parameters.Precision}, {field.Parameters.Scale})");
+        if (field.Kind is "timestamp" or "datetime")
+            return new JValue(field.Parameters.TemporalSemantics == TemporalSemantics.Local ? "timestamp" : "timestamptz");
+        if (field.Kind == "time" && field.Parameters.TemporalSemantics is TemporalSemantics.Instant or TemporalSemantics.Offset) return Unsupported(field);
+        return IcebergPrimitives.Contains(field.Kind) ? new JValue(field.Kind) : Unsupported(field);
     }
 
     private JObject PaimonSchema(DataAsset asset, IReadOnlyList<Field> fields)
@@ -93,16 +100,26 @@ internal sealed partial class StructuredSchemaExport
         if (field.Kind == "object") return new JObject { ["type"] = "ROW" + suffix, ["fields"] = PaimonFields(field.Children) };
         if (field.Kind == "array" && field.Items is { } item) return new JObject { ["type"] = "ARRAY" + suffix, ["element"] = PaimonType(item) };
         if (field.Kind == "map" && LakehouseMap(field)) return new JObject { ["type"] = "MAP" + suffix, ["key"] = PaimonType(field.MapKey!), ["value"] = PaimonType(field.MapValue!) };
-        var type = field.Kind switch {
-            "string" => "STRING", "boolean" => "BOOLEAN", "byte" => "TINYINT", "short" => "SMALLINT", "integer" => "INT", "long" => "BIGINT",
-            "float" => "FLOAT", "double" => "DOUBLE", "date" => "DATE",
-            "decimal" => $"DECIMAL({field.Parameters.Precision}, {field.Parameters.Scale})",
-            "time" when field.Parameters.TemporalSemantics is not (TemporalSemantics.Instant or TemporalSemantics.Offset) => $"TIME({field.Parameters.TemporalPrecision ?? 6})",
-            "timestamp" or "datetime" => (field.Parameters.TemporalSemantics == TemporalSemantics.Local ? "TIMESTAMP" : "TIMESTAMP_LTZ") + $"({field.Parameters.TemporalPrecision ?? 6})",
-            _ => null
-        };
+        return PaimonScalar(field, suffix);
+    }
+
+    private static readonly IReadOnlyDictionary<string, string> PaimonPrimitives = new Dictionary<string, string>(StringComparer.Ordinal) {
+        ["string"] = "STRING", ["boolean"] = "BOOLEAN", ["byte"] = "TINYINT", ["short"] = "SMALLINT", ["integer"] = "INT", ["long"] = "BIGINT",
+        ["float"] = "FLOAT", ["double"] = "DOUBLE", ["date"] = "DATE"
+    };
+
+    private JToken PaimonScalar(Field field, string suffix)
+    {
+        var type = PaimonPrimitives.TryGetValue(field.Kind, out var primitive) ? primitive : PaimonParameterizedType(field);
         return type is null ? Unsupported(field) : new JValue(type + suffix);
     }
+
+    private static string? PaimonParameterizedType(Field field) => field.Kind switch {
+        "decimal" => $"DECIMAL({field.Parameters.Precision}, {field.Parameters.Scale})",
+        "time" when field.Parameters.TemporalSemantics is not (TemporalSemantics.Instant or TemporalSemantics.Offset) => $"TIME({field.Parameters.TemporalPrecision ?? 6})",
+        "timestamp" or "datetime" => (field.Parameters.TemporalSemantics == TemporalSemantics.Local ? "TIMESTAMP" : "TIMESTAMP_LTZ") + $"({field.Parameters.TemporalPrecision ?? 6})",
+        _ => null
+    };
 
     private bool LakehouseMap(Field field)
     {
@@ -116,15 +133,7 @@ internal sealed partial class StructuredSchemaExport
         var nodes = IdFields(fields, iceberg).ToArray();
         var used = new HashSet<int>();
         var target = iceberg ? "iceberg" : "paimon";
-        foreach (var field in nodes)
-        {
-            var supplied = TargetMetadata.Value(field.Source.Extensions, target, "field-id");
-            if (supplied is null) continue;
-            if (!TryInteger(supplied, out var id) || id < (iceberg ? 1 : 0) || id > MaximumFieldId)
-                Error(field.Path, $"Invalid or reserved {target} field ID. Expected an integer from {(iceberg ? 1 : 0)} through {MaximumFieldId}.");
-            else if (!used.Add(id)) Error(field.Path, $"Duplicate {target} field ID.");
-            else fieldIds[field] = id;
-        }
+        foreach (var field in nodes) ReserveFieldId(field, target, iceberg ? 1 : 0, used);
         var next = iceberg ? 1 : 0;
         foreach (var field in nodes)
         {
@@ -135,15 +144,27 @@ internal sealed partial class StructuredSchemaExport
         }
     }
 
+    private void ReserveFieldId(Field field, string target, int minimum, HashSet<int> used)
+    {
+        var supplied = TargetMetadata.Value(field.Source.Extensions, target, "field-id");
+        if (supplied is null) return;
+        if (!TryInteger(supplied, out var id) || id < minimum || id > MaximumFieldId)
+            Error(field.Path, $"Invalid or reserved {target} field ID. Expected an integer from {minimum} through {MaximumFieldId}.");
+        else if (!used.Add(id)) Error(field.Path, $"Duplicate {target} field ID.");
+        else fieldIds[field] = id;
+    }
+
+    private static IEnumerable<Field> CollectionElements(Field field)
+        => new[] { field.Items, field.MapKey, field.MapValue }.OfType<Field>();
+
     private static IEnumerable<Field> IdFields(IReadOnlyList<Field> fields, bool iceberg, bool named = true)
     {
         foreach (var field in fields)
         {
             if (named || iceberg) yield return field;
             foreach (var child in IdFields(field.Children, iceberg)) yield return child;
-            if (field.Items is not null) foreach (var item in IdFields([field.Items], iceberg, named: false)) yield return item;
-            if (field.MapKey is not null) foreach (var key in IdFields([field.MapKey], iceberg, named: false)) yield return key;
-            if (field.MapValue is not null) foreach (var value in IdFields([field.MapValue], iceberg, named: false)) yield return value;
+            foreach (var element in CollectionElements(field))
+                foreach (var descendant in IdFields([element], iceberg, named: false)) yield return descendant;
         }
     }
 

@@ -59,8 +59,7 @@ internal sealed partial class StructuredSchemaExport(string outputFormat, List<G
     private Field Project(DataField field, string path, bool primaryKey = false, bool named = true)
     {
         token.ThrowIfCancellationRequested();
-        if (format == "paimon-json" && !named && TargetMetadata.Value(field.Extensions, "paimon", "field-id") is not null)
-            Error(path, "Paimon collection elements have no field IDs; supply IDs only on named row fields.");
+        ValidateCollectionIdentity(field, path, named);
         var type = ResolveType(field, path);
         ReportMetadataLoss(field, path);
         var kind = ProjectKind(field, type, path);
@@ -68,16 +67,28 @@ internal sealed partial class StructuredSchemaExport(string outputFormat, List<G
         ValidateTemporal(kind, type.Parameters, path);
         ValidateShape(kind, field, path);
         var symbols = format == "avro" ? AvroEnumProjection.Symbols(field) : null;
+        var members = ProjectMembers(field, path);
         var projected = new Field(field.Name, path, kind, field.Nullable, field.Required, type.Parameters,
-            field.Children.Select(f => Project(f, path + "/" + f.Name)).ToArray(),
-            field.Items is null ? null : Project(field.Items, path + "/items", named: false), field.Description,
-            field.Map is null ? null : Project(field.Map.Key, path + "/map/key", named: false),
-            field.Map is null ? null : Project(field.Map.Value, path + "/map/value", named: false),
+            members.Children, members.Items, field.Description, members.Key, members.Value,
             symbols, SchemaConstraintMetadata.Field(field, NativeFieldName(field.Name, named),
                 new(format, kind, type.Parameters, symbols is not null), primaryKey), field);
         AttachElementMetadata(projected);
         return projected;
     }
+
+    private void ValidateCollectionIdentity(DataField field, string path, bool named)
+    {
+        if (format == "paimon-json" && !named && TargetMetadata.Value(field.Extensions, "paimon", "field-id") is not null)
+            Error(path, "Paimon collection elements have no field IDs; supply IDs only on named row fields.");
+    }
+
+    private (Field[] Children, Field? Items, Field? Key, Field? Value) ProjectMembers(DataField field, string path)
+        => (field.Children.Select(f => Project(f, path + "/" + f.Name)).ToArray(),
+            ProjectElement(field.Items, path + "/items"), ProjectElement(field.Map?.Key, path + "/map/key"),
+            ProjectElement(field.Map?.Value, path + "/map/value"));
+
+    private Field? ProjectElement(DataField? field, string path)
+        => field is null ? null : Project(field, path, named: false);
 
     private string? NativeFieldName(string source, bool named)
         => named ? (format == "avro" ? Name(source) : source) : null;
@@ -169,10 +180,18 @@ internal sealed partial class StructuredSchemaExport(string outputFormat, List<G
         var signed = type.Parameters.Signed ?? true;
         if (!signed && width == 64) { Error(type.FieldPath, "Unsigned 64-bit integers cannot be represented losslessly by Avro/Spark signed integers."); return "long"; }
         var bits = signed ? width : width + 1;
-        var kind = format is "spark-json" or "paimon-json" ? SparkInteger(bits) : (bits <= 32 ? "int" : "long");
-        if (!signed || (format is "avro" or "iceberg-json" && width < 32))
-            Info("SCHEMA_RANGE", type.FieldPath, "The target integer domain is wider than the source; source range constraints are not enforced.");
+        var kind = IntegerKind(bits);
+        ReportIntegerRange(width, signed, type.FieldPath);
         return kind;
+    }
+
+    private string IntegerKind(int bits)
+        => format is "spark-json" or "paimon-json" ? SparkInteger(bits) : (bits <= 32 ? "int" : "long");
+
+    private void ReportIntegerRange(int width, bool signed, string path)
+    {
+        if (!signed || (format is "avro" or "iceberg-json" && width < 32))
+            Info("SCHEMA_RANGE", path, "The target integer domain is wider than the source; source range constraints are not enforced.");
     }
 
     private static string SparkInteger(int bits) => bits switch { <= 8 => "byte", <= 16 => "short", <= 32 => "integer", _ => "long" };

@@ -47,7 +47,7 @@ exports.run = async function () {
   const generationOptions = await vscode.commands.executeCommand('packata.schema.options', { uri: uri.toString(), schemaVersion: 1 });
   assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'csharp').map(t => t.id).sort(), ['arrow', 'class', 'datatable', 'dotnet-dataframe', 'idataview', 'polars', 'record'], 'Bundled C# targets come from Application');
   assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'generate' && t.language === 'python').map(t => t.id).sort(), ['arrow', 'class', 'dataclass', 'pydantic', 'pyspark'], 'Bundled Python targets come from Application');
-  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'export').map(t => t.id).sort(), ['arrow-ipc', 'avro', 'avro-idl', 'json-schema', 'spark-json'], 'Document formats share the Application catalog');
+  assert.deepEqual(generationOptions.catalog.targets.filter(t => t.operation === 'export').map(t => t.id).sort(), ['arrow-ipc', 'avro', 'avro-idl', 'iceberg-json', 'json-schema', 'paimon-json', 'spark-json'], 'Document formats share the Application catalog');
   const exported = await vscode.commands.executeCommand('packata.schema.export', { uri: uri.toString(), version: document.version,
     selectionKey: generationOptions.selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', outputFormat: 'avro-idl' }, schemaVersion: 1 });
   assert.equal(exported.result.isSuccessful, true, JSON.stringify(exported.result.diagnostics));
@@ -59,6 +59,7 @@ exports.run = async function () {
   assert.equal(generated.result.isSuccessful, true, JSON.stringify(generated.result.diagnostics));
   assert.ok(generated.result.content.includes('record Orders'), 'Bundled Didot record template works in the packaged server');
   await assertModelGeneration(uri, document.version, generationOptions.selectionKey);
+  await assertLakehouseExports(uri, document.version, generationOptions.selectionKey);
   const templateUri = vscode.Uri.file(path.join(process.env.PACKATA_SMOKE_WORKSPACE, 'second', 'bar.template.cs'));
   const template = await vscode.workspace.openTextDocument(templateUri);
   const templateEdit = new vscode.WorkspaceEdit();
@@ -87,5 +88,17 @@ async function assertModelGeneration(uri, version, selectionKey) {
     assert.equal(generated.result.isSuccessful, true, JSON.stringify(generated.result.diagnostics));
     assert.equal(generated.result.language, language);
     assert.ok(generated.result.content.includes(declaration), `${target}/${language} template is bundled in the packaged server`);
+  }
+}
+
+async function assertLakehouseExports(uri, version, selectionKey) {
+  for (const [outputFormat, compatibilityProfile] of [
+    ['iceberg-json', undefined], ['paimon-json', undefined], ['avro', 'hudi'], ['spark-json', 'delta']
+  ]) {
+    const exported = await vscode.commands.executeCommand('packata.schema.export', { uri: uri.toString(), version,
+      selectionKey, sourcePath: '/resources/0', options: { assetId: 'orders', outputFormat, compatibilityProfile }, schemaVersion: 1 });
+    assert.equal(exported.result.isSuccessful, true, JSON.stringify(exported.result.diagnostics));
+    const schema = JSON.parse(exported.result.content);
+    assert.equal(schema.fields[0].name, 'id', outputFormat + ' exports the unsaved selected asset');
   }
 }
