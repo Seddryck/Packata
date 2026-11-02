@@ -1,0 +1,106 @@
+{
+  "type": "struct",
+  "fields": [
+    {
+      "name": "id",
+      "type": "long",
+      "nullable": false,
+      "metadata": {
+        "packata": {
+          "version": 1,
+          "field": "{\"description\":\"Order identifier\",\"constraints\":[{\"kind\":\"integerWidth\",\"value\":\"64\"},{\"kind\":\"signed\",\"value\":\"true\"}]}",
+          "schema": "{\"assetId\":\"orders\",\"allowAdditionalProperties\":false,\"enforcePropertyOrder\":true}"
+        }
+      }
+    },
+    {
+      "name": "amount",
+      "type": "decimal(12,2)",
+      "nullable": false,
+      "metadata": {}
+    },
+    {
+      "name": "at",
+      "type": "timestamp",
+      "nullable": false,
+      "metadata": {
+        "packata": {
+          "version": 1,
+          "field": "{\"constraints\":[{\"kind\":\"timezone\",\"value\":\"true\"},{\"kind\":\"precision\",\"value\":\"6\"}]}"
+        }
+      }
+    },
+    {
+      "name": "customer",
+      "type": {
+        "type": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": true,
+            "metadata": {
+              "packata": {
+                "version": 1,
+                "field": "{\"required\":false}"
+              }
+            }
+          }
+        ]
+      },
+      "nullable": true,
+      "metadata": {
+        "packata": {
+          "version": 1,
+          "field": "{\"required\":false}"
+        }
+      }
+    },
+    {
+      "name": "tags",
+      "type": {
+        "type": "array",
+        "elementType": {
+          "type": "struct",
+          "fields": [
+            {
+              "name": "label",
+              "type": "string",
+              "nullable": true,
+              "metadata": {
+                "packata": {
+                  "version": 1,
+                  "field": "{\"required\":false}"
+                }
+              }
+            }
+          ]
+        },
+        "containsNull": true
+      },
+      "nullable": false,
+      "metadata": {
+        "packata": {
+          "version": 1,
+          "field": "{\"items\":{\"name\":\"element\"}}"
+        }
+      }
+    },
+    {
+      "name": "lookup",
+      "type": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": "integer",
+        "valueContainsNull": true
+      },
+      "nullable": false,
+      "metadata": {
+        "packata": {
+          "version": 1,
+          "field": "{\"required\":false,\"map\":{\"key\":{\"name\":\"key\"},\"value\":{\"name\":\"value\"}}}"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "type": "struct",
+  "fields": [
+    {
+      "id": 40,
+      "name": "id",
+      "required": true,
+      "type": "long",
+      "doc": "Order identifier"
+    },
+    {
+      "id": 1,
+      "name": "amount",
+      "required": true,
+      "type": "decimal(12, 2)"
+    },
+    {
+      "id": 2,
+      "name": "at",
+      "required": true,
+      "type": "timestamptz"
+    },
+    {
+      "id": 3,
+      "name": "customer",
+      "required": false,
+      "type": {
+        "type": "struct",
+        "fields": [
+          {
+            "id": 4,
+            "name": "name",
+            "required": false,
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "name": "tags",
+      "required": true,
+      "type": {
+        "type": "list",
+        "element-id": 6,
+        "element": {
+          "type": "struct",
+          "fields": [
+            {
+              "id": 7,
+              "name": "label",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
+        "element-required": false
+      }
+    },
+    {
+      "id": 8,
+      "name": "lookup",
+      "required": true,
+      "type": {
+        "type": "map",
+        "key-id": 9,
+        "key": "string",
+        "value-id": 10,
+        "value": "int",
+        "value-required": false
+      }
+    }
+  ],
+  "schema-id": 5
+}
