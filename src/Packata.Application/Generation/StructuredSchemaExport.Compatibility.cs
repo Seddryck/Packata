@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using Packata.Core;
@@ -7,6 +8,8 @@ namespace Packata.Application.Generation;
 
 internal sealed partial class StructuredSchemaExport
 {
+    private static readonly SearchValues<char> InvalidDeltaNameCharacters = SearchValues.Create(" ,;{}()\n\t=");
+
     private void ValidateCompatibility(DataAsset asset, IReadOnlyList<Field> fields)
     {
         if (profile is null) return;
@@ -41,7 +44,7 @@ internal sealed partial class StructuredSchemaExport
     {
         if (profile == "hudi") ValidateHudiField(field, named);
         if (profile != "delta") return;
-        if (named && (field.Name.Length == 0 || field.Name.IndexOfAny(" ,;{}()\n\t=".ToCharArray()) >= 0))
+        if (named && (field.Name.Length == 0 || field.Name.AsSpan().ContainsAny(InvalidDeltaNameCharacters)))
             ProfileError(field.Path, "Delta without column mapping forbids spaces and characters ,;{}()\n\t= in field names. Rename the field.");
         ValidateDeltaMetadata(field.Source.Extensions, field.Path);
     }
