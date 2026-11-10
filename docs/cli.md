@@ -28,6 +28,7 @@ The existing `packata infer` command remains available.
 | `data serve` | [Serve assets over HTTP]({{ '/http-serving/' | relative_url }}) |
 | `data validate` | [Structural validation]({{ '/dataset-validation/' | relative_url }}) |
 | `quality run` | [Quality execution and OORS reports]({{ '/cli-quality/' | relative_url }}) |
+| `lineage export` | [OpenLineage](#export-declared-lineage) |
 | `dialect export` | [CSV dialect](#export-a-csv-dialect) |
 | `dialect infer` | [Infer CSV parsing settings](#infer-csv-parsing-settings) |
 | `connector list`, `connector show`, `connector install` | [Connectors]({{ '/cli-database/' | relative_url }}) |
@@ -41,7 +42,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 | --- | --- |
 | data validate | 0 structural checks pass; 1 completed violations or invalid contract; 2 invocation error; 3 read/execution error; 4 incomplete/unsupported checks; 130 cancellation |
 | data serve | 0 graceful shutdown; 2 startup/selection/invocation error; framework cancellation can return 130 |
-| validate, inspect, diff, schema export, dialect export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
+| validate, inspect, diff, schema export, dialect export, lineage export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
 | contract satisfies | 0 gate passes; 1 Unsatisfied or default Unknown; 2 input/invocation/I/O/cancellation/analysis error or Unknown under error policy |
 | quality run | 0 pass or warning; 1 quality failure without errors; 2 command/contract/execution/report error, cancellation, no matches, or all skipped |
 | contract compare | Same base codes, plus 4 for a completed report failing the selected gate and 5 for incomplete analysis; see [details](#assess-consumer-compatibility) |
@@ -53,7 +54,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 ## Shared options
 
 The CLI uses Spectre.Console.Cli. Commands are grouped under `contract`, `schema`,
-`data`, `quality`, `dialect`, `connector`, and `config`. `infer` remains a compatibility
+`data`, `quality`, `dialect`, `lineage`, `connector`, and `config`. `infer` remains a compatibility
 entry point for `schema infer`. Schema export and generation require their explicit grouped commands.
 
 | Option | Meaning |
@@ -89,6 +90,34 @@ packata schema export contract.yaml --asset customers --output-format json-schem
 packata data preview datapackage.json --asset customers --output-format csv -o customers.csv
 ```
 
+
+<!-- cli:lineage export -->
+## Export declared lineage
+
+`packata lineage export <SOURCE> --asset <ID> [OPTIONS]` emits an OpenLineage `JobEvent` for
+the selected asset in an ODCS contract. It reads the contract to find the declared
+dependencies. When the contract identifies a source dataset but Packata cannot resolve its
+columns, the event can still include the dataset dependency.
+
+| Option | Meaning |
+| --- | --- |
+| `--input-format <FORMAT>` | Detect the source format by default. Set `odcs` to select it explicitly. |
+| `--asset <ID>` | Exact identifier of the output asset in the contract. Required. |
+| `--job-namespace <NAMESPACE>` | OpenLineage namespace of the producing job. Required. |
+| `--job-name <NAME>` | OpenLineage name of the producing job. Required. |
+| `--dataset-namespace <NAMESPACE>` | OpenLineage namespace shared by the input and output datasets. Required. |
+| `--output-dataset <NAME>` | OpenLineage name of the output dataset. Required. |
+| `--source-dataset <MAPPING>` | Map a declared source to a dataset name as `REFERENCE=NAME`. Supply at least one mapping and use each reference once. |
+| `--output <PATH>`, `-o <PATH>` | Write to a new file. The default is JSON on stdout. |
+
+Use the same job and dataset identifiers as your OpenLineage runtime integration. The
+command writes diagnostics to stderr and protects existing output files.
+
+```console
+packata lineage export orders.odcs.yaml --asset prices --job-namespace commerce-prod --job-name build_prices --dataset-namespace postgres://warehouse.example.com:5432 --output-dataset commerce.analytics.prices --source-dataset order_lines=commerce.raw.order_lines
+```
+
+<!-- end-cli -->
 
 <!-- cli:dialect export -->
 ## Export a CSV dialect

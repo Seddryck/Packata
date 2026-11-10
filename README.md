@@ -370,6 +370,39 @@ job and output dataset identities and a source dataset resolver through `OpenLin
 The exporter includes dataset dependencies when their identities are known and column dependencies
 when the canonical mapping resolved them.
 
+To export from the CLI, give `packata lineage export` the ODCS file, output asset, and OpenLineage
+identifiers. For example, save this as `orders.odcs.yaml`:
+
+```yaml
+apiVersion: v3.2.0
+kind: DataContract
+id: orders
+version: 1.0.0
+status: active
+schema:
+  - name: order_lines
+    properties:
+      - name: quantity
+        logicalType: integer
+      - name: unit_price
+        logicalType: number
+  - name: prices
+    properties:
+      - name: total_price
+        logicalType: number
+        transformSourceObjects: [order_lines]
+        transformLogic: quantity * unit_price
+        transformDescription: Multiply quantity by unit price.
+```
+
+```sh
+packata lineage export orders.odcs.yaml --asset prices --job-namespace commerce-prod --job-name build_prices --dataset-namespace postgres://warehouse.example.com:5432 --output-dataset commerce.analytics.prices --source-dataset order_lines=commerce.raw.order_lines
+```
+
+Repeat `--source-dataset REFERENCE=NAME` for each declared source. The input and output datasets
+share the `--dataset-namespace`. The command writes JSON to stdout, or to a new file when
+`--output <PATH>` is supplied. Diagnostics go to stderr.
+
 ## Compare contracts
 
 Compare any two canonical contracts after mapping them from ODCS or Data Package:
