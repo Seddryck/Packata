@@ -52,6 +52,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.Database` | Shared DubUrl connection configuration and runtime endpoint resolution |
 | `Packata.DataPackage` | Data Package v2 models, JSON/YAML serialization, validation, and canonical mapping |
 | `Packata.OpenDataContract` | ODCS models, YAML serialization, validation, and canonical mapping |
+| `Packata.OpenLineage` | Export canonical lineage as OpenLineage job events |
 | `Packata.ResourceReaders` | Core reader factory and access to delimited resources through `IDataReader` |
 | `Packata.ResourceReaders.Excel` | Optional Excel reader provider |
 | `Packata.ResourceReaders.FixedWidth` | Optional fixed-width text reader provider |
@@ -355,6 +356,19 @@ For shared database connections, host-supplied credentials, and operation prefli
 [ODCS and Data Package example](examples/DatabaseConnections). The
 [connector acquisition example](examples/ConnectorAcquisition) demonstrates acquisition on the first read
 from a host-supplied catalog and reuse on later reads.
+
+### Declared lineage and OpenLineage
+
+ODCS transformation metadata maps to `DataAsset.Lineage` in the canonical model. Packata resolves
+column dependencies for simple arithmetic expressions and direct column copies when the source
+schemas are available in the contract and each reference identifies one column. For other expressions
+or unavailable schemas, the mapper retains the source references, original logic, and description,
+and reports a warning.
+
+`Packata.OpenLineage` exports a canonical asset as a design-time OpenLineage `JobEvent`. Supply the
+job and output dataset identities and a source dataset resolver through `OpenLineageExportOptions`.
+The exporter includes dataset dependencies when their identities are known and column dependencies
+when the canonical mapping resolved them.
 
 ## Compare contracts
 

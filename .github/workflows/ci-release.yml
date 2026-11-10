@@ -260,6 +260,8 @@ jobs:
             src/Packata.DataPackage/obj
             src/Packata.OpenDataContract/bin/Release
             src/Packata.OpenDataContract/obj
+            src/Packata.OpenLineage/bin/Release
+            src/Packata.OpenLineage/obj
             src/Packata.Rules.Expressif/bin/Release
             src/Packata.Rules.Expressif/obj
             src/Packata.Rules.Sql/bin/Release
@@ -345,6 +347,7 @@ jobs:
             'Packata.Provisioners',
             'Packata.Storages',
             'Packata.OpenDataContract',
+            'Packata.OpenLineage',
             'Packata.Rules.Expressif',
             'Packata.Rules.Sql'
           )

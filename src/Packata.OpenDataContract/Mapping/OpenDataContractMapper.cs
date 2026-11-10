@@ -26,7 +26,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         }
 
         var assets = document.Schema
-            .Select(schema => MapAsset(schema, AssetEndpoints(schema, endpoints, directory, canBindEndpoints), diagnostics))
+            .Select(schema => MapAsset(schema, AssetEndpoints(schema, endpoints, directory, canBindEndpoints), diagnostics) with { Lineage = LineageMapper.Map(schema, document.Schema, diagnostics) })
             .ToArray();
         assets = CategoryTableMapper.Map(document, assets, diagnostics);
 

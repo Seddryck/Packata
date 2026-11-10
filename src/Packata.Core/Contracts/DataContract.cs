@@ -43,6 +43,7 @@ public sealed record DataAsset(
     ExtensionMetadata? Extensions = null,
     CategoryTableDefinition? CategoryTable = null)
 {
+    public IReadOnlyList<FieldLineage> Lineage { get; init; } = [];
     public IReadOnlyList<EndpointBinding> EndpointBindings { get; init; } = EndpointBindings ?? [];
     public IReadOnlyList<DataQualityRule> QualityRules { get; init; } = QualityRules ?? [];
     public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;

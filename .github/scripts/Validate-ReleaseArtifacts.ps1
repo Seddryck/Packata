@@ -30,6 +30,7 @@ $packageIds = @(
     'Packata.Provisioners',
     'Packata.Storages',
     'Packata.OpenDataContract',
+    'Packata.OpenLineage',
     'Packata.Rules.Expressif',
     'Packata.Rules.Sql'
 )
