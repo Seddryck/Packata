@@ -49,6 +49,7 @@ internal static class CliApplication
             configuration.SetExceptionHandler((exception, _) => HandleInvocation(args, exception));
             ContractCommands.Configure(configuration);
             DialectCommands.Configure(configuration);
+            LineageCommands.Configure(configuration);
             DataCommands.Configure(configuration);
             QualityCommands.Configure(configuration);
             configuration.AddCommand<InferCommand>("infer")
