@@ -7,35 +7,34 @@ internal static partial class LineageMapper
 {
     internal static FieldLineage[] Map(SchemaObject schema, IReadOnlyList<SchemaObject> schemas,
         ICollection<MappingDiagnostic> diagnostics)
-        => schema.Properties.SelectMany(property => Map(property, [], schemas, diagnostics, $"schema/{schema.Name}/properties")).ToArray();
+        => schema.Properties.SelectMany(property => Map(property, [property.PhysicalName ?? property.Name], schemas, diagnostics,
+            $"schema/{schema.Name}/properties/{property.Name}")).ToArray();
 
-    private static IEnumerable<FieldLineage> Map(SchemaBaseProperty property, string[] parent,
-        IReadOnlyList<SchemaObject> schemas, ICollection<MappingDiagnostic> diagnostics, string diagnosticPath, string? segment = null)
+    private static IEnumerable<FieldLineage> Map(SchemaBaseProperty property, string[] path,
+        IReadOnlyList<SchemaObject> schemas, ICollection<MappingDiagnostic> diagnostics, string diagnosticPath)
     {
-        var fieldName = segment ?? property.PhysicalName ?? property.Name;
-        string[] path = [..parent, fieldName];
-        diagnosticPath = $"{diagnosticPath}/{property.Name}";
         if (property.TransformSourceObjects is not null || property.TransformLogic is not null || property.TransformDescription is not null)
             yield return MapTransformation(property, path, schemas, diagnostics, diagnosticPath);
 
+        foreach (var (child, segment, diagnosticSegment) in Children(property))
+        {
+            foreach (var lineage in Map(child, [..path, segment], schemas, diagnostics, $"{diagnosticPath}/{diagnosticSegment}"))
+                yield return lineage;
+        }
+    }
+
+    private static IEnumerable<(SchemaBaseProperty Property, string Segment, string DiagnosticSegment)> Children(SchemaBaseProperty property)
+    {
         foreach (var child in property.Properties)
-        {
-            foreach (var lineage in Map(child, path, schemas, diagnostics, diagnosticPath + "/properties"))
-                yield return lineage;
-        }
+            yield return (child, child.PhysicalName ?? child.Name, $"properties/{child.Name}");
 
-        if (property.Items is not null)
-        {
-            foreach (var lineage in Map(property.Items, path, schemas, diagnostics, diagnosticPath + "/items", "[]"))
-                yield return lineage;
-        }
+        if (property.Items is { } items)
+            yield return (items, "[]", $"items/{items.Name}");
 
-        if (property.Map is not null)
+        if (property.Map is { } map)
         {
-            foreach (var lineage in Map(property.Map.Key, path, schemas, diagnostics, diagnosticPath + "/map/key", "key"))
-                yield return lineage;
-            foreach (var lineage in Map(property.Map.Value, path, schemas, diagnostics, diagnosticPath + "/map/value", "value"))
-                yield return lineage;
+            yield return (map.Key, "key", $"map/key/{map.Key.Name}");
+            yield return (map.Value, "value", $"map/value/{map.Value.Name}");
         }
     }
 
@@ -66,10 +65,10 @@ internal static partial class LineageMapper
         if (logic is null || matches.Length == 0 || matches.Any(match => match.Length != 1) || !Arithmetic().IsMatch(logic))
             return false;
 
-        foreach (Match identifier in Identifier().Matches(logic))
+        foreach (var identifier in Identifier().Matches(logic).Select(match => match.Value))
         {
             var candidates = matches.SelectMany((match, index) => match[0].Properties
-                .Where(property => property.Name == identifier.Value || property.PhysicalName == identifier.Value)
+                .Where(property => property.Name == identifier || property.PhysicalName == identifier)
                 .Select(property => (Index: index, Field: property.PhysicalName ?? property.Name))).ToArray();
             if (candidates.Length != 1) return false;
             fields[candidates[0].Index].Add(candidates[0].Field);

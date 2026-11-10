@@ -37,7 +37,7 @@ public static class OpenLineageExporter
 
         var diagnostics = new List<MappingDiagnostic>();
         var datasets = new HashSet<OpenLineageDataset>();
-        var fields = new JsonObject();
+        var fields = new Dictionary<string, JsonNode?>(StringComparer.Ordinal);
         var targets = new HashSet<string>(StringComparer.Ordinal);
         foreach (var lineage in asset.Lineage)
         {
@@ -48,25 +48,9 @@ public static class OpenLineageExporter
                     $"Multiple lineage declarations resolve to output field '{target}'."));
             }
 
-            var inputFields = new JsonArray();
-            var edges = new HashSet<(OpenLineageDataset Dataset, string Field)>();
-            foreach (var source in lineage.Sources)
-            {
-                var dataset = options.ResolveSource(source);
-                if (dataset is null || !ValidIdentity(dataset.Namespace, dataset.Name))
-                {
-                    diagnostics.Add(new("OL003", MappingSeverity.Warning, path,
-                        $"No OpenLineage dataset identity could be resolved for source '{source.Reference}'."));
-                    continue;
-                }
-
-                datasets.Add(dataset);
-                foreach (var field in source.Fields.Where(field => edges.Add((dataset, field))))
-                    inputFields.Add(InputField(dataset, field, lineage));
-            }
-
+            var inputFields = ResolveInputFields(lineage, options, datasets, diagnostics, path);
             if (inputFields.Count > 0)
-                fields.Add(target, new JsonObject { ["inputFields"] = inputFields });
+                fields.Add(target, new JsonObject { ["inputFields"] = new JsonArray(inputFields.ToArray()) });
         }
 
         if (datasets.Count == 0)
@@ -75,6 +59,35 @@ public static class OpenLineageExporter
             return new(null, diagnostics);
         }
 
+        return new(BuildEvent(options, datasets, fields), diagnostics);
+    }
+
+    private static List<JsonNode?> ResolveInputFields(FieldLineage lineage, OpenLineageExportOptions options,
+        HashSet<OpenLineageDataset> datasets, List<MappingDiagnostic> diagnostics, string path)
+    {
+        var inputFields = new List<JsonNode?>();
+        var edges = new HashSet<(OpenLineageDataset Dataset, string Field)>();
+        foreach (var source in lineage.Sources)
+        {
+            var dataset = options.ResolveSource(source);
+            if (dataset is null || !ValidIdentity(dataset.Namespace, dataset.Name))
+            {
+                diagnostics.Add(new("OL003", MappingSeverity.Warning, path,
+                    $"No OpenLineage dataset identity could be resolved for source '{source.Reference}'."));
+                continue;
+            }
+
+            datasets.Add(dataset);
+            foreach (var field in source.Fields.Where(field => edges.Add((dataset, field))))
+                inputFields.Add(InputField(dataset, field, lineage));
+        }
+
+        return inputFields;
+    }
+
+    private static JsonObject BuildEvent(OpenLineageExportOptions options, IEnumerable<OpenLineageDataset> datasets,
+        Dictionary<string, JsonNode?> fields)
+    {
         var output = Dataset(options.Output);
         if (fields.Count > 0)
         {
@@ -84,24 +97,20 @@ public static class OpenLineageExporter
                 {
                     ["_producer"] = options.Producer.AbsoluteUri,
                     ["_schemaURL"] = FacetSchema,
-                    ["fields"] = fields,
+                    ["fields"] = new JsonObject(fields),
                 },
             };
         }
 
-        var inputs = new JsonArray();
-        foreach (var dataset in datasets)
-            inputs.Add(Dataset(dataset));
-        var jobEvent = new JsonObject
+        return new JsonObject
         {
             ["eventTime"] = options.EventTime.UtcDateTime,
             ["producer"] = options.Producer.AbsoluteUri,
             ["schemaURL"] = EventSchema,
             ["job"] = new JsonObject { ["namespace"] = options.Job.Namespace, ["name"] = options.Job.Name },
-            ["inputs"] = inputs,
+            ["inputs"] = new JsonArray(datasets.Select(Dataset).ToArray()),
             ["outputs"] = new JsonArray(output),
         };
-        return new(jobEvent, diagnostics);
     }
 
     private static bool ValidIdentity(string @namespace, string name)
