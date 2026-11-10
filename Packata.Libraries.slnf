@@ -11,6 +11,7 @@
       "src\\Packata.DataPackage\\Packata.DataPackage.csproj",
       "src\\Packata.OpenDataContract.Testing\\Packata.OpenDataContract.Testing.csproj",
       "src\\Packata.OpenDataContract\\Packata.OpenDataContract.csproj",
+      "src\\Packata.OpenLineage\\Packata.OpenLineage.csproj",
       "src\\Packata.Provisioners.Testing\\Packata.Provisioners.Testing.csproj",
       "src\\Packata.Provisioners\\Packata.Provisioners.csproj",
       "src\\Packata.ResourceReaders.Testing\\Packata.ResourceReaders.Testing.csproj",
