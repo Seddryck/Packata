@@ -3,7 +3,7 @@
     <PackageReference Include="Chrononuensis" Version="0.28.0" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.1" />
     <PackageReference Include="Moq" Version="4.21.0" />
     <PackageReference Include="DubUrl.Provider.SqlServer" Version="0.55.1" />
     <PackageReference Include="DubUrl.Provider.DuckDb" Version="0.55.1" />
