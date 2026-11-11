@@ -8,6 +8,12 @@ namespace Packata.DataPackage;
 
 public class Field
 {
+    /// <summary>Packata extension metadata for this field.</summary>
+    /// <value>The field-level custom properties.</value>
+    [Newtonsoft.Json.JsonProperty("packata:customProperties")]
+    [YamlDotNet.Serialization.YamlMember(Alias = "packata:customProperties", ApplyNamingConventions = false)]
+    public List<FieldCustomProperty>? CustomProperties { get; set; }
+
     /// <summary>
     /// A name for this field.
     /// </summary>

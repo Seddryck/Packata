@@ -5,6 +5,7 @@ using DubUrl.Schema.Constraints;
 using Packata.Core;
 using Packata.Core.Contracts;
 using Packata.Core.Provisioning;
+using DefaultKind = Packata.Core.Contracts.ColumnDefaultKind;
 namespace Packata.Provisioners.Database;
 /// <summary>Pure metadata planning; no connection, capability probe, credential source, reader or deployer.</summary>
 public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRenderer? renderer = null, DbTypeMapper? mapper = null)
@@ -40,6 +41,7 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         var identities = ResolveIdentities(metadata, metadata.Assets, diagnostics, cancellationToken);
         var outputTables = assets.Where(identities.ContainsKey)
             .Select(asset => Map(asset, identities[asset], metadata, identities, options, diagnostics).Build()).ToArray();
+        if (diagnostics.Any(d => d.Code == "PROV009")) return new(string.Empty, diagnostics);
         var selected = outputTables.Select(t => t.Identity.Key).ToHashSet(StringComparer.Ordinal);
         var referenceTables = ReferenceTables(referencedAssets ?? [], identities, new HashSet<string>(selected, StringComparer.Ordinal), diagnostics);
         var schema = new Schema(outputTables, [], [], referenceTables);
@@ -143,29 +145,80 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
             constraints.WithDescription(field.Description);
         if (context.Options.Constraints.HasFlag(ContractConstraintOptions.Checks))
             AddChecks(column, constraints, context.Asset, field, context.Diagnostics);
+        ApplyDefault(constraints, field, context);
         return column;
+    }
+
+    private void ApplyDefault(IColumnConstraintBuilder builder, DataField field, ColumnMappingContext context)
+    {
+        if (field is { DefaultValue: null, DefaultExpression: null }) return;
+        try
+        {
+            var column = builder.Build();
+            if (RelationalColumnDefaults.RequiresTextLength(field.DefaultExpression?.Kind)
+                && IsString(column.Type) && column is not VarLengthColumn { Length: > 0 })
+                throw new ArgumentException("Declare an explicit positive SQL text length using a physical length or maxLength.");
+            var storage = ResolveDefaultStorage(column);
+            if (field.DefaultValue is { } literal)
+            {
+                if (field.DefaultExpression is not null)
+                    throw new ArgumentException("Declare only one defaultValue or defaultExpression.");
+                RelationalColumnDefaults.ApplyLiteral(Dialect, builder, literal, storage);
+            }
+            else if (field.DefaultExpression is { } expression)
+            {
+                RelationalColumnDefaults.ApplyExpression(builder, expression, storage);
+            }
+        }
+        catch (Exception error) when (error is NotSupportedException or ArgumentException or KeyNotFoundException)
+        {
+            context.Diagnostics.Add(new("PROV009", context.Asset.Id,
+                $"Invalid default on field '{field.Name}' for dialect '{Dialect.GetType().Name}'. {error.Message}"));
+        }
+    }
+
+    private PhysicalTypeDefinition? ResolveDefaultStorage(Column column)
+    {
+        var length = column is VarLengthColumn sized ? sized.Length : (int?)null;
+        var precision = column is NumericColumn numeric ? numeric.Precision : 0;
+        var scale = column is NumericColumn scaled ? scaled.Scale : 0;
+        PhysicalTypeDefinition.TryParse(RenderStorageType(column, length, precision, scale), out var storage);
+        return storage;
     }
 
     private IColumnConstraintBuilder MapStorageColumn(ColumnBuilder column, DataAsset asset, DataField field,
         ICollection<ProvisioningDiagnostic> diagnostics)
     {
         var logicalType = DbTypeMapper.Resolve(field, TypeMappingOptions.LegacyCompatibility).DatabaseType!.Value;
+        if (IsString(logicalType) && RelationalColumnDefaults.RequiresTextLength(field.DefaultExpression?.Kind))
+            logicalType = ResolveBoundedTextType(field, logicalType);
         var builder = column.WithName(field.PhysicalName ?? field.Name).WithType(logicalType);
         ApplyStringDimensions(builder, field, logicalType);
         return ApplyPhysicalType(builder, asset, field, diagnostics);
+    }
+
+    private System.Data.DbType ResolveBoundedTextType(DataField field, System.Data.DbType logicalType)
+    {
+        if (PhysicalTypeDefinition.TryParse(field.PhysicalType, out var physical)
+            && RelationalColumnDefaults.IsFixedText(physical!.NativeType.Name))
+            return System.Data.DbType.StringFixedLength;
+        // PostgreSQL's TEXT has no length modifier. VARCHAR uses the same database encoding.
+        return Dialect is DubUrl.Provider.PostgreSql.Sql.PgsqlDialect or DubUrl.Provider.PostgreSql.Sql.CockRoachDialect
+            ? System.Data.DbType.AnsiString : logicalType;
     }
 
     private void ApplyStringDimensions(IColumnTypeSettingsBuilder builder, DataField field, System.Data.DbType type)
     {
         if (!NeedsStringDimensions(field, type)) return;
         if (DeclaredMaximumLength(field) is int length) builder.WithLength(length);
-        else if (UsesUnboundedText(field, type))
+        else if (!RelationalColumnDefaults.RequiresTextLength(field.DefaultExpression?.Kind) && UsesUnboundedText(field, type))
             builder.WithLength(VarLengthColumn.Unbounded);
     }
 
     private bool NeedsStringDimensions(DataField field, System.Data.DbType type)
     {
-        if (!IsString(type) || !UsesStringDimensions()) return false;
+        if (!IsString(type) || (!UsesStringDimensions() && !RelationalColumnDefaults.RequiresTextLength(field.DefaultExpression?.Kind)))
+            return false;
         return !PhysicalTypeDefinition.TryParse(field.PhysicalType, out var physical)
             || physical is { Length: null, Precision: null };
     }
@@ -192,13 +245,25 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         DataField field, ICollection<ProvisioningDiagnostic> diagnostics)
     {
         if (field.PhysicalType is null) return typeBuilder;
+        var hasDefault = field.DefaultValue is not null || field.DefaultExpression is not null;
         if (!PhysicalTypeDefinition.TryParse(field.PhysicalType, out var physicalType))
         {
-            diagnostics.Add(new("PROV005", asset.Id,
-                $"Physical type '{field.PhysicalType}' on field '{field.Name}' is unsupported; logical type mapping was used."));
+            diagnostics.Add(hasDefault
+                ? new("PROV009", asset.Id, $"Invalid physical type '{field.PhysicalType}' on defaulted field '{field.Name}'.")
+                : new("PROV005", asset.Id,
+                    $"Physical type '{field.PhysicalType}' on field '{field.Name}' is unsupported; logical type mapping was used."));
             return typeBuilder;
         }
-        var constraints = ApplyPhysicalDimensions(typeBuilder, physicalType!);
+        if (hasDefault && physicalType is { Precision: int precision, Scale: int scale } && scale >= precision)
+        {
+            diagnostics.Add(new("PROV009", asset.Id,
+                $"Defaulted field '{field.Name}' requires a scale less than precision with this DubUrl version."));
+            return typeBuilder;
+        }
+        var constraints = field.DefaultExpression?.Kind == DefaultKind.NextSequenceValue
+            && physicalType is { Length: > 0, NativeType.Name: "decimal" or "numeric" or "number" or "dec" }
+                ? typeBuilder.WithPrecision(physicalType.Length.Value).WithScale(0)
+                : ApplyPhysicalDimensions(typeBuilder, physicalType!);
         if (!NativeTypeRegistry.Default.TryResolve(Dialect, physicalType!.NativeType, out _))
         {
             diagnostics.Add(new("PROV005", asset.Id,
@@ -282,7 +347,7 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
             && maximum >= 0;
     }
 
-    private string RenderStorageType(Column column, int length)
+    private string RenderStorageType(Column column, int? length, int precision = 0, int scale = 0)
     {
         var resolved = string.Empty;
         var native = column.NativeType is not null
@@ -292,7 +357,7 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
             : Dialect.DbTypeMapper.ToDictionary()[column.Type.ToString()].ToString()!;
         // Ask the provider for the actual storage type: TEXT and MAX are not bounded,
         // and some providers normalize bounded logical TEXT to VARCHAR.
-        return Dialect.SchemaSqlRenderer.RenderColumnType(Dialect, type, length, 0, 0, native);
+        return Dialect.SchemaSqlRenderer.RenderColumnType(Dialect, type, length, precision, scale, native);
     }
 
     private static bool IsBoundedCharacterType(string type) => type.ToLowerInvariant()

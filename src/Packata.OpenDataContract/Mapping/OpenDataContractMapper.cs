@@ -183,7 +183,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         var constraints = MapConstraints(property);
         if (domain?.AllowedValues is not null)
             constraints = constraints.Where(value => value.Kind != "enum").ToArray();
-        return new DataField(
+        var mapped = new DataField(
             property.Name,
             GetLogicalTypeName(property.LogicalType),
             property.PhysicalType,
@@ -201,6 +201,9 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             Map: property.Map is null ? null : new DataMap(
                 MapField(property.Map.Key, path + "/map/key", diagnostics, assetId, [..fieldPath, "key"]),
                 MapField(property.Map.Value, path + "/map/value", diagnostics, assetId, [..fieldPath, "value"])));
+        return ColumnDefaultDeclarations.Apply(mapped,
+            property.CustomProperties.Where(entry => entry.Vendor == "packata").Select(entry => (entry.Property, entry.Value)),
+            path, diagnostics);
     }
 
     private static ValueDomain? MapValueDomain(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics)

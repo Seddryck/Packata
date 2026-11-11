@@ -464,7 +464,7 @@ public class ConnectorIntegrationTests
         var entry = new ConnectorDefinition
         {
             Provider = id ?? scheme + "-native", Version = version, Aliases = aliases ?? [scheme],
-            DubUrlApiRange = incompatible == "api" ? "[99.0,100.0)" : "[0.55,0.56)",
+            DubUrlApiRange = incompatible == "api" ? "[99.0,100.0)" : "[0.60,0.61)",
             Assembly = assemblyPath, ImplementationAssemblies = [assemblyPath],
             Driver = driver.GetName().Name!, DriverAssembly = driverPath,
             Databases = [new(sqlite ? "SQLite3" : "DuckDB", sqlite ? ["sq", "sqlite"] : ["duck", "duckdb"])],

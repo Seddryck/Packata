@@ -43,6 +43,42 @@ public class DdlGenerationTests
         Assert.That(selected.Content, Does.Contain("orders").And.Not.Contain("other"));
     }
     [Test]
+    public async Task Equivalent_descriptor_defaults_generate_identical_sql()
+    {
+        const string odcs = """
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: defaults
+            version: 1.0.0
+            status: active
+            schema:
+              - name: orders
+                logicalType: object
+                properties:
+                  - name: status
+                    logicalType: string
+                    required: true
+                    customProperties:
+                      - vendor: packata
+                        property: defaultValue
+                        value: {type: string, value: "O'Brien"}
+            """;
+        const string package = """
+            {"resources":[{"name":"orders","type":"table","data":[],"schema":{"fields":[
+                {"name":"status","type":"string","constraints":{"required":true},
+                 "packata:customProperties":[{"property":"defaultValue","value":{"type":"string","value":"O'Brien"}}]}
+            ]}}]}
+            """;
+        var options = new GenerationOptions(Target: "ddl", Dialect: "sqlite");
+        var service = new SchemaGenerationService();
+        var fromOdcs = await service.GenerateAsync(odcs, options);
+        var fromPackage = await service.GenerateAsync(package, options);
+        Assert.That(fromOdcs.IsSuccessful, Is.True, string.Join("; ", fromOdcs.Diagnostics));
+        Assert.That(fromPackage.IsSuccessful, Is.True, string.Join("; ", fromPackage.Diagnostics));
+        Assert.That(fromOdcs.Content, Is.EqualTo(fromPackage.Content).And.Contain("DEFAULT 'O''Brien'"));
+    }
+
+    [Test]
     public async Task Invalid_types_and_cancelled_operations_publish_no_content()
     {
         var service = new SchemaGenerationService();

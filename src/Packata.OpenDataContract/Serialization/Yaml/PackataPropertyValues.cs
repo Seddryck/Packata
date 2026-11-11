@@ -23,7 +23,7 @@ internal static class PackataPropertyValues
     }
 
     private static bool Recognized(CustomProperties properties) => properties.Any(property =>
-        property.Vendor == "packata" && property.Property is "categories" or "categoryFieldMap" or "allowAdditionalProperties" or "enforcePropertyOrder");
+        property.Vendor == "packata" && property.Property is "categories" or "categoryFieldMap" or "allowAdditionalProperties" or "enforcePropertyOrder" or "defaultValue" or "defaultExpression");
 
     private static bool RecognizedField(SchemaProperty field) => Recognized(field.CustomProperties) ||
         field.Properties.Any(RecognizedField) || (field.Items is not null && RecognizedField(field.Items));
@@ -48,7 +48,7 @@ internal static class PackataPropertyValues
         for (var index = 0; index < properties.Count; index++)
         {
             var property = properties[index];
-            if (property.Vendor != "packata" || property.Property is not ("categories" or "categoryFieldMap" or "allowAdditionalProperties" or "enforcePropertyOrder") ||
+            if (property.Vendor != "packata" || property.Property is not ("categories" or "categoryFieldMap" or "allowAdditionalProperties" or "enforcePropertyOrder" or "defaultValue" or "defaultExpression") ||
                 sequence.Children[index] is not YamlMappingNode node || Get(node, "value") is not { } value) continue;
             using var writer = new StringWriter();
             new YamlStream(new YamlDocument(value)).Save(writer, assignAnchors: false);
