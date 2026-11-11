@@ -40,6 +40,7 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         var identities = ResolveIdentities(metadata, metadata.Assets, diagnostics, cancellationToken);
         var outputTables = assets.Where(identities.ContainsKey)
             .Select(asset => Map(asset, identities[asset], metadata, identities, options, diagnostics).Build()).ToArray();
+        if (diagnostics.Any(d => d.Code == "PROV009")) return new(string.Empty, diagnostics);
         var selected = outputTables.Select(t => t.Identity.Key).ToHashSet(StringComparer.Ordinal);
         var referenceTables = ReferenceTables(referencedAssets ?? [], identities, new HashSet<string>(selected, StringComparer.Ordinal), diagnostics);
         var schema = new Schema(outputTables, [], [], referenceTables);
@@ -143,7 +144,29 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
             constraints.WithDescription(field.Description);
         if (context.Options.Constraints.HasFlag(ContractConstraintOptions.Checks))
             AddChecks(column, constraints, context.Asset, field, context.Diagnostics);
+        if (field.DefaultValue is { } literal)
+        {
+            try
+            {
+                var storage = ResolveDefaultStorage(constraints.Build());
+                RelationalColumnDefaults.ApplyLiteral(Dialect, constraints, literal, storage);
+            }
+            catch (Exception error) when (error is NotSupportedException or ArgumentException or KeyNotFoundException)
+            {
+                context.Diagnostics.Add(new("PROV009", context.Asset.Id,
+                    $"Invalid defaultValue on field '{field.Name}'. {error.Message}"));
+            }
+        }
         return column;
+    }
+
+    private PhysicalTypeDefinition? ResolveDefaultStorage(Column column)
+    {
+        var length = column is VarLengthColumn sized ? sized.Length : 0;
+        var precision = column is NumericColumn numeric ? numeric.Precision : 0;
+        var scale = column is NumericColumn scaled ? scaled.Scale : 0;
+        PhysicalTypeDefinition.TryParse(RenderStorageType(column, length, precision, scale), out var storage);
+        return storage;
     }
 
     private IColumnConstraintBuilder MapStorageColumn(ColumnBuilder column, DataAsset asset, DataField field,
@@ -282,7 +305,7 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
             && maximum >= 0;
     }
 
-    private string RenderStorageType(Column column, int length)
+    private string RenderStorageType(Column column, int length, int precision = 0, int scale = 0)
     {
         var resolved = string.Empty;
         var native = column.NativeType is not null
@@ -292,7 +315,7 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
             : Dialect.DbTypeMapper.ToDictionary()[column.Type.ToString()].ToString()!;
         // Ask the provider for the actual storage type: TEXT and MAX are not bounded,
         // and some providers normalize bounded logical TEXT to VARCHAR.
-        return Dialect.SchemaSqlRenderer.RenderColumnType(Dialect, type, length, 0, 0, native);
+        return Dialect.SchemaSqlRenderer.RenderColumnType(Dialect, type, length, precision, scale, native);
     }
 
     private static bool IsBoundedCharacterType(string type) => type.ToLowerInvariant()

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -13,6 +13,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Packata.Core.Testing" />
     <InternalsVisibleTo Include="Packata.DataPackage" />
+    <InternalsVisibleTo Include="Packata.OpenDataContract" />
     <InternalsVisibleTo Include="Packata.DataPackage.Testing" />
   </ItemGroup>
 

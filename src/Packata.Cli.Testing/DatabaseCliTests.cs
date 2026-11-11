@@ -363,7 +363,7 @@ public sealed class DatabaseCliTests
         var driver = typeof(SqliteFactory).Assembly;
         var entry = new ConnectorDefinition
         {
-            Provider = "sqlite-native", Version = "1.0.0", Aliases = ["sqlite"], DubUrlApiRange = "[0.55,0.56)",
+            Provider = "sqlite-native", Version = "1.0.0", Aliases = ["sqlite"], DubUrlApiRange = "[0.60,0.61)",
             Assembly = Path.GetFileName(implementation.Location), ImplementationAssemblies = [Path.GetFileName(implementation.Location)],
             Driver = driver.GetName().Name!, DriverAssembly = Path.GetFileName(driver.Location),
             Databases = [new("SQLite3", ["sqlite", "sq"])], TargetFrameworks = ["net8.0", "net9.0", "net10.0"], RuntimeIdentifiers = []

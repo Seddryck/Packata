@@ -90,6 +90,8 @@ public sealed record DataField(
     string? Language = null,
     DataMap? Map = null)
 {
+    public ColumnDefaultLiteral? DefaultValue { get; init; }
+
     private readonly IReadOnlyList<DataConstraint> _constraints = Array.AsReadOnly((Constraints ?? []).ToArray());
     public IReadOnlyList<DataConstraint> Constraints
     {

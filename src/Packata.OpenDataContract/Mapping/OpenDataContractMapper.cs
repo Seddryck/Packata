@@ -200,7 +200,12 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             ValueDomain: domain,
             Map: property.Map is null ? null : new DataMap(
                 MapField(property.Map.Key, path + "/map/key", diagnostics, assetId, [..fieldPath, "key"]),
-                MapField(property.Map.Value, path + "/map/value", diagnostics, assetId, [..fieldPath, "value"])));
+                MapField(property.Map.Value, path + "/map/value", diagnostics, assetId, [..fieldPath, "value"])))
+        {
+            DefaultValue = ColumnDefaultDeclarations.Read(
+                property.CustomProperties.Where(entry => entry.Vendor == "packata").Select(entry => (entry.Property, entry.Value)),
+                path, diagnostics)
+        };
     }
 
     private static ValueDomain? MapValueDomain(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics)

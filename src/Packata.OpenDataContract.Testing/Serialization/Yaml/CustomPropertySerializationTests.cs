@@ -1,12 +1,52 @@
 using Moq;
 using NUnit.Framework;
 using Packata.Core.Storage;
+using Packata.OpenDataContract.Mapping;
 using Packata.OpenDataContract.Serialization.Yaml;
 
 namespace Packata.OpenDataContract.Testing.Serialization.Yaml;
 
 public class CustomPropertySerializationTests
 {
+    [Test]
+    public void Column_default_round_trips_and_only_recognizes_the_packata_vendor()
+    {
+        const string yaml = """
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: defaults
+            version: 1.0.0
+            status: active
+            schema:
+              - name: sample
+                logicalType: object
+                properties:
+                  - name: status
+                    logicalType: string
+                    customProperties:
+                      - vendor: other
+                        property: defaultValue
+                        value: anything
+                      - property: defaultValue
+                        value: metadata
+                      - vendor: packata
+                        property: defaultValue
+                        value: {type: string, value: "O'Brien"}
+            """;
+        var serializer = new DataContractSerializer();
+        DataContract Load(string input)
+        {
+            using var reader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(input)));
+            return serializer.Deserialize(reader, Mock.Of<IDocumentContainer>(), new StorageProvider());
+        }
+
+        var roundTrip = Load(serializer.Serialize(Load(yaml)));
+        var field = roundTrip.Schema.Single().Properties.Single();
+        Assert.That(field.CustomProperties, Has.Count.EqualTo(3));
+        var canonical = roundTrip.ToCanonicalContract().RequireValue().Assets.Single().Schema!.Fields.Single();
+        Assert.That(canonical.DefaultValue?.Value, Is.EqualTo("O'Brien"));
+    }
+
     [Test]
     public void DeserializeAndSerialize_CustomProperties_PreservesMetadataAndDuplicates()
     {

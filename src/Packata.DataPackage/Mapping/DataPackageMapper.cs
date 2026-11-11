@@ -163,7 +163,12 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             Extensions: ExtensionMetadata.For(SourceNamespace, FieldExtensions(field)),
             PhysicalName: field.PhysicalName ?? name,
             Description: field.Description,
-            ValueDomain: domain, Language: field.Language);
+            ValueDomain: domain, Language: field.Language)
+        {
+            DefaultValue = ColumnDefaultDeclarations.Read(
+                (field.CustomProperties ?? []).Select(property => (property.Property, NormalizeInlineValue(property.Value))),
+                $"{sourcePath}.schema.fields[{index}] ({name})", diagnostics)
+        };
     }
 
     private static DataConstraint[] MapConstraints(Native.Field field)
@@ -270,7 +275,12 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             ["example"] = field.Example,
             ["rdfType"] = field.RdfType,
             ["categories"] = CopyCategories(field.Categories),
-            ["categoriesOrdered"] = field.CategoriesOrdered
+            ["categoriesOrdered"] = field.CategoriesOrdered,
+            ["customProperties"] = field.CustomProperties?.Select(property => new Dictionary<string, object?>
+            {
+                ["property"] = property.Property,
+                ["value"] = NormalizeInlineValue(property.Value)
+            }).ToArray()
         };
         if (field is Native.BooleanField boolean)
         {
