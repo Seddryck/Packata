@@ -42,3 +42,30 @@ Supply one `defaultValue` object with a case-sensitive `type` and a string `valu
 | `datetime-offset` | The same timestamp format with a required `Z` or `±HH:mm` offset. |
 
 Explicit nulls, raw SQL, and duplicate declarations are invalid.
+
+## Temporal and sequence expressions
+
+Use `defaultExpression` in the same custom property list. Each column can declare one default.
+
+```yaml
+name: invoiceNumber
+logicalType: integer
+customProperties:
+  - vendor: packata
+    property: defaultExpression
+    value:
+      kind: next-sequence-value
+      sequence: {schema: billing, name: invoice_numbers}
+```
+
+| Kind | Destination and result |
+| --- | --- |
+| `current-timestamp` | Timestamp in the inserting session's time zone. An offset-bearing destination receives the session offset. |
+| `current-utc-timestamp` | UTC timestamp. An offset-bearing destination receives offset zero. |
+| `current-date` | Calendar date in the inserting session. |
+| `current-time` | Time of day in the inserting session. |
+| `next-sequence-value` | Next value from a named sequence for a signed integer or an exact decimal with room for an integral part. |
+
+Timestamp and time kinds accept an optional integer `fractionalSecondsPrecision` from 0 through 9. Omitting it uses the database default precision. The selected provider must support the requested kind, precision, destination type, and qualification.
+
+A sequence requires a nonempty `name` and at least one of `schema`, `database`, or `catalog`. Each component is an identifier. Create the sequence and grant access before deploying the table. The sequence remains under its owner's control when the table is dropped.

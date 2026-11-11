@@ -144,25 +144,37 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
             constraints.WithDescription(field.Description);
         if (context.Options.Constraints.HasFlag(ContractConstraintOptions.Checks))
             AddChecks(column, constraints, context.Asset, field, context.Diagnostics);
-        if (field.DefaultValue is { } literal)
+        ApplyDefault(constraints, field, context);
+        return column;
+    }
+
+    private void ApplyDefault(IColumnConstraintBuilder builder, DataField field, ColumnMappingContext context)
+    {
+        if (field is { DefaultValue: null, DefaultExpression: null }) return;
+        try
         {
-            try
+            var storage = ResolveDefaultStorage(builder.Build());
+            if (field.DefaultValue is { } literal)
             {
-                var storage = ResolveDefaultStorage(constraints.Build());
-                RelationalColumnDefaults.ApplyLiteral(Dialect, constraints, literal, storage);
+                if (field.DefaultExpression is not null)
+                    throw new ArgumentException("Declare only one defaultValue or defaultExpression.");
+                RelationalColumnDefaults.ApplyLiteral(Dialect, builder, literal, storage);
             }
-            catch (Exception error) when (error is NotSupportedException or ArgumentException or KeyNotFoundException)
+            else if (field.DefaultExpression is { } expression)
             {
-                context.Diagnostics.Add(new("PROV009", context.Asset.Id,
-                    $"Invalid defaultValue on field '{field.Name}'. {error.Message}"));
+                RelationalColumnDefaults.ApplyExpression(builder, expression, storage);
             }
         }
-        return column;
+        catch (Exception error) when (error is NotSupportedException or ArgumentException or KeyNotFoundException)
+        {
+            context.Diagnostics.Add(new("PROV009", context.Asset.Id,
+                $"Invalid default on field '{field.Name}' for dialect '{Dialect.GetType().Name}'. {error.Message}"));
+        }
     }
 
     private PhysicalTypeDefinition? ResolveDefaultStorage(Column column)
     {
-        var length = column is VarLengthColumn sized ? sized.Length : 0;
+        var length = column is VarLengthColumn sized ? sized.Length : (int?)null;
         var precision = column is NumericColumn numeric ? numeric.Precision : 0;
         var scale = column is NumericColumn scaled ? scaled.Scale : 0;
         PhysicalTypeDefinition.TryParse(RenderStorageType(column, length, precision, scale), out var storage);
@@ -215,13 +227,25 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         DataField field, ICollection<ProvisioningDiagnostic> diagnostics)
     {
         if (field.PhysicalType is null) return typeBuilder;
+        var hasDefault = field.DefaultValue is not null || field.DefaultExpression is not null;
         if (!PhysicalTypeDefinition.TryParse(field.PhysicalType, out var physicalType))
         {
-            diagnostics.Add(new("PROV005", asset.Id,
-                $"Physical type '{field.PhysicalType}' on field '{field.Name}' is unsupported; logical type mapping was used."));
+            diagnostics.Add(hasDefault
+                ? new("PROV009", asset.Id, $"Invalid physical type '{field.PhysicalType}' on defaulted field '{field.Name}'.")
+                : new("PROV005", asset.Id,
+                    $"Physical type '{field.PhysicalType}' on field '{field.Name}' is unsupported; logical type mapping was used."));
             return typeBuilder;
         }
-        var constraints = ApplyPhysicalDimensions(typeBuilder, physicalType!);
+        if (hasDefault && physicalType is { Precision: int precision, Scale: int scale } && scale >= precision)
+        {
+            diagnostics.Add(new("PROV009", asset.Id,
+                $"Defaulted field '{field.Name}' requires a scale less than precision with this DubUrl version."));
+            return typeBuilder;
+        }
+        var constraints = field.DefaultExpression?.Kind == Packata.Core.Contracts.ColumnDefaultKind.NextSequenceValue
+            && physicalType is { Length: > 0, NativeType.Name: "decimal" or "numeric" or "number" or "dec" }
+                ? typeBuilder.WithPrecision(physicalType.Length.Value).WithScale(0)
+                : ApplyPhysicalDimensions(typeBuilder, physicalType!);
         if (!NativeTypeRegistry.Default.TryResolve(Dialect, physicalType!.NativeType, out _))
         {
             diagnostics.Add(new("PROV005", asset.Id,
@@ -305,7 +329,7 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
             && maximum >= 0;
     }
 
-    private string RenderStorageType(Column column, int length, int precision = 0, int scale = 0)
+    private string RenderStorageType(Column column, int? length, int precision = 0, int scale = 0)
     {
         var resolved = string.Empty;
         var native = column.NativeType is not null

@@ -1,5 +1,6 @@
 using Moq;
 using NUnit.Framework;
+using Packata.Core.Contracts;
 using Packata.Core.Storage;
 using Packata.OpenDataContract.Mapping;
 using Packata.OpenDataContract.Serialization.Yaml;
@@ -45,6 +46,41 @@ public class CustomPropertySerializationTests
         Assert.That(field.CustomProperties, Has.Count.EqualTo(3));
         var canonical = roundTrip.ToCanonicalContract().RequireValue().Assets.Single().Schema!.Fields.Single();
         Assert.That(canonical.DefaultValue?.Value, Is.EqualTo("O'Brien"));
+    }
+
+    [TestCase("{kind: current-timestamp}", ColumnDefaultKind.CurrentTimestamp, null)]
+    [TestCase("{kind: current-utc-timestamp, fractionalSecondsPrecision: 0}", ColumnDefaultKind.CurrentUtcTimestamp, 0)]
+    [TestCase("{kind: current-date}", ColumnDefaultKind.CurrentDate, null)]
+    [TestCase("{kind: current-time, fractionalSecondsPrecision: 9}", ColumnDefaultKind.CurrentTime, 9)]
+    [TestCase("{kind: next-sequence-value, sequence: {schema: Billing Schema, name: Invoice Numbers}}",
+        ColumnDefaultKind.NextSequenceValue, null)]
+    public void Column_default_expression_round_trips(string declaration, ColumnDefaultKind kind, int? precision)
+    {
+        var yaml = $$"""
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: defaults
+            version: 1.0.0
+            status: active
+            schema:
+              - name: sample
+                logicalType: object
+                properties:
+                  - name: value
+                    logicalType: string
+                    customProperties:
+                      - vendor: packata
+                        property: defaultExpression
+                        value: {{declaration}}
+            """;
+        var serializer = new DataContractSerializer();
+        using var reader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(yaml)));
+        var document = serializer.Deserialize(reader, Mock.Of<IDocumentContainer>(), new StorageProvider());
+        using var roundTripReader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serializer.Serialize(document))));
+        var roundTrip = serializer.Deserialize(roundTripReader, Mock.Of<IDocumentContainer>(), new StorageProvider());
+        var field = roundTrip.ToCanonicalContract().RequireValue().Assets.Single().Schema!.Fields.Single();
+        Assert.That(field.DefaultExpression, Is.EqualTo(new ColumnDefaultExpression(kind, precision,
+            kind == ColumnDefaultKind.NextSequenceValue ? new("Invoice Numbers", Schema: "Billing Schema") : null)));
     }
 
     [Test]

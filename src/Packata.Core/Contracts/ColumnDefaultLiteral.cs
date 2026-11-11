@@ -7,7 +7,7 @@ namespace Packata.Core.Contracts;
 /// <summary>A descriptor-authored SQL literal, independent of inferred database default text.</summary>
 public sealed record ColumnDefaultLiteral(DbType Type, object Value);
 
-internal static class ColumnDefaultDeclarations
+internal static partial class ColumnDefaultDeclarations
 {
     private const NumberStyles Integer = NumberStyles.AllowLeadingSign;
     private const NumberStyles Decimal = Integer | NumberStyles.AllowDecimalPoint;
@@ -17,18 +17,10 @@ internal static class ColumnDefaultDeclarations
     private static readonly string[] DateTimeFormats = TemporalFormats("yyyy-MM-dd'T'HH:mm:ss");
     private static readonly string[] OffsetFormats = DateTimeFormats.Select(format => format + "zzz").ToArray();
 
-    internal static ColumnDefaultLiteral? Read(IEnumerable<(string? Name, object? Value)> properties,
+    private static ColumnDefaultLiteral? ReadLiteral(object? declaration,
         string path, ICollection<MappingDiagnostic> diagnostics)
     {
-        var declarations = properties.Where(property => property.Name == "defaultValue").ToArray();
-        if (declarations.Length == 0) return null;
-        if (declarations.Length > 1)
-        {
-            diagnostics.Add(new("DEFAULT001", MappingSeverity.Error, path, $"Field '{path}' must declare defaultValue only once."));
-            return null;
-        }
-
-        if (declarations[0].Value is IDictionary { Count: 2 } map
+        if (declaration is IDictionary { Count: 2 } map
             && map["type"] is string type && map["value"] is string value)
         {
             var literal = Parse(type, value);

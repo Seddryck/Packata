@@ -91,6 +91,7 @@ public sealed record DataField(
     DataMap? Map = null)
 {
     public ColumnDefaultLiteral? DefaultValue { get; init; }
+    public ColumnDefaultExpression? DefaultExpression { get; init; }
 
     private readonly IReadOnlyList<DataConstraint> _constraints = Array.AsReadOnly((Constraints ?? []).ToArray());
     public IReadOnlyList<DataConstraint> Constraints

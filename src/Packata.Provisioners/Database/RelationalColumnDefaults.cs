@@ -4,6 +4,9 @@ using DubUrl.Querying.Dialects;
 using DubUrl.Schema;
 using DubUrl.Schema.Builders;
 using Packata.Core.Contracts;
+using DefaultExpression = Packata.Core.Contracts.ColumnDefaultExpression;
+using DefaultKind = Packata.Core.Contracts.ColumnDefaultKind;
+using DubUrlExpression = DubUrl.Schema.ColumnDefaultExpression;
 
 namespace Packata.Provisioners.Database;
 
@@ -70,6 +73,45 @@ internal static class RelationalColumnDefaults
         DbType.DateTimeOffset => storage is "datetimeoffset" or "timestamptz" or "timestamp with time zone" or "timestamp with timezone",
         _ => false
     };
+    internal static void ApplyExpression(IColumnConstraintBuilder builder, DefaultExpression expression,
+        PhysicalTypeDefinition? storage)
+    {
+        var column = builder.Build();
+        var precision = expression.FractionalSecondsPrecision;
+        var definition = expression.Kind switch
+        {
+            DefaultKind.CurrentTimestamp when IsTimestamp(column.Type) => DubUrlExpression.CurrentTimestamp(precision),
+            DefaultKind.CurrentUtcTimestamp when IsTimestamp(column.Type) => DubUrlExpression.CurrentUtcTimestamp(precision),
+            DefaultKind.CurrentDate when column.Type == DbType.Date && precision is null => DubUrlExpression.CurrentDate,
+            DefaultKind.CurrentTime when column.Type == DbType.Time => DubUrlExpression.CurrentTime(precision),
+            DefaultKind.NextSequenceValue when precision is null && IsSequenceDestination(column, storage)
+                => DubUrlExpression.NextSequenceValue(SequenceName(expression.Sequence)),
+            _ => throw new ArgumentException(
+                $"Mapped column type '{column.Type}' or its facets are incompatible with '{expression.Kind}'.")
+        };
+        builder.WithDefaultExpression(definition);
+    }
+
+    private static DatabaseObjectName SequenceName(ColumnDefaultSequence? sequence)
+        => sequence is null ? throw new ArgumentException("Supply a qualified sequence name.")
+            : new(sequence.Name, sequence.Schema, sequence.Database, sequence.Catalog);
+
+    private static bool IsTimestamp(DbType type) => type is DbType.DateTime or DbType.DateTime2 or DbType.DateTimeOffset;
+
+    private static bool IsSequenceDestination(Column column, PhysicalTypeDefinition? storage)
+    {
+        if (column.Type is DbType.Int16 or DbType.Int32 or DbType.Int64)
+        {
+            return storage?.NativeType.Name is "smallint" or "integer" or "int" or "bigint" or "int2" or "int4" or "int8"
+                or "number" or "decimal" or "numeric";
+        }
+        if (column.Type != DbType.Decimal || storage?.NativeType.Name is not ("numeric" or "decimal" or "dec" or "number"))
+            return false;
+        if (column is NumericColumn numeric)
+            return numeric.Scale >= 0 && numeric.Scale < numeric.Precision;
+        var precision = storage.Precision ?? storage.Length;
+        return precision is null || ((storage.Scale ?? 0) >= 0 && (storage.Scale ?? 0) < precision);
+    }
 
     private static bool Matches(DbType literal, DbType column) => literal == column
         || (literal == DbType.String && column is DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength)

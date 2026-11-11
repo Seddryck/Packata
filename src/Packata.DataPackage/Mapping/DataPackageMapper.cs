@@ -156,19 +156,18 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         var domain = ValueDomainMapper.Field(field, package, categoryTables, $"{sourcePath}.schema.fields[{index}]", diagnostics);
         if (domain?.AllowedValues is not null)
             constraints = constraints.Where(value => value.Kind != "enum").ToArray();
-        return new DataField(name, field.Type, PhysicalType: field.PhysicalType, Format: field.Format,
+        var mapped = new DataField(name, field.Type, PhysicalType: field.PhysicalType, Format: field.Format,
             Required: field.Constraints?.Get<Native.RequiredConstraint>()?.Value == true,
             Nullable: field.Constraints?.Get<Native.RequiredConstraint>()?.Value != true,
             Constraints: constraints,
             Extensions: ExtensionMetadata.For(SourceNamespace, FieldExtensions(field)),
             PhysicalName: field.PhysicalName ?? name,
             Description: field.Description,
-            ValueDomain: domain, Language: field.Language)
-        {
-            DefaultValue = ColumnDefaultDeclarations.Read(
-                (field.CustomProperties ?? []).Select(property => (property.Property, NormalizeInlineValue(property.Value))),
-                $"{sourcePath}.schema.fields[{index}] ({name})", diagnostics)
-        };
+            ValueDomain: domain, Language: field.Language);
+        return ColumnDefaultDeclarations.Apply(mapped,
+            (field.CustomProperties ?? []).Where(property => property is not null)
+                .Select(property => (property.Property, NormalizeInlineValue(property.Value))),
+            $"{sourcePath}.schema.fields[{index}] ({name})", diagnostics);
     }
 
     private static DataConstraint[] MapConstraints(Native.Field field)
@@ -276,7 +275,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             ["rdfType"] = field.RdfType,
             ["categories"] = CopyCategories(field.Categories),
             ["categoriesOrdered"] = field.CategoriesOrdered,
-            ["customProperties"] = field.CustomProperties?.Select(property => new Dictionary<string, object?>
+            ["customProperties"] = field.CustomProperties?.Where(property => property is not null).Select(property => new Dictionary<string, object?>
             {
                 ["property"] = property.Property,
                 ["value"] = NormalizeInlineValue(property.Value)
