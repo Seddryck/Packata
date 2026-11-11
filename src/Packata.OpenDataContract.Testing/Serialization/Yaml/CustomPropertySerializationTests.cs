@@ -54,6 +54,9 @@ public class CustomPropertySerializationTests
     [TestCase("{kind: current-time, fractionalSecondsPrecision: 9}", ColumnDefaultKind.CurrentTime, 9)]
     [TestCase("{kind: next-sequence-value, sequence: {schema: Billing Schema, name: Invoice Numbers}}",
         ColumnDefaultKind.NextSequenceValue, null)]
+    [TestCase("{kind: current-user}", ColumnDefaultKind.CurrentUser, null)]
+    [TestCase("{kind: session-user}", ColumnDefaultKind.SessionUser, null)]
+    [TestCase("{kind: new-uuid, representation: canonical-text}", ColumnDefaultKind.NewUuid, null)]
     public void Column_default_expression_round_trips(string declaration, ColumnDefaultKind kind, int? precision)
     {
         var yaml = $$"""

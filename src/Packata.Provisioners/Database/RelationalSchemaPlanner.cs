@@ -5,6 +5,7 @@ using DubUrl.Schema.Constraints;
 using Packata.Core;
 using Packata.Core.Contracts;
 using Packata.Core.Provisioning;
+using DefaultKind = Packata.Core.Contracts.ColumnDefaultKind;
 namespace Packata.Provisioners.Database;
 /// <summary>Pure metadata planning; no connection, capability probe, credential source, reader or deployer.</summary>
 public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRenderer? renderer = null, DbTypeMapper? mapper = null)
@@ -153,7 +154,11 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         if (field is { DefaultValue: null, DefaultExpression: null }) return;
         try
         {
-            var storage = ResolveDefaultStorage(builder.Build());
+            var column = builder.Build();
+            if (RelationalColumnDefaults.RequiresTextLength(field.DefaultExpression?.Kind)
+                && IsString(column.Type) && column is not VarLengthColumn { Length: > 0 })
+                throw new ArgumentException("Declare an explicit positive SQL text length using a physical length or maxLength.");
+            var storage = ResolveDefaultStorage(column);
             if (field.DefaultValue is { } literal)
             {
                 if (field.DefaultExpression is not null)
@@ -185,22 +190,35 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
         ICollection<ProvisioningDiagnostic> diagnostics)
     {
         var logicalType = DbTypeMapper.Resolve(field, TypeMappingOptions.LegacyCompatibility).DatabaseType!.Value;
+        if (IsString(logicalType) && RelationalColumnDefaults.RequiresTextLength(field.DefaultExpression?.Kind))
+            logicalType = ResolveBoundedTextType(field, logicalType);
         var builder = column.WithName(field.PhysicalName ?? field.Name).WithType(logicalType);
         ApplyStringDimensions(builder, field, logicalType);
         return ApplyPhysicalType(builder, asset, field, diagnostics);
+    }
+
+    private System.Data.DbType ResolveBoundedTextType(DataField field, System.Data.DbType logicalType)
+    {
+        if (PhysicalTypeDefinition.TryParse(field.PhysicalType, out var physical)
+            && RelationalColumnDefaults.IsFixedText(physical!.NativeType.Name))
+            return System.Data.DbType.StringFixedLength;
+        // PostgreSQL's TEXT has no length modifier. VARCHAR uses the same database encoding.
+        return Dialect is DubUrl.Provider.PostgreSql.Sql.PgsqlDialect or DubUrl.Provider.PostgreSql.Sql.CockRoachDialect
+            ? System.Data.DbType.AnsiString : logicalType;
     }
 
     private void ApplyStringDimensions(IColumnTypeSettingsBuilder builder, DataField field, System.Data.DbType type)
     {
         if (!NeedsStringDimensions(field, type)) return;
         if (DeclaredMaximumLength(field) is int length) builder.WithLength(length);
-        else if (UsesUnboundedText(field, type))
+        else if (!RelationalColumnDefaults.RequiresTextLength(field.DefaultExpression?.Kind) && UsesUnboundedText(field, type))
             builder.WithLength(VarLengthColumn.Unbounded);
     }
 
     private bool NeedsStringDimensions(DataField field, System.Data.DbType type)
     {
-        if (!IsString(type) || !UsesStringDimensions()) return false;
+        if (!IsString(type) || (!UsesStringDimensions() && !RelationalColumnDefaults.RequiresTextLength(field.DefaultExpression?.Kind)))
+            return false;
         return !PhysicalTypeDefinition.TryParse(field.PhysicalType, out var physical)
             || physical is { Length: null, Precision: null };
     }
@@ -242,7 +260,7 @@ public sealed class RelationalSchemaPlanner(IDialect dialect, SchemaScriptRender
                 $"Defaulted field '{field.Name}' requires a scale less than precision with this DubUrl version."));
             return typeBuilder;
         }
-        var constraints = field.DefaultExpression?.Kind == Packata.Core.Contracts.ColumnDefaultKind.NextSequenceValue
+        var constraints = field.DefaultExpression?.Kind == DefaultKind.NextSequenceValue
             && physicalType is { Length: > 0, NativeType.Name: "decimal" or "numeric" or "number" or "dec" }
                 ? typeBuilder.WithPrecision(physicalType.Length.Value).WithScale(0)
                 : ApplyPhysicalDimensions(typeBuilder, physicalType!);

@@ -12,7 +12,10 @@ public enum ColumnDefaultKind
     CurrentUtcTimestamp,
     CurrentDate,
     CurrentTime,
-    NextSequenceValue
+    NextSequenceValue,
+    CurrentUser,
+    SessionUser,
+    NewUuid
 }
 
 /// <summary>The literal identifier components of an externally managed sequence.</summary>
@@ -64,9 +67,18 @@ internal static partial class ColumnDefaultDeclarations
             "current-date" => RequireKeys(expression, "kind") ? new(ColumnDefaultKind.CurrentDate)
                 : throw new ArgumentException("current-date accepts only 'kind'."),
             "next-sequence-value" => new(ColumnDefaultKind.NextSequenceValue, Sequence: ReadSequence(expression)),
+            "current-user" => Identity(expression, ColumnDefaultKind.CurrentUser),
+            "session-user" => Identity(expression, ColumnDefaultKind.SessionUser),
+            "new-uuid" => RequireKeys(expression, "kind", "representation") && expression["representation"] is "canonical-text"
+                ? new(ColumnDefaultKind.NewUuid)
+                : throw new ArgumentException("new-uuid requires 'representation: canonical-text' and accepts no other options."),
             _ => throw new ArgumentException($"Unsupported defaultExpression kind '{kind}'.")
         };
     }
+
+    private static ColumnDefaultExpression Identity(IDictionary expression, ColumnDefaultKind kind)
+        => RequireKeys(expression, "kind") ? new(kind)
+            : throw new ArgumentException("User identity defaults accept only 'kind'.");
 
     private static int? Precision(IDictionary expression)
     {

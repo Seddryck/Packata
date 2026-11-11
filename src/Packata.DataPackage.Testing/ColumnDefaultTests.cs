@@ -57,6 +57,9 @@ public class ColumnDefaultTests
     [TestCase("""{"kind":"current-time","fractionalSecondsPrecision":9}""", ColumnDefaultKind.CurrentTime, 9)]
     [TestCase("""{"kind":"next-sequence-value","sequence":{"schema":"Billing Schema","name":"Invoice Numbers"}}""",
         ColumnDefaultKind.NextSequenceValue, null)]
+    [TestCase("""{"kind":"current-user"}""", ColumnDefaultKind.CurrentUser, null)]
+    [TestCase("""{"kind":"session-user"}""", ColumnDefaultKind.SessionUser, null)]
+    [TestCase("""{"kind":"new-uuid","representation":"canonical-text"}""", ColumnDefaultKind.NewUuid, null)]
     public void Round_trips_default_expressions(string declaration, ColumnDefaultKind kind, int? precision)
     {
         var json = JsonDescriptor(declaration).Replace("defaultValue", "defaultExpression", StringComparison.Ordinal);
@@ -94,6 +97,12 @@ public class ColumnDefaultTests
     [TestCase("""{"kind":"next-sequence-value","sequence":{"name":"seq","schema":"a\u0000b"}}""")]
     [TestCase("""{"kind":"next-sequence-value","sequence":{"name":"seq","schema":"billing","other":"extra"}}""")]
     [TestCase("""{"kind":"next-sequence-value","sequence":"billing.seq"}""")]
+    [TestCase("""{"kind":"new-uuid"}""")]
+    [TestCase("""{"kind":"new-uuid","representation":"native"}""")]
+    [TestCase("""{"kind":"new-uuid","representation":"canonical-text","byteOrder":"network"}""")]
+    [TestCase("""{"kind":"new-uuid","representation":"canonical-text","fractionalSecondsPrecision":0}""")]
+    [TestCase("""{"kind":"current-user","fractionalSecondsPrecision":0}""")]
+    [TestCase("""{"kind":"session-user","representation":"canonical-text"}""")]
     public void Rejects_invalid_expressions(string declaration)
     {
         var json = JsonDescriptor(declaration).Replace("defaultValue", "defaultExpression", StringComparison.Ordinal);

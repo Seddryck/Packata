@@ -17,7 +17,7 @@ public class ColumnDefaultExpressionTests
     public void Reports_the_column_when_the_provider_cannot_render_an_expression(
         ColumnDefaultKind kind, string type, int? precision)
     {
-        var plan = Plan("ansi", new("sample_value", type) { DefaultExpression = new(kind, precision) });
+        var plan = Plan("ansi", new DataField("sample_value", type) { DefaultExpression = new(kind, precision) });
         Assert.That(plan.Script, Is.Empty);
         Assert.That(plan.Diagnostics.Single().Message, Does.Contain("sample_value"));
     }
@@ -41,7 +41,7 @@ public class ColumnDefaultExpressionTests
     public void Sqlite_evaluates_a_utc_timestamp_for_an_omitted_column()
     {
         RequireRenderer("sqlite");
-        var plan = Plan("sqlite", new("created_at", "datetime")
+        var plan = Plan("sqlite", new DataField("created_at", "datetime")
         {
             DefaultExpression = new(ColumnDefaultKind.CurrentUtcTimestamp)
         });
@@ -61,7 +61,7 @@ public class ColumnDefaultExpressionTests
     public void DuckDb_uses_the_external_sequence_and_leaves_it_intact_when_the_table_is_dropped()
     {
         RequireRenderer("duckdb");
-        var plan = Plan("duckdb", new("invoice", "integer")
+        var plan = Plan("duckdb", new DataField("invoice", "integer")
         {
             DefaultExpression = new(ColumnDefaultKind.NextSequenceValue, Sequence: new("Invoice Numbers", Schema: "Billing Schema"))
         });
@@ -100,9 +100,9 @@ public class ColumnDefaultExpressionTests
             $"The bundled DubUrl {dialect} provider must include a column default renderer.");
     }
 
-    internal static SchemaProvisioningPlan Plan(string dialect, DataField field)
+    internal static SchemaProvisioningPlan Plan(string dialect, params DataField[] fields)
     {
-        var table = new DataAsset("sample", "sample", null, null, AssetKind.Table, new([field]));
+        var table = new DataAsset("sample", "sample", null, null, AssetKind.Table, new(fields));
         var contract = new DataContract(new("test"), new(), [table], [], new());
         return new RelationalSchemaPlanner(OfflineSqlDialects.Resolve(dialect)).PlanSchema(contract);
     }

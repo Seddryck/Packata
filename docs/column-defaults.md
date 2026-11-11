@@ -69,3 +69,24 @@ customProperties:
 Timestamp and time kinds accept an optional integer `fractionalSecondsPrecision` from 0 through 9. Omitting it uses the database default precision. The selected provider must support the requested kind, precision, destination type, and qualification.
 
 A sequence requires a nonempty `name` and at least one of `schema`, `database`, or `catalog`. Each component is an identifier. Create the sequence and grant access before deploying the table. The sequence remains under its owner's control when the table is dropped.
+
+## User identity and UUID expressions
+
+| Kind | Result and destination |
+| --- | --- |
+| `current-user` | Effective database authorization identity. The text length must meet the provider's identity capacity. |
+| `session-user` | Session authorization identity. The text length must meet the provider's identity capacity. |
+| `new-uuid` | A 36-character hyphenated UUID. Requires `representation: canonical-text` and either variable-width text of at least 36 characters or fixed-width text of exactly 36 characters. |
+
+The identity kinds accept only `kind`. Packata uses the physical SQL length when declared, otherwise it uses the field's string `maxLength`. Select a provider that supports the expression on the resolved column type.
+
+```json
+{
+  "name": "id",
+  "type": "string",
+  "constraints": { "maxLength": 36 },
+  "packata:customProperties": [
+    { "property": "defaultExpression", "value": { "kind": "new-uuid", "representation": "canonical-text" } }
+  ]
+}
+```

@@ -45,6 +45,74 @@ internal static class RelationalColumnDefaults
         builder.WithDefaultValue(literal.Value);
     }
 
+    internal static void ApplyExpression(IColumnConstraintBuilder builder, DefaultExpression expression,
+        PhysicalTypeDefinition? storage)
+    {
+        var column = builder.Build();
+        var precision = expression.FractionalSecondsPrecision;
+        var definition = expression.Kind switch
+        {
+            DefaultKind.CurrentTimestamp when IsTimestamp(column.Type) => DubUrlExpression.CurrentTimestamp(precision),
+            DefaultKind.CurrentUtcTimestamp when IsTimestamp(column.Type) => DubUrlExpression.CurrentUtcTimestamp(precision),
+            DefaultKind.CurrentDate when column.Type == DbType.Date && precision is null => DubUrlExpression.CurrentDate,
+            DefaultKind.CurrentTime when column.Type == DbType.Time => DubUrlExpression.CurrentTime(precision),
+            DefaultKind.NextSequenceValue when precision is null && IsSequenceDestination(column, storage)
+                => DubUrlExpression.NextSequenceValue(SequenceName(expression.Sequence)),
+            DefaultKind.CurrentUser or DefaultKind.SessionUser or DefaultKind.NewUuid when precision is null
+                => TextExpression(column, expression.Kind, storage),
+            _ => throw new ArgumentException(
+                $"Mapped column type '{column.Type}' or its facets are incompatible with '{expression.Kind}'.")
+        };
+        builder.WithDefaultExpression(definition);
+    }
+
+    internal static bool RequiresTextLength(DefaultKind? kind)
+        => kind is DefaultKind.CurrentUser or DefaultKind.SessionUser or DefaultKind.NewUuid;
+
+    internal static bool IsFixedText(string? type) => type is "char" or "nchar" or "character";
+
+    private static DubUrlExpression TextExpression(Column column, DefaultKind kind, PhysicalTypeDefinition? storage)
+    {
+        if (!Matches(DbType.String, column.Type) || storage?.NativeType.Name is not
+            ("char" or "nchar" or "character" or "varchar" or "nvarchar" or "character varying"
+            or "varchar2" or "nvarchar2" or "text" or "string"))
+            throw new ArgumentException($"{kind} requires a text column.");
+
+        if (storage.Length is not > 0)
+            throw new ArgumentException($"{kind} requires an explicit positive SQL text length. Declare a physical length or maxLength.");
+
+        if (kind == DefaultKind.NewUuid)
+        {
+            var fixedWidth = IsFixedText(storage.NativeType.Name);
+            if (fixedWidth ? storage.Length != 36 : storage.Length < 36)
+                throw new ArgumentException("new-uuid requires exactly 36 characters for fixed-width text or at least 36 for variable-width text.");
+            return DubUrlExpression.NewUuid(UuidRepresentation.CanonicalText);
+        }
+
+        return kind == DefaultKind.CurrentUser ? DubUrlExpression.CurrentUser : DubUrlExpression.SessionUser;
+    }
+
+    private static DatabaseObjectName SequenceName(ColumnDefaultSequence? sequence)
+        => sequence is null ? throw new ArgumentException("Supply a qualified sequence name.")
+            : new(sequence.Name, sequence.Schema, sequence.Database, sequence.Catalog);
+
+    private static bool IsTimestamp(DbType type) => type is DbType.DateTime or DbType.DateTime2 or DbType.DateTimeOffset;
+
+    private static bool IsSequenceDestination(Column column, PhysicalTypeDefinition? storage)
+    {
+        if (column.Type is DbType.Int16 or DbType.Int32 or DbType.Int64)
+        {
+            return storage?.NativeType.Name is "smallint" or "integer" or "int" or "bigint" or "int2" or "int4" or "int8"
+                or "number" or "decimal" or "numeric";
+        }
+        if (column.Type != DbType.Decimal || storage?.NativeType.Name is not ("numeric" or "decimal" or "dec" or "number"))
+            return false;
+        if (column is NumericColumn numeric)
+            return numeric.Scale >= 0 && numeric.Scale < numeric.Precision;
+        var precision = storage.Precision ?? storage.Length;
+        return precision is null || ((storage.Scale ?? 0) >= 0 && (storage.Scale ?? 0) < precision);
+    }
+
     private static bool IsLiteralValue(ColumnDefaultLiteral literal) => (literal.Type, literal.Value) switch
     {
         (DbType.String, string) or (DbType.Boolean, bool) or (DbType.Int16, short) or (DbType.Int32, int)
@@ -73,45 +141,6 @@ internal static class RelationalColumnDefaults
         DbType.DateTimeOffset => storage is "datetimeoffset" or "timestamptz" or "timestamp with time zone" or "timestamp with timezone",
         _ => false
     };
-    internal static void ApplyExpression(IColumnConstraintBuilder builder, DefaultExpression expression,
-        PhysicalTypeDefinition? storage)
-    {
-        var column = builder.Build();
-        var precision = expression.FractionalSecondsPrecision;
-        var definition = expression.Kind switch
-        {
-            DefaultKind.CurrentTimestamp when IsTimestamp(column.Type) => DubUrlExpression.CurrentTimestamp(precision),
-            DefaultKind.CurrentUtcTimestamp when IsTimestamp(column.Type) => DubUrlExpression.CurrentUtcTimestamp(precision),
-            DefaultKind.CurrentDate when column.Type == DbType.Date && precision is null => DubUrlExpression.CurrentDate,
-            DefaultKind.CurrentTime when column.Type == DbType.Time => DubUrlExpression.CurrentTime(precision),
-            DefaultKind.NextSequenceValue when precision is null && IsSequenceDestination(column, storage)
-                => DubUrlExpression.NextSequenceValue(SequenceName(expression.Sequence)),
-            _ => throw new ArgumentException(
-                $"Mapped column type '{column.Type}' or its facets are incompatible with '{expression.Kind}'.")
-        };
-        builder.WithDefaultExpression(definition);
-    }
-
-    private static DatabaseObjectName SequenceName(ColumnDefaultSequence? sequence)
-        => sequence is null ? throw new ArgumentException("Supply a qualified sequence name.")
-            : new(sequence.Name, sequence.Schema, sequence.Database, sequence.Catalog);
-
-    private static bool IsTimestamp(DbType type) => type is DbType.DateTime or DbType.DateTime2 or DbType.DateTimeOffset;
-
-    private static bool IsSequenceDestination(Column column, PhysicalTypeDefinition? storage)
-    {
-        if (column.Type is DbType.Int16 or DbType.Int32 or DbType.Int64)
-        {
-            return storage?.NativeType.Name is "smallint" or "integer" or "int" or "bigint" or "int2" or "int4" or "int8"
-                or "number" or "decimal" or "numeric";
-        }
-        if (column.Type != DbType.Decimal || storage?.NativeType.Name is not ("numeric" or "decimal" or "dec" or "number"))
-            return false;
-        if (column is NumericColumn numeric)
-            return numeric.Scale >= 0 && numeric.Scale < numeric.Precision;
-        var precision = storage.Precision ?? storage.Length;
-        return precision is null || ((storage.Scale ?? 0) >= 0 && (storage.Scale ?? 0) < precision);
-    }
 
     private static bool Matches(DbType literal, DbType column) => literal == column
         || (literal == DbType.String && column is DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength)
