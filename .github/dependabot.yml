@@ -36,6 +36,7 @@ updates:
       PocketCsvReader:
           patterns:
             - "PocketCsvReader"
+            - "PocketCsvReader.*"
       YamlDotNet:
           patterns:
             - "YamlDotNet"
@@ -47,5 +48,4 @@ updates:
             - "DubUrl*"
       ExternalTestingLibs:
           patterns:
-            - "PocketCsvReader*"
             - "Chrononuensis*"
