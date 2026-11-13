@@ -8,8 +8,8 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="Moq" Version="4.21.0" />
-    <PackageReference Include="DubUrl.Provider.SqlServer" Version="0.65.0" />
-    <PackageReference Include="DubUrl.Provider.DuckDb" Version="0.65.0" />
+    <PackageReference Include="DubUrl.Provider.SqlServer" Version="0.69.0" />
+    <PackageReference Include="DubUrl.Provider.DuckDb" Version="0.69.0" />
     <PackageReference Include="RichardSzalay.MockHttp" Version="7.1.0" />
     <PackageReference Include="NUnit" Version="5.0.0" />
     <PackageReference Include="NUnit.Analyzers" Version="4.15.0">

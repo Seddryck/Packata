@@ -4,7 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
-    <PackageReference Include="DubUrl.Application" Version="0.55.1" />
-    <PackageReference Include="DubUrl.Schema.Documents" Version="0.104.0" />
+    <PackageReference Include="DubUrl.Application" Version="0.80.0" />
+    <PackageReference Include="DubUrl.Schema.Documents" Version="0.105.0" />
   </ItemGroup>
 </Project>
