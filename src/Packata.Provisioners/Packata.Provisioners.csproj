@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Didot.Core" Version="0.34.24" />
     <PackageReference Include="DubUrl.Provider.PostgreSql" Version="0.65.0" />
     <PackageReference Include="DubUrl.Provider.SqlServer" Version="0.65.0" />
     <PackageReference Include="DubUrl.Provider.Sqlite" Version="0.65.0" />
