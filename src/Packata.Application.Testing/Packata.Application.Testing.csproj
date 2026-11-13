@@ -3,7 +3,7 @@
   <ItemGroup>
     <Compile Include="../Packata.ResourceReaders.Testing/ExcelWorkbookFixture.cs" Link="ExcelWorkbookFixture.cs" />
     <None Include="../Packata.ResourceReaders.Testing/Resources/iris.parquet" Link="Resources/iris.parquet" CopyToOutputDirectory="PreserveNewest" />
-    <PackageReference Include="Apache.Avro" Version="1.12.0" />
+    <PackageReference Include="Apache.Avro" Version="1.12.2" />
     <PackageReference Include="MessagePack" Version="3.1.12" />
     <PackageReference Include="Microsoft.Spark" Version="2.3.1" />
     <PackageReference Include="Microsoft.Data.Analysis" Version="0.21.1" />
