@@ -31,12 +31,37 @@ public static class DescriptorProfiles
         var definitions = JsonSerializer.Deserialize<Definition[]>(ReadResource("profiles.json"), new JsonSerializerOptions(JsonSerializerDefaults.Web))
             ?? throw new InvalidOperationException("The pinned profile registry is missing.");
         return definitions.ToDictionary(item => item.Id, item => new Registration(new(item.Uri, item.Label, item.Format),
-            new(() => JsonSchema.FromText(ReadResource(item.File), new BuildOptions { Dialect = item.Dialect switch
+            new(() => JsonSchema.FromText(SchemaText(item), new BuildOptions { Dialect = item.Dialect switch
             {
                 "draft7" => Dialect.Draft07,
                 "draft2019-09" => Dialect.Draft201909,
                 _ => throw new InvalidOperationException("Unsupported pinned schema dialect.")
             } }))));
+    }
+
+    private static string SchemaText(Definition definition)
+    {
+        var text = ReadResource(definition.File);
+        if (definition.Id != "odcs") return text;
+
+        // The pinned ODCS artifact stays verbatim. Only consumers of the shared Tags
+        // definition get the proposed extension, including through nested references.
+        var schema = JsonNode.Parse(text)!.AsObject();
+        schema["$defs"]!["Tags"]!["items"] = JsonNode.Parse("""
+            {
+              "oneOf": [
+                { "type": "string" },
+                {
+                  "type": "object",
+                  "minProperties": 1,
+                  "maxProperties": 1,
+                  "propertyNames": { "minLength": 1 },
+                  "additionalProperties": { "type": ["string", "number", "boolean"] }
+                }
+              ]
+            }
+            """);
+        return schema.ToJsonString();
     }
 
     private static string ReadResource(string file)

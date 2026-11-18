@@ -19,7 +19,7 @@ internal class DataContractSerializer : IDataContractSerializer
     public DataContract Deserialize(StreamReader reader, IDocumentContainer container, IStorageProvider provider)
     {
         var yaml = reader.ReadToEnd();
-        DataContractValidator.ValidateYamlStructure(yaml);
+        var root = DataContractValidator.ValidateYamlStructure(yaml);
 
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(new DataContractNamingConvention())
@@ -32,6 +32,7 @@ internal class DataContractSerializer : IDataContractSerializer
             .WithTypeConverter(new TeamConverter())
             .WithTypeConverter(new CustomPropertyListConverter())
             .WithTypeConverter(new EnumerationValueConverter())
+            .WithTypeConverter(new TagEntriesConverter(root))
             .IncludeNonPublicProperties()
             .WithAttributeOverride(typeof(SchemaProperty), nameof(SchemaProperty.LogicalType), new YamlIgnoreAttribute())
             .WithAttributeOverride(typeof(SchemaProperty), "LogicalTypeDiscriminator", new YamlMemberAttribute() { Alias = "logicalType" })
@@ -57,6 +58,7 @@ internal class DataContractSerializer : IDataContractSerializer
             .WithTypeConverter(new TeamConverter())
             .WithTypeConverter(new CustomPropertyListConverter())
             .WithTypeConverter(new EnumerationValueConverter())
+            .WithTypeConverter(new TagEntriesConverter())
             .IncludeNonPublicProperties()
             .WithAttributeOverride(typeof(SchemaProperty), nameof(SchemaProperty.LogicalType), new YamlIgnoreAttribute())
             .WithAttributeOverride(typeof(SchemaProperty), "LogicalTypeDiscriminator", new YamlMemberAttribute { Alias = "logicalType" })

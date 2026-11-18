@@ -30,14 +30,14 @@ internal static class QualityMapper
         var declared = DeclaredExpectations(native);
         var expectations = MapExpectations(declared, Warn);
         AppendDiagnostics(findings, diagnostics);
+        var extensions = new Dictionary<string, object?> { ["declaration"] = native, ["expectations"] = declared };
+        if (native.TagEntries is { HasKeyValueTags: true } tags)
+            extensions["tags"] = tags.Snapshot();
         return new CanonicalRule(type, native.Description, native.Query)
         {
             SourceId = native.Id, SourcePath = path, Target = target, Definition = definition,
             Expectations = expectations, Metadata = MapMetadata(native),
-            Extensions = ExtensionMetadata.For("odcs", MetadataSnapshot.CopyDictionary(new Dictionary<string, object?>
-            {
-                ["declaration"] = native, ["expectations"] = declared
-            })),
+            Extensions = ExtensionMetadata.For("odcs", MetadataSnapshot.CopyDictionary(extensions)),
             Diagnostics = Array.AsReadOnly(findings.ToArray())
         };
     }

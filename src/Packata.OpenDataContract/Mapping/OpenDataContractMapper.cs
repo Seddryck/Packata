@@ -30,7 +30,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             .ToArray();
         assets = CategoryTableMapper.Map(document, assets, diagnostics);
 
-        var extensions = MapCustomProperties(document.Description?.CustomProperties);
+        var extensions = MapCustomProperties(document.Description?.CustomProperties, document.TagEntries);
+        extensions = MapTeamTags(document.Team, extensions);
         var commitments = ServiceCommitmentMapper.Map(document, diagnostics);
         if (commitments.Unmapped.Count > 0)
         {
@@ -118,7 +119,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             new DataSchema(fields, primaryKey, relationships, AllowAdditionalProperties: allowAdditional, EnforcePropertyOrder: enforceOrder),
             endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray(),
             QualityRules: QualityMapper.Map(schema.Quality, new QualityTarget(schema.Name), $"schema/{schema.Name}/quality", diagnostics),
-            Extensions: MapCustomProperties(schema.CustomProperties));
+            Extensions: MapCustomProperties(schema.CustomProperties, schema.TagEntries));
     }
 
     private static DataRelationship? MapRelationship(Relationship relationship, string sourceAsset,
@@ -267,6 +268,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
         if (property.Enum is not null)
             extensions["enum"] = EnumMetadataSnapshot.Copy(property.Enum);
+        if (property.TagEntries is { HasKeyValueTags: true } tags)
+            extensions["tags"] = tags.Snapshot();
         return extensions;
     }
 
@@ -428,15 +431,41 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     private static bool IsDelimitedFormat(string? formatName) =>
         formatName?.Trim().TrimStart('.').ToLowerInvariant() is "csv" or "tsv" or "psv";
 
-    private static ExtensionMetadata MapCustomProperties(CustomProperties? properties)
-        => properties is null || properties.Count == 0
-            ? ExtensionMetadata.Empty
-            : ExtensionMetadata.For(
-                "odcs",
-                new Dictionary<string, object?>
-                {
-                    ["customProperties"] = MapCustomPropertyValues(properties)
-                });
+    private static ExtensionMetadata MapCustomProperties(CustomProperties? properties, TagEntries? tags = null)
+    {
+        var values = new Dictionary<string, object?>();
+        if (properties is { Count: > 0 }) values["customProperties"] = MapCustomPropertyValues(properties);
+        if (tags is { HasKeyValueTags: true }) values["tags"] = tags.Snapshot();
+        return values.Count > 0 ? ExtensionMetadata.For("odcs", values) : ExtensionMetadata.Empty;
+    }
+
+    private static ExtensionMetadata MapTeamTags(Team? team, ExtensionMetadata extensions)
+    {
+        if (team is null) return extensions;
+
+        var members = team.Members.Select(member => (member, tags: member.TagEntries))
+            .Where(item => item.tags.HasKeyValueTags)
+            .Select(item => MetadataSnapshot.CopyDictionary(new Dictionary<string, object?>
+            {
+                ["id"] = item.member.Id,
+                ["username"] = item.member.Username,
+                ["tags"] = item.tags.Snapshot()
+            })).ToArray();
+        var tags = team.TagEntries;
+        if (!tags.HasKeyValueTags && members.Length == 0) return extensions;
+
+        var values = extensions.TryGetNamespace("odcs", out var existing)
+            ? new Dictionary<string, object?>(existing)
+            : new Dictionary<string, object?>();
+        values["team"] = MetadataSnapshot.CopyDictionary(new Dictionary<string, object?>
+        {
+            ["id"] = team.Id,
+            ["name"] = team.Name,
+            ["tags"] = tags.Snapshot(),
+            ["members"] = members
+        });
+        return ExtensionMetadata.For("odcs", values);
+    }
 
     private static Dictionary<string, object?>[] MapCustomPropertyValues(CustomProperties properties) =>
         properties.Select(x => new Dictionary<string, object?>

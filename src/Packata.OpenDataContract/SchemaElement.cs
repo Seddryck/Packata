@@ -1,3 +1,4 @@
+using YamlDotNet.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -56,7 +57,24 @@ public class SchemaElement
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
 
     [Label("Tags")]
+    [YamlIgnore]
     public List<string> Tags { get; set; } = [];
+
+    /// <summary>Gets or sets the ordered string and key/value tags.</summary>
+    /// <value>Plain labels and key/value entries in declaration order.</value>
+    [YamlMember(Alias = "tags", ApplyNamingConventions = false)]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TagEntries TagEntries
+    {
+        get => tagEntries.WithLabels(Tags);
+        set
+        {
+            tagEntries = value;
+            Tags = value.Labels.ToList();
+        }
+    }
+
+    private TagEntries tagEntries = new([]);
 
     /// <summary>
     /// Custom properties that are not part of the standard.
