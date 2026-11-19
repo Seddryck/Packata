@@ -5,7 +5,7 @@
     <InternalsVisibleTo Include="Packata.Cli.Testing" />
     <InternalsVisibleTo Include="Packata.Application.Testing" />
     <PackageReference Include="JsonSchema.Net" Version="9.4.1" />
-    <PackageReference Include="Didot.Core" Version="0.34.0" />
+    <PackageReference Include="Didot.Core" Version="0.34.24" />
     <EmbeddedResource Include="Generation/Templates/*.scriban" />
     <EmbeddedResource Include="Validation/Schemas/*.json" />
     <EmbeddedResource Include="../../docs/profiles/category-tables/1.0.0/datapackage.json" LogicalName="Packata.Application.Validation.Schemas.category-tables-v1.0.0.json" />
