@@ -3,8 +3,9 @@
     <Description>Shared database connections, provider composition and curated connector acquisition for Packata.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="DubUrl.Schema" Version="0.110.0" />
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
-    <PackageReference Include="DubUrl.Application" Version="0.55.1" />
-    <PackageReference Include="DubUrl.Schema.Documents" Version="0.104.0" />
+    <PackageReference Include="DubUrl.Application" Version="0.82.0" />
+    <PackageReference Include="DubUrl.Schema.Documents" Version="0.110.0" />
   </ItemGroup>
 </Project>
