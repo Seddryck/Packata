@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><Description>Provider-neutral SQL scalar quality measurement adapter for Packata.</Description></PropertyGroup>
-  <ItemGroup><ProjectReference Include="..\Packata.Core\Packata.Core.csproj" /><ProjectReference Include="..\Packata.Database\Packata.Database.csproj" /></ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Didot.Core" Version="0.34.24" /><ProjectReference Include="..\Packata.Core\Packata.Core.csproj" /><ProjectReference Include="..\Packata.Database\Packata.Database.csproj" /></ItemGroup>
 </Project>
