@@ -20,6 +20,21 @@ public interface IDataEndpointReaderProvider
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Opens an explicit indexed lookup without the factory opening source streams ahead of pruning.</summary>
+public interface IDataEndpointIndexedReaderProvider : IDataEndpointReaderProvider
+{
+    /// <summary>Applies every equality using the required index, or fails when the reader cannot use it.</summary>
+    ValueTask<IDataReader> OpenIndexedAsync(IndexedReaderOpenContext context, CancellationToken cancellationToken = default);
+}
+
+public sealed record IndexedReaderOpenContext(
+    DataEndpointReadRequest Request,
+    ResolvedDataFormat Format,
+    IEndpointStreamResolver StreamResolver,
+    IReadOnlyList<ResolvedIndexedEquality> Equalities);
+
+public sealed record ResolvedIndexedEquality(DataIndex Index, DataField Field, int Ordinal, object Value);
+
 /// <summary>Supplies a provider with the canonical request, resolved format, and factory-owned streams.</summary>
 public sealed record ReaderOpenContext(
     DataEndpointReadRequest Request,

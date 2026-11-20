@@ -13,6 +13,8 @@ public interface IDataEndpointReaderFactory
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (request.IndexedRead is not null)
+            throw new NotSupportedException("This reader factory does not support indexed lookups.");
         return OpenAsync(request.Endpoint, request.Schema, cancellationToken);
     }
 }
@@ -23,7 +25,10 @@ public sealed record DataEndpointReadRequest(
     DataEndpoint Endpoint,
     DataSchema? Schema = null,
     string? AssetPath = null,
-    DataContract? Contract = null);
+    DataContract? Contract = null)
+{
+    public IndexedRead? IndexedRead { get; init; }
+}
 
 /// <summary>Resolves canonical path values to owned streams.</summary>
 public interface IEndpointStreamResolver
