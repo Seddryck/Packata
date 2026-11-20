@@ -11,7 +11,7 @@ internal static class EnumMetadataSnapshot
         => MetadataSnapshot.CopyDictionary(new Dictionary<string, object?>
         {
             ["value"] = entry.Value, ["label"] = entry.Label, ["description"] = entry.Description,
-            ["id"] = entry.Id, ["tags"] = entry.Tags,
+            ["id"] = entry.Id, ["tags"] = entry.TagEntries.Snapshot(),
             ["customProperties"] = CustomProperties(entry.CustomProperties),
             ["authoritativeDefinitions"] = entry.AuthoritativeDefinitions.Select(definition => new Dictionary<string, object?>
             {

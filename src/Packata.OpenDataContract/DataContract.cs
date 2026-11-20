@@ -1,3 +1,4 @@
+using YamlDotNet.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -133,7 +134,24 @@ public class DataContract
     /// A list of tags that may be assigned to the dataContract. Tags are used to categorize the data contract and can be used for searching and filtering.
     /// </value>
     [Label("Tags")]
+    [YamlIgnore]
     public string[] Tags { get; set; } = [];
+
+    /// <summary>Gets or sets the ordered string and key/value tags.</summary>
+    /// <value>Plain labels and key/value entries in declaration order.</value>
+    [YamlMember(Alias = "tags", ApplyNamingConventions = false)]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TagEntries TagEntries
+    {
+        get => tagEntries.WithLabels(Tags);
+        set
+        {
+            tagEntries = value;
+            Tags = value.Labels.ToArray();
+        }
+    }
+
+    private TagEntries tagEntries = new([]);
 
     /// <summary>
     /// A list of elements within the schema to be cataloged.

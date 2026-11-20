@@ -24,7 +24,7 @@ internal class TeamConverter : IYamlTypeConverter
             Description = source.Description,
             Members = source.Members,
             AuthoritativeDefinitions = source.AuthoritativeDefinitions,
-            Tags = source.Tags,
+            TagEntries = source.Tags,
             CustomProperties = source.CustomProperties
         };
     }
@@ -39,7 +39,7 @@ internal class TeamConverter : IYamlTypeConverter
             Description = team.Description,
             Members = team.Members,
             AuthoritativeDefinitions = team.AuthoritativeDefinitions,
-            Tags = team.Tags,
+            Tags = team.TagEntries,
             CustomProperties = team.CustomProperties
         });
     }

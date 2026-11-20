@@ -45,7 +45,7 @@ numbers and unsupported explicit tags are rejected. JSON input uses JSON syntax.
 
 | Standard | Selection and pinned artifact |
 | --- | --- |
-| ODCS | Only an explicit `apiVersion: v3.2.0` is supported. Missing or other versions fail selection, even though the companion schema lists older versions. Contract `version` is independent. Uses the unmodified [official companion schema](https://github.com/bitol-io/open-data-contract-standard/blob/f0bdad95346905d500be5ef4b2c2d9b1d95223b7/schema/odcs-json-schema-v3.2.0.json), release commit `f0bdad95346905d500be5ef4b2c2d9b1d95223b7`, Draft 2019-09, with format assertions explicitly enabled. |
+| ODCS | Requires an explicit `apiVersion: v3.2.0`. Contract `version` is independent. Validation derives its schema from the pinned [official companion schema](https://github.com/bitol-io/open-data-contract-standard/blob/f0bdad95346905d500be5ef4b2c2d9b1d95223b7/schema/odcs-json-schema-v3.2.0.json), Draft 2019-09, with format assertions and Packata's key/value tag preview enabled. |
 | Data Package | Defaults to the strict official v2 profile when `$schema` is absent. The [official v2 profile](https://datapackage.org/profiles/2.0/datapackage.json) is embedded as downloaded, using Draft 7 and format assertions. |
 | Packata Category Tables 1.0.0 | Explicit `$schema: https://raw.githubusercontent.com/Seddryck/Packata/profile-category-tables-v1.0.0/docs/profiles/category-tables/1.0.0/datapackage.json` selects the self-contained Draft 7 compatibility profile. It adds reference objects and category field maps while retaining inline categories and other v2 assertions. See the [complete recipe example]({{ '/datapackage-categories/' | relative_url }}#category-tables-recipe). |
 
@@ -61,6 +61,29 @@ the VS Code validation output. The recipe profile checks descriptor structure;
 semantic checks additionally verify local resource/field bindings, type agreement,
 required and unique codes, unique string labels and label encoding prerequisites.
 Neither layer reads lookup rows or resolves external packages.
+
+### ODCS key/value tag preview
+
+Packata accepts mixed string and key/value tags in YAML and JSON based on
+[ODCS issue #357](https://github.com/bitol-io/open-data-contract-standard/issues/357).
+Each mapping has exactly one non-empty key and a string, number, or boolean
+value. The native reader applies Packata's scalar range and precision limits
+to numbers. Plain string tags and mappings can appear in the same list.
+
+```yaml
+tags:
+  - finance
+  - pii: true
+  - retention_days: 365
+  - classification: confidential
+```
+
+The preview applies to the contract, schema objects and properties, enum
+entries, quality rules, the team, and team members. Context constraint and
+verified statement tags still require strings. The ODCS .NET model exposes the
+ordered entries through `TagEntries`, and its existing `Tags` properties expose
+plain labels. Canonical mapping preserves the mixed entries in ODCS extension
+metadata. The bundled official schema remains pinned verbatim.
 
 ## Semantic checks
 
@@ -84,10 +107,10 @@ vocabularies) are not enforced as normative requirements.
 | SLA | Existing duration/unit, availability percentage/window, element-path and lifecycle milestone normalization; invalid recognized declarations are errors | Packata normalization rules; unsupported SLA property names remain warnings and metadata. No compliance evaluation. |
 | Category tables | Retains category declarations, field-map, referenced object/property and binding checks (`ODCS006`/`ODCS007`) | **Packata extension**, declared through `vendor: packata`; no lookup dataset reads. |
 
-The schema layer executes every assertion in the pinned artifact, including closure,
-conditional branches, types, formats, enums and collection constraints. The
+The schema layer evaluates closure, conditional branches, types, formats, enums
+and collection constraints against the pinned base plus the tag preview. The
 [complete assertion-path inventory]({{ '/odcs-schema-assertions.tsv' | relative_url }})
-records the exact keywords/values delegated to the schema engine. Regression tests
+records the keywords and values in the pinned base. Regression tests
 cover both source representations, selection, layer sequencing, declarations and
 prerequisites (`DescriptorValidationTests`, `ValidateCommandTests`).
 

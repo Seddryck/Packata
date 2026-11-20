@@ -16,7 +16,9 @@ internal sealed class QualityRuleConverter : IYamlTypeConverter
         while (!parser.TryConsume<MappingEnd>(out _))
         {
             var key = parser.Consume<Scalar>().Value;
-            var property = typeof(DataQualityRule).GetProperties().SingleOrDefault(p =>
+            var property = key == "tags" ? typeof(DataQualityRule).GetProperty(nameof(DataQualityRule.TagEntries))
+                : typeof(DataQualityRule).GetProperties().SingleOrDefault(p =>
+                p.Name != nameof(DataQualityRule.TagEntries) &&
                 p.CanWrite && char.ToLowerInvariant(p.Name[0]) + p.Name[1..] == key);
             if (property is null) { rootDeserializer(typeof(object)); continue; }
             // YAML operands and arguments must retain scalar types, including quoted numeric strings.
@@ -54,7 +56,7 @@ internal sealed class QualityRuleConverter : IYamlTypeConverter
         emitter.Emit(new MappingStart());
         foreach (var property in typeof(DataQualityRule).GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {
-            if (property.Name == nameof(DataQualityRule.DeclaredExpectations)) continue;
+            if (property.Name is nameof(DataQualityRule.DeclaredExpectations) or nameof(DataQualityRule.Tags)) continue;
             var operand = property.GetValue(rule);
             if (property.Name.StartsWith("Must", StringComparison.Ordinal))
             {
@@ -66,7 +68,8 @@ internal sealed class QualityRuleConverter : IYamlTypeConverter
                 continue;
             }
 
-            emitter.Emit(new Scalar(char.ToLowerInvariant(property.Name[0]) + property.Name[1..]));
+            var key = property.Name == nameof(DataQualityRule.TagEntries) ? "tags" : char.ToLowerInvariant(property.Name[0]) + property.Name[1..];
+            emitter.Emit(new Scalar(key));
             serializer(operand);
         }
         emitter.Emit(new MappingEnd());
