@@ -41,6 +41,11 @@ internal static class PropertyRequirementsMapper
         if (properties is null) return;
         for (var index = 0; index < properties.Count; index++)
         {
+            if (properties[index] is { Vendor: "packata", Property: "indexes" })
+            {
+                diagnostics.Add(new("ODCS010", MappingSeverity.Error, $"{path}/customProperties/{index}",
+                    "Packata indexes are supported only on schema objects."));
+            }
             if (properties[index] is { Vendor: "packata", Property: "propertyMatching" or "propertyOrder" or "allowAdditionalProperties" or "enforcePropertyOrder" })
             {
                 diagnostics.Add(new("ODCS008", MappingSeverity.Error, $"{path}/customProperties/{index}",
