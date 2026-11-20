@@ -79,6 +79,11 @@ internal static class PropertyRequirementsMapper
                     diagnostics.Add(new("ODCS008", MappingSeverity.Error, sourcePath,
                         $"Obsolete Packata property '{property.Property}'. Use schema.allowAdditionalProperties, schema.enforcePropertyOrder and per-property required."));
                 }
+                else if (owner is not SchemaObject && IndexDeclarationMapper.IsDeclaration(property))
+                {
+                    diagnostics.Add(new("ODCS010", MappingSeverity.Error, sourcePath,
+                        "Packata indexes are supported only on schema objects."));
+                }
                 else if (bindings.Misplaced(owner, property) is { } selector)
                 {
                     diagnostics.Add(new("ODCS008", MappingSeverity.Error, sourcePath,

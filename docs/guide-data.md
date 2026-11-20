@@ -289,6 +289,71 @@ shows canonical mapping and reader configuration for both descriptors.
 
 <a id="preview-a-zipped-data-package"></a>
 
+## Look up rows using declared indexes
+
+Place the Packata `indexes` extension under an ODCS schema object's `customProperties`.
+
+```yaml
+schema:
+  - name: orders
+    properties:
+      - name: Date
+        logicalType: date
+      - name: CustomerId
+        logicalType: string
+    customProperties:
+      - vendor: packata
+        property: indexes
+        value:
+          version: 1
+          indexes:
+            - {property: Date, kind: ordered, order: ascending}
+            - {property: CustomerId, kind: bloom, comparison: ordinal}
+```
+
+Each index names one top-level property by its exact schema name. Ordered indexes default to
+ascending. String keys default to ordinal comparison and can specify `ordinalIgnoreCase`.
+The declaration maps to `DataSchema.Indexes` and can be read by any provider that implements
+`IDataEndpointIndexedReaderProvider` and supports its index settings.
+
+To query an existing index, set `IndexedRead` on the canonical endpoint request. Supply the CLR
+value for the schema field and the index kind to use. An optional path predicate selects
+partitions before opening files or reading sidecars. Every equality must match for a row to
+be returned.
+
+```csharp
+using Packata.Core.Contracts;
+using Packata.Core.Reading;
+using Packata.ResourceReaders;
+
+var request = new DataEndpointReadRequest(endpoint, schema)
+{
+    IndexedRead = new([
+        new("Date", DataIndexKind.Ordered, new DateOnly(2026, 5, 17)),
+        new("CustomerId", DataIndexKind.Bloom, "C12345")
+    ], PartitionFilter: path => Path.GetFileName(path).StartsWith("orders-2026-05", StringComparison.Ordinal))
+};
+using var rows = await new ResourceReaderFactory().OpenAsync(request);
+while (rows.Read())
+    Console.WriteLine(rows["CustomerId"]);
+```
+
+The built-in indexed provider uses PocketCsvReader for local, uncompressed UTF-8 delimited
+files. It can use one Bloom index and one ascending ordered index per file. Bloom pruning
+runs before an ordered seek. For a Bloom candidate, the reader still checks exact equality
+and returns matches in source order, including duplicates. Sidecars are validated as the
+reader reaches candidate files. A missing, stale, unreadable, corrupt, or incompatible
+required sidecar fails the lookup. A read without `IndexedRead` scans normally.
+
+Prepare sidecars with PocketCsvReader's
+[sparse](https://seddryck.github.io/PocketCsvReader/docs/sparse-indexes/) and
+[Bloom](https://seddryck.github.io/PocketCsvReader/docs/bloom-indexes/) index builders using the
+same dialect, source column, key type and comparison. For Bloom, also configure the same
+CSV schema field names and matching mode (`Indexed()`). With headers, use the physical column
+name if the schema declares one, or the property name otherwise. With headerless data, use
+the zero-based position in the schema. The default `DateOnly` index key uses `yyyy-MM-dd`.
+For other date formats, use the .NET pattern produced by `DateTimeFormatConverter.Convert`.
+
 ## Preview an archived data package
 
 You can distribute the descriptor and CSV files together in a ZIP, TAR, TAR.GZ or

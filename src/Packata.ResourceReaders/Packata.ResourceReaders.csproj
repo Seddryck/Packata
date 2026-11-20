@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <PackageReference Include="PocketCsvReader" Version="2.76.1" />
+    <PackageReference Include="PocketCsvReader.Indexing" Version="2.76.1" />
   </ItemGroup>
 
 </Project>

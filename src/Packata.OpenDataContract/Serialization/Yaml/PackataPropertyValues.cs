@@ -48,7 +48,8 @@ internal static class PackataPropertyValues
         {
             if (sequence.Children[index] is not YamlMappingNode node || Get(node, "value") is not { } value) continue;
             var property = properties[index];
-            if (normalizeNative && OdcsBindings.Default.HasTypedNativeValue(property)) property.Value = Read(value);
+            if (normalizeNative && (OdcsBindings.Default.HasTypedNativeValue(property) || IndexDeclarationMapper.IsDeclaration(property)))
+                property.Value = Read(value);
             else property.PreserveMappingValue(() => Read(value));
         }
     }

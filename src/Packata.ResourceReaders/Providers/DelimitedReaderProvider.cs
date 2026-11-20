@@ -6,7 +6,7 @@ using PocketCsvReader.Configuration;
 
 namespace Packata.ResourceReaders.Providers;
 
-internal sealed class DelimitedReaderProvider : IDataEndpointReaderProvider
+internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvider
 {
     private readonly IReadOnlyList<IDelimitedDialectResolver> _dialectResolvers;
     internal bool DecodeCategories { get; set; }
@@ -26,15 +26,51 @@ internal sealed class DelimitedReaderProvider : IDataEndpointReaderProvider
     {
         cancellationToken.ThrowIfCancellationRequested();
         var dialect = await ResolveDialectAsync(context, cancellationToken).ConfigureAwait(false);
-        var resource = CreateResource(context.Endpoint.Format, context.Format.Compression);
-        var builder = new CsvReaderBuilder().WithDialect(dialect).WithResource(resource);
-        var schemaBuilder = CreateSchema(context.Schema, DecodeCategories);
-        if (schemaBuilder is not null) builder.WithSchema(schemaBuilder);
-        var reader = builder.Build();
+        var reader = CreateBuilder(context, dialect).Build();
         IDataReader dataReader = context.Streams.Count == 1
             ? reader.ToDataReader(context.Streams[0])
             : reader.ToDataReader(context.Streams.Select(stream => (Func<Stream>)(() => stream)));
         return dataReader;
+    }
+
+    public async ValueTask<IDataReader> OpenIndexedAsync(IndexedReaderOpenContext context,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (context.StreamResolver is not DefaultEndpointStreamResolver || DecodeCategories)
+            throw new NotSupportedException("Delimited indexed lookups require the local filesystem reader with category decoding disabled.");
+        if (context.Equalities.GroupBy(equality => equality.Index.Kind).Any(group => group.Count() > 1))
+            throw new NotSupportedException("Delimited indexed lookups support at most one equality of each index kind per file.");
+
+        var open = new ReaderOpenContext(context.Request, context.Format, []);
+        var dialect = await ResolveDialectAsync(open, cancellationToken).ConfigureAwait(false);
+        var builder = CreateBuilder(open, dialect);
+        var location = (PathLocation)context.Request.Endpoint.Location;
+        var paths = location.Paths.Select(LocalPath).ToArray();
+        var query = builder.FromFiles(paths).WithPartitions(partitions => partitions.FromPath(path => path)).Build();
+        var hasHeader = dialect.Build().Header;
+        foreach (var equality in context.Equalities)
+            query = DelimitedIndexLookup.Apply(query, equality, hasHeader);
+
+        return query.ToDataReader();
+    }
+
+    private CsvReaderBuilder CreateBuilder(ReaderOpenContext context, DialectDescriptorBuilder dialect)
+    {
+        var resource = CreateResource(context.Endpoint.Format, context.Format.Compression);
+        var builder = new CsvReaderBuilder().WithDialect(dialect).WithResource(resource);
+        var schemaBuilder = CreateSchema(context.Schema, DecodeCategories);
+        if (schemaBuilder is not null) builder.WithSchema(schemaBuilder);
+        return builder;
+    }
+
+    private static string LocalPath(string path)
+    {
+        if (!Uri.TryCreate(path, UriKind.Absolute, out var uri))
+            return path;
+        if (!uri.IsFile)
+            throw new NotSupportedException("Delimited indexed lookups require local filesystem paths.");
+        return uri.LocalPath;
     }
 
     private async ValueTask<DialectDescriptorBuilder> ResolveDialectAsync(ReaderOpenContext context,

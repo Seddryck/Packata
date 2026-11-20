@@ -67,6 +67,7 @@ public sealed record DataSchema(
     bool AllowAdditionalProperties = true,
     bool EnforcePropertyOrder = false)
 {
+    public IReadOnlyList<DataIndex> Indexes { get; init; } = [];
     public IReadOnlyList<string> PrimaryKey { get; init; } = PrimaryKey ?? [];
     public IReadOnlyList<DataRelationship> Relationships { get; init; } = Relationships ?? [];
     public ExtensionMetadata Extensions { get; init; } = Extensions ?? ExtensionMetadata.Empty;

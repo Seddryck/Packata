@@ -129,7 +129,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             schema.PhysicalName,
             schema.Description,
             MapAssetKind(schema.PhysicalType),
-            new DataSchema(fields, primaryKey, relationships, AllowAdditionalProperties: allowAdditional, EnforcePropertyOrder: enforceOrder),
+            new DataSchema(fields, primaryKey, relationships, AllowAdditionalProperties: allowAdditional, EnforcePropertyOrder: enforceOrder)
+            { Indexes = IndexDeclarationMapper.Map(schema, diagnostics) },
             endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray(),
             QualityRules: QualityMapper.Map(schema.Quality, new QualityTarget(schema.Name), $"schema/{schema.Name}/quality", diagnostics),
             Extensions: MapCustomProperties(schema.CustomProperties, schema.TagEntries));
