@@ -1,60 +1,64 @@
+using Packata.OpenDataContract.Mapping;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 
 namespace Packata.OpenDataContract.Serialization.Yaml;
 
-/// <summary>Preserves scalar kinds for recognized extension values without changing other vendors' metadata.</summary>
+/// <summary>Retains YAML scalar kinds for extension mapping while preserving the native metadata representation.</summary>
 internal static class PackataPropertyValues
 {
-    public static void Normalize(DataContract contract, string yaml)
+    public static void Normalize(DataContract contract, YamlMappingNode? root)
     {
-        if (!contract.Schema.Any(schema => Recognized(schema.CustomProperties) || schema.Properties.Any(RecognizedField))) return;
-        var stream = new YamlStream();
-        stream.Load(new StringReader(yaml));
-        if (stream.Documents[0].RootNode is not YamlMappingNode root || Get(root, "schema") is not YamlSequenceNode schema) return;
+        if (root is null || Get(root, "schema") is not YamlSequenceNode schema) return;
         for (var index = 0; index < contract.Schema.Count; index++)
         {
             if (schema.Children[index] is YamlMappingNode node)
             {
-                Properties(contract.Schema[index].CustomProperties, node);
-                Fields(contract.Schema[index].Properties, node);
+                Properties(contract.Schema[index].CustomProperties, node, normalizeNative: true);
+                Fields(contract.Schema[index].Properties, node, normalizeNative: true);
             }
         }
     }
 
-    private static bool Recognized(CustomProperties properties) => properties.Any(property =>
-        property.Vendor == "packata" && property.Property is "categories" or "categoryFieldMap" or "allowAdditionalProperties" or "enforcePropertyOrder" or "defaultValue" or "defaultExpression");
-
-    private static bool RecognizedField(SchemaProperty field) => Recognized(field.CustomProperties) ||
-        field.Properties.Any(RecognizedField) || (field.Items is not null && RecognizedField(field.Items));
-
-    private static void Fields(IReadOnlyList<SchemaProperty> fields, YamlMappingNode owner)
+    private static void Fields(IReadOnlyList<SchemaProperty> fields, YamlMappingNode owner, bool normalizeNative)
     {
         if (Get(owner, "properties") is not YamlSequenceNode sequence) return;
         for (var index = 0; index < fields.Count; index++)
-            if (sequence.Children[index] is YamlMappingNode node) Field(fields[index], node);
+            if (sequence.Children[index] is YamlMappingNode node) Field(fields[index], node, normalizeNative);
     }
 
-    private static void Field(SchemaProperty field, YamlMappingNode node)
+    private static void Field(SchemaProperty field, YamlMappingNode node, bool normalizeNative)
     {
-        Properties(field.CustomProperties, node);
-        Fields(field.Properties, node);
-        if (field.Items is not null && Get(node, "items") is YamlMappingNode items) Field(field.Items, items);
+        Properties(field.CustomProperties, node, normalizeNative);
+        Fields(field.Properties, node, normalizeNative);
+        if (field.Items is not null && Get(node, "items") is YamlMappingNode items) Field(field.Items, items, normalizeNative);
+        if (field.Map is { } map && Get(node, "map") is YamlMappingNode mapNode) MapFields(map, mapNode);
     }
 
-    private static void Properties(CustomProperties properties, YamlMappingNode owner)
+    private static void MapFields(MapDefinition map, YamlMappingNode node)
+    {
+        if (Get(node, "key") is YamlMappingNode key) Field(map.Key, key, normalizeNative: false);
+        if (Get(node, "value") is YamlMappingNode value) Field(map.Value, value, normalizeNative: false);
+    }
+
+    private static void Properties(CustomProperties properties, YamlMappingNode owner, bool normalizeNative)
     {
         if (Get(owner, "customProperties") is not YamlSequenceNode sequence) return;
         for (var index = 0; index < properties.Count; index++)
         {
+            if (sequence.Children[index] is not YamlMappingNode node || Get(node, "value") is not { } value) continue;
             var property = properties[index];
-            if (property.Vendor != "packata" || property.Property is not ("categories" or "categoryFieldMap" or "allowAdditionalProperties" or "enforcePropertyOrder" or "defaultValue" or "defaultExpression") ||
-                sequence.Children[index] is not YamlMappingNode node || Get(node, "value") is not { } value) continue;
-            using var writer = new StringWriter();
-            new YamlStream(new YamlDocument(value)).Save(writer, assignAnchors: false);
-            property.Value = new DeserializerBuilder().WithAttemptingUnquotedStringTypeDeserialization().Build()
-                .Deserialize<object>(writer.ToString());
+            if (normalizeNative && OdcsBindings.Default.HasTypedNativeValue(property)) property.Value = Read(value);
+            else property.PreserveMappingValue(() => Read(value));
         }
+    }
+
+    private static object? Read(YamlNode value)
+    {
+        using var writer = new StringWriter();
+        new YamlStream(new YamlDocument(value)).Save(writer, assignAnchors: false);
+        return new DeserializerBuilder().WithAttemptingUnquotedStringTypeDeserialization().Build()
+            .Deserialize<object>(writer.ToString());
     }
 
     private static YamlNode? Get(YamlMappingNode node, string name)

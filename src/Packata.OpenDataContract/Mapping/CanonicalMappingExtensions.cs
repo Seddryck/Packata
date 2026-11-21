@@ -10,4 +10,10 @@ public static class CanonicalMappingExtensions
         ArgumentNullException.ThrowIfNull(source);
         return new OpenDataContractMapper().Map(source);
     }
+
+    public static MappingResult<Packata.Core.Contracts.DataContract> ToCanonicalContract(this Native source, OdcsMappingOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return new OpenDataContractMapper(options).Map(source);
+    }
 }

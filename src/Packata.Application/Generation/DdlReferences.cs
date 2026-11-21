@@ -75,7 +75,8 @@ internal sealed class DdlReferences(ContractDocument document, DataContract cont
         try
         {
             var text = await File.ReadAllTextAsync(uri.LocalPath, token).ConfigureAwait(false);
-            var mapping = ContractDocument.Parse(text, baseUri: new Uri(uri, ".")).Map();
+            var referenced = ContractDocument.Parse(text, baseUri: new Uri(uri, ".")) with { MappingOptions = document.MappingOptions };
+            var mapping = referenced.Map();
             if (!mapping.IsSuccessful) throw new FormatException();
             var mapped = mapping.RequireValue();
             documents.Add(uri.AbsoluteUri, mapped);

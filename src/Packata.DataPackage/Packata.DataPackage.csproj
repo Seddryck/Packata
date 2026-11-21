@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\Packata.AdapterMapping\BindingSelector.cs" Link="Mapping\BindingSelector.cs" />
     <ProjectReference Include="..\Packata.Core\Packata.Core.csproj" />
   </ItemGroup>
 

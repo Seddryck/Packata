@@ -21,7 +21,7 @@ public sealed class QualityExecutionService(IEnumerable<QualityEngine> engines, 
         cancellationToken.ThrowIfCancellationRequested();
         if (document.NativeDocument is not Packata.OpenDataContract.DataContract)
             throw new ArgumentException("quality run requires an ODCS contract.");
-        var validation = ContractDocument.Validate(document.NativeDocument);
+        var validation = document.Validate();
         cancellationToken.ThrowIfCancellationRequested();
         if (validation.Any(value => value.Severity == MappingSeverity.Error)) return new(null, validation);
         var mapped = ContractInspector.Inspect(document, cancellationToken).Mapping;

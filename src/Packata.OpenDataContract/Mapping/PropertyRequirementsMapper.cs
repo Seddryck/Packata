@@ -1,3 +1,4 @@
+using Packata.AdapterMapping;
 using Packata.Core.Contracts;
 
 namespace Packata.OpenDataContract.Mapping;
@@ -6,53 +7,34 @@ namespace Packata.OpenDataContract.Mapping;
 internal static class PropertyRequirementsMapper
 {
     internal static (bool AllowAdditional, bool EnforceOrder) Map(SchemaObject schema,
-        ICollection<MappingDiagnostic> diagnostics)
+        ICollection<MappingDiagnostic> diagnostics, OdcsBindings bindings)
     {
         var path = $"schema/{schema.Name}/customProperties";
-        foreach (var (property, index) in schema.CustomProperties.Select((p, i) => (p, i)))
-            if (property is { Vendor: "packata", Property: "propertyMatching" or "propertyOrder" })
-            {
-                diagnostics.Add(new("ODCS008", MappingSeverity.Error, $"{path}/{index}",
-                    "Obsolete Packata propertyMatching/propertyOrder: use allowAdditionalProperties and enforcePropertyOrder booleans, and per-property required."));
-            }
-
-        return (Read(schema.CustomProperties, "allowAdditionalProperties", path, false, diagnostics),
-            Read(schema.CustomProperties, "enforcePropertyOrder", path, true, diagnostics));
+        return (Read(schema.CustomProperties, bindings.AllowAdditionalProperties, path, false, diagnostics),
+            Read(schema.CustomProperties, bindings.EnforcePropertyOrder, path, true, diagnostics));
     }
 
-    private static bool Read(CustomProperties properties, string name, string path,
+    private static bool Read(CustomProperties properties, BindingSelector? selector, string path,
         bool fallback, ICollection<MappingDiagnostic> diagnostics)
     {
+        if (selector is null) return fallback;
         var matches = properties.Select((property, index) => (property, index))
-            .Where(x => x.property.Vendor == "packata" && x.property.Property == name).ToArray();
+            .Where(x => selector.Matches(x.property.Property, x.property.Vendor)).ToArray();
         if (matches.Length == 0) return fallback;
-        if (matches.Length == 1 && matches[0].property.Value is bool value) return value;
+        if (matches.Length == 1 && OdcsBindings.ReadValue(selector, matches[0].property) is bool value) return value;
         foreach (var match in matches)
         {
             diagnostics.Add(new("ODCS008", MappingSeverity.Error, $"{path}/{match.index}",
-                $"Packata {name} must be declared once with a boolean value: false or true."));
+                $"Custom property '{match.property.Property}' for '{selector.Id}' must be declared once with a boolean value: false or true."));
         }
 
         return fallback;
     }
 
-    internal static void CheckPlacement(CustomProperties? properties, string path, ICollection<MappingDiagnostic> diagnostics)
-    {
-        if (properties is null) return;
-        for (var index = 0; index < properties.Count; index++)
-        {
-            if (properties[index] is { Vendor: "packata", Property: "propertyMatching" or "propertyOrder" or "allowAdditionalProperties" or "enforcePropertyOrder" })
-            {
-                diagnostics.Add(new("ODCS008", MappingSeverity.Error, $"{path}/customProperties/{index}",
-                    "Packata allowAdditionalProperties and enforcePropertyOrder are supported only on schema objects; propertyMatching/propertyOrder are obsolete."));
-            }
-        }
-    }
+    internal static void CheckPlacements(DataContract document, ICollection<MappingDiagnostic> diagnostics, OdcsBindings bindings)
+        => new PlacementVisitor(diagnostics, bindings).Visit(document, "$");
 
-    internal static void CheckPlacements(DataContract document, ICollection<MappingDiagnostic> diagnostics)
-        => new PlacementVisitor(diagnostics).Visit(document, "$");
-
-    private sealed class PlacementVisitor(ICollection<MappingDiagnostic> diagnostics)
+    private sealed class PlacementVisitor(ICollection<MappingDiagnostic> diagnostics, OdcsBindings bindings)
     {
         private readonly HashSet<object> _seen = new(ReferenceEqualityComparer.Instance);
 
@@ -79,18 +61,30 @@ internal static class PropertyRequirementsMapper
             foreach (var member in value.GetType().GetProperties().Where(p => p.CanRead && p.GetIndexParameters().Length == 0))
             {
                 if (member.GetValue(value) is not { } child) continue;
-                VisitMember(value, child, member.Name, path);
+                var childPath = $"{path}/{char.ToLowerInvariant(member.Name[0])}{member.Name[1..]}";
+                if (child is CustomProperties properties) CheckPlacement(value, properties, childPath);
+                else Visit(child, childPath);
             }
         }
 
-        private void VisitMember(object owner, object child, string memberName, string path)
+        private void CheckPlacement(object owner, CustomProperties properties, string path)
         {
-            if (child is CustomProperties properties)
+            for (var index = 0; index < properties.Count; index++)
             {
-                if (owner is not SchemaObject) CheckPlacement(properties, path, diagnostics);
-                return;
+                var property = properties[index];
+                var sourcePath = $"{path}/{index}";
+                if (property is { Vendor: "packata", Property: "propertyMatching" or "propertyOrder" })
+                {
+                    if (owner is SchemaObject schema) sourcePath = $"schema/{schema.Name}/customProperties/{index}";
+                    diagnostics.Add(new("ODCS008", MappingSeverity.Error, sourcePath,
+                        $"Obsolete Packata property '{property.Property}'. Use schema.allowAdditionalProperties, schema.enforcePropertyOrder and per-property required."));
+                }
+                else if (bindings.Misplaced(owner, property) is { } selector)
+                {
+                    diagnostics.Add(new("ODCS008", MappingSeverity.Error, sourcePath,
+                        $"Custom property '{property.Property}' for '{selector.Id}' is declared on the wrong source owner."));
+                }
             }
-            Visit(child, $"{path}/{char.ToLowerInvariant(memberName[0])}{memberName[1..]}");
         }
     }
 }

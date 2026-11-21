@@ -10,6 +10,7 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
 {
     internal IDocumentContainerListable? Archive { get; init; }
     internal string? ArchiveDescriptor { get; init; }
+    internal ContractMappingOptions MappingOptions => Document?.MappingOptions ?? ContractMappingOptions.Default;
     internal string OriginalText { get; init; } = string.Empty;
     public void Dispose() => Archive?.Dispose();
 
@@ -122,7 +123,8 @@ internal sealed record ContractSource(string Source, Uri BaseUri, object NativeD
     internal static ContractSource Parse(string source, Uri baseUri, string descriptor, string text, string format, bool rawOnly = false)
     {
         if (rawOnly) return new(source, baseUri, text) { OriginalText = text };
-        var document = Packata.Application.ContractDocument.Parse(text, format, baseUri);
+        var mappingOptions = new CliConfiguration().MappingOptions();
+        var document = Packata.Application.ContractDocument.Parse(text, format, baseUri) with { MappingOptions = mappingOptions };
         return new(source, baseUri, document.NativeDocument) { Document = document, OriginalText = text };
     }
 }

@@ -1,8 +1,14 @@
+---
+title: SQL column defaults
+parent: Reference
+permalink: /column-defaults/
+---
+
 # SQL column defaults
 
 Packata uses field-level custom properties to declare defaults in ODCS and Data Package v2. The database applies a default when an insert omits the column or requests `DEFAULT`. Readers keep their existing handling of missing values. A column without a declaration has no `DEFAULT` clause.
 
-ODCS YAML uses `vendor: packata` on the column's `customProperties` entry. Other vendors' entries and entries without a vendor remain custom metadata.
+By default, ODCS uses `vendor: packata` on the column's `customProperties` entry. Use [custom-property mapping bindings]({{ '/custom-property-bindings/' | relative_url }}) to change the source property or vendor.
 
 ```yaml
 name: status

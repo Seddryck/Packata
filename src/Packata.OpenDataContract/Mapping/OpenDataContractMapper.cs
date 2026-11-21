@@ -7,12 +7,25 @@ namespace Packata.OpenDataContract.Mapping;
 
 public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
 {
+    private readonly OdcsBindings bindings;
+
+    public OpenDataContractMapper() => bindings = OdcsBindings.Default;
+
+    public OpenDataContractMapper(OdcsMappingOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(options.Schema);
+        ArgumentNullException.ThrowIfNull(options.Field);
+        ArgumentNullException.ThrowIfNull(options.Server);
+        bindings = new(options);
+    }
+
     public MappingResult<CoreContract> Map(DataContract document)
     {
         ArgumentNullException.ThrowIfNull(document);
 
         var diagnostics = new List<MappingDiagnostic>();
-        PropertyRequirementsMapper.CheckPlacements(document, diagnostics);
+        PropertyRequirementsMapper.CheckPlacements(document, diagnostics, bindings);
         var directory = DirectoryServer(document);
         var endpoints = MapEndpoints(document, directory, diagnostics);
         var canBindEndpoints = document.Servers.Count <= 1;
@@ -28,7 +41,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         var assets = document.Schema
             .Select(schema => MapAsset(schema, AssetEndpoints(schema, endpoints, directory, canBindEndpoints), diagnostics) with { Lineage = LineageMapper.Map(schema, document.Schema, diagnostics) })
             .ToArray();
-        assets = CategoryTableMapper.Map(document, assets, diagnostics);
+        assets = CategoryTableMapper.Map(document, assets, diagnostics, bindings);
 
         var extensions = MapCustomProperties(document.Description?.CustomProperties, document.TagEntries);
         extensions = MapTeamTags(document.Team, extensions);
@@ -71,7 +84,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         return local.Path.EndsWith('/') || local.Path.EndsWith('\\') ? local : null;
     }
 
-    private static DataEndpoint[] MapEndpoints(DataContract document, LocalFilesServer? directory, ICollection<MappingDiagnostic> diagnostics)
+    private DataEndpoint[] MapEndpoints(DataContract document, LocalFilesServer? directory, ICollection<MappingDiagnostic> diagnostics)
     {
         if (directory is null) return document.Servers.Select(MapEndpoint).ToArray();
         foreach (var schema in document.Schema.Where(schema => string.IsNullOrWhiteSpace(schema.PhysicalName)))
@@ -93,10 +106,10 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         return canBind ? endpoints : [];
     }
 
-    private static DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints,
+    private DataAsset MapAsset(SchemaObject schema, IReadOnlyList<DataEndpoint> endpoints,
         ICollection<MappingDiagnostic> diagnostics)
     {
-        var (allowAdditional, enforceOrder) = PropertyRequirementsMapper.Map(schema, diagnostics);
+        var (allowAdditional, enforceOrder) = PropertyRequirementsMapper.Map(schema, diagnostics, bindings);
         var fields = schema.Properties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics, schema.Name, [property.Name])).ToArray();
         var primaryKey = schema.Properties
             .Where(x => x.PrimaryKey)
@@ -178,7 +191,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
 
     private static string UnescapeReferenceName(string name) => name.Replace("~1", "/").Replace("~0", "~");
 
-    private static DataField MapField(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics, string assetId, IReadOnlyList<string> fieldPath)
+    private DataField MapField(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics, string assetId, IReadOnlyList<string> fieldPath)
     {
         var domain = MapValueDomain(property, path, diagnostics);
         var constraints = MapConstraints(property);
@@ -202,9 +215,21 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             Map: property.Map is null ? null : new DataMap(
                 MapField(property.Map.Key, path + "/map/key", diagnostics, assetId, [..fieldPath, "key"]),
                 MapField(property.Map.Value, path + "/map/value", diagnostics, assetId, [..fieldPath, "value"])));
-        return ColumnDefaultDeclarations.Apply(mapped,
-            property.CustomProperties.Where(entry => entry.Vendor == "packata").Select(entry => (entry.Property, entry.Value)),
-            path, diagnostics);
+        return ApplyColumnDefault(mapped, property.CustomProperties, path, diagnostics);
+    }
+
+    private DataField ApplyColumnDefault(DataField field, CustomProperties properties,
+        string path, ICollection<MappingDiagnostic> diagnostics)
+    {
+        var defaults = properties.SelectMany((entry, index) =>
+        {
+            var isExpression = bindings.DefaultExpression?.Matches(entry.Property, entry.Vendor) == true;
+            var selector = isExpression ? bindings.DefaultExpression : bindings.DefaultValue;
+            return selector is not null && selector.Matches(entry.Property, entry.Vendor)
+                ? new[] { (isExpression, entry.Property!, $"{path}/customProperties/{index}", OdcsBindings.ReadValue(selector, entry)) }
+                : [];
+        });
+        return ColumnDefaultDeclarations.Apply(field, defaults, path, diagnostics);
     }
 
     private static ValueDomain? MapValueDomain(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics)
@@ -348,7 +373,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             constraints.Add(new(exclusiveMaximum ? "exclusiveMaximum" : "maximum", maximum));
     }
 
-    private static DataEndpoint MapEndpoint(BaseServer server)
+    private DataEndpoint MapEndpoint(BaseServer server)
     {
         var location = MapLocation(server);
         var formatName = GetFormatName(server);
@@ -399,7 +424,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         _ => null
     };
 
-    private static IReadOnlyDictionary<string, object?> MapFormatOptions(BaseServer server, string? formatName)
+    private IReadOnlyDictionary<string, object?> MapFormatOptions(BaseServer server, string? formatName)
     {
         var options = new Dictionary<string, object?>(StringComparer.Ordinal);
         if (!IsDelimitedFormat(formatName) && formatName?.Trim().TrimStart('.').ToLowerInvariant() is not ("xls" or "xlsx")) return options;
@@ -407,22 +432,10 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         if (server is CustomServer { Delimiter: not null } custom)
             options["delimiter"] = custom.Delimiter;
 
-        foreach (var property in server.CustomProperties.Where(property =>
-                     string.Equals(property.Vendor, "packata", StringComparison.OrdinalIgnoreCase)))
+        foreach (var selector in bindings.ForOwner(BindingOwner.Server))
         {
-            var optionName = property.Property?.ToLowerInvariant() switch
-            {
-                "delimiter" => "delimiter",
-                "quotechar" => "quoteChar",
-                "lineterminator" => "lineTerminator",
-                "header" => "header",
-                "sheetname" => "sheetName",
-                "sheetnumber" => "sheetNumber",
-                "headerrows" => "headerRows",
-                "commentrows" => "commentRows",
-                _ => null
-            };
-            if (optionName is not null) options[optionName] = property.Value;
+            var property = server.CustomProperties.LastOrDefault(entry => selector.Matches(entry.Property, entry.Vendor));
+            if (property is not null) options[selector.BuiltInProperty] = property.Value;
         }
 
         return options;

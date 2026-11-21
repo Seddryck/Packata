@@ -6,6 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
-    <PackageReference Include="PocketCsvReader.KeyValue" Version="2.62.0" />
+    <PackageReference Include="PocketCsvReader.KeyValue" Version="2.76.1" />
   </ItemGroup>
 </Project>

@@ -108,6 +108,10 @@ public static class ResourcePreview
 
     public static async Task<PreviewResult> ReadAsync(DocumentSnapshot snapshot, string sourcePath, int limit,
         int? bindingIndex, CancellationToken token, IEndpointStreamResolver? streams = null, string? selectionKey = null)
+        => await ReadAsync(snapshot, sourcePath, limit, bindingIndex, token, streams, selectionKey, ContractMappingOptions.Default);
+
+    internal static async Task<PreviewResult> ReadAsync(DocumentSnapshot snapshot, string sourcePath, int limit,
+        int? bindingIndex, CancellationToken token, IEndpointStreamResolver? streams, string? selectionKey, ContractMappingOptions mappingOptions)
     {
         PreviewResult Failure(string code, string message) => new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, limit, [], [],
             new(code, "Error", "$", message, null));
@@ -118,33 +122,46 @@ public static class ResourcePreview
             var baseUri = new Uri(snapshot.Uri, ".");
             if (EncodingSize(snapshot.Text) > ContractService.MaximumDocumentBytes)
                 return Failure("PREVIEW_DOCUMENT", "The descriptor exceeds the supported document size.");
-            var inspection = ContractInspector.Inspect(snapshot.Text, baseUri: baseUri, cancellationToken: token);
-            var document = inspection.Document;
+            var document = ContractDocument.Parse(snapshot.Text, baseUri: baseUri) with { MappingOptions = mappingOptions };
+            var inspection = ContractInspector.Inspect(document, token);
             var contract = inspection.Mapping.Value;
             if (contract is null) return Failure("PREVIEW_DOCUMENT", "The descriptor cannot be mapped for preview.");
-            var selections = Selections(document, contract, baseUri).Where(value => value.Target.SourcePath == sourcePath).ToArray();
-            if (bindingIndex is null && selections.Length > 1)
-                return Failure("PREVIEW_BINDING", "Select an endpoint binding explicitly before previewing.");
-            var selection = selections.SingleOrDefault(value => bindingIndex is null || value.Target.BindingIndex == bindingIndex);
-            if (selection is null) return Failure("PREVIEW_SELECTION", "The selected resource or binding no longer exists. Refresh and select it again.");
-            if (selectionKey is not null && selection.Target.SelectionKey != selectionKey)
-                return Failure("PREVIEW_SELECTION", "The descriptor changed after selection. Refresh and select the resource again.");
-            if (!selection.Target.Supported) return Failure("PREVIEW_UNSUPPORTED", selection.Target.Reason ?? Unsupported);
-            var request = selection.Request!;
-            var format = new DataFormatResolver().Resolve(request.Endpoint);
-            var resolver = new PreviewStreams(baseUri, streams ?? new DefaultEndpointStreamResolver(),
-                format.Name is "xls" or "xlsx");
-            var factory = ResourceReaderFactory.Create(options => options.AddExcel(), resolver);
-            var sample = await new DataPreviewService(factory).ReadAsync(request,
-                new(limit, RequireUniqueColumnNames: false), token).ConfigureAwait(false);
-            return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, limit,
-                sample.Columns.Select(column => new PreviewColumn(column.Name, column.Type)).ToArray(), sample.Rows);
+            var (selection, failure) = SelectTarget(document, contract, baseUri, sourcePath, bindingIndex, selectionKey);
+            if (selection is null) return Failure(failure.Code, failure.Message);
+            return await ReadSampleAsync(snapshot, selection.Request!, baseUri, limit, streams, token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { throw; }
         catch (NotSupportedException) { return Failure("PREVIEW_FORMAT", "The resource format or layout is unsupported for preview."); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or HttpRequestException)
         { return Failure("PREVIEW_ACCESS", "Unable to access the resource. Check its location, permissions and public or pre-signed URL validity."); }
         catch (Exception) { return Failure("PREVIEW_PARSE", "Unable to parse the resource. Check its format, dialect and declared types."); }
+    }
+
+    private static (Selection? Target, (string Code, string Message) Failure) SelectTarget(
+        ContractDocument document, DataContract contract, Uri baseUri, string sourcePath, int? bindingIndex, string? selectionKey)
+    {
+        var selections = Selections(document, contract, baseUri).Where(value => value.Target.SourcePath == sourcePath).ToArray();
+        if (bindingIndex is null && selections.Length > 1)
+            return (null, ("PREVIEW_BINDING", "Select an endpoint binding explicitly before previewing."));
+        var selection = selections.SingleOrDefault(value => bindingIndex is null || value.Target.BindingIndex == bindingIndex);
+        if (selection is null) return (null, ("PREVIEW_SELECTION", "The selected resource or binding no longer exists. Refresh and select it again."));
+        if (selectionKey is not null && selection.Target.SelectionKey != selectionKey)
+            return (null, ("PREVIEW_SELECTION", "The descriptor changed after selection. Refresh and select the resource again."));
+        if (!selection.Target.Supported) return (null, ("PREVIEW_UNSUPPORTED", selection.Target.Reason ?? Unsupported));
+        return (selection, default);
+    }
+
+    private static async Task<PreviewResult> ReadSampleAsync(DocumentSnapshot snapshot, DataEndpointReadRequest request,
+        Uri baseUri, int limit, IEndpointStreamResolver? streams, CancellationToken token)
+    {
+        var format = new DataFormatResolver().Resolve(request.Endpoint);
+        var resolver = new PreviewStreams(baseUri, streams ?? new DefaultEndpointStreamResolver(),
+            format.Name is "xls" or "xlsx");
+        var factory = ResourceReaderFactory.Create(options => options.AddExcel(), resolver);
+        var sample = await new DataPreviewService(factory).ReadAsync(request,
+            new(limit, RequireUniqueColumnNames: false), token).ConfigureAwait(false);
+        return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, limit,
+            sample.Columns.Select(column => new PreviewColumn(column.Name, column.Type)).ToArray(), sample.Rows);
     }
 
     private static int EncodingSize(string text) => System.Text.Encoding.UTF8.GetByteCount(text);

@@ -22,9 +22,13 @@ internal static class CliOutput
         if (format == "json") { Json(values, writer); return; }
         foreach (var value in values)
         {
-            writer.WriteLine($"{value.Key} = {value.Value} ({value.Origin})" +
+            var effective = value.BuiltInValue is null ? value.Value : FormatSelection(value.Value);
+            var builtIn = value.BuiltInValue is null ? "" : $" [built-in: {FormatSelection(value.BuiltInValue)}]";
+            writer.WriteLine($"{value.Key} = {effective} ({value.Origin}){builtIn}" +
                 (value.Origin.StartsWith("environment:", StringComparison.Ordinal) && value.UserValue is not null
                     ? $" [user override masked: {value.UserValue}]" : ""));
         }
     }
+
+    private static string FormatSelection(object value) => value is string text ? text : JsonSerializer.Serialize(value);
 }

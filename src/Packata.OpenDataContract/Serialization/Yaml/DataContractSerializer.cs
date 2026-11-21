@@ -19,7 +19,7 @@ internal class DataContractSerializer : IDataContractSerializer
     public DataContract Deserialize(StreamReader reader, IDocumentContainer container, IStorageProvider provider)
     {
         var yaml = reader.ReadToEnd();
-        var root = DataContractValidator.ValidateYamlStructure(yaml);
+        var syntax = DataContractValidator.ValidateYamlStructure(yaml);
 
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(new DataContractNamingConvention())
@@ -32,7 +32,7 @@ internal class DataContractSerializer : IDataContractSerializer
             .WithTypeConverter(new TeamConverter())
             .WithTypeConverter(new CustomPropertyListConverter())
             .WithTypeConverter(new EnumerationValueConverter())
-            .WithTypeConverter(new TagEntriesConverter(root))
+            .WithTypeConverter(new TagEntriesConverter(syntax))
             .IncludeNonPublicProperties()
             .WithAttributeOverride(typeof(SchemaProperty), nameof(SchemaProperty.LogicalType), new YamlIgnoreAttribute())
             .WithAttributeOverride(typeof(SchemaProperty), "LogicalTypeDiscriminator", new YamlMemberAttribute() { Alias = "logicalType" })
@@ -41,7 +41,7 @@ internal class DataContractSerializer : IDataContractSerializer
 
         var dataContract = deserializer.Deserialize<DataContract>(yaml)
                           ?? throw new YamlDotNet.Core.YamlException("The YAML data is not valid.");
-        PackataPropertyValues.Normalize(dataContract, yaml);
+        PackataPropertyValues.Normalize(dataContract, syntax);
         DataContractValidator.Validate(dataContract);
         return dataContract;
     }

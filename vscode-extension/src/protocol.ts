@@ -11,7 +11,7 @@ export interface Inspection {
   previewTargets?: PreviewTarget[];
   generationKey?: string;
 }
-export interface Discovery { schemaVersion: number; contracts: Inspection[] }
+export interface Discovery { schemaVersion: number; contracts: Inspection[]; mappingConfigurationUri?: string }
 export interface Validation { schemaVersion: number; uri: string; version: number | null; valid: boolean; diagnostics: unknown[] }
 
 export function requireSchema(value: unknown): asserts value is { schemaVersion: number } {

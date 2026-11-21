@@ -13,6 +13,7 @@ namespace Packata.Application;
 public sealed record ContractDocument(object NativeDocument, YamlMappingNode Root)
 {
     public Uri? BaseUri { get; init; }
+    public ContractMappingOptions MappingOptions { get; init; } = ContractMappingOptions.Default;
     public string Format => NativeDocument is Packata.DataPackage.DataPackage ? "datapackage" : "odcs";
 
     public static ContractDocument Parse(string text, string format = "auto", Uri? baseUri = null)
@@ -66,20 +67,26 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
 
     public MappingResult<DataContract> Map() => NativeDocument switch
     {
-        Packata.DataPackage.DataPackage package => package.ToCanonicalContract(),
-        Packata.OpenDataContract.DataContract contract => contract.ToCanonicalContract(),
+        Packata.DataPackage.DataPackage package => package.ToCanonicalContract(MappingOptions.DataPackage),
+        Packata.OpenDataContract.DataContract contract => contract.ToCanonicalContract(MappingOptions.Odcs),
         _ => throw new NotSupportedException()
     };
 
     public static IReadOnlyList<MappingDiagnostic> Validate(object native)
+        => new ContractDocument(native, new YamlMappingNode()).Validate();
+
+    public IReadOnlyList<MappingDiagnostic> Validate() => Validate(Map());
+
+    internal IReadOnlyList<MappingDiagnostic> Validate(MappingResult<DataContract> mapping)
     {
-        if (native is Packata.DataPackage.DataPackage package)
+        if (NativeDocument is Packata.DataPackage.DataPackage package)
         {
             return DataPackageValidator.Validate(package).Issues.Select(issue =>
-                new MappingDiagnostic("DPV001", MappingSeverity.Error, issue.Path, issue.Message)).ToArray();
+                new MappingDiagnostic("DPV001", MappingSeverity.Error, issue.Path, issue.Message))
+                .Concat(mapping.Diagnostics.Where(IsColumnDefaultDiagnostic)).ToArray();
         }
 
-        var odcs = (Packata.OpenDataContract.DataContract)native;
+        var odcs = (Packata.OpenDataContract.DataContract)NativeDocument;
         var diagnostics = new List<MappingDiagnostic>();
         foreach (var (path, value) in new[] { ("id", odcs.Id), ("version", odcs.Version), ("status", odcs.Status) })
             if (string.IsNullOrWhiteSpace(value))
@@ -88,10 +95,13 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
             diagnostics.Add(new("ODCSV002", MappingSeverity.Error, "$.kind", "kind must be DataContract."));
         if (odcs.ApiVersion != "v3.2.0")
             diagnostics.Add(new("ODCSV003", MappingSeverity.Error, "$.apiVersion", "Supported ODCS apiVersion is v3.2.0."));
-        diagnostics.AddRange(new OpenDataContractMapper().Map(odcs).Diagnostics
-            .Where(diagnostic => diagnostic.Code is "ODCS006" or "ODCS007" or "ODCS008"));
+        diagnostics.AddRange(mapping.Diagnostics
+            .Where(diagnostic => diagnostic.Code is "ODCS006" or "ODCS007" or "ODCS008" || IsColumnDefaultDiagnostic(diagnostic)));
         return diagnostics;
     }
+
+    private static bool IsColumnDefaultDiagnostic(MappingDiagnostic diagnostic)
+        => diagnostic.Code is "DEFAULT001" or "DEFAULT002";
 
     // Descriptor parsing never opens resource data. The retained context makes later explicit reads
     // of relative paths use the descriptor's original location, including unsaved buffers.

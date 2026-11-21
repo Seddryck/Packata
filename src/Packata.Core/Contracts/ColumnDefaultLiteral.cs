@@ -18,7 +18,7 @@ internal static partial class ColumnDefaultDeclarations
     private static readonly string[] OffsetFormats = DateTimeFormats.Select(format => format + "zzz").ToArray();
 
     private static ColumnDefaultLiteral? ReadLiteral(object? declaration,
-        string path, ICollection<MappingDiagnostic> diagnostics)
+        string property, string path, ICollection<MappingDiagnostic> diagnostics)
     {
         if (declaration is IDictionary { Count: 2 } map
             && map["type"] is string type && map["value"] is string value)
@@ -26,12 +26,12 @@ internal static partial class ColumnDefaultDeclarations
             var literal = Parse(type, value);
             if (literal is not null) return literal;
             diagnostics.Add(new("DEFAULT001", MappingSeverity.Error, path,
-                $"Invalid defaultValue for field '{path}' with type '{type}'. Use a supported type and a value within its lexical form and range."));
+                $"Invalid '{property}' at '{path}' with type '{type}'. Use a supported type and a value within its lexical form and range."));
             return null;
         }
 
         diagnostics.Add(new("DEFAULT001", MappingSeverity.Error, path,
-            $"Field '{path}' defaultValue requires an object containing exactly a string 'type' and a string 'value'."));
+            $"'{property}' at '{path}' requires an object containing exactly a string 'type' and a string 'value'."));
         return null;
     }
 

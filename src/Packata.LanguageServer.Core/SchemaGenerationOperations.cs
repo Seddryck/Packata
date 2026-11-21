@@ -30,7 +30,7 @@ public sealed class SchemaGenerationOperations(DocumentStore documents, SchemaGe
             EnsureBounded(snapshot.Text);
             if (expectedKey is not null && expectedKey != key)
                 return new(1, uri.AbsoluteUri, snapshot.Version, key, SchemaGenerationService.Catalog, [], [Diagnostic("GEN_STALE", "The selected descriptor changed. Refresh and select it again.")]);
-            var document = ContractDocument.Parse(snapshot.Text, baseUri: new Uri(uri, "."));
+            var document = ContractDocument.Parse(snapshot.Text, baseUri: new Uri(uri, ".")) with { MappingOptions = MappingConfiguration.Load() };
             var discovery = SchemaGenerationService.Discover(document, token);
             var prefix = document.Format == "odcs" ? "/schema/" : "/resources/";
             return new(1, uri.AbsoluteUri, snapshot.Version, key, discovery.Catalog,
@@ -65,7 +65,7 @@ public sealed class SchemaGenerationOperations(DocumentStore documents, SchemaGe
     private async Task<SchemaGenerationResponse> GenerateCurrentAsync(SchemaGenerationRequest request, DocumentSnapshot snapshot, string key, CancellationToken token)
     {
         EnsureBounded(snapshot.Text);
-        var document = ContractDocument.Parse(snapshot.Text, baseUri: new Uri(snapshot.Uri, "."));
+        var document = ContractDocument.Parse(snapshot.Text, baseUri: new Uri(snapshot.Uri, ".")) with { MappingOptions = MappingConfiguration.Load() };
         if (!MatchesSourcePath(request, document, token))
             return Failure(request, snapshot, key, "GEN_SELECTION", "The selected native/canonical asset no longer matches its source. Refresh and select it again.");
         var template = await ReadTemplateAsync(request.Template, token);

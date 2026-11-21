@@ -1,5 +1,6 @@
 using System.Collections;
 using Newtonsoft.Json.Linq;
+using Packata.AdapterMapping;
 using Packata.Core.Contracts;
 using Native = Packata.DataPackage;
 
@@ -9,6 +10,23 @@ namespace Packata.DataPackage.Mapping;
 public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
 {
     private const string SourceNamespace = "datapackage";
+    private readonly BindingSelector? defaultValue;
+    private readonly BindingSelector? defaultExpression;
+
+    public DataPackageMapper()
+        : this(DataPackageMappingOptions.Default) { }
+
+    public DataPackageMapper(DataPackageMappingOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        defaultValue = Resolve("defaultValue", options.DefaultValue);
+        defaultExpression = Resolve("defaultExpression", options.DefaultExpression);
+        BindingSelector.CheckCollisions([defaultValue, defaultExpression]);
+    }
+
+    private static BindingSelector? Resolve(string property, DataPackageBindingOverride? replacement)
+        => replacement is { IsDisabled: true } ? null : BindingSelector.Resolve($"field.{property}", property, replacement?.Property);
+
     public MappingResult<DataContract> Map(Native.DataPackage document)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -117,7 +135,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             }));
     }
 
-    private static DataSchema? MapSchema(Native.Schema? schema, string assetId, Native.DataPackage package,
+    private DataSchema? MapSchema(Native.Schema? schema, string assetId, Native.DataPackage package,
         IReadOnlyDictionary<Native.Resource, CategoryTableDefinition?> categoryTables,
         string sourcePath, ICollection<MappingDiagnostic> diagnostics)
     {
@@ -141,7 +159,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             EnforcePropertyOrder: schema.FieldsMatch == Native.FieldsMatching.Exact);
     }
 
-    private static DataField MapField(Native.Field field, int index, Native.DataPackage package,
+    private DataField MapField(Native.Field field, int index, Native.DataPackage package,
         IReadOnlyDictionary<Native.Resource, CategoryTableDefinition?> categoryTables, string sourcePath,
         ICollection<MappingDiagnostic> diagnostics)
     {
@@ -164,10 +182,18 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             PhysicalName: field.PhysicalName ?? name,
             Description: field.Description,
             ValueDomain: domain, Language: field.Language);
-        return ColumnDefaultDeclarations.Apply(mapped,
-            (field.CustomProperties ?? []).Where(property => property is not null)
-                .Select(property => (property.Property, NormalizeInlineValue(property.Value))),
-            $"{sourcePath}.schema.fields[{index}] ({name})", diagnostics);
+        var fieldPath = $"{sourcePath}.schema.fields[{index}] ({name})";
+        var defaults = (field.CustomProperties ?? []).SelectMany((property, propertyIndex) =>
+        {
+            if (property is null) return [];
+            var isExpression = defaultExpression?.Matches(property.Property) == true;
+            var selector = isExpression ? defaultExpression : defaultValue;
+            if (selector is null || !selector.Matches(property.Property)) return [];
+            var path = selector.Property == selector.BuiltInProperty ? fieldPath
+                : $"{sourcePath}.schema.fields[{index}].packata:customProperties[{propertyIndex}]";
+            return new[] { (isExpression, property.Property!, path, NormalizeInlineValue(property.Value)) };
+        });
+        return ColumnDefaultDeclarations.Apply(mapped, defaults, fieldPath, diagnostics);
     }
 
     private static DataConstraint[] MapConstraints(Native.Field field)
