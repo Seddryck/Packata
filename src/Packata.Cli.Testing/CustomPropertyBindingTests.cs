@@ -43,6 +43,25 @@ public sealed class CustomPropertyBindingTests
         Assert.That(mapped.SelectToken("$.contract.assets[0].schema.allowAdditionalProperties")!.Value<bool>(), Is.True);
     }
 
+    [Test]
+    public void Mapping_settings_ignore_unrelated_invalid_connector_values()
+    {
+        using var workspace = new CliWorkspace();
+        var path = workspace.Write("config.json", """{"connectors.catalog":17,"mapping.datapackage.field.defaultValue":"initial"}""");
+        var configuration = new CliConfiguration(path);
+        Assert.That(configuration.MappingOptions().DataPackage.DefaultValueProperty, Is.EqualTo("initial"));
+        Assert.That(() => configuration.Get("connectors.catalog"), Throws.TypeOf<CliException>());
+    }
+
+    [TestCase("""{"mapping.datapackage.field.defaultValue":17}""")]
+    [TestCase("""{"mapping.datapackage.field.defaultValue":""")]
+    public void Mapping_settings_reject_invalid_mapping_objects(string text)
+    {
+        using var workspace = new CliWorkspace();
+        var path = workspace.Write("config.json", text);
+        Assert.That(() => new CliConfiguration(path).MappingOptions(), Throws.TypeOf<CliException>());
+    }
+
     [TestCase("mapping.odcs.schema.unknown", """{"vendor":null}""")]
     [TestCase("mapping.odcs.schema.allowAdditionalProperties", """{"property":""}""")]
     [TestCase("mapping.odcs.schema.allowAdditionalProperties", """{"vendor":""}""")]
