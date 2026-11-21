@@ -60,20 +60,26 @@ internal sealed class TagEntriesConverter(YamlMappingNode? root = null) : IYamlT
     private static object? ReadScalar(YamlScalarNode node)
     {
         var scalar = new Scalar(node.Anchor, node.Tag, node.Value ?? "", node.Style, true, false, node.Start, node.End);
-        if (IsRadixInteger(scalar))
+        return IsRadixInteger(scalar) ? ReadRadixInteger(scalar) : ReadTypedScalar(scalar);
+    }
+
+    private static long ReadRadixInteger(Scalar scalar)
+    {
+        try
         {
-            try
-            {
-                var radix = scalar.Value[1] == 'x' ? 16 : 8;
-                var number = Convert.ToUInt64(scalar.Value[2..], radix);
-                if (number <= long.MaxValue) return (long)number;
-            }
-            catch (Exception exception) when (exception is FormatException or OverflowException or ArgumentException)
-            {
-                throw new YamlException(scalar.Start, scalar.End, "Invalid or out-of-range tag integer.");
-            }
-            throw new YamlException(scalar.Start, scalar.End, "Tag integer is outside the signed 64-bit range.");
+            var radix = scalar.Value[1] == 'x' ? 16 : 8;
+            var number = Convert.ToUInt64(scalar.Value[2..], radix);
+            if (number <= long.MaxValue) return (long)number;
         }
+        catch (Exception exception) when (exception is FormatException or OverflowException or ArgumentException)
+        {
+            throw new YamlException(scalar.Start, scalar.End, "Invalid or out-of-range tag integer.");
+        }
+        throw new YamlException(scalar.Start, scalar.End, "Tag integer is outside the signed 64-bit range.");
+    }
+
+    private static object? ReadTypedScalar(Scalar scalar)
+    {
         var value = EnumerationValueConverter.ReadScalar(scalar);
         if (scalar.Tag.IsEmpty || scalar.Tag.IsNonSpecific) return value;
         var valid = scalar.Tag.Value switch

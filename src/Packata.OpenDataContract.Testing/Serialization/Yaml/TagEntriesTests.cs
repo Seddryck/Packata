@@ -131,6 +131,9 @@ public sealed class TagEntriesTests
     [TestCase("[{pii: {nested: true}}]")]
     [TestCase("[{pii: [true]}]")]
     [TestCase("[{pii: !!bool 1}]")]
+    [TestCase("[{limit: 0x8000000000000000}]")]
+    [TestCase("[{limit: 0x10000000000000000}]")]
+    [TestCase("[{limit: 0o8}]")]
     [TestCase("[true]")]
     public void NativeReader_RejectsInvalidTags(string tags)
         => Assert.That(() => Read(new DataContractSerializer(), Contract + "\ntags: " + tags), Throws.InstanceOf<YamlException>());
