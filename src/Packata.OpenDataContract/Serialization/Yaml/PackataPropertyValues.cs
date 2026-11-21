@@ -32,9 +32,13 @@ internal static class PackataPropertyValues
         Properties(field.CustomProperties, node, normalizeNative);
         Fields(field.Properties, node, normalizeNative);
         if (field.Items is not null && Get(node, "items") is YamlMappingNode items) Field(field.Items, items, normalizeNative);
-        if (field.Map is not { } map || Get(node, "map") is not YamlMappingNode mapNode) return;
-        if (Get(mapNode, "key") is YamlMappingNode key) Field(map.Key, key, normalizeNative: false);
-        if (Get(mapNode, "value") is YamlMappingNode value) Field(map.Value, value, normalizeNative: false);
+        if (field.Map is { } map && Get(node, "map") is YamlMappingNode mapNode) MapFields(map, mapNode);
+    }
+
+    private static void MapFields(MapDefinition map, YamlMappingNode node)
+    {
+        if (Get(node, "key") is YamlMappingNode key) Field(map.Key, key, normalizeNative: false);
+        if (Get(node, "value") is YamlMappingNode value) Field(map.Value, value, normalizeNative: false);
     }
 
     private static void Properties(CustomProperties properties, YamlMappingNode owner, bool normalizeNative)

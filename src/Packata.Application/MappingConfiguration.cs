@@ -111,24 +111,29 @@ internal static class MappingConfiguration
             using var document = JsonDocument.Parse(value ?? "");
             if (document.RootElement.ValueKind != JsonValueKind.Object)
                 throw new FormatException($"'{key}' requires a JSON object with 'property' or 'vendor'.");
-            string? property = null;
-            string? vendor = null;
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var entry in document.RootElement.EnumerateObject())
-            {
-                if (!seen.Add(entry.Name) || entry.Name is not ("property" or "vendor"))
-                    throw new FormatException($"'{key}' accepts 'property' and 'vendor' at most once each.");
-                if (entry.Name == "property") property = ReadText(entry.Value, key, "property");
-                else if (entry.Value.ValueKind != JsonValueKind.Null) vendor = ReadText(entry.Value, key, "vendor");
-            }
-            if (seen.Count == 0) throw new FormatException($"'{key}' requires at least one of 'property' and 'vendor'.");
-            if (!seen.Contains("vendor")) return OdcsBindingOverride.UseBuiltInVendor(property);
-            return vendor is null ? OdcsBindingOverride.Unvendored(property) : OdcsBindingOverride.ForVendor(vendor, property);
+            return ReadOdcsSelector(document.RootElement, key);
         }
         catch (JsonException exception)
         {
             throw new FormatException($"'{key}' requires a JSON object with 'property' or 'vendor'.", exception);
         }
+    }
+
+    private static OdcsBindingOverride ReadOdcsSelector(JsonElement selector, string key)
+    {
+        string? property = null;
+        string? vendor = null;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in selector.EnumerateObject())
+        {
+            if (!seen.Add(entry.Name) || entry.Name is not ("property" or "vendor"))
+                throw new FormatException($"'{key}' accepts 'property' and 'vendor' at most once each.");
+            if (entry.Name == "property") property = ReadText(entry.Value, key, "property");
+            else if (entry.Value.ValueKind != JsonValueKind.Null) vendor = ReadText(entry.Value, key, "vendor");
+        }
+        if (seen.Count == 0) throw new FormatException($"'{key}' requires at least one of 'property' and 'vendor'.");
+        if (!seen.Contains("vendor")) return OdcsBindingOverride.UseBuiltInVendor(property);
+        return vendor is null ? OdcsBindingOverride.Unvendored(property) : OdcsBindingOverride.ForVendor(vendor, property);
     }
 
     private static string ReadText(JsonElement value, string key, string member)
