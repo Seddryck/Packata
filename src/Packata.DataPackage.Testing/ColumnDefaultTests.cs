@@ -148,14 +148,65 @@ public class ColumnDefaultTests
         var json = JsonDescriptor("""{"type":"boolean","value":"true"}""")
             .Replace(" }]}", """ }, {"property":"initial","value":{"type":"boolean","value":"false"}}]}""", StringComparison.Ordinal);
         var package = Load(json, SerializationFormat.Json);
-        var options = new DataPackageMappingOptions { DefaultValueProperty = "initial" };
+        var options = new DataPackageMappingOptions { DefaultValue = DataPackageBindingOverride.FromProperty("initial") };
         Assert.That(package.ToCanonicalContract().RequireValue().Assets[0].Schema!.Fields[0].DefaultValue!.Value, Is.True);
         var field = package.ToCanonicalContract(options).RequireValue().Assets[0].Schema!.Fields[0];
         Assert.That(field.DefaultValue!.Value, Is.False);
         Assert.That(package.Resources[0].Schema!.Fields[0].CustomProperties!.Select(property => property.Property),
             Is.EqualTo(new[] { "defaultValue", "initial" }));
-        Assert.That(() => new DataPackageMapper(new() { DefaultValueProperty = "defaultExpression" }),
+        Assert.That(() => new DataPackageMapper(new() { DefaultValue = DataPackageBindingOverride.FromProperty("defaultExpression") }),
             Throws.ArgumentException.With.Message.Contains("field.defaultExpression"));
+    }
+
+    [Test]
+    public void Presets_are_composable_and_keep_native_schema_settings_and_metadata()
+    {
+        var json = JsonDescriptor("""{"type":"boolean","value":"true"}""")
+            .Replace("\"schema\":{", "\"schema\":{\"fieldsMatch\":\"exact\",", StringComparison.Ordinal)
+            .Replace(" }]}", """ }, {"property":"initial","value":{"type":"boolean","value":"false"}}]}""", StringComparison.Ordinal);
+        var package = Load(json, SerializationFormat.Json);
+        var defaults = DataPackageMappingOptions.Default;
+        var none = DataPackageMappingOptions.NoCustomPropertyBindings;
+        var withoutDefault = defaults with { DefaultValue = DataPackageBindingOverride.Disabled };
+        var withBuiltIn = none with { DefaultValue = DataPackageBindingOverride.BuiltIn };
+        var withReplacement = none with { DefaultValue = DataPackageBindingOverride.FromProperty("initial") };
+        var implicitSchema = package.ToCanonicalContract().RequireValue().Assets[0].Schema!;
+        Assert.That(implicitSchema.Fields[0].DefaultValue!.Value, Is.True);
+
+        foreach (var (options, expected) in new (DataPackageMappingOptions, bool?)[]
+        {
+            (defaults, true), (none, null), (withoutDefault, null), (withBuiltIn, true), (withReplacement, false),
+        })
+        {
+            var schema = package.ToCanonicalContract(options).RequireValue().Assets[0].Schema!;
+            var field = schema.Fields[0];
+            Assert.That(field.DefaultValue?.Value, Is.EqualTo(expected));
+            Assert.That(field.DefaultExpression, Is.Null);
+            Assert.That(field.Required, Is.True);
+            Assert.That(schema.EnforcePropertyOrder, Is.True);
+            Assert.That(field.Extensions["datapackage"]["customProperties"], Is.Not.Empty);
+        }
+    }
+
+    [Test]
+    public void Disabled_defaults_do_not_validate_or_collide_with_enabled_selectors()
+    {
+        var json = JsonDescriptor("null")
+            .Replace("\"resources\":", "\"name\":\"sample\",\"resources\":", StringComparison.Ordinal)
+            .Replace(" }]}", """ }, {"property":"defaultExpression","value":{"type":"boolean","value":"false"}}]}""", StringComparison.Ordinal);
+        var package = Load(json, SerializationFormat.Json);
+        Assert.That(package.ToCanonicalContract().Diagnostics.Single().Code, Is.EqualTo("DEFAULT001"));
+        Assert.That(package.ToCanonicalContract(DataPackageMappingOptions.NoCustomPropertyBindings).Diagnostics, Is.Empty);
+
+        var options = DataPackageMappingOptions.Default with
+        {
+            DefaultValue = DataPackageBindingOverride.FromProperty("defaultExpression"),
+            DefaultExpression = DataPackageBindingOverride.Disabled,
+        };
+        var field = package.ToCanonicalContract(options).RequireValue().Assets[0].Schema!.Fields[0];
+        Assert.That(field.DefaultValue!.Value, Is.False);
+        Assert.That(field.DefaultExpression, Is.Null);
+        Assert.That(() => DataPackageBindingOverride.FromProperty(" "), Throws.ArgumentException);
     }
 
     private static string JsonDescriptor(string value) => $$$"""

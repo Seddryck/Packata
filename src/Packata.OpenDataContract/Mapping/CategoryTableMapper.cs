@@ -157,10 +157,11 @@ internal static class CategoryTableMapper
             : throw Invalid($"'{key}' must be a non-empty string when present.");
     }
 
-    private static T? Try<T>(CustomProperties properties, BindingSelector selector, Func<object?, T> map,
+    private static T? Try<T>(CustomProperties properties, BindingSelector? selector, Func<object?, T> map,
         string path, ICollection<MappingDiagnostic> diagnostics)
         where T : class
     {
+        if (selector is null) return null;
         var matches = properties.Select((property, index) => (property, index))
             .Where(entry => selector.Matches(entry.property.Property, entry.property.Vendor)).ToArray();
         if (matches.Length == 0) return null;

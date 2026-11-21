@@ -6,7 +6,7 @@ namespace Packata.DataPackage.Mapping;
 public static class CanonicalMappingExtensions
 {
     public static MappingResult<DataContract> ToCanonicalContract(this Native source)
-        => source.ToCanonicalContract(new DataPackageMappingOptions());
+        => source.ToCanonicalContract(DataPackageMappingOptions.Default);
 
     public static MappingResult<DataContract> ToCanonicalContract(this Native source, DataPackageMappingOptions options)
     {

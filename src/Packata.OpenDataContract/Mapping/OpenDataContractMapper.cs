@@ -216,9 +216,9 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
                 MapField(property.Map.Value, path + "/map/value", diagnostics, assetId, [..fieldPath, "value"])));
         var defaults = property.CustomProperties.SelectMany((entry, index) =>
         {
-            var isExpression = bindings.DefaultExpression.Matches(entry.Property, entry.Vendor);
+            var isExpression = bindings.DefaultExpression?.Matches(entry.Property, entry.Vendor) == true;
             var selector = isExpression ? bindings.DefaultExpression : bindings.DefaultValue;
-            return selector.Matches(entry.Property, entry.Vendor)
+            return selector is not null && selector.Matches(entry.Property, entry.Vendor)
                 ? new[] { (isExpression, entry.Property!, $"{path}/customProperties/{index}", OdcsBindings.ReadValue(selector, entry)) }
                 : [];
         });

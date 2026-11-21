@@ -10,19 +10,22 @@ namespace Packata.DataPackage.Mapping;
 public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
 {
     private const string SourceNamespace = "datapackage";
-    private readonly BindingSelector defaultValue;
-    private readonly BindingSelector defaultExpression;
+    private readonly BindingSelector? defaultValue;
+    private readonly BindingSelector? defaultExpression;
 
     public DataPackageMapper()
-        : this(new DataPackageMappingOptions()) { }
+        : this(DataPackageMappingOptions.Default) { }
 
     public DataPackageMapper(DataPackageMappingOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        defaultValue = BindingSelector.Resolve("field.defaultValue", "defaultValue", options.DefaultValueProperty);
-        defaultExpression = BindingSelector.Resolve("field.defaultExpression", "defaultExpression", options.DefaultExpressionProperty);
+        defaultValue = Resolve("defaultValue", options.DefaultValue);
+        defaultExpression = Resolve("defaultExpression", options.DefaultExpression);
         BindingSelector.CheckCollisions([defaultValue, defaultExpression]);
     }
+
+    private static BindingSelector? Resolve(string property, DataPackageBindingOverride? replacement)
+        => replacement is { IsDisabled: true } ? null : BindingSelector.Resolve($"field.{property}", property, replacement?.Property);
 
     public MappingResult<DataContract> Map(Native.DataPackage document)
     {
@@ -183,9 +186,9 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         var defaults = (field.CustomProperties ?? []).SelectMany((property, propertyIndex) =>
         {
             if (property is null) return [];
-            var isExpression = defaultExpression.Matches(property.Property);
+            var isExpression = defaultExpression?.Matches(property.Property) == true;
             var selector = isExpression ? defaultExpression : defaultValue;
-            if (!selector.Matches(property.Property)) return [];
+            if (selector is null || !selector.Matches(property.Property)) return [];
             var path = selector.Property == selector.BuiltInProperty ? fieldPath
                 : $"{sourcePath}.schema.fields[{index}].packata:customProperties[{propertyIndex}]";
             return new[] { (isExpression, property.Property!, path, NormalizeInlineValue(property.Value)) };

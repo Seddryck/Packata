@@ -16,10 +16,10 @@ internal sealed record BindingSelector(string Id, string BuiltInProperty, string
     internal bool Matches(string? property, string? vendor = null)
         => string.Equals(Property, property, Comparison) && string.Equals(Vendor, vendor, Comparison);
 
-    internal static void CheckCollisions(IEnumerable<BindingSelector> selectors)
+    internal static void CheckCollisions(IEnumerable<BindingSelector?> selectors)
     {
         var seen = new List<BindingSelector>();
-        foreach (var selector in selectors)
+        foreach (var selector in selectors.OfType<BindingSelector>())
         {
             var conflict = seen.Find(previous => previous.Matches(selector.Property, selector.Vendor)
                 || selector.Matches(previous.Property, previous.Vendor));

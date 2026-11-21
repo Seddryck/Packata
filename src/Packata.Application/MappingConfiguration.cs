@@ -72,8 +72,8 @@ internal static class MappingConfiguration
         };
         var dataPackage = new DataPackageMappingOptions
         {
-            DefaultValueProperty = ReadProperty(settings, DefaultValueKey),
-            DefaultExpressionProperty = ReadProperty(settings, DefaultExpressionKey),
+            DefaultValue = ReadDataPackage(settings, DefaultValueKey),
+            DefaultExpression = ReadDataPackage(settings, DefaultExpressionKey),
         };
         try
         {
@@ -92,16 +92,20 @@ internal static class MappingConfiguration
         var name = key[(key.LastIndexOf('.') + 1)..];
         if (!key.StartsWith(OdcsPrefix, StringComparison.Ordinal)) return (ReadProperty(settings, key) ?? name, name);
         var replacement = ReadOdcs(settings, key);
-        return (new { property = replacement?.Property ?? name, vendor = replacement is { InheritVendor: false } ? replacement.Vendor : "packata" },
+        return (new { property = replacement.Property ?? name, vendor = replacement.InheritVendor ? "packata" : replacement.Vendor },
             new { property = name, vendor = "packata" });
     }
 
     private static string? ReadProperty(IReadOnlyDictionary<string, string> settings, string key)
         => settings.TryGetValue(key, out var value) ? RequireText(value, key, "property") : null;
 
-    private static OdcsBindingOverride? ReadOdcs(IReadOnlyDictionary<string, string> settings, string key)
+    private static DataPackageBindingOverride ReadDataPackage(IReadOnlyDictionary<string, string> settings, string key)
+        => ReadProperty(settings, key) is { } property
+            ? DataPackageBindingOverride.FromProperty(property) : DataPackageBindingOverride.BuiltIn;
+
+    private static OdcsBindingOverride ReadOdcs(IReadOnlyDictionary<string, string> settings, string key)
     {
-        if (!settings.TryGetValue(key, out var value)) return null;
+        if (!settings.TryGetValue(key, out var value)) return OdcsBindingOverride.BuiltIn;
         try
         {
             using var document = JsonDocument.Parse(value ?? "");

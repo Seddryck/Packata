@@ -14,9 +14,10 @@ internal static class PropertyRequirementsMapper
             Read(schema.CustomProperties, bindings.EnforcePropertyOrder, path, true, diagnostics));
     }
 
-    private static bool Read(CustomProperties properties, BindingSelector selector, string path,
+    private static bool Read(CustomProperties properties, BindingSelector? selector, string path,
         bool fallback, ICollection<MappingDiagnostic> diagnostics)
     {
+        if (selector is null) return fallback;
         var matches = properties.Select((property, index) => (property, index))
             .Where(x => selector.Matches(x.property.Property, x.property.Vendor)).ToArray();
         if (matches.Length == 0) return fallback;
