@@ -49,7 +49,7 @@ public sealed class CustomPropertyBindingTests
         using var workspace = new CliWorkspace();
         var path = workspace.Write("config.json", """{"connectors.catalog":17,"mapping.datapackage.field.defaultValue":"initial"}""");
         var configuration = new CliConfiguration(path);
-        Assert.That(configuration.MappingOptions().DataPackage.DefaultValueProperty, Is.EqualTo("initial"));
+        Assert.That(configuration.MappingOptions().DataPackage.DefaultValue.Property, Is.EqualTo("initial"));
         Assert.That(() => configuration.Get("connectors.catalog"), Throws.TypeOf<CliException>());
     }
 

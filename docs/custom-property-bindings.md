@@ -40,9 +40,10 @@ packata config unset mapping.odcs.schema.allowAdditionalProperties
 ## C# adapter options
 
 ```csharp
-var options = new OdcsMappingOptions
+var none = OdcsMappingOptions.NoCustomPropertyBindings;
+var options = none with
 {
-    Schema = new OdcsSchemaBindings
+    Schema = none.Schema with
     {
         AllowAdditionalProperties =
             OdcsBindingOverride.Unvendored("additionalProperties")
@@ -52,7 +53,19 @@ var options = new OdcsMappingOptions
 var result = odcsDocument.ToCanonicalContract(options);
 ```
 
-Use `UseBuiltInVendor(property)` to change the name and keep the built-in vendor, or `ForVendor(vendor, property)` to select a named vendor. Omitting the property argument keeps the built-in name. `DataPackageMappingOptions` exposes `DefaultValueProperty` and `DefaultExpressionProperty`. The mappers also accept these options in their constructors. The no-options entry points use the built-in catalog.
+Both adapters expose immutable `Default` and `NoCustomPropertyBindings` presets. Use `with` to copy either preset, then assign a named binding to `BuiltIn`, `Disabled`, or a replacement. The parameterless entry points use `Default`. Disabling a binding skips its custom-property payload and binding diagnostics. Native declarations still map, source metadata is retained, and the feature uses its usual fallback when the selected custom property is absent.
+
+For an ODCS replacement, use `UseBuiltInVendor(property)` to keep the Packata vendor, `Unvendored(property)` to select an entry without a vendor, or `ForVendor(vendor, property)` to specify one. Omitting the property argument keeps the built-in name. For Data Package v2, select a replacement using `DataPackageBindingOverride.FromProperty(property)`.
+
+```csharp
+var options = DataPackageMappingOptions.NoCustomPropertyBindings with
+{
+    DefaultValue = DataPackageBindingOverride.FromProperty("default")
+};
+var result = dataPackage.ToCanonicalContract(options);
+```
+
+Both mappers also accept their options in the constructor.
 
 ## ODCS bindings
 

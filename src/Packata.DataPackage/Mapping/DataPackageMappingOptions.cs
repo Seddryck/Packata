@@ -1,9 +1,17 @@
 namespace Packata.DataPackage.Mapping;
 
-/// <summary>Overrides property names in field-level packata:customProperties lists.</summary>
+/// <summary>Configures the bindings in field-level packata:customProperties lists.</summary>
 public sealed record DataPackageMappingOptions
 {
-    public string? DefaultValueProperty { get; init; }
+    public static DataPackageMappingOptions Default { get; } = new();
 
-    public string? DefaultExpressionProperty { get; init; }
+    public static DataPackageMappingOptions NoCustomPropertyBindings { get; } = new()
+    {
+        DefaultValue = DataPackageBindingOverride.Disabled,
+        DefaultExpression = DataPackageBindingOverride.Disabled,
+    };
+
+    public DataPackageBindingOverride DefaultValue { get; init; } = DataPackageBindingOverride.BuiltIn;
+
+    public DataPackageBindingOverride DefaultExpression { get; init; } = DataPackageBindingOverride.BuiltIn;
 }

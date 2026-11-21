@@ -13,23 +13,23 @@ internal enum BindingOwner
 
 internal sealed class OdcsBindings
 {
-    internal BindingSelector AllowAdditionalProperties { get; }
-    internal BindingSelector EnforcePropertyOrder { get; }
-    internal BindingSelector CategoryFieldMap { get; }
-    internal BindingSelector Categories { get; }
-    internal BindingSelector DefaultValue { get; }
-    internal BindingSelector DefaultExpression { get; }
-    internal BindingSelector Delimiter { get; }
-    internal BindingSelector QuoteChar { get; }
-    internal BindingSelector LineTerminator { get; }
-    internal BindingSelector Header { get; }
-    internal BindingSelector SheetName { get; }
-    internal BindingSelector SheetNumber { get; }
-    internal BindingSelector HeaderRows { get; }
-    internal BindingSelector CommentRows { get; }
-    private readonly (BindingSelector Selector, BindingOwner Owner)[] entries;
+    internal BindingSelector? AllowAdditionalProperties { get; }
+    internal BindingSelector? EnforcePropertyOrder { get; }
+    internal BindingSelector? CategoryFieldMap { get; }
+    internal BindingSelector? Categories { get; }
+    internal BindingSelector? DefaultValue { get; }
+    internal BindingSelector? DefaultExpression { get; }
+    internal BindingSelector? Delimiter { get; }
+    internal BindingSelector? QuoteChar { get; }
+    internal BindingSelector? LineTerminator { get; }
+    internal BindingSelector? Header { get; }
+    internal BindingSelector? SheetName { get; }
+    internal BindingSelector? SheetNumber { get; }
+    internal BindingSelector? HeaderRows { get; }
+    internal BindingSelector? CommentRows { get; }
+    private readonly (BindingSelector? Selector, BindingOwner Owner)[] entries;
 
-    internal static OdcsBindings Default { get; } = new(new());
+    internal static OdcsBindings Default { get; } = new(OdcsMappingOptions.Default);
 
     internal OdcsBindings(OdcsMappingOptions options)
     {
@@ -66,18 +66,21 @@ internal sealed class OdcsBindings
         ];
         foreach (var group in entries.GroupBy(entry => entry.Owner))
             BindingSelector.CheckCollisions(group.Select(entry => entry.Selector));
-        if (entries.Any(entry => entry.Selector.Matches("propertyMatching", "packata")
-            || entry.Selector.Matches("propertyOrder", "packata")))
+        if (entries.Select(entry => entry.Selector).OfType<BindingSelector>()
+            .Any(selector => selector.Matches("propertyMatching", "packata") || selector.Matches("propertyOrder", "packata")))
             throw new ArgumentException("The obsolete Packata propertyMatching and propertyOrder selectors are reserved.");
     }
 
-    private static BindingSelector Resolve(BindingOwner owner, string property, OdcsBindingOverride? replacement)
-        => BindingSelector.Resolve($"{owner.ToString().ToLowerInvariant()}.{property}", property,
+    private static BindingSelector? Resolve(BindingOwner owner, string property, OdcsBindingOverride? replacement)
+    {
+        if (replacement is { IsDisabled: true }) return null;
+        return BindingSelector.Resolve($"{owner.ToString().ToLowerInvariant()}.{property}", property,
             replacement?.Property, replacement is { InheritVendor: false } ? replacement.Vendor : "packata",
             owner == BindingOwner.Server ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    }
 
     internal IEnumerable<BindingSelector> ForOwner(BindingOwner owner)
-        => entries.Where(entry => entry.Owner == owner).Select(entry => entry.Selector);
+        => entries.Where(entry => entry.Owner == owner).Select(entry => entry.Selector).OfType<BindingSelector>();
 
     internal bool HasTypedNativeValue(CustomProperty property)
         => ForOwner(BindingOwner.Schema).Concat(ForOwner(BindingOwner.Field))
@@ -101,7 +104,7 @@ internal sealed class OdcsBindings
             _ => BindingOwner.Other,
         };
         if (ForOwner(owner).Any(selector => selector.Matches(property.Property, property.Vendor))) return null;
-        return entries.Select(entry => entry.Selector)
+        return entries.Select(entry => entry.Selector).OfType<BindingSelector>()
             .FirstOrDefault(selector => ChecksPlacement(selector) && selector.Matches(property.Property, property.Vendor));
     }
 }
