@@ -60,10 +60,7 @@ internal sealed class TagEntriesConverter(YamlMappingNode? root = null) : IYamlT
     private static object? ReadScalar(YamlScalarNode node)
     {
         var scalar = new Scalar(node.Anchor, node.Tag, node.Value ?? "", node.Style, true, false, node.Start, node.End);
-        if ((scalar.Tag == "tag:yaml.org,2002:int" ||
-             ((scalar.Tag.IsEmpty || scalar.Tag.IsNonSpecific) && scalar.Style == ScalarStyle.Plain)) &&
-            (scalar.Value.StartsWith("0x", StringComparison.Ordinal) || scalar.Value.StartsWith("0o", StringComparison.Ordinal)) &&
-            scalar.Value.Length > 2 && scalar.Value[2..].All(char.IsAsciiHexDigit))
+        if (IsRadixInteger(scalar))
         {
             try
             {
@@ -90,6 +87,12 @@ internal sealed class TagEntriesConverter(YamlMappingNode? root = null) : IYamlT
         };
         return valid ? value : throw new YamlException(scalar.Start, scalar.End, "Invalid explicit YAML type on an ODCS tag value.");
     }
+
+    private static bool IsRadixInteger(Scalar scalar)
+        => (scalar.Tag == "tag:yaml.org,2002:int" ||
+            ((scalar.Tag.IsEmpty || scalar.Tag.IsNonSpecific) && scalar.Style == ScalarStyle.Plain)) &&
+           (scalar.Value.StartsWith("0x", StringComparison.Ordinal) || scalar.Value.StartsWith("0o", StringComparison.Ordinal)) &&
+           scalar.Value.Length > 2 && scalar.Value[2..].All(char.IsAsciiHexDigit);
 
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
     {
