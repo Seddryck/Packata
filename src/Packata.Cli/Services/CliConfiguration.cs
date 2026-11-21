@@ -44,7 +44,7 @@ internal sealed class CliConfiguration
 
     internal ContractMappingOptions MappingOptions()
     {
-        try { return ValidateMappings(UserConfigurationFile.Read(_path)); }
+        try { return ValidateMappings(UserConfigurationFile.ReadMappings(_path)); }
         catch (FormatException exception) { throw new CliException(exception.Message); }
     }
 

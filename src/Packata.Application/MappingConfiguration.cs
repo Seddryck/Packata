@@ -37,7 +37,7 @@ internal static class MappingConfiguration
 
     internal static string Path => UserConfigurationFile.PathFor(Environment.GetEnvironmentVariable);
 
-    internal static ContractMappingOptions Load() => Resolve(UserConfigurationFile.Read(Path));
+    internal static ContractMappingOptions Load() => Resolve(UserConfigurationFile.ReadMappings(Path));
 
     internal static ContractMappingOptions Resolve(IReadOnlyDictionary<string, string> settings)
     {
