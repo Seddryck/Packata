@@ -16,6 +16,10 @@ public static class SelectedValidation
     public static ValidationOptions Options(DocumentSnapshot snapshot) => new(1, Format(snapshot), Validators);
 
     public static ValidationResult Validate(DocumentSnapshot snapshot, IReadOnlyList<string>? selected = null, CancellationToken cancellationToken = default)
+        => Validate(snapshot, selected, cancellationToken, ContractMappingOptions.Default);
+
+    internal static ValidationResult Validate(DocumentSnapshot snapshot, IReadOnlyList<string>? selected,
+        CancellationToken cancellationToken, ContractMappingOptions mappingOptions)
     {
         cancellationToken.ThrowIfCancellationRequested();
         selected ??= [SchemaId, "semantic"];
@@ -31,7 +35,7 @@ public static class SelectedValidation
                     Reason: "Document exceeds the 4 MiB size limit.")).ToArray(), Format(snapshot));
         }
 
-        var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."), cancellationToken);
+        var report = DescriptorValidation.Validate(snapshot.Text, "auto", layers, new Uri(snapshot.Uri, "."), cancellationToken, mappingOptions);
         var diagnostics = Diagnostics(report);
         var checks = Validators.Select(option => Check(option, selected, report)).ToArray();
         var format = report.Format ?? DescriptorFormat.Recover(snapshot.Text, snapshot.Uri);

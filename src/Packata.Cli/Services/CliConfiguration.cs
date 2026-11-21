@@ -1,11 +1,16 @@
 using System.Text.Json;
 using DubUrl.Core.ProviderPacks;
+using Packata.Application;
 
 namespace Packata.Cli;
 
 internal sealed class CliException(string message) : Exception(message);
 
-internal sealed record ConfigurationValue(string Key, object Value, string Origin, string? UserValue);
+internal sealed record ConfigurationValue(string Key, object Value, string Origin, string? UserValue)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public object? BuiltInValue { get; init; }
+}
 
 internal sealed class CliConfiguration
 {
@@ -17,21 +22,37 @@ internal sealed class CliConfiguration
     public CliConfiguration(string? path = null, Func<string, string?>? environment = null)
     {
         _environment = environment ?? Environment.GetEnvironmentVariable;
-        var home = _environment("PACKATA_CONFIG_HOME");
-        _path = path ?? Path.Combine(string.IsNullOrWhiteSpace(home)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Packata") : home,
-            "config.json");
+        _path = path ?? UserConfigurationFile.PathFor(_environment);
     }
 
     public IReadOnlyList<ConfigurationValue> List()
     {
         var saved = Read();
+        ValidateMappings(saved);
         return new[] { "connectors.offline", "connectors.store", "connectors.catalog" }
-            .Concat(saved.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
+            .Concat(MappingConfiguration.SettingKeys).Concat(saved.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
             .Select(key => Effective(key, saved)).ToArray();
     }
 
-    public ConfigurationValue Get(string key) => Effective(ValidateKey(key), Read());
+    public ConfigurationValue Get(string key)
+    {
+        ValidateKey(key);
+        var saved = Read();
+        if (MappingConfiguration.Supports(key)) ValidateMappings(saved);
+        return Effective(key, saved);
+    }
+
+    internal ContractMappingOptions MappingOptions()
+    {
+        try { return ValidateMappings(UserConfigurationFile.ReadMappings(_path)); }
+        catch (FormatException exception) { throw new CliException(exception.Message); }
+    }
+
+    private static ContractMappingOptions ValidateMappings(Dictionary<string, string> settings)
+    {
+        try { return MappingConfiguration.Resolve(settings); }
+        catch (FormatException exception) { throw new CliException(exception.Message); }
+    }
 
     public void Set(string key, string value) => Update(ValidateKey(key), Normalize(key, value));
     public void Unset(string key) => Update(ValidateKey(key), null);
@@ -43,6 +64,7 @@ internal sealed class CliConfiguration
         using var fileLock = new FileStream(_path + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         var saved = Read();
         if (value is null) saved.Remove(key); else saved[key] = value;
+        if (MappingConfiguration.Supports(key)) ValidateMappings(saved);
         var temporary = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
@@ -54,20 +76,27 @@ internal sealed class CliConfiguration
 
     private Dictionary<string, string> Read()
     {
-        if (!File.Exists(_path)) return new(StringComparer.Ordinal);
         try
         {
-            var saved = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(_path), JsonOptions)
-                ?? throw new CliException("The user configuration is empty.");
-            foreach (var pair in saved) { ValidateKey(pair.Key); Normalize(pair.Key, pair.Value); }
+            var saved = UserConfigurationFile.Read(_path);
+            foreach (var pair in saved.Where(pair => !MappingConfiguration.IsMappingKey(pair.Key)))
+            {
+                ValidateKey(pair.Key);
+                Normalize(pair.Key, pair.Value);
+            }
             return saved;
         }
-        catch (JsonException) { throw new CliException("The user configuration is invalid JSON."); }
+        catch (FormatException exception) { throw new CliException(exception.Message); }
     }
 
     private ConfigurationValue Effective(string key, Dictionary<string, string> saved)
     {
         saved.TryGetValue(key, out var user);
+        if (MappingConfiguration.Supports(key))
+        {
+            var (effective, builtIn) = MappingConfiguration.Describe(key, saved);
+            return new(key, effective, user is null ? "default" : "user", user) { BuiltInValue = builtIn };
+        }
         var environment = key == "connectors.store" ? _environment("DUBURL_PROVIDER_STORE") : null;
         var value = !string.IsNullOrWhiteSpace(environment) ? Path.GetFullPath(environment) : user;
         var origin = !string.IsNullOrWhiteSpace(environment) ? "environment:DUBURL_PROVIDER_STORE" : user is null ? "default" : "user";
@@ -83,7 +112,7 @@ internal sealed class CliConfiguration
 
     private static string ValidateKey(string key)
     {
-        if (key is "connectors.offline" or "connectors.store" or "connectors.catalog") return key;
+        if (key is "connectors.offline" or "connectors.store" or "connectors.catalog" || MappingConfiguration.Supports(key)) return key;
         if (key.StartsWith(PreferencePrefix, StringComparison.Ordinal)
             && Uri.CheckSchemeName(key[PreferencePrefix.Length..]) && key == key.ToLowerInvariant()) return key;
         throw new CliException("Unknown configuration key. Use 'packata config --help' for supported settings.");
@@ -92,6 +121,7 @@ internal sealed class CliConfiguration
     private static string Normalize(string key, string value)
     {
         if (string.IsNullOrWhiteSpace(value)) throw new CliException("A configuration value must not be empty.");
+        if (MappingConfiguration.Supports(key)) return value;
         if (key == "connectors.offline")
         {
             return bool.TryParse(value, out var offline) ? offline.ToString().ToLowerInvariant()
@@ -123,6 +153,6 @@ internal sealed class CliConfiguration
         catch { throw new CliException("The configured connector catalog could not be read or validated."); }
     }
 
-    public Dictionary<string, string> Preferences() => List().Where(value => value.Key.StartsWith(PreferencePrefix, StringComparison.Ordinal))
-        .ToDictionary(value => value.Key[PreferencePrefix.Length..], value => (string)value.Value, StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> Preferences() => Read().Where(value => value.Key.StartsWith(PreferencePrefix, StringComparison.Ordinal))
+        .ToDictionary(value => value.Key[PreferencePrefix.Length..], value => value.Value, StringComparer.OrdinalIgnoreCase);
 }

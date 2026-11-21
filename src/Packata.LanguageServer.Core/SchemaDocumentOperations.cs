@@ -21,12 +21,16 @@ public sealed class SchemaDocumentOperations(DocumentStore documents)
     public async Task<SchemaDocumentDiscovery> OptionsAsync(Uri uri, CancellationToken token)
     {
         var snapshot = await documents.ReadAsync(uri, token);
-        var document = Parse(snapshot);
+        return Discover(snapshot, Parse(snapshot), token);
+    }
+
+    private static SchemaDocumentDiscovery Discover(DocumentSnapshot snapshot, ContractDocument document, CancellationToken token)
+    {
         var mapping = ContractInspector.Inspect(document, token).Mapping;
         var prefix = document.Format == "odcs" ? "/schema/" : "/resources/";
         var assets = mapping.IsSuccessful ? mapping.RequireValue().Assets.Select((a, i) =>
             new GenerationAssetOption(a.Id, ContractJson.Redact(a.Name), prefix + i, a.Schema is not null, a.Schema is null ? "No schema." : null)).ToArray() : [];
-        return new(1, uri.AbsoluteUri, snapshot.Version, SchemaGenerationOperations.Key(snapshot.Text), SchemaDocumentService.Formats, assets, Findings(mapping.Diagnostics));
+        return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, SchemaGenerationOperations.Key(snapshot.Text), SchemaDocumentService.Formats, assets, Findings(mapping.Diagnostics));
     }
 
     public async Task<SchemaDocumentResponse> ExportAsync(SchemaDocumentRequest request, CancellationToken token)
@@ -40,7 +44,7 @@ public sealed class SchemaDocumentOperations(DocumentStore documents)
         var document = Parse(snapshot);
         if (request.SourcePath is not null)
         {
-            var discovery = await OptionsAsync(uri, token);
+            var discovery = Discover(snapshot, document, token);
             if (!discovery.Assets.Any(a => a.Eligible && a.Id == request.Options.AssetId && a.SourcePath == request.SourcePath))
                 return Failure("EXPORT_SELECTION", "Selected asset no longer matches its source.");
         }
@@ -62,6 +66,6 @@ public sealed class SchemaDocumentOperations(DocumentStore documents)
     private static ContractDocument Parse(DocumentSnapshot snapshot)
     {
         if (Encoding.UTF8.GetByteCount(snapshot.Text) > ContractService.MaximumDocumentBytes) throw new FormatException("Descriptor snapshot is too large.");
-        return ContractDocument.Parse(snapshot.Text, baseUri: new Uri(snapshot.Uri, "."));
+        return ContractDocument.Parse(snapshot.Text, baseUri: new Uri(snapshot.Uri, ".")) with { MappingOptions = MappingConfiguration.Load() };
     }
 }

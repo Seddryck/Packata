@@ -44,6 +44,60 @@ public sealed class ContractServiceTests
                     logicalType: string
         """;
 
+    [Test]
+    [NonParallelizable]
+    public async Task Mapping_settings_reanalyze_an_unchanged_buffer_and_are_used_for_semantic_validation_Async()
+    {
+        using var directory = new PackataConfigDirectory();
+        var uri = new Uri("file:///workspace/contract.yaml");
+        var text = Odcs.Replace("    physicalType: table", "    customProperties:\n" +
+            "      - {property: allowAdditionalProperties, vendor: packata, value: true}\n" +
+            "      - {property: additionalProperties, value: 'false'}\n" +
+            "    physicalType: table", StringComparison.Ordinal);
+        var documents = new DocumentStore();
+        documents.Update(uri, text, 1);
+        var service = new ContractService(documents);
+        var before = await service.InspectAsync(uri, CancellationToken.None);
+        Assert.That(before.Diagnostics, Is.Empty);
+        directory.Write();
+        var after = await service.InspectAsync(uri, CancellationToken.None);
+        var validation = await service.ValidateAsync(uri, CancellationToken.None, ["semantic"]);
+        var diagnostic = after.Diagnostics.Single(d => d.Code == "ODCS008");
+        var expected = validation.Diagnostics.Single(d => d.Code == diagnostic.Code);
+        Assert.That(diagnostic.SourcePath, Is.EqualTo("schema/customers/customProperties/1"));
+        Assert.That(diagnostic.Message, Does.Contain("'additionalProperties'").And.Contain("boolean"));
+        Assert.That(expected.Message, Is.EqualTo(diagnostic.Message));
+        Assert.That(expected.Range, Is.EqualTo(diagnostic.Range));
+        Assert.That(after.Contract!["assets"]![0]!["schema"]!["allowAdditionalProperties"]!.Value<bool>(), Is.False);
+        directory.Remove();
+        Assert.That((await service.InspectAsync(uri, CancellationToken.None)).Diagnostics, Is.Empty);
+    }
+
+    private sealed class PackataConfigDirectory : IDisposable
+    {
+        private const string Variable = "PACKATA_CONFIG_HOME";
+        private readonly string? previous = Environment.GetEnvironmentVariable(Variable);
+        private readonly DirectoryInfo directory = Directory.CreateTempSubdirectory();
+
+        public PackataConfigDirectory() => Environment.SetEnvironmentVariable(Variable, directory.FullName);
+
+        private string FilePath => Path.Combine(directory.FullName, "config.json");
+
+        internal void Write() => File.WriteAllText(FilePath, System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["mapping.odcs.schema.allowAdditionalProperties"] = """{"property":"additionalProperties","vendor":null}""",
+        }));
+
+        internal void Remove() => File.Delete(FilePath);
+
+        public void Dispose()
+        {
+            Environment.SetEnvironmentVariable(Variable, previous);
+            Remove();
+            directory.Delete(recursive: false);
+        }
+    }
+
     [TestCase(Package, "datapackage", "orders", "id")]
     [TestCase(Odcs, "odcs", "customers", "city")]
     public async Task Inspect_UsesUnsavedBufferAndBuildsSourceBackedCanonicalTreeAsync(string text, string format, string asset, string field)

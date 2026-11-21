@@ -52,7 +52,12 @@ public static class DescriptorValidation
 
     public static DescriptorValidationReport Validate(string text, string format = "auto",
         ValidationLayers layers = DefaultLayers, Uri? baseUri = null, CancellationToken cancellationToken = default)
+        => Validate(text, format, layers, baseUri, cancellationToken, ContractMappingOptions.Default);
+
+    public static DescriptorValidationReport Validate(string text, string format, ValidationLayers layers,
+        Uri? baseUri, CancellationToken cancellationToken, ContractMappingOptions mappingOptions)
     {
+        ArgumentNullException.ThrowIfNull(mappingOptions);
         cancellationToken.ThrowIfCancellationRequested();
         if (format is not ("auto" or "odcs" or "datapackage")) throw new ArgumentException("Unknown input format.", nameof(format));
         if (layers == ValidationLayers.None || (layers & ~DefaultLayers) != 0) throw new ArgumentOutOfRangeException(nameof(layers));
@@ -72,7 +77,7 @@ public static class DescriptorValidation
             return ParsingFailure(syntaxCheck, format, selected);
         }
 
-        var report = Execute(root, syntax, format, selected, baseUri, cancellationToken);
+        var report = Execute(root, syntax, format, selected, baseUri, cancellationToken, mappingOptions);
         cancellationToken.ThrowIfCancellationRequested();
         return report with { Syntax = syntax, Format = DescriptorFormat.Identify(syntax.Root, format) };
     }
@@ -87,7 +92,8 @@ public static class DescriptorValidation
         return new(results, findings) { Syntax = syntaxCheck.Syntax, SyntaxDiagnostics = syntaxCheck.Diagnostics, Format = detected };
     }
 
-    private static DescriptorValidationReport Execute(JsonObject root, ContractSyntax syntax, string format, ValidationLayers[] selected, Uri? baseUri, CancellationToken cancellationToken)
+    private static DescriptorValidationReport Execute(JsonObject root, ContractSyntax syntax, string format, ValidationLayers[] selected, Uri? baseUri, CancellationToken cancellationToken,
+        ContractMappingOptions mappingOptions)
     {
         var findings = new List<ValidationFinding>();
         var results = new List<LayerValidation>();
@@ -110,7 +116,7 @@ public static class DescriptorValidation
                 continue;
             }
             var start = findings.Count;
-            EvaluateLayer(layer, root, syntax, format, profile ?? throw new InvalidOperationException("Profile selection failed."), baseUri, findings);
+            EvaluateLayer(layer, root, syntax, format, profile ?? throw new InvalidOperationException("Profile selection failed."), baseUri, findings, mappingOptions);
             results.Add(Outcome(layer, findings.Skip(start).ToArray()));
         }
         return new(results.AsReadOnly(), findings.Distinct().ToArray(), profile);
@@ -134,7 +140,7 @@ public static class DescriptorValidation
     }
 
     private static void EvaluateLayer(ValidationLayers layer, JsonObject root, ContractSyntax syntax, string format,
-        DescriptorProfile profile, Uri? baseUri, List<ValidationFinding> findings)
+        DescriptorProfile profile, Uri? baseUri, List<ValidationFinding> findings, ContractMappingOptions mappingOptions)
     {
         if (layer == ValidationLayers.Schema)
         {
@@ -146,22 +152,23 @@ public static class DescriptorValidation
             return;
         }
         if (profile.Format == "odcs") OdcsSemanticValidation.Validate(root, findings);
-        NativeSemantics(syntax, format, baseUri, findings, profile.Format == "odcs");
+        NativeSemantics(syntax, format, baseUri, findings, profile.Format == "odcs", mappingOptions);
     }
 
-    private static void NativeSemantics(ContractSyntax syntax, string format, Uri? baseUri, List<ValidationFinding> findings, bool odcs)
+    private static void NativeSemantics(ContractSyntax syntax, string format, Uri? baseUri, List<ValidationFinding> findings, bool odcs, ContractMappingOptions mappingOptions)
     {
         try
         {
-            var document = ContractDocument.Parse(syntax, format, baseUri);
-            foreach (var finding in ContractDocument.Validate(document.NativeDocument))
+            var document = ContractDocument.Parse(syntax, format, baseUri) with { MappingOptions = mappingOptions };
+            var mapping = document.Map();
+            foreach (var finding in document.Validate(mapping))
             {
                 findings.Add(new(ValidationLayers.Semantic, finding.Code, finding.Severity, finding.SourcePath,
                     ContractJson.Redact(finding.Message)));
             }
 
             if (!odcs) return;
-            foreach (var finding in document.Map().Diagnostics.Where(f => f.Code is "ODCS004" or "ODCS005" or "ODCS_QUALITY"))
+            foreach (var finding in mapping.Diagnostics.Where(f => f.Code is "ODCS004" or "ODCS005" or "ODCS_QUALITY"))
             {
                 findings.Add(new(ValidationLayers.Semantic, finding.Code,
                     finding.Code == "ODCS005" ? MappingSeverity.Error : finding.Severity,

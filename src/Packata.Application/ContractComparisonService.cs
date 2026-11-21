@@ -15,7 +15,7 @@ public static class ContractComparisonService
     public static ComparisonPreparation Prepare(ContractDocument document, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var validation = ContractDocument.Validate(document.NativeDocument);
+        var validation = document.Validate();
         cancellationToken.ThrowIfCancellationRequested();
         if (validation.Any(value => value.Severity == MappingSeverity.Error)) return new(null, validation, null);
         var mapped = ContractInspector.Inspect(document, cancellationToken).Mapping;
