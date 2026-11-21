@@ -1,3 +1,9 @@
+---
+title: Custom-property mapping bindings
+parent: Reference
+permalink: /custom-property-bindings/
+---
+
 # Custom-property mapping bindings
 
 A binding selects the source custom property for an existing canonical feature. An override replaces the built-in selector. Packata preserves both declarations in source metadata if a document includes both. The selected declaration uses the same payload validation and fallback behavior as the built-in declaration.
@@ -69,7 +75,7 @@ Prefix these IDs with `mapping.odcs.`. The built-in vendor is `packata`, and the
 | `server.headerRows` | Server | A one-based spreadsheet row number in a row list. The reader supports one header row. Absent lets the reader derive header rows from the header setting. |
 | `server.commentRows` | Server | A list of one-based, contiguous leading spreadsheet row numbers. Absent means no configured comment rows. |
 
-Server bindings map options for CSV, TSV, PSV, XLS and XLSX. Each reader applies the options it supports. A matching custom delimiter takes precedence over the native delimiter, and the last matching server declaration wins. Schema booleans, category declarations, and column defaults keep their existing duplicate-declaration checks. See [SQL column defaults](column-defaults.md) for the literal types and expression kinds.
+Server bindings map options for CSV, TSV, PSV, XLS and XLSX. Each reader applies the options it supports. A matching custom delimiter takes precedence over the native delimiter, and the last matching server declaration wins. Schema booleans, category declarations, and column defaults keep their existing duplicate-declaration checks. See [SQL column defaults]({{ '/column-defaults/' | relative_url }}) for the literal types and expression kinds.
 
 ## Data Package v2 bindings
 

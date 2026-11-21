@@ -83,7 +83,7 @@ invocation returns `2`; framework-level cancellation can return `130`.
 `packata config list [--output-format <FORMAT>] [--output <PATH>]`
 
 List returns the effective configuration keys, values and origins, including persisted user
-overrides where applicable. For mapping settings, see [custom-property mapping bindings](custom-property-bindings.md). It takes no positional arguments. Text is the default; use
+overrides where applicable. For mapping settings, see [custom-property mapping bindings]({{ '/custom-property-bindings/' | relative_url }}). It takes no positional arguments. Text is the default; use
 `--output-format` to request JSON.
 
 To save this result, pass a new destination to `--output <PATH>` or its alias, `-o <PATH>`.
