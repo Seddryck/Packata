@@ -12,6 +12,9 @@ namespace Packata.OpenDataContract;
 /// </summary>
 public class CustomProperty
 {
+    private object? value;
+    private Lazy<object?>? mappingValue;
+
     /// <summary>
     /// Stable identifier for this custom property.
     /// </summary>
@@ -37,7 +40,19 @@ public class CustomProperty
     /// The value of the key.
     /// </value>
     [Label("Value")]
-    public object? Value { get; set; }
+    public object? Value
+    {
+        get => value;
+        set
+        {
+            this.value = value;
+            mappingValue = null;
+        }
+    }
+
+    internal void PreserveMappingValue(Func<object?> read) => mappingValue = new(read);
+
+    internal object? ReadMappingValue() => mappingValue is { } source ? source.Value : Value;
 
     /// <summary>
     /// Human-readable description of the custom property.

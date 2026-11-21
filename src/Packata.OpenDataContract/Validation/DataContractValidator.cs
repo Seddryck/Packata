@@ -20,12 +20,12 @@ internal static partial class DataContractValidator
         }
     }
 
-    public static void ValidateYamlStructure(string yaml)
+    public static YamlMappingNode? ValidateYamlStructure(string yaml)
     {
         var stream = new YamlStream();
         stream.Load(new StringReader(yaml));
         if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
-            return;
+            return null;
 
         var synonymOwners = new HashSet<YamlMappingNode>(ReferenceEqualityComparer.Instance);
         if (TryGet(root, "schema") is YamlSequenceNode schema)
@@ -45,6 +45,7 @@ internal static partial class DataContractValidator
         }
 
         ValidatePlacement(root, "$", synonymOwners, serverOwners);
+        return root;
     }
 
     private static void ValidateProperty(SchemaProperty property, string path)

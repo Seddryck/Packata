@@ -9,7 +9,7 @@ public sealed class ContractService(DocumentStore documents)
 {
     public const int SchemaVersion = 1;
     public const int MaximumDocumentBytes = 4 * 1024 * 1024;
-    private sealed record Analysis(DocumentSnapshot Snapshot, Inspection Inspection, ContractDocument? Document);
+    private sealed record Analysis(DocumentSnapshot Snapshot, Inspection Inspection, ContractDocument? Document, ContractMappingOptions MappingOptions);
     private readonly ConcurrentDictionary<Uri, Analysis> cache = new();
 
     public async Task<Inspection> InspectAsync(Uri uri, CancellationToken token)
@@ -22,9 +22,16 @@ public sealed class ContractService(DocumentStore documents)
     public Inspection Inspect(DocumentSnapshot snapshot, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (cache.TryGetValue(snapshot.Uri, out var previous) && previous.Snapshot == snapshot)
-            return previous.Inspection;
         var baseUri = new Uri(snapshot.Uri, ".").AbsoluteUri;
+        ContractMappingOptions mappingOptions;
+        try { mappingOptions = MappingConfiguration.Load(); }
+        catch (Exception error) when (error is FormatException or IOException or UnauthorizedAccessException)
+        {
+            return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, DescriptorName(snapshot.Uri), null, null,
+                [new("PKT_CONFIG", "Error", "$", "Cannot load mapping settings. Check the Packata user configuration.", null)], null);
+        }
+        if (cache.TryGetValue(snapshot.Uri, out var previous) && previous.Snapshot == snapshot && previous.MappingOptions == mappingOptions)
+            return previous.Inspection;
         var recognized = DescriptorName(snapshot.Uri);
         ContractSyntax? syntax = null;
         try
@@ -33,7 +40,7 @@ public sealed class ContractService(DocumentStore documents)
             syntax = ContractSyntax.Parse(snapshot.Text);
             recognized |= syntax.Recognized;
             if (!recognized) return new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, baseUri, false, null, null, [], null);
-            var analysis = Analyze(snapshot, syntax, baseUri, token);
+            var analysis = Analyze(snapshot, syntax, baseUri, token, mappingOptions);
             cache[snapshot.Uri] = analysis;
             return analysis.Inspection;
         }
@@ -41,14 +48,15 @@ public sealed class ContractService(DocumentStore documents)
         {
             recognized |= previous?.Inspection.Recognized == true;
             var inspection = InvalidInspection(snapshot, baseUri, recognized, error, syntax);
-            cache[snapshot.Uri] = new(snapshot, inspection, null);
+            cache[snapshot.Uri] = new(snapshot, inspection, null, mappingOptions);
             return inspection;
         }
     }
 
-    private static Analysis Analyze(DocumentSnapshot snapshot, ContractSyntax syntax, string baseUri, CancellationToken token)
+    private static Analysis Analyze(DocumentSnapshot snapshot, ContractSyntax syntax, string baseUri, CancellationToken token, ContractMappingOptions mappingOptions)
     {
-        var analysis = ContractInspector.Inspect(syntax, baseUri: new Uri(baseUri), cancellationToken: token);
+        var parsed = ContractDocument.Parse(syntax, baseUri: new Uri(baseUri)) with { MappingOptions = mappingOptions };
+        var analysis = ContractInspector.Inspect(parsed, token);
         var document = analysis.Document;
         var mapped = analysis.Mapping;
         var index = new SourceIndex(document.Root);
@@ -59,7 +67,7 @@ public sealed class ContractService(DocumentStore documents)
             new ContractTreeBuilder(document, snapshot.Uri).BuildNative(),
             mapped.Value is null ? [] : ResourcePreview.Targets(document, mapped.Value, new Uri(baseUri)), SchemaGenerationOperations.Key(snapshot.Text));
         token.ThrowIfCancellationRequested();
-        return new(snapshot, inspection, document);
+        return new(snapshot, inspection, document, mappingOptions);
     }
 
     private static bool IsDocumentError(Exception error) => error is YamlException or FormatException
@@ -102,7 +110,9 @@ public sealed class ContractService(DocumentStore documents)
     {
         var snapshot = await documents.ReadAsync(uri, token);
         token.ThrowIfCancellationRequested();
-        var result = SelectedValidation.Validate(snapshot, checks, token);
+        var mappingOptions = checks is null || checks.Contains("semantic", StringComparer.Ordinal)
+            ? MappingConfiguration.Load() : ContractMappingOptions.Default;
+        var result = SelectedValidation.Validate(snapshot, checks, token, mappingOptions);
         token.ThrowIfCancellationRequested();
         return result;
     }
@@ -119,7 +129,7 @@ public sealed class ContractService(DocumentStore documents)
             new("PREVIEW_LIMIT", "Error", "$", "The row limit must be a positive integer.", null));
         }
 
-        return await ResourcePreview.ReadAsync(await documents.ReadAsync(uri, token), sourcePath, limit, bindingIndex, token, selectionKey: selectionKey);
+        return await ResourcePreview.ReadAsync(await documents.ReadAsync(uri, token), sourcePath, limit, bindingIndex, token, streams: null, selectionKey: selectionKey, mappingOptions: MappingConfiguration.Load());
     }
 
     public async Task<ValidationResult> SyntaxAsync(Uri uri, CancellationToken token)
@@ -140,7 +150,7 @@ public sealed class ContractService(DocumentStore documents)
             var inspection = await InspectIfReadableAsync(uri, token);
             if (inspection?.Recognized == true) results.Add(inspection);
         }
-        return new(1, results);
+        return new(1, results) { MappingConfigurationUri = new Uri(Path.GetFullPath(MappingConfiguration.Path)).AbsoluteUri };
     }
 
     private HashSet<Uri> Candidates(IEnumerable<string> folders, CancellationToken token)

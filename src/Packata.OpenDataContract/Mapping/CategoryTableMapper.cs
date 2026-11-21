@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Text.Json;
+using Packata.AdapterMapping;
 using Packata.Core.Contracts;
 
 namespace Packata.OpenDataContract.Mapping;
@@ -7,27 +8,26 @@ namespace Packata.OpenDataContract.Mapping;
 /// <summary>Packata's ODCS convention. Resolves metadata only; data loading belongs to the shared reader.</summary>
 internal static class CategoryTableMapper
 {
-    public static DataAsset[] Map(DataContract document, DataAsset[] assets, ICollection<MappingDiagnostic> diagnostics)
+    public static DataAsset[] Map(DataContract document, DataAsset[] assets, ICollection<MappingDiagnostic> diagnostics, OdcsBindings bindings)
     {
         // First map every table so declarations may reference objects in either source order.
         assets = assets.Select((asset, index) => asset with
         {
-            CategoryTable = Try(() => Table(document.Schema[index], asset), $"schema/{asset.Name}/customProperties", diagnostics)
+            CategoryTable = Try(document.Schema[index].CustomProperties, bindings.CategoryFieldMap, value => Table(value, asset),
+                $"schema/{asset.Name}/customProperties", diagnostics)
         }).ToArray();
         return assets.Select((asset, index) => asset with
         {
             Schema = asset.Schema! with { Fields = asset.Schema.Fields.Select((field, fieldIndex) =>
                 Field(document.Schema[index].Properties[fieldIndex], field, assets,
-                    $"schema/{asset.Name}/properties/{field.Name}", diagnostics)).ToArray() }
+                    $"schema/{asset.Name}/properties/{field.Name}", diagnostics, bindings)).ToArray() }
         }).ToArray();
     }
 
-    private static CategoryTableDefinition? Table(SchemaObject source, DataAsset asset)
+    private static CategoryTableDefinition Table(object? valuePayload, DataAsset asset)
     {
-        var property = Declaration(source.CustomProperties, "categoryFieldMap");
-        if (property is null) return null;
         if (asset.Kind != AssetKind.Table) throw Invalid("categoryFieldMap requires a table schema object.");
-        var map = Object(property.Value);
+        var map = Object(valuePayload);
         var value = Text(map, "value", required: true)!;
         var label = Text(map, "label");
         var ordered = Ordered(map);
@@ -61,25 +61,24 @@ internal static class CategoryTableMapper
     }
 
     private static DataField Field(SchemaProperty source, DataField field, IReadOnlyList<DataAsset> assets,
-        string path, ICollection<MappingDiagnostic> diagnostics)
+        string path, ICollection<MappingDiagnostic> diagnostics, OdcsBindings bindings)
     {
         // Nested properties retain their declaration and diagnostics even though lookup columns are top-level.
         var children = field.Children.Select((child, index) => Field(source.Properties[index], child, assets,
-            $"{path}/properties/{child.Name}", diagnostics)).ToArray();
+            $"{path}/properties/{child.Name}", diagnostics, bindings)).ToArray();
         var items = source.Items is null || field.Items is null ? field.Items
-            : Field(source.Items, field.Items, assets, $"{path}/items", diagnostics);
-        var domain = Try(() => Reference(source, field, assets), path + "/customProperties", diagnostics);
+            : Field(source.Items, field.Items, assets, $"{path}/items", diagnostics, bindings);
+        var domain = Try(source.CustomProperties, bindings.Categories, value => Reference(value, source, field, assets),
+            path + "/customProperties", diagnostics);
         return field with { Children = children, Items = items, ValueDomain = domain ?? field.ValueDomain };
     }
 
-    private static ValueDomain? Reference(SchemaProperty source, DataField field, IReadOnlyList<DataAsset> assets)
+    private static ValueDomain Reference(object? valuePayload, SchemaProperty source, DataField field, IReadOnlyList<DataAsset> assets)
     {
-        var property = Declaration(source.CustomProperties, "categories");
-        if (property is null) return null;
         if (source.Enum is not null) throw Invalid("Inline enum and category-table reference declarations conflict.");
         if (field.LogicalType is not ("string" or "integer"))
             throw Invalid("Category-table references require a string or integer property.");
-        var map = Object(property.Value);
+        var map = Object(valuePayload);
         var resource = Text(map, "resource", required: true)!;
         var encoding = Text(map, "encodedAs") switch
         {
@@ -111,13 +110,6 @@ internal static class CategoryTableMapper
         if (encoding == ValueEncoding.Label && table.LabelField is null)
             throw Invalid("Label encoding requires a mapped default label column.");
         return target.Id;
-    }
-
-    private static CustomProperty? Declaration(CustomProperties properties, string name)
-    {
-        var matches = properties.Where(property => property.Vendor == "packata" && property.Property == name).ToArray();
-        if (matches.Length > 1) throw Invalid($"Duplicate vendor: packata property: {name} declarations.");
-        return matches.SingleOrDefault();
     }
 
     private static DataField Column(DataAsset asset, string name)
@@ -165,13 +157,23 @@ internal static class CategoryTableMapper
             : throw Invalid($"'{key}' must be a non-empty string when present.");
     }
 
-    private static T? Try<T>(Func<T?> map, string path, ICollection<MappingDiagnostic> diagnostics)
+    private static T? Try<T>(CustomProperties properties, BindingSelector selector, Func<object?, T> map,
+        string path, ICollection<MappingDiagnostic> diagnostics)
         where T : class
     {
-        try { return map(); }
+        var matches = properties.Select((property, index) => (property, index))
+            .Where(entry => selector.Matches(entry.property.Property, entry.property.Vendor)).ToArray();
+        if (matches.Length == 0) return null;
+        var (property, index) = matches[0];
+        try
+        {
+            if (matches.Length > 1) throw Invalid("Duplicate declarations; expected a single declaration.");
+            return map(OdcsBindings.ReadValue(selector, property));
+        }
         catch (ArgumentException exception)
         {
-            diagnostics.Add(new("ODCS007", MappingSeverity.Error, path, exception.Message));
+            diagnostics.Add(new("ODCS007", MappingSeverity.Error, $"{path}/{index}",
+                $"Custom property '{property.Property}' for '{selector.Id}'. {exception.Message}"));
             return null;
         }
     }

@@ -18,7 +18,10 @@ public sealed record ValidationCheck(string Id, string Label, string State, int 
 public sealed record ValidatorOption(string Id, string Label, string Description, string[] Formats, string[] BlockedBySelected);
 public sealed record ValidationOptions(int SchemaVersion, string Format, IReadOnlyList<ValidatorOption> Validators);
 public sealed record DocumentSnapshot(Uri Uri, string Text, int? Version);
-public sealed record DiscoveryResult(int SchemaVersion, IReadOnlyList<Inspection> Contracts);
+public sealed record DiscoveryResult(int SchemaVersion, IReadOnlyList<Inspection> Contracts)
+{
+    public string? MappingConfigurationUri { get; init; }
+}
 public sealed record PreviewTarget(string SourcePath, int? BindingIndex, string Label, bool Supported, string? Reason = null, string? SelectionKey = null);
 public sealed record PreviewColumn(string Name, string Type);
 public sealed record PreviewResult(int SchemaVersion, string Uri, int? Version, int Limit,

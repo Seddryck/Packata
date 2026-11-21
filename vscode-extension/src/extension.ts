@@ -75,6 +75,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   context.subscriptions.push(connection);
   let stopped = false;
+  let mappingWatcher: vscode.FileSystemWatcher | undefined;
+  let watchedMappingConfiguration: string | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let refreshCancellation: vscode.CancellationTokenSource | undefined;
   let generation = 0;
@@ -129,6 +131,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }, cancellation.token);
       requireDiscovery(response);
       if (cancellation.token.isCancellationRequested || !state.apply(epoch, response, versions())) return;
+      watchMappingConfiguration(response.mappingConfigurationUri);
       tree.refresh();
       validation.refreshAction();
       for (const contract of state.contracts) {
@@ -145,6 +148,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         failure('Unable to refresh contracts. Check the server installation/version, then run Packata: Restart Language Server.');
       }
     }
+  }
+  function watchMappingConfiguration(configurationUri?: string): void {
+    if (configurationUri === watchedMappingConfiguration) return;
+    mappingWatcher?.dispose();
+    watchedMappingConfiguration = configurationUri;
+    if (!configurationUri) return;
+    const file = vscode.Uri.parse(configurationUri);
+    if (file.scheme !== 'file') return;
+    const pattern = new vscode.RelativePattern(vscode.Uri.joinPath(file, '..'), 'config.json');
+    mappingWatcher = vscode.workspace.createFileSystemWatcher(pattern);
+    const changed = () => {
+      for (const contract of state.contracts) validation.markOutdated(vscode.Uri.parse(contract.uri));
+      schedule();
+    };
+    mappingWatcher.onDidCreate(changed);
+    mappingWatcher.onDidChange(changed);
+    mappingWatcher.onDidDelete(changed);
   }
   function schedule(): void {
     ++documentEpoch;
@@ -224,7 +244,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (event.newState === State.Running) { tree.validation.clear(); schedule(); }
       else { state.clear(); tree.refresh(); void schemaContexts([]); failure('Packata language server is disconnected. Restart it to refresh contracts.'); }
     }),
-    { dispose: () => { stopped = true; clearTimeout(timer); refreshCancellation?.cancel(); refreshCancellation?.dispose(); } }
+    { dispose: () => { stopped = true; mappingWatcher?.dispose(); clearTimeout(timer); refreshCancellation?.cancel(); refreshCancellation?.dispose(); } }
   );
   view.message = 'Starting Packata language server…';
   try { await connection.start(); compatible(); schedule(); }

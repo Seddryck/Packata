@@ -157,7 +157,7 @@ export class ValidationUi implements vscode.Disposable {
     const previous = this.tree.validation.get(key);
     if (previous) {
       previous.outdated = true;
-      this.summary.appendLine(`${uri.fsPath}\nOutdated after edits · run validation again.`);
+      this.summary.appendLine(`${uri.fsPath}\nOutdated · run validation again.`);
       this.tree.refresh();
     }
     this.updateAction();

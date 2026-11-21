@@ -1,3 +1,4 @@
+using Packata.Application;
 using Packata.Core.Contracts;
 using Packata.Application.Validation;
 using Spectre.Console.Cli;
@@ -19,7 +20,9 @@ internal sealed class ValidateCommand : AsyncCommand<ValidateSettings>
         try
         {
             using var document = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken, rawOnly: true).ConfigureAwait(false);
-            var report = DescriptorValidation.Validate(document.OriginalText, settings.InputFormat, selected, document.BaseUri, cancellationToken);
+            var mappingOptions = selected.HasFlag(ValidationLayers.Semantic)
+                ? new CliConfiguration().MappingOptions() : ContractMappingOptions.Default;
+            var report = DescriptorValidation.Validate(document.OriginalText, settings.InputFormat, selected, document.BaseUri, cancellationToken, mappingOptions);
             diagnostics = report.Diagnostics;
             layers = report.Layers;
             profile = report.Profile;

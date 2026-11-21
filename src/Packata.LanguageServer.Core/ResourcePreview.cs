@@ -108,6 +108,10 @@ public static class ResourcePreview
 
     public static async Task<PreviewResult> ReadAsync(DocumentSnapshot snapshot, string sourcePath, int limit,
         int? bindingIndex, CancellationToken token, IEndpointStreamResolver? streams = null, string? selectionKey = null)
+        => await ReadAsync(snapshot, sourcePath, limit, bindingIndex, token, streams, selectionKey, ContractMappingOptions.Default);
+
+    internal static async Task<PreviewResult> ReadAsync(DocumentSnapshot snapshot, string sourcePath, int limit,
+        int? bindingIndex, CancellationToken token, IEndpointStreamResolver? streams, string? selectionKey, ContractMappingOptions mappingOptions)
     {
         PreviewResult Failure(string code, string message) => new(1, snapshot.Uri.AbsoluteUri, snapshot.Version, limit, [], [],
             new(code, "Error", "$", message, null));
@@ -118,8 +122,8 @@ public static class ResourcePreview
             var baseUri = new Uri(snapshot.Uri, ".");
             if (EncodingSize(snapshot.Text) > ContractService.MaximumDocumentBytes)
                 return Failure("PREVIEW_DOCUMENT", "The descriptor exceeds the supported document size.");
-            var inspection = ContractInspector.Inspect(snapshot.Text, baseUri: baseUri, cancellationToken: token);
-            var document = inspection.Document;
+            var document = ContractDocument.Parse(snapshot.Text, baseUri: baseUri) with { MappingOptions = mappingOptions };
+            var inspection = ContractInspector.Inspect(document, token);
             var contract = inspection.Mapping.Value;
             if (contract is null) return Failure("PREVIEW_DOCUMENT", "The descriptor cannot be mapped for preview.");
             var selections = Selections(document, contract, baseUri).Where(value => value.Target.SourcePath == sourcePath).ToArray();

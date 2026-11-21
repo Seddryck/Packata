@@ -36,7 +36,7 @@ internal sealed class DataValidateCommand : AsyncCommand<DataValidateSettings>
 
     private static (bool CanRun, CompilationFinding[] Deferred) ValidateDeclarations(ContractSource source, string format, CancellationToken token)
     {
-        var validation = DescriptorValidation.Validate(source.OriginalText, format, ValidationLayers.Semantic, source.BaseUri, token);
+        var validation = DescriptorValidation.Validate(source.OriginalText, format, ValidationLayers.Semantic, source.BaseUri, token, source.MappingOptions);
         foreach (var diagnostic in validation.Diagnostics)
         {
             var severity = IsDeferredReference(diagnostic) ? MappingSeverity.Warning : diagnostic.Severity;

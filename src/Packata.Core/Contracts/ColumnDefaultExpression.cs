@@ -23,24 +23,26 @@ public sealed record ColumnDefaultSequence(string Name, string? Schema = null, s
 
 internal static partial class ColumnDefaultDeclarations
 {
-    internal static DataField Apply(DataField field, IEnumerable<(string? Name, object? Value)> properties,
+    internal static DataField Apply(DataField field,
+        IEnumerable<(bool IsExpression, string Property, string Path, object? Value)> declarations,
         string path, ICollection<MappingDiagnostic> diagnostics)
     {
-        var defaults = properties.Where(property => property.Name is "defaultValue" or "defaultExpression").ToArray();
+        var defaults = declarations.ToArray();
         if (defaults.Length == 0) return field;
         if (defaults.Length > 1)
         {
             diagnostics.Add(new("DEFAULT001", MappingSeverity.Error, path,
-                $"Field '{path}' must declare only one defaultValue or defaultExpression."));
+                $"Field '{path}' must declare only one column default. Found {string.Join(", ", defaults.Select(item => $"'{item.Property}' at '{item.Path}'"))}."));
             return field;
         }
 
-        return defaults[0].Name == "defaultValue"
-            ? field with { DefaultValue = ReadLiteral(defaults[0].Value, path, diagnostics) }
-            : field with { DefaultExpression = ReadExpression(defaults[0].Value, path, diagnostics) };
+        var declaration = defaults[0];
+        return declaration.IsExpression
+            ? field with { DefaultExpression = ReadExpression(declaration.Value, declaration.Property, declaration.Path, diagnostics) }
+            : field with { DefaultValue = ReadLiteral(declaration.Value, declaration.Property, declaration.Path, diagnostics) };
     }
 
-    private static ColumnDefaultExpression? ReadExpression(object? value, string path, ICollection<MappingDiagnostic> diagnostics)
+    private static ColumnDefaultExpression? ReadExpression(object? value, string property, string path, ICollection<MappingDiagnostic> diagnostics)
     {
         try
         {
@@ -49,7 +51,7 @@ internal static partial class ColumnDefaultDeclarations
         catch (ArgumentException error)
         {
             diagnostics.Add(new("DEFAULT002", MappingSeverity.Error, path,
-                $"Invalid defaultExpression for field '{path}'. {error.Message}"));
+                $"Invalid '{property}' at '{path}'. {error.Message}"));
             return null;
         }
     }

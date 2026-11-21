@@ -142,6 +142,22 @@ public class ColumnDefaultTests
         Assert.That(result.Diagnostics.Single(diagnostic => diagnostic.Code == "DEFAULT001").SourcePath, Does.Contain("flag"));
     }
 
+    [Test]
+    public void Replaces_only_the_selected_default_property_inside_the_existing_container()
+    {
+        var json = JsonDescriptor("""{"type":"boolean","value":"true"}""")
+            .Replace(" }]}", """ }, {"property":"initial","value":{"type":"boolean","value":"false"}}]}""", StringComparison.Ordinal);
+        var package = Load(json, SerializationFormat.Json);
+        var options = new DataPackageMappingOptions { DefaultValueProperty = "initial" };
+        Assert.That(package.ToCanonicalContract().RequireValue().Assets[0].Schema!.Fields[0].DefaultValue!.Value, Is.True);
+        var field = package.ToCanonicalContract(options).RequireValue().Assets[0].Schema!.Fields[0];
+        Assert.That(field.DefaultValue!.Value, Is.False);
+        Assert.That(package.Resources[0].Schema!.Fields[0].CustomProperties!.Select(property => property.Property),
+            Is.EqualTo(new[] { "defaultValue", "initial" }));
+        Assert.That(() => new DataPackageMapper(new() { DefaultValueProperty = "defaultExpression" }),
+            Throws.ArgumentException.With.Message.Contains("field.defaultExpression"));
+    }
+
     private static string JsonDescriptor(string value) => $$$"""
         {"resources":[{"name":"sample","type":"table","data":[],"schema":{"fields":[
           {"name":"flag","type":"boolean","packata:customProperties":[{"property":"defaultValue","value":{{{value}}} }]}
