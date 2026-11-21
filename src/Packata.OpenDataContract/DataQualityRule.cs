@@ -1,9 +1,8 @@
-using YamlDotNet.Serialization;
 using Packata.Core;
 
 namespace Packata.OpenDataContract;
 
-public class DataQualityRule
+public class DataQualityRule() : TaggedElement<List<string>>(labels => labels.ToList())
 {
     [Label("ID")]
     public string? Id { get; set; }
@@ -77,26 +76,6 @@ public class DataQualityRule
 
     [Label("Authoritative Definitions")]
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
-
-    [Label("Tags")]
-    [YamlIgnore]
-    public List<string> Tags { get; set; } = [];
-
-    /// <summary>Gets or sets the ordered string and key/value tags.</summary>
-    /// <value>Plain labels and key/value entries in declaration order.</value>
-    [YamlMember(Alias = "tags", ApplyNamingConventions = false)]
-    [System.Text.Json.Serialization.JsonIgnore]
-    public TagEntries TagEntries
-    {
-        get => tagEntries.WithLabels(Tags);
-        set
-        {
-            tagEntries = value;
-            Tags = value.Labels.ToList();
-        }
-    }
-
-    private TagEntries tagEntries = new([]);
 
     [Label("Custom Properties")]
     public CustomProperties CustomProperties { get; set; } = [];
