@@ -137,6 +137,113 @@ public class IndexedLookupTests
         Assert.That(async () => await factory.OpenAsync(request), Throws.TypeOf<NotSupportedException>());
     }
 
+    [Test]
+    public async Task Looks_up_an_integer_by_ordinal_in_headerless_files()
+    {
+        var folder = Directory.CreateTempSubdirectory();
+        try
+        {
+            var path = Path.Combine(folder.FullName, "orders.csv");
+            File.WriteAllText(path, "10\n11\n11\n12\n");
+            var csv = new CsvReaderBuilder().WithDialect(dialect => dialect.WithoutHeader().WithLineTerminator("\n")).Build();
+            csv.BuildIndexes(path, new SparseIndex(new IndexKey<int>(0), checkpointInterval: 1));
+
+            var schema = new DataSchema([new("OrderId", "integer")])
+            {
+                Indexes = [new("OrderId", DataIndexKind.Ordered)]
+            };
+            var endpoint = Request(path).Endpoint with
+            {
+                Format = new("csv", Options: new Dictionary<string, object?> { ["lineTerminator"] = "\n", ["header"] = false })
+            };
+            var request = new DataEndpointReadRequest(endpoint, schema)
+            {
+                IndexedRead = new([new("OrderId", DataIndexKind.Ordered, 11)])
+            };
+
+            using var reader = await new ResourceReaderFactory().OpenAsync(request);
+            var actual = new List<int>();
+            while (reader.Read()) actual.Add(reader.GetInt32(0));
+            Assert.That(actual, Is.EqualTo(new[] { 11, 11 }));
+        }
+        finally { folder.Delete(recursive: true); }
+    }
+
+    [Test]
+    public async Task Looks_up_a_custom_date_format_by_physical_column_name_in_a_file_uri()
+    {
+        var folder = Directory.CreateTempSubdirectory();
+        try
+        {
+            var path = Path.Combine(folder.FullName, "orders.csv");
+            File.WriteAllText(path, "order_date,id\n16/05/2026,1\n17/05/2026,2\n");
+            var format = Packata.Core.DateTimeFormatConverter.Convert("%d/%m/%Y");
+            var csv = new CsvReaderBuilder().WithDialect(dialect => dialect.WithLineTerminator("\n")).Build();
+            csv.BuildIndexes(path, new SparseIndex(new IndexKey<DateOnly>("order_date", format), checkpointInterval: 1));
+
+            var request = Request(new Uri(path).AbsoluteUri) with
+            {
+                Schema = new DataSchema([new("Date", "date", Format: "%d/%m/%Y", PhysicalName: "order_date"), new("OrderId", "integer")])
+                {
+                    Indexes = [new("Date", DataIndexKind.Ordered)]
+                },
+                IndexedRead = new([new("Date", DataIndexKind.Ordered, Date)])
+            };
+
+            using var reader = await new ResourceReaderFactory().OpenAsync(request);
+            Assert.That(reader.Read(), Is.True);
+            Assert.That(reader.GetInt32(1), Is.EqualTo(2));
+            Assert.That(reader.Read(), Is.False);
+        }
+        finally { folder.Delete(recursive: true); }
+    }
+
+    [Test]
+    public void Wrong_lookup_value_type_fails_before_opening_a_file()
+    {
+        var request = Request("missing.csv") with
+        {
+            IndexedRead = new([new("Date", DataIndexKind.Ordered, "2026-05-17")])
+        };
+
+        Assert.That(async () => await new ResourceReaderFactory().OpenAsync(request),
+            Throws.ArgumentException.With.Message.Contains(nameof(DateOnly)));
+    }
+
+    [Test]
+    public void Unsupported_order_fails_before_opening_a_file()
+    {
+        var request = Request("missing.csv") with
+        {
+            Schema = Schema with { Indexes = [new("Date", DataIndexKind.Ordered, Order: DataIndexOrder.Descending)] },
+            IndexedRead = new([new("Date", DataIndexKind.Ordered, Date)])
+        };
+
+        Assert.That(async () => await new ResourceReaderFactory().OpenAsync(request),
+            Throws.TypeOf<NotSupportedException>().With.Message.Contains("Descending"));
+    }
+
+    [Test]
+    public void A_remote_csv_cannot_use_local_indexes()
+    {
+        var request = Request("https://example.test/orders.csv") with
+        {
+            IndexedRead = new([new("Date", DataIndexKind.Ordered, Date)])
+        };
+
+        Assert.That(async () => await new ResourceReaderFactory().OpenAsync(request),
+            Throws.TypeOf<NotSupportedException>().With.Message.Contains("local filesystem paths"));
+    }
+
+    [Test]
+    public void An_indexed_read_requires_at_least_one_equality()
+    {
+        var request = Request("missing.csv") with { IndexedRead = new([]) };
+
+        Assert.That(async () => await new ResourceReaderFactory().OpenAsync(request),
+            Throws.ArgumentException.With.Message.Contains("at least one equality"));
+    }
+
     private static DataEndpointReadRequest Request(params string[] paths) =>
         new(new DataEndpoint("orders", null, EndpointKind.File, null, new PathLocation(paths),
             new DataFormat("csv", Options: new Dictionary<string, object?> { ["lineTerminator"] = "\n" })), Schema);

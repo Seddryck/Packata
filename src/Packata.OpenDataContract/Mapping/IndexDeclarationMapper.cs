@@ -77,14 +77,7 @@ internal static class IndexDeclarationMapper
 
     private static bool IsVersionOne(object? value) => value switch
     {
-        byte item => item == 1,
-        sbyte item => item == 1,
-        short item => item == 1,
-        ushort item => item == 1,
-        int item => item == 1,
-        uint item => item == 1,
-        long item => item == 1,
-        ulong item => item == 1,
+        byte or sbyte or short or ushort or int or uint or long or ulong => Convert.ToDecimal(value) == 1m,
         JsonElement { ValueKind: JsonValueKind.Number } json => json.TryGetInt32(out var version) && version == 1,
         _ => false
     };

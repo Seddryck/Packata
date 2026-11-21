@@ -346,8 +346,8 @@ reader reaches candidate files. A missing, stale, unreadable, corrupt, or incomp
 required sidecar fails the lookup. A read without `IndexedRead` scans normally.
 
 Prepare sidecars with PocketCsvReader's
-[sparse](https://seddryck.github.io/PocketCsvReader/docs/sparse-indexes/) and
-[Bloom](https://seddryck.github.io/PocketCsvReader/docs/bloom-indexes/) index builders using the
+[sparse](https://github.com/Seddryck/PocketCsvReader/blob/5b51f7619f73380084bd2ac6ace15e35f7fc94a9/docs/_docs/sparse-indexes.md) and
+[Bloom](https://github.com/Seddryck/PocketCsvReader/blob/5b51f7619f73380084bd2ac6ace15e35f7fc94a9/docs/_docs/bloom-indexes.md) index builders using the
 same dialect, source column, key type and comparison. For Bloom, also configure the same
 CSV schema field names and matching mode (`Indexed()`). With headers, use the physical column
 name if the schema declares one, or the property name otherwise. With headerless data, use

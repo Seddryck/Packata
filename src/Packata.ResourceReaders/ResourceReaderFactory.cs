@@ -65,21 +65,33 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         var format = _formats.Resolve(endpoint);
         var provider = _providers.FirstOrDefault(candidate => candidate.CanHandle(request, format));
         if (request.IndexedRead is { } indexed)
-        {
-            if (provider is not IDataEndpointIndexedReaderProvider indexedProvider)
-                throw new NotSupportedException($"The reader for endpoint '{endpoint.Id}' does not support indexed lookups.");
-            var equalities = ResolveEqualities(request.Schema, indexed);
-            if (indexed.PartitionFilter is { } keep)
-            {
-                if (endpoint.Location is not PathLocation partitions)
-                    throw new NotSupportedException("Path partition filtering requires a path-based endpoint.");
-                request = request with { Endpoint = endpoint with { Location = new PathLocation(partitions.Paths.Where(keep).ToArray()) } };
-            }
+            return await OpenIndexedAsync(request, indexed, provider, format, cancellationToken).ConfigureAwait(false);
 
-            return await indexedProvider.OpenIndexedAsync(new(request, format, _streams, equalities), cancellationToken)
-                .ConfigureAwait(false);
+        return await OpenOrdinaryAsync(request, provider, format, cancellationToken).ConfigureAwait(false);
+    }
+
+    private ValueTask<IDataReader> OpenIndexedAsync(DataEndpointReadRequest request, IndexedRead read,
+        IDataEndpointReaderProvider? provider, ResolvedDataFormat format, CancellationToken cancellationToken)
+    {
+        var endpoint = request.Endpoint;
+        if (provider is not IDataEndpointIndexedReaderProvider indexedProvider)
+            throw new NotSupportedException($"The reader for endpoint '{endpoint.Id}' does not support indexed lookups.");
+
+        var equalities = ResolveEqualities(request.Schema, read);
+        if (read.PartitionFilter is { } keep)
+        {
+            if (endpoint.Location is not PathLocation partitions)
+                throw new NotSupportedException("Path partition filtering requires a path-based endpoint.");
+            request = request with { Endpoint = endpoint with { Location = new PathLocation(partitions.Paths.Where(keep).ToArray()) } };
         }
 
+        return indexedProvider.OpenIndexedAsync(new(request, format, _streams, equalities), cancellationToken);
+    }
+
+    private async ValueTask<IDataReader> OpenOrdinaryAsync(DataEndpointReadRequest request,
+        IDataEndpointReaderProvider? provider, ResolvedDataFormat format, CancellationToken cancellationToken)
+    {
+        var endpoint = request.Endpoint;
         if (_categories.Enabled && provider is not DelimitedReaderProvider)
             throw new CategoryDecodingNotSupportedException();
         if (provider is null) throw UnsupportedEndpoint(endpoint, format);

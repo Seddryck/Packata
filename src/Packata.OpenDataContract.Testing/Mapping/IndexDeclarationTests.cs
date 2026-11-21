@@ -69,6 +69,22 @@ public class IndexDeclarationTests
         Assert.That(result.Diagnostics.Single(item => item.Code == "ODCS010").Message, Does.Contain("only on schema objects"));
     }
 
+    [Test]
+    public void Maps_json_metadata_with_explicit_order_and_comparison()
+    {
+        var result = ContractWithDeclaration("""
+            {"version":1,"indexes":[{"property":"id","kind":"ordered","order":"descending","comparison":"ordinalIgnoreCase"}]}
+            """).ToCanonicalContract();
+
+        Assert.That(result.IsSuccessful, Is.True, string.Join(", ", result.Diagnostics));
+        Assert.That(result.Value!.Assets.Single().Schema!.Indexes.Single(),
+            Is.EqualTo(new DataIndex("id", DataIndexKind.Ordered, DataIndexOrder.Descending, DataIndexComparison.OrdinalIgnoreCase)));
+    }
+
+    [TestCase("[]", "mapping object")]
+    [TestCase("""{"version":1}""", "requires an indexes sequence")]
+    [TestCase("""{"version":1,"indexes":[{"property":1,"kind":"ordered"}]}""", "must be a string")]
+    [TestCase("""{"version":1,"indexes":[],"indexes":[]}""", "duplicate index member")]
     [TestCase("""{"version":"1","indexes":[]}""", "integer version")]
     [TestCase("""{"version":2,"indexes":[]}""", "integer version")]
     [TestCase("""{"version":1,"indexes":{}}""", "sequence")]
@@ -79,18 +95,24 @@ public class IndexDeclarationTests
     [TestCase("""{"version":1,"indexes":[{"property":"id","kind":"bloom"},{"property":"id","kind":"bloom"}]}""", "Duplicate")]
     public void Invalid_declaration_is_a_mapping_error(string json, string message)
     {
-        var schema = new SchemaObject
-        {
-            Name = "orders",
-            Properties = [new SchemaProperty { Name = "id" }],
-            CustomProperties = [new CustomProperty { Vendor = "packata", Property = "indexes", Value = JsonSerializer.Deserialize<JsonElement>(json) }]
-        };
-
-        var result = new DataContract { Schema = [schema] }.ToCanonicalContract();
+        var result = ContractWithDeclaration(json).ToCanonicalContract();
 
         Assert.That(result.IsSuccessful, Is.False);
         var diagnostic = result.Diagnostics.Single(item => item.Code == "ODCS010");
         Assert.That(diagnostic.SourcePath, Is.EqualTo("schema/orders/customProperties/0/value"));
         Assert.That(diagnostic.Message, Does.Contain(message));
     }
+
+    private static DataContract ContractWithDeclaration(string json) => new()
+    {
+        Schema =
+        [
+            new SchemaObject
+            {
+                Name = "orders",
+                Properties = [new SchemaProperty { Name = "id" }],
+                CustomProperties = [new CustomProperty { Vendor = "packata", Property = "indexes", Value = JsonSerializer.Deserialize<JsonElement>(json) }]
+            }
+        ]
+    };
 }
