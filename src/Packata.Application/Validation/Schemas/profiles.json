@@ -18,7 +18,7 @@
   {
     "id": "odcs",
     "uri": "https://raw.githubusercontent.com/bitol-io/open-data-contract-standard/f0bdad95346905d500be5ef4b2c2d9b1d95223b7/schema/odcs-json-schema-v3.2.0.json",
-    "label": "ODCS v3.2.0",
+    "label": "ODCS v3.2.0 with Packata key/value tag preview",
     "format": "odcs",
     "file": "odcs-v3.2.0.json",
     "dialect": "draft2019-09"

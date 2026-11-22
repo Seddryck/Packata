@@ -8,7 +8,7 @@ namespace Packata.OpenDataContract.Validation;
 
 internal static partial class DataContractValidator
 {
-    private static readonly HashSet<string> OpaquePayloads = ["customProperties", "implementation", "arguments", "examples"];
+    private static readonly HashSet<string> OpaquePayloads = ["customProperties", "implementation", "arguments", "examples", "tags"];
     public static void Validate(DataContract contract)
     {
         foreach (var schema in contract.Schema)

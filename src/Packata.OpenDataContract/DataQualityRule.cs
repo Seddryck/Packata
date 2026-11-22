@@ -2,7 +2,7 @@ using Packata.Core;
 
 namespace Packata.OpenDataContract;
 
-public class DataQualityRule
+public class DataQualityRule() : TaggedElement<List<string>>(labels => labels.ToList())
 {
     [Label("ID")]
     public string? Id { get; set; }
@@ -76,9 +76,6 @@ public class DataQualityRule
 
     [Label("Authoritative Definitions")]
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
-
-    [Label("Tags")]
-    public List<string> Tags { get; set; } = [];
 
     [Label("Custom Properties")]
     public CustomProperties CustomProperties { get; set; } = [];

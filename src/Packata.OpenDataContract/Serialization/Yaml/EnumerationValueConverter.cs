@@ -29,7 +29,7 @@ internal sealed class EnumerationValueConverter : IYamlTypeConverter
                 case "label": entry.Label = (string?)rootDeserializer(typeof(string)); break;
                 case "description": entry.Description = (string?)rootDeserializer(typeof(string)); break;
                 case "id": entry.Id = (string?)rootDeserializer(typeof(string)); break;
-                case "tags": entry.Tags = (List<string>)rootDeserializer(typeof(List<string>))!; break;
+                case "tags": entry.TagEntries = (TagEntries)rootDeserializer(typeof(TagEntries))!; break;
                 case "authoritativeDefinitions": entry.AuthoritativeDefinitions = (List<AuthoritativeDefinition>)rootDeserializer(typeof(List<AuthoritativeDefinition>))!; break;
                 case "customProperties": entry.CustomProperties = (CustomProperties)rootDeserializer(typeof(CustomProperties))!; break;
                 default: parser.SkipThisAndNestedEvents(); break;
@@ -93,9 +93,25 @@ internal sealed class EnumerationValueConverter : IYamlTypeConverter
     public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer)
     {
         var entry = (EnumerationValue)value!;
-        var scalar = ScalarValue.From(entry.Value);
         emitter.Emit(new MappingStart());
         emitter.Emit(new Scalar("value"));
+        WriteScalar(emitter, ScalarValue.From(entry.Value), serializer);
+
+        Write("label", entry.Label); Write("description", entry.Description); Write("id", entry.Id);
+        if (entry.TagEntries is { Count: > 0 } tags) Write("tags", tags);
+        if (entry.AuthoritativeDefinitions.Count > 0) Write("authoritativeDefinitions", entry.AuthoritativeDefinitions);
+        if (entry.CustomProperties.Count > 0) Write("customProperties", entry.CustomProperties);
+        emitter.Emit(new MappingEnd());
+
+        void Write(string key, object? item)
+        {
+            if (item is null) return;
+            emitter.Emit(new Scalar(key)); serializer(item);
+        }
+    }
+
+    internal static void WriteScalar(IEmitter emitter, ScalarValue scalar, ObjectSerializer serializer)
+    {
         if (scalar.Kind == ScalarKind.String)
         {
             emitter.Emit(new Scalar(null, null, (string)scalar.Value!, ScalarStyle.DoubleQuoted, true, false));
@@ -114,18 +130,6 @@ internal sealed class EnumerationValueConverter : IYamlTypeConverter
         else
         {
             serializer(scalar.Value);
-        }
-
-        Write("label", entry.Label); Write("description", entry.Description); Write("id", entry.Id);
-        if (entry.Tags.Count > 0) Write("tags", entry.Tags);
-        if (entry.AuthoritativeDefinitions.Count > 0) Write("authoritativeDefinitions", entry.AuthoritativeDefinitions);
-        if (entry.CustomProperties.Count > 0) Write("customProperties", entry.CustomProperties);
-        emitter.Emit(new MappingEnd());
-
-        void Write(string key, object? item)
-        {
-            if (item is null) return;
-            emitter.Emit(new Scalar(key)); serializer(item);
         }
     }
 }

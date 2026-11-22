@@ -3,7 +3,7 @@ using YamlDotNet.Serialization;
 
 namespace Packata.OpenDataContract;
 
-public class Team
+public class Team() : TaggedElement<List<string>>(labels => labels.ToList())
 {
     [Label("ID")]
     public string? Id { get; set; }
@@ -20,9 +20,6 @@ public class Team
     [Label("Authoritative Definitions")]
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
 
-    [Label("Tags")]
-    public List<string> Tags { get; set; } = [];
-
     [Label("Custom Properties")]
     public CustomProperties CustomProperties { get; set; } = [];
 
@@ -30,7 +27,7 @@ public class Team
     public bool UsesDeprecatedArrayStructure { get; internal set; }
 }
 
-public class TeamMember
+public class TeamMember() : TaggedElement<List<string>>(labels => labels.ToList())
 {
     public string? Id { get; set; }
     public string? Username { get; set; }
@@ -41,7 +38,6 @@ public class TeamMember
     public DateOnly? DateOut { get; set; }
     public string? ReplacedByUsername { get; set; }
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
-    public List<string> Tags { get; set; } = [];
     public CustomProperties CustomProperties { get; set; } = [];
 }
 
@@ -52,6 +48,6 @@ internal class TeamDocument
     public string? Description { get; set; }
     public List<TeamMember> Members { get; set; } = [];
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
-    public List<string> Tags { get; set; } = [];
+    public TagEntries Tags { get; set; } = new([]);
     public CustomProperties CustomProperties { get; set; } = [];
 }

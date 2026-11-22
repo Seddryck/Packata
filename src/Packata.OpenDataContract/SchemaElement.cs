@@ -7,7 +7,7 @@ using Packata.Core;
 
 namespace Packata.OpenDataContract;
 
-public class SchemaElement
+public class SchemaElement() : TaggedElement<List<string>>(labels => labels.ToList())
 {
     /// <summary>
     /// Name of the element.
@@ -54,9 +54,6 @@ public class SchemaElement
     /// </value>
     [Label("Authoritative Definitions")]
     public List<AuthoritativeDefinition> AuthoritativeDefinitions { get; set; } = [];
-
-    [Label("Tags")]
-    public List<string> Tags { get; set; } = [];
 
     /// <summary>
     /// Custom properties that are not part of the standard.

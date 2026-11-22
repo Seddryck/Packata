@@ -170,6 +170,80 @@ public sealed class DescriptorValidationTests
         Assert.That(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream)), Is.EqualTo(expectedHash));
     }
 
+    [TestCase(ValidationLayers.Schema)]
+    [TestCase(ValidationLayers.Semantic)]
+    [TestCase(DescriptorValidation.DefaultLayers)]
+    public void KeyValueTags_AllowMixedTagsInYamlAndJson(ValidationLayers layers)
+    {
+        var json = JsonNode.Parse(Minimal)!;
+        json["tags"] = JsonNode.Parse("""["finance", {"pii": true}, {"days": 365}, {"scope": "internal"}]""");
+        var yaml = """
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: contract
+            version: 1.0.0
+            status: draft
+            tags: [finance, {pii: true}]
+            team:
+              tags: [{owner: governance}]
+              members:
+                - username: owner@example.com
+                  tags: [{active: true}]
+            schema:
+              - name: users
+                tags: [{days: 365}]
+                quality:
+                  - type: text
+                    description: Example
+                    tags: [{scope: internal}]
+                properties:
+                  - name: status
+                    logicalType: string
+                    tags: [{critical: false}]
+                    enum:
+                      - value: active
+                        tags: [{state: open}]
+            """;
+        foreach (var source in new[] { json.ToJsonString(), yaml })
+        {
+            var result = DescriptorValidation.Validate(source, layers: layers);
+            Assert.That(result.Valid, Is.True, string.Join(";", result.Diagnostics));
+            Assert.That(result.Profile!.Label, Does.Contain("key/value tag preview"));
+        }
+    }
+
+    [TestCase("[{}]")]
+    [TestCase("""[{"pii": true, "owner": "sales"}]""")]
+    [TestCase("""[{"": true}]""")]
+    [TestCase("""[{"pii": null}]""")]
+    [TestCase("""[{"pii": {"nested": true}}]""")]
+    [TestCase("""[{"pii": [true]}]""")]
+    [TestCase("[true]")]
+    public void KeyValueTags_RejectMalformedEntries(string tags)
+    {
+        var source = JsonNode.Parse(Minimal)!;
+        source["tags"] = JsonNode.Parse(tags);
+        var result = DescriptorValidation.Validate(source.ToJsonString(), layers: ValidationLayers.Schema);
+        Assert.That(result.Valid, Is.False);
+        Assert.That(result.Diagnostics.Any(f => f.SourcePath.StartsWith("$/tags/0", StringComparison.Ordinal)), Is.True,
+            string.Join(";", result.Diagnostics));
+    }
+
+    [TestCase("constraints", "constraint")]
+    [TestCase("verifiedStatements", "question")]
+    public void KeyValueTags_AreRejectedInContext(string section, string field)
+    {
+        var source = JsonNode.Parse(Minimal)!;
+        source["context"] = new JsonObject
+        {
+            [section] = new JsonArray(new JsonObject { [field] = "Example", ["tags"] = JsonNode.Parse("""[{"pii": true}]""") })
+        };
+        var result = DescriptorValidation.Validate(source.ToJsonString(), layers: ValidationLayers.Schema);
+        Assert.That(result.Valid, Is.False);
+        Assert.That(result.Diagnostics.Any(f => f.SourcePath == $"$/context/{section}/0/tags/0"), Is.True,
+            string.Join(";", result.Diagnostics));
+    }
+
     [TestCase("{\"logicalType\":\"vector\"}", true, false)]
     [TestCase("{\"logicalType\":\"string\",\"enum\":[{\"value\":\"a\",\"label\":\"A\"},{\"value\":\"a\",\"label\":\"B\"}]}", true, false)]
     [TestCase("{\"logicalType\":\"integer\",\"enum\":[{\"value\":null}]}", true, false)]

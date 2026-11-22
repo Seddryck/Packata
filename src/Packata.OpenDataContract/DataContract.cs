@@ -7,7 +7,7 @@ using Packata.Core;
 
 namespace Packata.OpenDataContract;
 
-public class DataContract
+public class DataContract() : TaggedElement<string[]>(labels => labels.ToArray())
 {
     /// <summary>
     /// Version of the standard used to build data contract. Default value is v3.2.0.
@@ -125,15 +125,6 @@ public class DataContract
     /// </value>
     [Label("Description")]
     public Description? Description { get; set; }
-
-    /// <summary>
-    /// A list of tags that may be assigned to the dataContract. Tags are used to categorize the data contract and can be used for searching and filtering.
-    /// </summary>
-    /// <value>
-    /// A list of tags that may be assigned to the dataContract. Tags are used to categorize the data contract and can be used for searching and filtering.
-    /// </value>
-    [Label("Tags")]
-    public string[] Tags { get; set; } = [];
 
     /// <summary>
     /// A list of elements within the schema to be cataloged.
