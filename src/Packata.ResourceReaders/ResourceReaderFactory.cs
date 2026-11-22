@@ -64,6 +64,34 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
         var format = _formats.Resolve(endpoint);
         var provider = _providers.FirstOrDefault(candidate => candidate.CanHandle(request, format));
+        if (request.IndexedRead is { } indexed)
+            return await OpenIndexedAsync(request, indexed, provider, format, cancellationToken).ConfigureAwait(false);
+
+        return await OpenOrdinaryAsync(request, provider, format, cancellationToken).ConfigureAwait(false);
+    }
+
+    private ValueTask<IDataReader> OpenIndexedAsync(DataEndpointReadRequest request, IndexedRead read,
+        IDataEndpointReaderProvider? provider, ResolvedDataFormat format, CancellationToken cancellationToken)
+    {
+        var endpoint = request.Endpoint;
+        if (provider is not IDataEndpointIndexedReaderProvider indexedProvider)
+            throw new NotSupportedException($"The reader for endpoint '{endpoint.Id}' does not support indexed lookups.");
+
+        var equalities = ResolveEqualities(request.Schema, read);
+        if (read.PartitionFilter is { } keep)
+        {
+            if (endpoint.Location is not PathLocation partitions)
+                throw new NotSupportedException("Path partition filtering requires a path-based endpoint.");
+            request = request with { Endpoint = endpoint with { Location = new PathLocation(partitions.Paths.Where(keep).ToArray()) } };
+        }
+
+        return indexedProvider.OpenIndexedAsync(new(request, format, _streams, equalities), cancellationToken);
+    }
+
+    private async ValueTask<IDataReader> OpenOrdinaryAsync(DataEndpointReadRequest request,
+        IDataEndpointReaderProvider? provider, ResolvedDataFormat format, CancellationToken cancellationToken)
+    {
+        var endpoint = request.Endpoint;
         if (_categories.Enabled && provider is not DelimitedReaderProvider)
             throw new CategoryDecodingNotSupportedException();
         if (provider is null) throw UnsupportedEndpoint(endpoint, format);
@@ -98,6 +126,28 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
             ResourceDisposal.Run(opened.Select(stream => (Action)stream.Dispose), suppressFailures: true);
             throw;
         }
+    }
+
+    private static IReadOnlyList<ResolvedIndexedEquality> ResolveEqualities(DataSchema? schema, IndexedRead read)
+    {
+        if (schema is null || read.Equalities is not { Count: > 0 })
+            throw new ArgumentException("An indexed lookup requires a schema and at least one equality.", nameof(read));
+
+        var result = new List<ResolvedIndexedEquality>();
+        foreach (var equality in read.Equalities)
+        {
+            ArgumentNullException.ThrowIfNull(equality);
+            ArgumentNullException.ThrowIfNull(equality.Value);
+            var indexes = schema.Indexes.Where(index => index.Property == equality.Property && index.Kind == equality.Kind).ToArray();
+            var fields = schema.Fields.Select((field, ordinal) => (field, ordinal))
+                .Where(item => item.field.Name == equality.Property).ToArray();
+            if (indexes.Length != 1 || fields.Length != 1)
+                throw new ArgumentException($"Expected one declared {equality.Kind} index on schema property '{equality.Property}'.", nameof(read));
+
+            result.Add(new(indexes[0], fields[0].field, fields[0].ordinal, equality.Value));
+        }
+
+        return result.AsReadOnly();
     }
 
     private static IDataEndpointReaderProvider[] DefaultProviders() =>

@@ -72,7 +72,7 @@ internal static class PocketCsvReaderProviderDefaults
         type == typeof(DateTime) || type == typeof(DateTimeOffset)
         || type == typeof(DateOnly) || type == typeof(TimeOnly);
 
-    private static string? ResolvePattern(DataField field)
+    internal static string? ResolvePattern(DataField field)
     {
         var pattern = field.Format;
         if ((pattern is null || pattern.Equals("default", StringComparison.OrdinalIgnoreCase))
