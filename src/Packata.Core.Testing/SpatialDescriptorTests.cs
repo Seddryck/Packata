@@ -111,4 +111,36 @@ public class SpatialDescriptorTests
         Assert.That(result.RuntimeType, Is.Null);
         Assert.That(result.Diagnostics.Any(d => d.Code == "ConflictingSemantics"), Is.True);
     }
+
+    [Test]
+    public void Resolve_PlanarGeometryWithoutCrs_RejectsSource()
+    {
+        var field = new DataField("location", "geometry") { Spatial = new(SpatialModel.Geometry, Encoding: SpatialEncoding.Wkt) };
+        var result = FieldTypeResolver.Resolve(field, TypeMappingOptions.Strict);
+        Assert.That(result.RuntimeType, Is.Null);
+        Assert.That(result.Diagnostics.Any(d => d.Code == "InvalidParameter" && d.Message.Contains("CRS")), Is.True);
+    }
+
+    [TestCase(SpatialSubtype.Polygon, 2, false)]
+    [TestCase(SpatialSubtype.Point, 2, true)]
+    [TestCase(null, null, true)]
+    public void Resolve_GeoPointDescriptor_EnforcesPointShapeWithoutInventingAbsentFacts(SpatialSubtype? subtype, int? dimensions, bool valid)
+    {
+        var field = new DataField("location", "geopoint") { Spatial = new(SubType: subtype, Dimensions: dimensions) };
+        var result = FieldTypeResolver.Resolve(field, TypeMappingOptions.Strict);
+        Assert.That(result.RuntimeType, Is.EqualTo(valid ? typeof(GeoPoint) : null));
+        Assert.That(result.Diagnostics.Any(d => d.Target == TypeMappingTarget.Source), Is.EqualTo(!valid));
+        Assert.That(result.Field.Spatial!.Dimensions, Is.EqualTo(dimensions));
+    }
+
+    [TestCase("geometry", "default", true)]
+    [TestCase("geography", "array", false)]
+    public void Resolve_SpatialModelFormats_KeepEncodingSeparate(string type, string format, bool valid)
+    {
+        var model = type == "geometry" ? SpatialModel.Geometry : SpatialModel.Geography;
+        var field = new DataField("location", type, Format: format) { Spatial = new(model, Crs: "EPSG:4326", Encoding: SpatialEncoding.Wkt) };
+        var result = FieldTypeResolver.Resolve(field, TypeMappingOptions.Strict);
+        Assert.That(result.RuntimeType, Is.EqualTo(valid ? typeof(string) : null));
+        Assert.That(result.Diagnostics.Any(d => d.Code == "UnsupportedFormat"), Is.EqualTo(!valid));
+    }
 }

@@ -31,18 +31,29 @@ internal static class SpatialRfc0048Mapper
         var encoding = EnumOption<SpatialEncoding>(options, "encoding", path, diagnostics);
         var epoch = Number(options, "epoch", path, diagnostics);
         var bbox = BoundingBox(options, path, diagnostics);
-        if (type == "geometry" && string.IsNullOrWhiteSpace(crs)) Error("Geometry requires an explicit CRS.", path, diagnostics);
-        if (dimensions is not (null or 2 or 3 or 4)) Error("Spatial dimensions must be 2, 3, or 4.", path, diagnostics);
-        if (algorithm is not null && (!Algorithms.Contains(algorithm) || type != "geography"))
-            Error("A spatial edge algorithm requires geography and a supported RFC-0048 algorithm.", path, diagnostics);
-        if (orientation is not (null or "counterclockwise")) Error("Spatial orientation must be counterclockwise.", path, diagnostics);
-        if (encoding == SpatialEncoding.TopoJson) Error("RFC-0048 does not define TopoJSON encoding.", path, diagnostics);
-        if (bbox is not null && bbox.Count != 2 * (dimensions ?? 2))
-            Error("Spatial bbox must contain two bounds per coordinate dimension.", path, diagnostics);
-
-        return new(type == "geometry" ? SpatialModel.Geometry : SpatialModel.Geography,
+        var spatial = new SpatialDescriptor(type == "geometry" ? SpatialModel.Geometry : SpatialModel.Geography,
             subtype, crs, dimensions, encoding, Algorithm: algorithm, Orientation: orientation, Epoch: epoch)
         { BoundingBox = bbox };
+        CheckCoordinates(spatial, path, diagnostics);
+        CheckInterpretation(spatial, path, diagnostics);
+        return spatial;
+    }
+
+    private static void CheckCoordinates(SpatialDescriptor spatial, string path, ICollection<MappingDiagnostic> diagnostics)
+    {
+        if (spatial.Model == SpatialModel.Geometry && string.IsNullOrWhiteSpace(spatial.Crs))
+            Error("Geometry requires an explicit CRS.", path, diagnostics);
+        if (spatial.Dimensions is not (null or 2 or 3 or 4)) Error("Spatial dimensions must be 2, 3, or 4.", path, diagnostics);
+        if (spatial.BoundingBox is { } bbox && bbox.Count != 2 * (spatial.Dimensions ?? 2))
+            Error("Spatial bbox must contain two bounds per coordinate dimension.", path, diagnostics);
+    }
+
+    private static void CheckInterpretation(SpatialDescriptor spatial, string path, ICollection<MappingDiagnostic> diagnostics)
+    {
+        if (spatial.Algorithm is { } algorithm && (!Algorithms.Contains(algorithm) || spatial.Model != SpatialModel.Geography))
+            Error("A spatial edge algorithm requires geography and a supported RFC-0048 algorithm.", path, diagnostics);
+        if (spatial.Orientation is not (null or "counterclockwise")) Error("Spatial orientation must be counterclockwise.", path, diagnostics);
+        if (spatial.Encoding == SpatialEncoding.TopoJson) Error("RFC-0048 does not define TopoJSON encoding.", path, diagnostics);
     }
 
     private static string? Text(IReadOnlyDictionary<string, object> options, string key, string path, ICollection<MappingDiagnostic> diagnostics)

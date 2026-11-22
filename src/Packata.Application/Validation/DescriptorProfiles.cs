@@ -20,8 +20,9 @@ public static class DescriptorProfiles
 
     internal static DescriptorProfile? Select(JsonObject root, bool odcs, bool spatialRfc0048 = false)
     {
-        string? uri = odcs ? spatialRfc0048 ? OdcsSpatialRfc0048Uri : OdcsUri : DataPackageUri;
-        if (!odcs && root.ContainsKey("$schema")) uri = DescriptorValidation.Text(root["$schema"]);
+        string? uri = DataPackageUri;
+        if (odcs) uri = spatialRfc0048 ? OdcsSpatialRfc0048Uri : OdcsUri;
+        else if (root.ContainsKey("$schema")) uri = DescriptorValidation.Text(root["$schema"]);
         return Registrations.Values.FirstOrDefault(item => item.Profile.Uri == uri)?.Profile;
     }
 
@@ -47,8 +48,8 @@ public static class DescriptorProfiles
 
         // The pinned ODCS artifact stays verbatim. Only consumers of the shared Tags
         // definition get the proposed extension, including through nested references.
-        var schema = JsonNode.Parse(text)!.AsObject();
-        schema["$defs"]!["Tags"]!["items"] = JsonNode.Parse("""
+        var schema = JsonNode.Parse(text)?.AsObject() ?? throw new InvalidOperationException("The pinned schema must be an object.");
+        RequireNode(schema, "$defs", "Tags")["items"] = JsonNode.Parse("""
             {
               "oneOf": [
                 { "type": "string" },
@@ -72,18 +73,19 @@ public static class DescriptorProfiles
 
     private static void AddSpatialProfile(JsonObject schema)
     {
-        var field = schema["$defs"]!["SchemaBaseProperty"]!;
-        var types = field["properties"]!["logicalType"]!["enum"]!.AsArray();
+        var field = RequireNode(schema, "$defs", "SchemaBaseProperty");
+        var types = RequireNode(field, "properties", "logicalType", "enum").AsArray();
         types.Add("geometry");
         types.Add("geography");
-        var rules = field["allOf"]!.AsArray();
-        rules.Add(JsonNode.Parse("""
+        var rules = RequireNode(field, "allOf").AsArray();
+        var encodingRule = JsonNode.Parse("""
             {
               "if": { "required": ["logicalType"], "properties": { "logicalType": { "enum": ["geometry", "geography"] } } },
               "then": { "properties": { "logicalTypeOptions": {} } }
             }
-            """));
-        rules[^1]!["then"]!["properties"]!["logicalTypeOptions"] = JsonNode.Parse(ReadResource("odcs-spatial-rfc0048-options.json"));
+            """) ?? throw new InvalidOperationException("The spatial rule must be an object.");
+        RequireNode(encodingRule, "then", "properties")["logicalTypeOptions"] = JsonNode.Parse(ReadResource("odcs-spatial-rfc0048-options.json"));
+        rules.Add(encodingRule);
         rules.Add(JsonNode.Parse("""
             {
               "if": { "required": ["logicalType"], "properties": { "logicalType": { "const": "geometry" } } },
@@ -95,6 +97,13 @@ public static class DescriptorProfiles
               }
             }
             """));
+    }
+
+    private static JsonNode RequireNode(JsonNode node, params string[] path)
+    {
+        foreach (var segment in path)
+            node = node[segment] ?? throw new InvalidOperationException($"The pinned schema is missing '{segment}'.");
+        return node;
     }
 
     private static string ReadResource(string file)

@@ -187,14 +187,27 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             ValueDomain: domain, Language: field.Language)
         {
             Spatial = SpatialDeclarations.DataPackage(field.Type, field.Format),
-            PhysicalTypeContext = field.PhysicalType is null ? null : SpatialDeclarations.PhysicalContext(
-                NormalizeInlineValue(field.CustomProperties?.LastOrDefault(property => physicalTypeContext?.Matches(property.Property) == true)?.Value),
-                sourceContext, $"{sourcePath}.schema.fields[{index}]", diagnostics)
+            PhysicalTypeContext = MapPhysicalTypeContext(field, sourceContext, $"{sourcePath}.schema.fields[{index}]", diagnostics)
         };
         SpatialDeclarations.CheckPhysicalContext(mapped, $"{sourcePath}.schema.fields[{index}]", diagnostics);
         if (mapped.Spatial is { } spatial)
             SpatialDeclarations.CheckRfc0048Content(spatial, $"{sourcePath}.schema.fields[{index}]", diagnostics);
         var fieldPath = $"{sourcePath}.schema.fields[{index}] ({name})";
+        return ApplyColumnDefault(mapped, field, index, sourcePath, fieldPath, diagnostics);
+    }
+
+    private PhysicalTypeContext? MapPhysicalTypeContext(Native.Field field, PhysicalTypeContext? sourceContext,
+        string path, ICollection<MappingDiagnostic> diagnostics)
+    {
+        if (field.PhysicalType is null) return null;
+        var declaration = physicalTypeContext is { } selector
+            ? field.CustomProperties?.LastOrDefault(property => selector.Matches(property.Property))?.Value : null;
+        return SpatialDeclarations.PhysicalContext(NormalizeInlineValue(declaration), sourceContext, path, diagnostics);
+    }
+
+    private DataField ApplyColumnDefault(DataField mapped, Native.Field field, int index, string sourcePath,
+        string fieldPath, ICollection<MappingDiagnostic> diagnostics)
+    {
         var defaults = (field.CustomProperties ?? []).SelectMany((property, propertyIndex) =>
         {
             if (property is null) return [];

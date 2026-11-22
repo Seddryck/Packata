@@ -89,9 +89,13 @@ public sealed class SpatialMappingTests
     [TestCase("geography", "{dimensions: 5}")]
     [TestCase("geography", "{dimensions: two}")]
     [TestCase("geography", "{dimensions: '3'}")]
+    [TestCase("geography", "{dimensions: 3.5}")]
+    [TestCase("geography", "{crs: 4326}")]
     [TestCase("geography", "{subType: FeatureCollection}")]
     [TestCase("geography", "{encoding: topojson}")]
     [TestCase("geography", "{encoding: unknown}")]
+    [TestCase("geography", "{encoding: '0'}")]
+    [TestCase("geography", "{encoding: ''}")]
     [TestCase("geography", "{algorithm: unknown}")]
     [TestCase("geography", "{orientation: clockwise}")]
     [TestCase("geography", "{epoch: unknown}")]
@@ -99,6 +103,7 @@ public sealed class SpatialMappingTests
     [TestCase("geography", "{unknownOption: true}")]
     [TestCase("geography", "{bbox: [0, 0, 1]}")]
     [TestCase("geography", "{bbox: [0, bad, 1, 1]}")]
+    [TestCase("geography", "{bbox: [0, '0', 1, 1]}")]
     [TestCase("geography", "{bbox: text}")]
     public void Map_InvalidOptions_ProducesActionableDiagnostics(string type, string options)
     {
@@ -171,6 +176,35 @@ public sealed class SpatialMappingTests
         var result = native.ToCanonicalContract(SpatialOptions);
         Assert.That(result.Diagnostics.Any(d => d.Severity == MappingSeverity.Error), Is.EqualTo(invalid));
         if (!invalid) Assert.That(result.RequireValue().Assets[0].Schema!.Fields[0].PhysicalTypeContext, Is.Not.Null);
+    }
+
+    [Test]
+    public void Map_AbsentSpatialOptions_RetainsUnspecifiedEncodingAndCrs()
+    {
+        var native = Load("schema: [{name: places, properties: [{name: location, logicalType: geography}]}]");
+        var result = native.ToCanonicalContract(SpatialOptions);
+        Assert.That(result.Diagnostics, Is.Empty);
+        var field = result.RequireValue().Assets[0].Schema!.Fields[0];
+        Assert.That(field.Spatial!.Model, Is.EqualTo(SpatialModel.Geography));
+        Assert.That(field.Spatial.Crs, Is.Null);
+        Assert.That(field.Spatial.Encoding, Is.Null);
+        Assert.That(FieldTypeResolver.Resolve(field, TypeMappingOptions.Strict).RuntimeType, Is.Null);
+    }
+
+    [Test]
+    public void Map_ExplicitProviderMatchingSource_RetainsDialectAndServer()
+    {
+        var native = Load(Field("geography", "{encoding: wkb}", "GEOGRAPHY") + """
+
+                    customProperties:
+                      - {property: physicalTypeContext, vendor: packata, value: {provider: postgresql, dialect: postgis}}
+            servers:
+              - {server: source, type: postgresql, host: localhost}
+            """);
+        var result = native.ToCanonicalContract(SpatialOptions);
+        Assert.That(result.Diagnostics, Is.Empty);
+        Assert.That(result.RequireValue().Assets[0].Schema!.Fields[0].PhysicalTypeContext,
+            Is.EqualTo(new PhysicalTypeContext("postgresql", "postgis", "source")));
     }
 
     private static string Field(string type, string options, string? physicalType = null) => $$"""

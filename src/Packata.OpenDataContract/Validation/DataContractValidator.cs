@@ -167,6 +167,12 @@ internal static partial class DataContractValidator
         if (node is not YamlMappingNode mapping)
             return;
 
+        ValidateMappingPlacement(mapping, path, synonymOwners, serverOwners, spatialOptions);
+    }
+
+    private static void ValidateMappingPlacement(YamlMappingNode mapping, string path,
+        HashSet<YamlMappingNode> synonymOwners, HashSet<YamlMappingNode> serverOwners, bool spatialOptions)
+    {
         if (TryGet(mapping, "synonyms") is not null && !synonymOwners.Contains(mapping))
             throw new YamlException($"The synonyms field at '{path}' is only permitted on schema objects and properties.");
 
@@ -180,11 +186,14 @@ internal static partial class DataContractValidator
             // These values are opaque payloads, not ODCS declaration scopes. Vendor
             // metadata may legitimately contain keys such as encoding or synonyms.
             if (OpaquePayloads.Contains(name)) continue;
-            var spatial = name == "logicalTypeOptions" && synonymOwners.Contains(mapping)
-                && TryGet(mapping, "logicalType") is YamlScalarNode { Value: "geometry" or "geography" };
+            var spatial = IsSpatialOptions(mapping, name, synonymOwners);
             ValidatePlacement(pair.Value, $"{path}/{name}", synonymOwners, serverOwners, spatial);
         }
     }
+
+    private static bool IsSpatialOptions(YamlMappingNode mapping, string name, HashSet<YamlMappingNode> propertyOwners)
+        => name == "logicalTypeOptions" && propertyOwners.Contains(mapping)
+            && TryGet(mapping, "logicalType") is YamlScalarNode { Value: "geometry" or "geography" };
 
     private static void ValidateEncoding(YamlMappingNode mapping, string path, HashSet<YamlMappingNode> serverOwners)
     {
