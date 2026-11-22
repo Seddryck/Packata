@@ -50,17 +50,30 @@ internal static class DataPackagePull
 
     private static Download Resolve(string path, string location, Uri descriptorUri, string root)
     {
-        var absolute = Uri.TryCreate(path, UriKind.Absolute, out var uri);
-        if (path != path.Trim() || (absolute && uri!.Scheme is not ("http" or "https")) || path.StartsWith('/'))
-            throw new ContractOperationException("CLI050", location, "Resource paths must be relative paths or absolute HTTP(S) URLs.");
+        var (source, urlPath) = ResolveResourceUrl(path, location, descriptorUri);
+        var relativePath = ResolveDestinationPath(urlPath, location);
+        return new Download(source, location, relativePath, Path.Combine(root, relativePath));
+    }
 
-        var urlPath = absolute ? uri!.Segments[^1] : path.Split(['?', '#'], 2)[0];
+    private static (Uri Source, string UrlPath) ResolveResourceUrl(string path, string location, Uri descriptorUri)
+    {
+        if (path != path.Trim() || path.StartsWith('/')) throw UnsupportedResourcePath(location);
+        if (!Uri.TryCreate(path, UriKind.Absolute, out var uri))
+            return (new Uri(descriptorUri, path), path.Split(['?', '#'], 2)[0]);
+        if (uri.Scheme is not ("http" or "https")) throw UnsupportedResourcePath(location);
+        return (uri, uri.Segments[^1]);
+    }
+
+    private static ContractOperationException UnsupportedResourcePath(string location)
+        => new("CLI050", location, "Resource paths must be relative paths or absolute HTTP(S) URLs.");
+
+    private static string ResolveDestinationPath(string urlPath, string location)
+    {
         var segments = urlPath.Split('/').Select(Uri.UnescapeDataString).ToArray();
         var parts = segments.Where(part => part is not ("" or ".")).ToArray();
         if (segments[^1] is "" or "." || parts.Any(part => !IsFileName(part)))
             throw new ContractOperationException("CLI050", location, "Resource path does not name a safe destination file.");
-        var relativePath = Path.Combine(parts);
-        return new Download(absolute ? uri! : new Uri(descriptorUri, path), location, relativePath, Path.Combine(root, relativePath));
+        return Path.Combine(parts);
     }
 
     private static bool IsFileName(string part)
