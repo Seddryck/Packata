@@ -18,6 +18,9 @@ internal static class DataCommands
             data.AddCommand<PreviewCommand>("preview")
                 .WithDescription("Preview a bounded sample of a bound contract asset.")
                 .WithExample(["data", "preview", "contract.yaml", "--asset", "customers", "--limit", "20"]);
+            data.AddCommand<PullCommand>("pull")
+                .WithDescription("Download the files referenced by a remote Data Package.")
+                .WithExample("data", "pull", "https://example.org/dataset/datapackage.yaml", "--output-dir", "./dataset");
         });
     }
 }
