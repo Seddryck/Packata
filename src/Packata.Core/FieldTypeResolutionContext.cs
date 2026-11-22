@@ -54,6 +54,11 @@ internal sealed class FieldTypeResolutionContext
         SelectIntegerEntry();
         _runtime = _entry?.RuntimeType;
         _database = _entry?.DatabaseType;
+        if (_entry is not null && _database is null)
+        {
+            Report("UnsupportedRepresentation", TypeMappingTarget.Database,
+                $"DbType has no portable representation for logical type '{_field.LogicalType}'.");
+        }
         ProjectTemporal();
         ProjectNumber();
         CheckIntegerBounds();
@@ -174,6 +179,8 @@ internal sealed class FieldTypeResolutionContext
 
     private bool IsAnnotation()
     {
+        if (_type == "geopoint") return _semanticFormat is null or "default" or "array" or "object";
+        if (_type == "geojson") return _semanticFormat is null or "default" or "topojson";
         if (_semanticFormat is null or "default" or "any") return true;
         if (_type == "string") return StringAnnotations.Contains(_semanticFormat);
         if (_type == "number") return _semanticFormat == "decimal";
@@ -396,6 +403,7 @@ internal sealed class FieldTypeResolutionContext
         var legacy = TypeMappingCatalog.Entries.FirstOrDefault(e => TypeMappingCatalog.IsLegacyEntry(e)
             && e.LogicalType == _field.LogicalType && e.Format == _field.Format);
         offset = legacy is null && TypeMappingCatalog.HasOffset(_field.LogicalType ?? "", _field.Format);
-        return legacy ?? TypeMappingCatalog.Entries.FirstOrDefault(e => e.LogicalType == _field.LogicalType && e.Format is null);
+        return legacy ?? TypeMappingCatalog.Entries.FirstOrDefault(e => TypeMappingCatalog.IsLegacyEntry(e)
+            && e.LogicalType == _field.LogicalType && e.Format is null);
     }
 }

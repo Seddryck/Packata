@@ -61,6 +61,49 @@ such as `uuid`, `email`, or `binary`; mapping these annotations does not validat
 convert their values. Unknown formats produce `UnsupportedFormat` rather than silently
 selecting an unformatted representation.
 
+## Spatial declarations
+
+Canonical `geopoint` resolves to `Packata.Core.GeoPoint`, an immutable value type with
+`double Longitude` and `double Latitude` properties and value equality. DPv2 Table
+Schema defines three input formats, all with the same CLR representation.
+
+| Logical type | Format | Input representation | CLR type |
+| --- | --- | --- | --- |
+| `geopoint` | omitted or `default` | Longitude and latitude text, such as `"4.35, 50.85"` | `GeoPoint` |
+| `geopoint` | `array` | Exactly two JSON numbers, such as `[4.35, 50.85]` | `GeoPoint` |
+| `geopoint` | `object` | Exactly the numeric `lon` and `lat` members | `GeoPoint` |
+| `geojson` | omitted or `default` | GeoJSON geometry, feature, or feature collection | `System.Text.Json.JsonElement` |
+| `geojson` | `topojson` | TopoJSON object | `System.Text.Json.JsonElement` |
+
+The positional point formats use longitude first and latitude second. The Data Package
+mapper preserves the declared logical type and explicit format, including an omitted
+format. Strict resolution interprets omission as `default`. Other spatial formats,
+including `any`, produce a source `UnsupportedFormat` error. These encodings come from
+[DPv2 Table Schema](https://datapackage.org/standard/table-schema/#geopoint).
+
+```csharp
+var location = new GeoPoint(Longitude: 4.35, Latitude: 50.85);
+var field = new DataField("location", "geopoint", Format: "array");
+var resolution = FieldTypeResolver.Resolve(field, TypeMappingOptions.Strict);
+// RuntimeType is typeof(GeoPoint).
+```
+
+Both spatial types have a null strict `DatabaseType` and an
+`UnsupportedRepresentation` diagnostic targeted at `Database`. Their CLR projections
+remain available. Dialect-specific storage and export adapters determine their own
+supported representations. Explicit database fallbacks retain that diagnostic.
+
+Core resolution describes the field's representation. Value decoding, owned
+`JsonElement` lifetimes, and optional runtime profiles are supplied by reader bindings.
+The optional NetTopologySuite profile selects `Point` for `geopoint` and `Geometry` for
+supported `geojson` geometry payloads through the ExtendedTypes work tracked in
+[#791](https://github.com/Seddryck/Packata/issues/791). Geopoint decoding is tracked in
+[#781](https://github.com/Seddryck/Packata/issues/781).
+
+The legacy `Map` API and `LegacyCompatibility` resolution retain their existing opaque
+object representations for spatial fields. Strict resolution exposes the default CLR
+types above, independently of reader conversion support.
+
 ## Representation limits and nested fields
 
 Declared integer bounds must fit the selected signed/unsigned domain. Bound comparisons
