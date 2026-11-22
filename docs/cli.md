@@ -25,6 +25,7 @@ The existing `packata infer` command remains available.
 | `schema export` | [JSON Schema](#export-a-dataset-schema) |
 | `schema infer`, alias `infer` | [Schema inference]({{ '/cli-inference/' | relative_url }}) |
 | `data preview` | [Read data](#preview-bound-data) |
+| `data pull` | [Download Data Package resources](#download-data-package-resources) |
 | `data serve` | [Serve assets over HTTP]({{ '/http-serving/' | relative_url }}) |
 | `data validate` | [Structural validation]({{ '/dataset-validation/' | relative_url }}) |
 | `quality run` | [Quality execution and OORS reports]({{ '/cli-quality/' | relative_url }}) |
@@ -42,7 +43,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 | --- | --- |
 | data validate | 0 structural checks pass; 1 completed violations or invalid contract; 2 invocation error; 3 read/execution error; 4 incomplete/unsupported checks; 130 cancellation |
 | data serve | 0 graceful shutdown; 2 startup/selection/invocation error; framework cancellation can return 130 |
-| validate, inspect, diff, schema export, dialect export, lineage export, data preview | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
+| validate, inspect, diff, schema export, dialect export, lineage export, data preview, data pull | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
 | contract satisfies | 0 gate passes; 1 Unsatisfied or default Unknown; 2 input/invocation/I/O/cancellation/analysis error or Unknown under error policy |
 | quality run | 0 pass or warning; 1 quality failure without errors; 2 command/contract/execution/report error, cancellation, no matches, or all skipped |
 | contract compare | Same base codes, plus 4 for a completed report failing the selected gate and 5 for incomplete analysis; see [details](#assess-consumer-compatibility) |
@@ -696,6 +697,25 @@ The same converter is available in `Packata.Core.Contracts`:
 ```csharp
 var schema = asset.ToJsonSchema();
 schema.Serialize(stream);
+```
+
+<!-- cli:data pull -->
+## Download Data Package resources
+
+`packata data pull <SOURCE> [--output-dir <DIRECTORY>]`
+
+Pass an HTTP(S) URL for a JSON or YAML Data Package. The command downloads every
+referenced file as served. Relative paths resolve against the descriptor URL and
+keep their directory structure. Absolute HTTP(S) URLs use the filename from the
+URL path.
+
+`--output-dir` sets the destination directory and defaults to the current directory.
+The command checks for destination conflicts before downloading files. If a transfer
+fails, it reports the resource and removes the incomplete download. Completed
+downloads stay in place.
+
+```console
+packata data pull https://example.org/dataset/datapackage.yaml --output-dir ./dataset
 ```
 
 <!-- cli:data preview -->
