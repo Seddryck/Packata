@@ -5,6 +5,8 @@ namespace Packata.Cli;
 
 internal static class DataPackagePull
 {
+    private static readonly char[] InvalidFileNameCharacters = [.. Path.GetInvalidFileNameChars(), '/', '\\', ':'];
+
     public static async Task<int> RunAsync(HttpClient client, Uri source, string outputDirectory, CancellationToken cancellationToken)
     {
         using var descriptor = await client.GetAsync(source, cancellationToken).ConfigureAwait(false);
@@ -29,24 +31,19 @@ internal static class DataPackagePull
             ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var files = new HashSet<string>(comparer);
         var directories = new HashSet<string>(comparer);
-        var downloads = new List<Download>();
-        for (var resourceIndex = 0; resourceIndex < package.Resources.Count; resourceIndex++)
+        var downloads = package.Resources.SelectMany((resource, resourceIndex) =>
+            resource.Paths.Select((path, pathIndex) =>
+                Resolve(path.Value, $"$.resources[{resourceIndex}].path[{pathIndex}]", descriptorUri, root))).ToList();
+        foreach (var download in downloads)
         {
-            var resource = package.Resources[resourceIndex];
-            for (var pathIndex = 0; pathIndex < resource.Paths.Count; pathIndex++)
+            if (!files.Add(download.Destination) || directories.Contains(download.Destination))
+                throw Conflict(download);
+            foreach (var directory in ParentDirectories(root, download.RelativePath))
             {
-                var location = $"$.resources[{resourceIndex}].path[{pathIndex}]";
-                var download = Resolve(resource.Paths[pathIndex].Value, location, descriptorUri, root);
-                if (!files.Add(download.Destination) || directories.Contains(download.Destination))
-                    throw Conflict(download);
-                foreach (var directory in ParentDirectories(root, download.RelativePath))
-                {
-                    if (files.Contains(directory)) throw Conflict(download);
-                    directories.Add(directory);
-                }
-                CheckDestination(root, download);
-                downloads.Add(download);
+                if (files.Contains(directory)) throw Conflict(download);
+                directories.Add(directory);
             }
+            CheckDestination(root, download);
         }
         return downloads;
     }
@@ -57,7 +54,7 @@ internal static class DataPackagePull
         if (path != path.Trim() || (absolute && uri!.Scheme is not ("http" or "https")) || path.StartsWith('/'))
             throw new ContractOperationException("CLI050", location, "Resource paths must be relative paths or absolute HTTP(S) URLs.");
 
-        var urlPath = absolute ? uri!.Segments[^1] : path.Split('?', '#')[0];
+        var urlPath = absolute ? uri!.Segments[^1] : path.Split(['?', '#'], 2)[0];
         var segments = urlPath.Split('/').Select(Uri.UnescapeDataString).ToArray();
         var parts = segments.Where(part => part is not ("" or ".")).ToArray();
         if (segments[^1] is "" or "." || parts.Any(part => !IsFileName(part)))
@@ -68,16 +65,21 @@ internal static class DataPackagePull
 
     private static bool IsFileName(string part)
     {
-        if (part.Length == 0 || part == ".." || part.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
-            part.Contains('/') || part.Contains('\\') || part.Contains(':') || part.Any(char.IsControl))
+        if (part == ".." || part.IndexOfAny(InvalidFileNameCharacters) >= 0 || part.Any(char.IsControl))
             return false;
-        if (!OperatingSystem.IsWindows()) return true;
-        var stem = part.Split('.')[0].TrimEnd(' ').ToUpperInvariant();
-        return !part.EndsWith('.') && !part.EndsWith(' ') &&
-            stem is not ("CON" or "PRN" or "AUX" or "NUL" or "CONIN$" or "CONOUT$") &&
-            !(stem.Length == 4 && (stem.StartsWith("COM", StringComparison.Ordinal) || stem.StartsWith("LPT", StringComparison.Ordinal)) &&
-              "0123456789¹²³".Contains(stem[3]));
+        return !OperatingSystem.IsWindows() || IsWindowsFileName(part);
     }
+
+    private static bool IsWindowsFileName(string part)
+    {
+        if (part.EndsWith('.') || part.EndsWith(' ')) return false;
+        var stem = part.Split('.')[0].TrimEnd(' ').ToUpperInvariant();
+        if (stem is "CON" or "PRN" or "AUX" or "NUL" or "CONIN$" or "CONOUT$") return false;
+        return stem.Length != 4 || !IsWindowsPort(stem);
+    }
+
+    private static bool IsWindowsPort(string stem)
+        => (stem[..3] is "COM" or "LPT") && "0123456789¹²³".Contains(stem[3]);
 
     private static IEnumerable<string> ParentDirectories(string root, string relativePath)
     {
