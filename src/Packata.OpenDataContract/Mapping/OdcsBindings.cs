@@ -19,6 +19,7 @@ internal sealed class OdcsBindings
     internal BindingSelector? Categories { get; }
     internal BindingSelector? DefaultValue { get; }
     internal BindingSelector? DefaultExpression { get; }
+    internal BindingSelector? PhysicalTypeContext { get; }
     internal BindingSelector? Delimiter { get; }
     internal BindingSelector? QuoteChar { get; }
     internal BindingSelector? LineTerminator { get; }
@@ -39,6 +40,7 @@ internal sealed class OdcsBindings
         Categories = Resolve(BindingOwner.Field, "categories", options.Field.Categories);
         DefaultValue = Resolve(BindingOwner.Field, "defaultValue", options.Field.DefaultValue);
         DefaultExpression = Resolve(BindingOwner.Field, "defaultExpression", options.Field.DefaultExpression);
+        PhysicalTypeContext = Resolve(BindingOwner.Field, "physicalTypeContext", options.Field.PhysicalTypeContext);
         Delimiter = Resolve(BindingOwner.Server, "delimiter", options.Server.Delimiter);
         QuoteChar = Resolve(BindingOwner.Server, "quoteChar", options.Server.QuoteChar);
         LineTerminator = Resolve(BindingOwner.Server, "lineTerminator", options.Server.LineTerminator);
@@ -55,6 +57,7 @@ internal sealed class OdcsBindings
             (Categories, BindingOwner.Field),
             (DefaultValue, BindingOwner.Field),
             (DefaultExpression, BindingOwner.Field),
+            (PhysicalTypeContext, BindingOwner.Field),
             (Delimiter, BindingOwner.Server),
             (QuoteChar, BindingOwner.Server),
             (LineTerminator, BindingOwner.Server),

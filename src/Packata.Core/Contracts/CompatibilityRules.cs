@@ -153,8 +153,11 @@ internal static class CompatibilityRules
                     current.Nullable ? "Candidate data may contain nulls that baseline consumers did not accept." : "The candidate strengthens the non-null guarantee.", "nullable");
             }
 
-            if (previous.Format != current.Format || previous.PhysicalType != current.PhysicalType || previous.PhysicalName != current.PhysicalName)
+            if (previous.Format != current.Format || previous.PhysicalType != current.PhysicalType || previous.PhysicalName != current.PhysicalName
+                || !Equal(previous.PhysicalTypeContext, current.PhysicalTypeContext))
                 Add("physical-representation", CompatibilityClassification.PotentiallyBreaking, "Format, physical type, or physical name changed; representation-dependent consumers may be affected.");
+            if (!Equal(previous.Spatial, current.Spatial))
+                Add("spatial-semantics", CompatibilityClassification.Unknown, "Spatial model, CRS, dimensions, or encoding changed; spatial containment requires a dedicated policy.", "spatial");
             if (!Equal(previous.Extensions, current.Extensions))
                 Add("field-extensions", CompatibilityClassification.Unknown, "Source-specific field extensions changed and need a dedicated rule.", "extensions");
             var before = Index(previous.Constraints);

@@ -9,9 +9,12 @@ public sealed record DataPackageMappingOptions
     {
         DefaultValue = DataPackageBindingOverride.Disabled,
         DefaultExpression = DataPackageBindingOverride.Disabled,
+        PhysicalTypeContext = DataPackageBindingOverride.Disabled,
     };
 
     public DataPackageBindingOverride DefaultValue { get; init; } = DataPackageBindingOverride.BuiltIn;
 
     public DataPackageBindingOverride DefaultExpression { get; init; } = DataPackageBindingOverride.BuiltIn;
+
+    public DataPackageBindingOverride PhysicalTypeContext { get; init; } = DataPackageBindingOverride.BuiltIn;
 }

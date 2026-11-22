@@ -12,6 +12,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
     private const string SourceNamespace = "datapackage";
     private readonly BindingSelector? defaultValue;
     private readonly BindingSelector? defaultExpression;
+    private readonly BindingSelector? physicalTypeContext;
 
     public DataPackageMapper()
         : this(DataPackageMappingOptions.Default) { }
@@ -21,7 +22,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
         ArgumentNullException.ThrowIfNull(options);
         defaultValue = Resolve("defaultValue", options.DefaultValue);
         defaultExpression = Resolve("defaultExpression", options.DefaultExpression);
-        BindingSelector.CheckCollisions([defaultValue, defaultExpression]);
+        physicalTypeContext = Resolve("physicalTypeContext", options.PhysicalTypeContext);
+        BindingSelector.CheckCollisions([defaultValue, defaultExpression, physicalTypeContext]);
     }
 
     private static BindingSelector? Resolve(string property, DataPackageBindingOverride? replacement)
@@ -60,7 +62,8 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 assetId, resource.Title ?? assetId,
                 resource.Dialect?.Table ?? resource.Name,
                 resource.Description, MapAssetKind(resource),
-                MapSchema(resource.Schema, assetId, document, categoryTables, sourcePath, diagnostics), bindings,
+                MapSchema(resource.Schema, assetId, document, categoryTables, sourcePath, diagnostics,
+                    endpoint is null ? null : SpatialDeclarations.SourceContext([endpoint])), bindings,
                 Extensions: ExtensionMetadata.For(SourceNamespace, ResourceExtensions(resource)), CategoryTable: categoryTables[resource]));
         }
 
@@ -137,11 +140,11 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
 
     private DataSchema? MapSchema(Native.Schema? schema, string assetId, Native.DataPackage package,
         IReadOnlyDictionary<Native.Resource, CategoryTableDefinition?> categoryTables,
-        string sourcePath, ICollection<MappingDiagnostic> diagnostics)
+        string sourcePath, ICollection<MappingDiagnostic> diagnostics, PhysicalTypeContext? sourceContext)
     {
         if (schema is null) return null;
         var fields = schema.Fields.Select((field, index) =>
-            MapField(field, index, package, categoryTables, sourcePath, diagnostics) with
+            MapField(field, index, package, categoryTables, sourcePath, diagnostics, sourceContext) with
             { Required = schema.FieldsMatch is Native.FieldsMatching.Exact or Native.FieldsMatching.Equal or Native.FieldsMatching.Subset
                 || schema.PrimaryKey?.Contains(field.Name, StringComparer.Ordinal) == true }).ToArray();
         var relationships = (schema.ForeignKeys ?? []).Select(foreignKey =>
@@ -161,7 +164,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
 
     private DataField MapField(Native.Field field, int index, Native.DataPackage package,
         IReadOnlyDictionary<Native.Resource, CategoryTableDefinition?> categoryTables, string sourcePath,
-        ICollection<MappingDiagnostic> diagnostics)
+        ICollection<MappingDiagnostic> diagnostics, PhysicalTypeContext? sourceContext)
     {
         var name = field.Name;
         if (string.IsNullOrWhiteSpace(name))
@@ -181,7 +184,16 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
             Extensions: ExtensionMetadata.For(SourceNamespace, FieldExtensions(field)),
             PhysicalName: field.PhysicalName ?? name,
             Description: field.Description,
-            ValueDomain: domain, Language: field.Language);
+            ValueDomain: domain, Language: field.Language)
+        {
+            Spatial = SpatialDeclarations.DataPackage(field.Type, field.Format),
+            PhysicalTypeContext = field.PhysicalType is null ? null : SpatialDeclarations.PhysicalContext(
+                NormalizeInlineValue(field.CustomProperties?.LastOrDefault(property => physicalTypeContext?.Matches(property.Property) == true)?.Value),
+                sourceContext, $"{sourcePath}.schema.fields[{index}]", diagnostics)
+        };
+        SpatialDeclarations.CheckPhysicalContext(mapped, $"{sourcePath}.schema.fields[{index}]", diagnostics);
+        if (mapped.Spatial is { } spatial)
+            SpatialDeclarations.CheckRfc0048Content(spatial, $"{sourcePath}.schema.fields[{index}]", diagnostics);
         var fieldPath = $"{sourcePath}.schema.fields[{index}] ({name})";
         var defaults = (field.CustomProperties ?? []).SelectMany((property, propertyIndex) =>
         {

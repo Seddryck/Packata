@@ -155,7 +155,8 @@ internal static partial class DataContractValidator
         YamlNode node,
         string path,
         HashSet<YamlMappingNode> synonymOwners,
-        HashSet<YamlMappingNode> serverOwners)
+        HashSet<YamlMappingNode> serverOwners,
+        bool spatialOptions = false)
     {
         if (node is YamlSequenceNode sequence)
         {
@@ -169,7 +170,9 @@ internal static partial class DataContractValidator
         if (TryGet(mapping, "synonyms") is not null && !synonymOwners.Contains(mapping))
             throw new YamlException($"The synonyms field at '{path}' is only permitted on schema objects and properties.");
 
-        ValidateEncoding(mapping, path, serverOwners);
+        // Native loading retains proposed spatial declarations. Mapping and source
+        // validation still require the explicit RFC-0048 profile.
+        if (!spatialOptions) ValidateEncoding(mapping, path, serverOwners);
 
         foreach (var pair in mapping.Children)
         {
@@ -177,7 +180,9 @@ internal static partial class DataContractValidator
             // These values are opaque payloads, not ODCS declaration scopes. Vendor
             // metadata may legitimately contain keys such as encoding or synonyms.
             if (OpaquePayloads.Contains(name)) continue;
-            ValidatePlacement(pair.Value, $"{path}/{name}", synonymOwners, serverOwners);
+            var spatial = name == "logicalTypeOptions" && synonymOwners.Contains(mapping)
+                && TryGet(mapping, "logicalType") is YamlScalarNode { Value: "geometry" or "geography" };
+            ValidatePlacement(pair.Value, $"{path}/{name}", synonymOwners, serverOwners, spatial);
         }
     }
 

@@ -7,7 +7,7 @@ using Packata.Core.Contracts;
 namespace Packata.Application.Validation;
 
 /// <summary>Declaration checks only. Never resolves remote references or opens dataset endpoints.</summary>
-internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFinding> findings)
+internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFinding> findings, bool spatialRfc0048)
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromMilliseconds(100);
     private const string IdToken = "id";
@@ -55,7 +55,8 @@ internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFin
     private readonly Dictionary<string, JsonObject> names = new(StringComparer.Ordinal);
     private readonly Dictionary<string, JsonObject> ids = new(StringComparer.Ordinal);
 
-    internal static void Validate(JsonObject root, List<ValidationFinding> findings) => new OdcsSemanticValidation(root, findings).Run();
+    internal static void Validate(JsonObject root, List<ValidationFinding> findings, bool spatialRfc0048 = false)
+        => new OdcsSemanticValidation(root, findings, spatialRfc0048).Run();
     private void Error(string code, string path, string message) => findings.Add(new(ValidationLayers.Semantic, code, MappingSeverity.Error, path, message));
     private static string? Text(JsonNode? node) => DescriptorValidation.Text(node);
     private static bool IsTrue(JsonNode? node) => node is JsonValue value && value.TryGetValue<bool>(out var flag) && flag;
@@ -181,7 +182,8 @@ internal sealed class OdcsSemanticValidation(JsonObject root, List<ValidationFin
 
     private void PropertyType(JsonObject property, string path, string? type)
     {
-        if (property.ContainsKey(LogicalTypeToken) && !LogicalTypes.Contains(type))
+        if (property.ContainsKey(LogicalTypeToken) && !LogicalTypes.Contains(type)
+            && !(spatialRfc0048 && type is "geometry" or "geography"))
             Error("SEM_TYPE", At(path, LogicalTypeToken), "Unsupported logical type.");
         if (property.ContainsKey(SemanticTypeToken) && Text(property[SemanticTypeToken]) is not ("column" or "measure" or "dimension"))
             Error("SEM_TYPE", At(path, SemanticTypeToken), "Expected column, measure or dimension.");

@@ -29,6 +29,13 @@ internal static class PackataPropertyValues
 
     private static void Field(SchemaProperty field, YamlMappingNode node, bool normalizeNative)
     {
+        if (field.LogicalType is Types.UnknownLogicalType { Type: "geometry" or "geography" }
+            && Get(node, "logicalTypeOptions") is YamlMappingNode options
+            && Read(options) is System.Collections.IDictionary values)
+        {
+            field.PreserveSpatialOptions(values.Keys.Cast<object>().ToDictionary(
+                key => (string)key, key => values[key]!));
+        }
         Properties(field.CustomProperties, node, normalizeNative);
         Fields(field.Properties, node, normalizeNative);
         if (field.Items is not null && Get(node, "items") is YamlMappingNode items) Field(field.Items, items, normalizeNative);

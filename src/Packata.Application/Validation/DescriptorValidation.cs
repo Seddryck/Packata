@@ -98,7 +98,7 @@ public static class DescriptorValidation
         var findings = new List<ValidationFinding>();
         var results = new List<LayerValidation>();
         var odcs = DescriptorFormat.Identify(syntax.Root, format) == "odcs";
-        var profile = DescriptorProfiles.Select(root, odcs);
+        var profile = DescriptorProfiles.Select(root, odcs, mappingOptions.Odcs.EnableSpatialRfc0048);
         var selectionIssue = SelectionIssue(root, format, odcs);
         foreach (var layer in selected)
         {
@@ -151,7 +151,7 @@ public static class DescriptorValidation
             findings.AddRange(SchemaDiagnostics.Project(schema, evaluation, instance, profile));
             return;
         }
-        if (profile.Format == "odcs") OdcsSemanticValidation.Validate(root, findings);
+        if (profile.Format == "odcs") OdcsSemanticValidation.Validate(root, findings, mappingOptions.Odcs.EnableSpatialRfc0048);
         NativeSemantics(syntax, format, baseUri, findings, profile.Format == "odcs", mappingOptions);
     }
 

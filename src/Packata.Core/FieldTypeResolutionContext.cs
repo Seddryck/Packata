@@ -1,6 +1,7 @@
 using System.Data;
 using System.Globalization;
 using System.Numerics;
+using System.Text.Json;
 using Packata.Core.Contracts;
 
 namespace Packata.Core;
@@ -52,8 +53,13 @@ internal sealed class FieldTypeResolutionContext
         ReadParameters();
         SelectEntry();
         SelectIntegerEntry();
-        _runtime = _entry?.RuntimeType;
+        _runtime = SpatialRuntimeType();
         _database = _entry?.DatabaseType;
+        if (_entry is not null && _runtime is null)
+        {
+            Report("UnsupportedRepresentation", TypeMappingTarget.Runtime,
+                $"Logical type '{_field.LogicalType}' requires an explicit supported spatial encoding or configured runtime representation.");
+        }
         if (_entry is not null && _database is null)
         {
             Report("UnsupportedRepresentation", TypeMappingTarget.Database,
@@ -62,6 +68,7 @@ internal sealed class FieldTypeResolutionContext
         ProjectTemporal();
         ProjectNumber();
         CheckIntegerBounds();
+        CheckSpatialDescriptor();
         ResolveNestedFields();
         ProjectShape();
         RejectSourceErrors();
@@ -181,6 +188,7 @@ internal sealed class FieldTypeResolutionContext
     {
         if (_type == "geopoint") return _semanticFormat is null or "default" or "array" or "object";
         if (_type == "geojson") return _semanticFormat is null or "default" or "topojson";
+        if (_type is "geometry" or "geography") return _semanticFormat is null or "default";
         if (_semanticFormat is null or "default" or "any") return true;
         if (_type == "string") return StringAnnotations.Contains(_semanticFormat);
         if (_type == "number") return _semanticFormat == "decimal";
@@ -315,6 +323,33 @@ internal sealed class FieldTypeResolutionContext
         _children = _field.Children.Select(child =>
             new FieldTypeResolutionContext(child, _options, _path + "/" + child.Name).Resolve()).ToArray();
     }
+
+    private void CheckSpatialDescriptor()
+    {
+        var spatial = _field.Spatial;
+        if (spatial is null) return;
+        if (spatial.Dimensions is not (null or 2 or 3 or 4))
+            Report("InvalidParameter", TypeMappingTarget.Source, "Spatial dimensions must be 2, 3, or 4.");
+        if (spatial.Model == SpatialModel.Geometry && string.IsNullOrWhiteSpace(spatial.Crs))
+            Report("InvalidParameter", TypeMappingTarget.Source, "Planar geometry requires an explicit CRS.");
+        if ((_type is "geometry" or "geography") && (spatial.Content != SpatialContent.Geometry || spatial.Encoding == SpatialEncoding.TopoJson))
+            Report("ConflictingSemantics", TypeMappingTarget.Source, "Geometry/geography requires geometry content; TopoJSON topology and GeoJSON features need an explicit conversion policy.");
+        if ((_type == "geometry" && spatial.Model != SpatialModel.Geometry)
+            || (_type == "geography" && spatial.Model != SpatialModel.Geography))
+            Report("ConflictingSemantics", TypeMappingTarget.Source, "Spatial model conflicts with the logical type.");
+        if (_type == "geopoint" && (spatial.SubType is not (null or SpatialSubtype.Point)
+            || spatial.Dimensions is not (null or 2)))
+            Report("ConflictingSemantics", TypeMappingTarget.Source, "GeoPoint requires a two-dimensional Point representation.");
+    }
+
+    private Type? SpatialRuntimeType()
+        => (_type is "geometry" or "geography") && _entry is not null ? _field.Spatial?.Encoding switch
+        {
+            SpatialEncoding.GeoJson => typeof(JsonElement),
+            SpatialEncoding.Wkt or SpatialEncoding.Ewkt => typeof(string),
+            SpatialEncoding.Wkb or SpatialEncoding.Ewkb => typeof(byte[]),
+            _ => null
+        } : _entry?.RuntimeType;
 
     private void ProjectShape()
     {

@@ -2,6 +2,14 @@
 
 These files are embedded verbatim. Validation never downloads schemas.
 
+`odcs-spatial-rfc0048-options.json` is Packata's proposed spatial profile fragment,
+based on [Bitol RFC-0048](https://github.com/bitol-io/tsc/blob/main/rfcs/0048-geometry-geography.md).
+It is not an approved ODCS v3.2.0 artifact. `EnableSpatialRfc0048` selects a separate
+profile URI and extends the pinned schema in memory. The original artifact and default
+profile reject geometry/geography. Spatial option scalar types, subtypes, CRS,
+dimensions, encodings, algorithms, bbox lengths, orientation and epoch are checked
+only for the corresponding spatial logical types.
+
 | File | Source | SHA-256 |
 | --- | --- | --- |
 | `odcs-v3.2.0.json` | `bitol-io/open-data-contract-standard`, release commit `f0bdad95346905d500be5ef4b2c2d9b1d95223b7`, `schema/odcs-json-schema-v3.2.0.json` | `edb41f33ec46e84780e99872ab2bd67f074959d2bf3e9c9fc54e61f8982b0d93` |

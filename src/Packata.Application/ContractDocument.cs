@@ -83,7 +83,8 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
         {
             return DataPackageValidator.Validate(package).Issues.Select(issue =>
                 new MappingDiagnostic("DPV001", MappingSeverity.Error, issue.Path, issue.Message))
-                .Concat(mapping.Diagnostics.Where(IsColumnDefaultDiagnostic)).ToArray();
+                .Concat(mapping.Diagnostics.Where(diagnostic => IsColumnDefaultDiagnostic(diagnostic)
+                    || diagnostic.Code.StartsWith("SPATIAL_", StringComparison.Ordinal))).ToArray();
         }
 
         var odcs = (Packata.OpenDataContract.DataContract)NativeDocument;
@@ -96,7 +97,8 @@ public sealed record ContractDocument(object NativeDocument, YamlMappingNode Roo
         if (odcs.ApiVersion != "v3.2.0")
             diagnostics.Add(new("ODCSV003", MappingSeverity.Error, "$.apiVersion", "Supported ODCS apiVersion is v3.2.0."));
         diagnostics.AddRange(mapping.Diagnostics
-            .Where(diagnostic => diagnostic.Code is "ODCS006" or "ODCS007" or "ODCS008" || IsColumnDefaultDiagnostic(diagnostic)));
+            .Where(diagnostic => diagnostic.Code is "ODCS006" or "ODCS007" or "ODCS008" || IsColumnDefaultDiagnostic(diagnostic)
+                || diagnostic.Code.StartsWith("SPATIAL_", StringComparison.Ordinal)));
         return diagnostics;
     }
 

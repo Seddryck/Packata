@@ -6,7 +6,7 @@ namespace Packata.Core;
 // The legacy scalar contract and the rich projections deliberately share this table.
 internal static class TypeMappingCatalog
 {
-    internal sealed record Entry(string LogicalType, string? Format, Type RuntimeType, DbType? DatabaseType,
+    internal sealed record Entry(string LogicalType, string? Format, Type? RuntimeType, DbType? DatabaseType,
         int? IntegerWidth = null, bool? Signed = null);
 
     internal static readonly Entry[] Entries =
@@ -33,6 +33,8 @@ internal static class TypeMappingCatalog
         new("yearmonth", null, typeof(string), DbType.String),
         new("geopoint", null, typeof(GeoPoint), null),
         new("geojson", null, typeof(JsonElement), null),
+        new("geometry", null, null, null),
+        new("geography", null, null, null),
         new("object", null, typeof(object), DbType.Object)
     ];
 
@@ -41,6 +43,6 @@ internal static class TypeMappingCatalog
 
     // Map retains its historical fallback for newly understood formats. Resolve is loss-aware.
     internal static bool IsLegacyEntry(Entry entry)
-        => entry.LogicalType is not ("geopoint" or "geojson")
+        => entry.LogicalType is not ("geopoint" or "geojson" or "geometry" or "geography")
             && entry.Format is not ("i8" or "u8" or "u16" or "u32" or "u64");
 }

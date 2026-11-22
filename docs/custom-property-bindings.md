@@ -79,6 +79,7 @@ Prefix these IDs with `mapping.odcs.`. The built-in vendor is `packata`, and the
 | `field.categories` | Schema property | A category-table reference with `resource` and optional `package` and `encodedAs` (`value` or `label`). Conflicts with inline enum. Absent means no category-table reference. |
 | `field.defaultValue` | Schema property | Typed literal object with string `type` and `value`. Conflicts with a default expression. Absent means no literal default. |
 | `field.defaultExpression` | Schema property | Expression object with `kind` and the members supported for that kind. Conflicts with a default value. Absent means no expression default. |
+| `field.physicalTypeContext` | Schema property | Object with `provider` and/or `dialect`, plus optional `server`. Absent uses an unambiguous bound database endpoint. See [spatial declarations]({{ '/reference/dotnet/type-mapping/' | relative_url }}). |
 | `server.delimiter` | Server | Delimited readers use a single character. Absent keeps any native delimiter or the existing reader defaults. |
 | `server.quoteChar` | Server | Delimited readers use a single character. Absent keeps the reader's default. |
 | `server.lineTerminator` | Server | Delimited readers use a line ending string. Absent keeps the reader's default. |
@@ -98,5 +99,6 @@ Prefix these IDs with `mapping.datapackage.`. Entries are read from each field's
 | --- | --- | --- | --- |
 | `field.defaultValue` | Field | `defaultValue` | Typed literal object with string `type` and `value`. Conflicts with a default expression. Absent means no literal default. |
 | `field.defaultExpression` | Field | `defaultExpression` | Expression object with `kind` and the members supported for that kind. Conflicts with a default value. Absent means no expression default. |
+| `field.physicalTypeContext` | Field | `physicalTypeContext` | Object with `provider` and/or `dialect`, plus optional `server`. Absent uses an unambiguous database connection. |
 
 Duplicate defaults are diagnosed. A field with neither kind of default produces no SQL `DEFAULT` clause.

@@ -15,7 +15,7 @@ public class RuntimeTypeMapper : BaseTypeMapper<Type>
     protected override void Initialize()
     {
         foreach (var entry in TypeMappingCatalog.Entries.Where(TypeMappingCatalog.IsLegacyEntry))
-            RegisterDefault(entry.LogicalType, entry.Format, entry.RuntimeType);
+            RegisterDefault(entry.LogicalType, entry.Format, entry.RuntimeType!);
     }
 
     public FieldTypeResolution Resolve(DataField field, TypeMappingOptions options)
