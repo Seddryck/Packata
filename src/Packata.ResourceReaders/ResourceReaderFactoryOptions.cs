@@ -44,6 +44,15 @@ public sealed class ResourceReaderFactoryOptions
     public long CategoryTableByteLimit { get; set; } = 16 * 1024 * 1024;
 
     private readonly List<IDataEndpointReaderProvider> _providers = [];
+    private readonly Dictionary<string, ReaderRepresentationProfile> _profiles = new(StringComparer.Ordinal);
+
+    internal ReaderRepresentationProfile[] GetRepresentationProfiles() => _profiles.Values.ToArray();
+
+    internal ResourceReaderFactoryOptions AddRepresentationProfile(ReaderRepresentationProfile profile)
+    {
+        _profiles.TryAdd(profile.Name, profile);
+        return this;
+    }
 
     /// <summary>Configures format-name and path-extension mappings used before provider dispatch.</summary>
     /// <value>

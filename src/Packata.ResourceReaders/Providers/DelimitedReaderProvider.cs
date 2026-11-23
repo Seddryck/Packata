@@ -10,6 +10,7 @@ internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvid
 {
     private readonly IReadOnlyList<IDelimitedDialectResolver> _dialectResolvers;
     internal bool DecodeCategories { get; set; }
+    internal IReadOnlyList<ReaderRepresentationProfile> RepresentationProfiles { get; set; } = [];
 
     public DelimitedReaderProvider(IEnumerable<IDelimitedDialectResolver>? dialectResolvers = null)
     {
@@ -59,7 +60,16 @@ internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvid
     {
         var resource = CreateResource(context.Endpoint.Format, context.Format.Compression);
         var builder = new CsvReaderBuilder().WithDialect(dialect).WithResource(resource);
-        var schemaBuilder = CreateSchema(context.Schema, DecodeCategories);
+        if (RepresentationProfiles.Count > 0)
+        {
+            builder.WithParsers(parsers =>
+            {
+                foreach (var profile in RepresentationProfiles)
+                    profile.Delimited.ConfigureParsers(parsers);
+                return parsers;
+            });
+        }
+        var schemaBuilder = CreateSchema(context.Schema);
         if (schemaBuilder is not null) builder.WithSchema(schemaBuilder);
         return builder;
     }
@@ -111,7 +121,7 @@ internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvid
         throw new ArgumentException($"Format option '{name}' must contain exactly one character.", nameof(format));
     }
 
-    private static ISchemaDescriptorBuilder? CreateSchema(DataSchema? schema, bool decodeCategories)
+    private ISchemaDescriptorBuilder? CreateSchema(DataSchema? schema)
     {
         if (schema is not { Fields.Count: > 0 }) return null;
 
@@ -119,8 +129,10 @@ internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvid
         var mapper = new RuntimeTypeMapper();
         foreach (var field in schema.Fields)
         {
-            if (!DelimitedSpatialFields.TryAdd(schemaBuilder, field))
-                PocketCsvReaderProviderDefaults.AddField(schemaBuilder, mapper, field, decodeCategories);
+            if (ReaderRepresentationProfile.Resolve(RepresentationProfiles, field) is { } representation)
+                representation.Profile.Delimited.BindField(schemaBuilder, field, representation.Type);
+            else if (!DelimitedSpatialFields.TryAdd(schemaBuilder, field))
+                PocketCsvReaderProviderDefaults.AddField(schemaBuilder, mapper, field, DecodeCategories);
         }
         return schemaBuilder;
     }

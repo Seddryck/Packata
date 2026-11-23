@@ -20,12 +20,7 @@ internal static class DelimitedSpatialFields
 
         if (resolution.RuntimeType == typeof(GeoPoint))
         {
-            var format = field.Format?.Trim().ToLowerInvariant() switch
-            {
-                "array" => GeoPointFormat.Array,
-                "object" => GeoPointFormat.Object,
-                _ => GeoPointFormat.Default
-            };
+            var format = GetGeoPointFormat(field);
             schema.WithCustomField(typeof(GeoPoint), field.Name,
                 builder => builder.WithDataSourceTypeName(logicalType).WithParser<GeoPoint>(text => GeoPointParser.Parse(text, format)));
             return true;
@@ -41,4 +36,11 @@ internal static class DelimitedSpatialFields
 
         throw new NotSupportedException($"Cannot bind CSV field '{field.Name}' as '{logicalType}'.");
     }
+
+    internal static GeoPointFormat GetGeoPointFormat(DataField field) => field.Format?.Trim().ToLowerInvariant() switch
+    {
+        "array" => GeoPointFormat.Array,
+        "object" => GeoPointFormat.Object,
+        _ => GeoPointFormat.Default
+    };
 }

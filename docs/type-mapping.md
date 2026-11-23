@@ -182,9 +182,9 @@ context without adding SQL generation or treating source types as portable.
 
 Core resolution describes the field's representation. Value decoding, owned
 `JsonElement` lifetimes, and optional runtime profiles are supplied by reader bindings.
-The optional NetTopologySuite profile will select the declared subtype (for example,
-`Point` or `LineString`) or general `Geometry` when unspecified, through the ExtendedTypes work tracked in
-[#791](https://github.com/Seddryck/Packata/issues/791). Geopoint decoding is tracked in
+For supported encodings, the optional [NetTopologySuite profile](extended-types.md)
+selects the declared subtype (for example, `Point` or `LineString`) or general
+`Geometry` when unspecified. Geopoint decoding is tracked in
 [#781](https://github.com/Seddryck/Packata/issues/781). Reader bindings must return the
 selected CLR type consistently from `GetValue`, `GetFieldType`, and typed getters.
 Unknown encodings, subtype mismatches, and TopoJSON-to-geometry conversion need explicit

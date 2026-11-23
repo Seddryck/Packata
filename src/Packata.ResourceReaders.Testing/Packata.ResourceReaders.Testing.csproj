@@ -47,6 +47,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Packata.Core\Packata.Core.csproj" />
     <ProjectReference Include="..\Packata.DataPackage\Packata.DataPackage.csproj" />
+    <ProjectReference Include="..\Packata.ExtendedTypes\Packata.ExtendedTypes.csproj" />
     <ProjectReference Include="..\Packata.OpenDataContract\Packata.OpenDataContract.csproj" />
     <ProjectReference Include="..\Packata.Provisioners\Packata.Provisioners.csproj" />
     <ProjectReference Include="..\Packata.ResourceReaders.Database\Packata.ResourceReaders.Database.csproj" />

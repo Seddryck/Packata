@@ -17,6 +17,7 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     private readonly IReadOnlyList<IDataEndpointReaderProvider> _providers;
     private readonly DataFormatResolver _formats;
     private readonly CategoryDecodingOptions _categories;
+    private readonly IReadOnlyList<ReaderRepresentationProfile> _representationProfiles;
 
     public ResourceReaderFactory(IEndpointStreamResolver? streams = null)
         : this(streams, DefaultProviders(), new DataFormatResolutionOptions())
@@ -30,7 +31,8 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         var options = new ResourceReaderFactoryOptions();
         configure(options);
         return new ResourceReaderFactory(streams,
-            options.CombineWith(DefaultProviders()), options.Formats, CategoryDecodingOptions.From(options));
+            options.CombineWith(DefaultProviders()), options.Formats, CategoryDecodingOptions.From(options),
+            options.GetRepresentationProfiles());
     }
 
     internal ResourceReaderFactory(IEndpointStreamResolver? streams,
@@ -40,13 +42,18 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
     private ResourceReaderFactory(IEndpointStreamResolver? streams,
         IEnumerable<IDataEndpointReaderProvider> providers,
-        DataFormatResolutionOptions formatOptions, CategoryDecodingOptions? categories = null)
+        DataFormatResolutionOptions formatOptions, CategoryDecodingOptions? categories = null,
+        IReadOnlyList<ReaderRepresentationProfile>? representationProfiles = null)
     {
         _streams = streams ?? new DefaultEndpointStreamResolver();
         _providers = providers.ToArray();
         _categories = categories ?? new();
+        _representationProfiles = representationProfiles ?? [];
         foreach (var provider in _providers.OfType<DelimitedReaderProvider>())
+        {
             provider.DecodeCategories = _categories.Enabled;
+            provider.RepresentationProfiles = _representationProfiles;
+        }
         _formats = new DataFormatResolver(formatOptions);
     }
 
@@ -64,6 +71,18 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
         var format = _formats.Resolve(endpoint);
         var provider = _providers.FirstOrDefault(candidate => candidate.CanHandle(request, format));
+        if (provider is not null and not DelimitedReaderProvider && _representationProfiles.Count > 0 && request.Schema is { } schema)
+        {
+            foreach (var field in schema.Fields)
+            {
+                if (ReaderRepresentationProfile.Resolve(_representationProfiles, field) is { } representation)
+                {
+                    throw new NotSupportedException(
+                        $"Reader '{provider.GetType().Name}' has no binding for field '{field.Name}' as '{representation.Type.FullName}' from '{representation.Profile.Name}'.");
+                }
+            }
+        }
+
         if (request.IndexedRead is { } indexed)
             return await OpenIndexedAsync(request, indexed, provider, format, cancellationToken).ConfigureAwait(false);
 
@@ -95,7 +114,6 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         if (_categories.Enabled && provider is not DelimitedReaderProvider)
             throw new CategoryDecodingNotSupportedException();
         if (provider is null) throw UnsupportedEndpoint(endpoint, format);
-
         if (_categories.Enabled)
         {
             request = await new CategoryTableLoader(_streams, _formats, _providers, _categories)

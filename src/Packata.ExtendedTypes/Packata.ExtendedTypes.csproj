@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Optional NetTopologySuite and Chrononuensis CLR representations and reader bindings for Packata.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
+    <PackageReference Include="PocketCsvReader.Chrononuensis" Version="2.79.0" />
+    <PackageReference Include="PocketCsvReader.NetTopologySuite" Version="2.79.0" />
+  </ItemGroup>
+</Project>
