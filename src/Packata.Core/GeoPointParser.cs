@@ -6,6 +6,32 @@ namespace Packata.Core;
 /// <summary>Parses Data Package geopoint values into longitude and latitude coordinates.</summary>
 public static class GeoPointParser
 {
+    /// <summary>Parses a point using the specified input format.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The format is undefined.</exception>
+    /// <exception cref="JsonException">The selected JSON format contains malformed JSON.</exception>
+    /// <exception cref="FormatException">The text does not represent a point in the selected format.</exception>
+    public static GeoPoint Parse(ReadOnlySpan<char> text, GeoPointFormat format = GeoPointFormat.Default)
+    {
+        if (format == GeoPointFormat.Auto)
+        {
+            text = text.TrimStart();
+            format = text.IsEmpty ? GeoPointFormat.Default : text[0] switch
+            {
+                '[' => GeoPointFormat.Array,
+                '{' => GeoPointFormat.Object,
+                _ => GeoPointFormat.Default
+            };
+        }
+
+        return format switch
+        {
+            GeoPointFormat.Default => ParseDefault(text),
+            GeoPointFormat.Array => ParseArray(text),
+            GeoPointFormat.Object => ParseObject(text),
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Unknown geopoint format.")
+        };
+    }
+
     /// <summary>Parses a comma-separated longitude and latitude using invariant numeric formatting.</summary>
     /// <exception cref="FormatException">The text does not contain two finite coordinates.</exception>
     public static GeoPoint ParseDefault(ReadOnlySpan<char> text)

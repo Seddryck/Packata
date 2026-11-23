@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Packata.Core;
 using Packata.Core.Contracts;
-using PocketCsvReader;
 using PocketCsvReader.Configuration;
 
 namespace Packata.ResourceReaders;
@@ -21,14 +20,14 @@ internal static class DelimitedSpatialFields
 
         if (resolution.RuntimeType == typeof(GeoPoint))
         {
-            ParseSpan<GeoPoint> parser = field.Format?.Trim().ToLowerInvariant() switch
+            var format = field.Format?.Trim().ToLowerInvariant() switch
             {
-                "array" => GeoPointParser.ParseArray,
-                "object" => GeoPointParser.ParseObject,
-                _ => GeoPointParser.ParseDefault
+                "array" => GeoPointFormat.Array,
+                "object" => GeoPointFormat.Object,
+                _ => GeoPointFormat.Default
             };
             schema.WithCustomField(typeof(GeoPoint), field.Name,
-                builder => builder.WithDataSourceTypeName(logicalType).WithParser<GeoPoint>(parser));
+                builder => builder.WithDataSourceTypeName(logicalType).WithParser<GeoPoint>(text => GeoPointParser.Parse(text, format)));
             return true;
         }
 
