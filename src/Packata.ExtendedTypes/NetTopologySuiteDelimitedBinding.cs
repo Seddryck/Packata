@@ -7,10 +7,32 @@ using PocketCsvReader.NetTopologySuite;
 
 namespace Packata.ExtendedTypes;
 
-internal static class NetTopologySuiteDelimitedBinding
+/// <summary>Binds NetTopologySuite spatial fields in PocketCsvReader.</summary>
+public sealed class NetTopologySuiteDelimitedBinding : IReaderBindingProvider
 {
-    internal static DelimitedRepresentationBinding Binding { get; } =
-        new(parsers => parsers.UseNetTopologySuite(), BindField);
+    private static readonly DelimitedFieldBinding Binding =
+        new(BindField, parsers => parsers.UseNetTopologySuite());
+    private static readonly Type[] SupportedGeometryTypes =
+    [
+        typeof(Geometry), typeof(Point), typeof(LineString), typeof(Polygon),
+        typeof(MultiPoint), typeof(MultiLineString), typeof(MultiPolygon), typeof(GeometryCollection)
+    ];
+
+    /// <inheritdoc />
+    public ReaderFieldBinding? TryBind(ReaderRepresentationRequest request)
+    {
+        var logicalType = request.Field.LogicalType?.Trim().ToLowerInvariant();
+        var supported = logicalType switch
+        {
+            "geopoint" => request.RuntimeType == typeof(Point),
+            "geojson" => request.Format?.Trim().Equals("topojson", StringComparison.OrdinalIgnoreCase) != true
+                && SupportedGeometryTypes.Contains(request.RuntimeType),
+            "geometry" or "geography" => request.Encoding is SpatialEncoding.Wkt or SpatialEncoding.GeoJson
+                && SupportedGeometryTypes.Contains(request.RuntimeType),
+            _ => false
+        };
+        return supported ? new(request.RuntimeType, Binding) : null;
+    }
 
     private static void BindField(ISchemaDescriptorBuilder schema, DataField field, Type type)
     {

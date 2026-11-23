@@ -92,6 +92,12 @@ public class ExtendedTypesReaderTests
         Assert.That(((Point)reader.GetValue(0)).Coordinate, Is.EqualTo(new Coordinate(4, 50)));
         Assert.That(reader.GetFieldType(1), Is.EqualTo(typeof(JsonElement)));
         Assert.That(((JsonElement)reader.GetValue(1)).GetProperty("type").GetString(), Is.EqualTo("Topology"));
+
+        var noProfile = new ResourceReaderFactory(new CsvStream("shape,topology\r\nPOINT (4 50),{}\r\n"));
+        using var textReader = await noProfile.OpenAsync(Csv, schema);
+        Assert.That(textReader.GetFieldType(0), Is.EqualTo(typeof(string)));
+        Assert.That(textReader.Read(), Is.True);
+        Assert.That(textReader.GetFieldValue<string>(0), Is.EqualTo("POINT (4 50)"));
     }
 
     [TestCase("Feature")]
@@ -99,11 +105,21 @@ public class ExtendedTypesReaderTests
     public async Task Reject_GeoJSON_values_that_do_not_represent_a_geometry(string kind)
     {
         var content = $"shape\r\n\"{{\"\"type\"\":\"\"{kind}\"\"}}\"\r\n";
-        var factory = ResourceReaderFactory.Create(options => options.UseNetTopologySuite(), new CsvStream(content));
+        var fallbackCalls = 0;
+        var factory = ResourceReaderFactory.Create(options =>
+        {
+            options.UseNetTopologySuite();
+            options.AddValueConverter<JsonElement, Geometry>(_ =>
+            {
+                fallbackCalls++;
+                return new Point(0, 0);
+            }, logicalType: "geojson");
+        }, new CsvStream(content));
         using var reader = await factory.OpenAsync(Csv, new DataSchema([new("shape", "geojson")]));
 
         Assert.That(reader.Read(), Is.True);
         Assert.That(() => reader.GetValue(0), Throws.InstanceOf<FormatException>());
+        Assert.That(fallbackCalls, Is.Zero);
     }
 
     [Test]

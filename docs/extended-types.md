@@ -13,7 +13,7 @@ var factory = ResourceReaderFactory.Create(options =>
 });
 ```
 
-The package depends on `Packata.ResourceReaders`, `PocketCsvReader.NetTopologySuite`, and `PocketCsvReader.Chrononuensis`. The PocketCsvReader integration packages bring in NetTopologySuite and Chrononuensis. The bundled bindings support CSV, TSV, and PSV. A reader without a binding for a selected representation reports the field and requested CLR type when opened.
+The package depends on `Packata.ResourceReaders`, `PocketCsvReader.NetTopologySuite`, and `PocketCsvReader.Chrononuensis`. The PocketCsvReader integration packages bring in NetTopologySuite and Chrononuensis. The bundled bindings support CSV, TSV, and PSV. Other integrations can contribute [native reader bindings](reader-bindings.md), and applications can register fallback converters for the readers they use.
 
 | Profile | Canonical declaration | CSV CLR type and handling |
 | --- | --- | --- |

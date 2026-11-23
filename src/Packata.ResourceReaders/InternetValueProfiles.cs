@@ -7,15 +7,18 @@ namespace Packata.ResourceReaders;
 
 internal static class InternetValueProfiles
 {
-    internal static ReaderRepresentationProfile UriValues { get; } = new(
-        "UriValues",
-        field => GetStringFormat(field) is "uri" or "uri-reference" ? typeof(Uri) : null,
-        new(null, BindUri));
+    internal static Type? SelectUri(DataField field) =>
+        GetStringFormat(field) is "uri" or "uri-reference" ? typeof(Uri) : null;
 
-    internal static ReaderRepresentationProfile NetworkValues { get; } = new(
-        "NetworkValues",
-        field => GetStringFormat(field) is "ipv4" or "ipv6" ? typeof(IPAddress) : null,
-        new(null, BindAddress));
+    internal static Type? SelectNetwork(DataField field) =>
+        GetStringFormat(field) is "ipv4" or "ipv6" ? typeof(IPAddress) : null;
+
+    internal static DelimitedFieldBinding? TryBind(ReaderRepresentationRequest request)
+    {
+        if (request.RuntimeType == SelectUri(request.Field)) return new(BindUri);
+        if (request.RuntimeType == SelectNetwork(request.Field)) return new(BindAddress);
+        return null;
+    }
 
     private static string? GetStringFormat(DataField field)
         => string.Equals(field.LogicalType?.Trim(), "string", StringComparison.OrdinalIgnoreCase)

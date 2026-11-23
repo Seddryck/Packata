@@ -12,6 +12,17 @@ namespace Packata.ResourceReaders;
 /// </remarks>
 public interface IDataEndpointReaderProvider
 {
+    /// <summary>Identifies this reader to separately packaged field binding providers.</summary>
+    /// <value>The provider’s stable binding key.</value>
+    string BindingKey => GetType().FullName ?? GetType().Name;
+
+    /// <summary>Requests a default representation for fields with an explicit binding contract.</summary>
+    Type? GetDefaultRepresentation(DataField field) => null;
+
+    /// <summary>Returns decoded field text before any CLR conversion when the reader exposes it.</summary>
+    /// <remarks>Readers without pre-conversion text access apply missing-value markers in their native bindings.</remarks>
+    string? GetUnconvertedText(IDataRecord row, int ordinal) => null;
+
     /// <summary>Returns whether this provider handles the request. Matching must not acquire resources.</summary>
     bool CanHandle(DataEndpointReadRequest request, ResolvedDataFormat format);
 
@@ -31,7 +42,13 @@ public sealed record IndexedReaderOpenContext(
     DataEndpointReadRequest Request,
     ResolvedDataFormat Format,
     IEndpointStreamResolver StreamResolver,
-    IReadOnlyList<ResolvedIndexedEquality> Equalities);
+    IReadOnlyList<ResolvedIndexedEquality> Equalities)
+{
+    /// <summary>Selected native field bindings.</summary>
+    /// <value>The selected bindings, keyed by canonical schema ordinal.</value>
+    public IReadOnlyDictionary<int, ReaderFieldBinding> FieldBindings { get; init; } =
+        System.Collections.ObjectModel.ReadOnlyDictionary<int, ReaderFieldBinding>.Empty;
+}
 
 public sealed record ResolvedIndexedEquality(DataIndex Index, DataField Field, int Ordinal, object Value);
 
@@ -43,6 +60,11 @@ public sealed record ReaderOpenContext(
 {
     public DataEndpoint Endpoint => Request.Endpoint;
     public DataSchema? Schema => Request.Schema;
+
+    /// <summary>Selected native field bindings.</summary>
+    /// <value>The selected bindings, keyed by canonical schema ordinal.</value>
+    public IReadOnlyDictionary<int, ReaderFieldBinding> FieldBindings { get; init; } =
+        System.Collections.ObjectModel.ReadOnlyDictionary<int, ReaderFieldBinding>.Empty;
 }
 
 /// <summary>Contains normalized format information resolved by the reader factory.</summary>

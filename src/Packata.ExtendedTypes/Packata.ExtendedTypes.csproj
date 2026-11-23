@@ -7,4 +7,12 @@
     <PackageReference Include="PocketCsvReader.Chrononuensis" Version="2.79.0" />
     <PackageReference Include="PocketCsvReader.NetTopologySuite" Version="2.79.0" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Packata.ExtendedTypes.readerbindings.json"
+             Link="Packata.ReaderBindings/Packata.ExtendedTypes.readerbindings.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Pack="true" PackagePath="buildTransitive" />
+    <None Include="Packata.ExtendedTypes.targets" Pack="true" PackagePath="buildTransitive" />
+  </ItemGroup>
 </Project>

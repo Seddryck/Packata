@@ -72,6 +72,12 @@ foreach ($packageId in $packageIds) {
         foreach ($framework in $frameworks) {
             Assert-Condition ($entries -contains "lib/$framework/$packageId.dll") "Package '$packageId' has no assembly for '$framework'."
         }
+
+        if ($packageId -eq 'Packata.ExtendedTypes') {
+            foreach ($file in "$packageId.targets", "$packageId.readerbindings.json") {
+                Assert-Condition ($entries -contains "buildTransitive/$file") "Package '$packageId' is missing 'buildTransitive/$file'."
+            }
+        }
     }
     finally {
         $archive.Dispose()

@@ -6,11 +6,37 @@ using PocketCsvReader.Configuration;
 
 namespace Packata.ResourceReaders.Providers;
 
-internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvider
+internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvider, IReaderBindingProvider
 {
     private readonly IReadOnlyList<IDelimitedDialectResolver> _dialectResolvers;
     internal bool DecodeCategories { get; set; }
-    internal IReadOnlyList<ReaderRepresentationProfile> RepresentationProfiles { get; set; } = [];
+    public string BindingKey => DelimitedFieldBinding.ReaderKey;
+
+    public Type? GetDefaultRepresentation(DataField field) => DelimitedSpatialFields.GetDefaultRepresentation(field);
+
+    public string? GetUnconvertedText(IDataRecord row, int ordinal) => row.GetString(ordinal);
+
+    public ReaderFieldBinding? TryBind(ReaderRepresentationRequest request)
+    {
+        var binding = DelimitedSpatialFields.TryBind(request) ?? InternetValueProfiles.TryBind(request);
+        if (binding is not null) return new(request.RuntimeType, binding);
+
+        if (request.RuntimeType == typeof(string))
+        {
+            return new(request.RuntimeType, new DelimitedFieldBinding((schema, field, type) =>
+                schema.WithField(type, field.Name, builder => builder.WithDataSourceTypeName(field.LogicalType ?? "string"))));
+        }
+
+        var mapper = new RuntimeTypeMapper();
+        var native = mapper.Resolve(request.Field, TypeMappingOptions.LegacyCompatibility).RuntimeType;
+        if (native is not null && native != typeof(object) && RepresentationType.Same(native, request.RuntimeType))
+        {
+            return new(native, new DelimitedFieldBinding((schema, field, _) =>
+                PocketCsvReaderProviderDefaults.AddField(schema, mapper, field, DecodeCategories)));
+        }
+
+        return null;
+    }
 
     public DelimitedReaderProvider(IEnumerable<IDelimitedDialectResolver>? dialectResolvers = null)
     {
@@ -43,7 +69,7 @@ internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvid
         if (context.Equalities.GroupBy(equality => equality.Index.Kind).Any(group => group.Count() > 1))
             throw new NotSupportedException("Delimited indexed lookups support at most one equality of each index kind per file.");
 
-        var open = new ReaderOpenContext(context.Request, context.Format, []);
+        var open = new ReaderOpenContext(context.Request, context.Format, []) { FieldBindings = context.FieldBindings };
         var dialect = await ResolveDialectAsync(open, cancellationToken).ConfigureAwait(false);
         var builder = CreateBuilder(open, dialect);
         var location = (PathLocation)context.Request.Endpoint.Location;
@@ -60,16 +86,19 @@ internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvid
     {
         var resource = CreateResource(context.Endpoint.Format, context.Format.Compression);
         var builder = new CsvReaderBuilder().WithDialect(dialect).WithResource(resource);
-        if (RepresentationProfiles.Count > 0)
+        var registrations = context.FieldBindings.Values.Select(DelimitedBinding)
+            .Select(binding => binding.ConfigureParsers).OfType<Action<RuntimeParsersDescriptorBuilder>>()
+            .Distinct().ToArray();
+        if (registrations.Length > 0)
         {
             builder.WithParsers(parsers =>
             {
-                foreach (var profile in RepresentationProfiles)
-                    profile.Delimited.ConfigureParsers?.Invoke(parsers);
+                foreach (var register in registrations)
+                    register(parsers);
                 return parsers;
             });
         }
-        var schemaBuilder = CreateSchema(context.Schema);
+        var schemaBuilder = CreateSchema(context);
         if (schemaBuilder is not null) builder.WithSchema(schemaBuilder);
         return builder;
     }
@@ -121,21 +150,26 @@ internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvid
         throw new ArgumentException($"Format option '{name}' must contain exactly one character.", nameof(format));
     }
 
-    private ISchemaDescriptorBuilder? CreateSchema(DataSchema? schema)
+    private ISchemaDescriptorBuilder? CreateSchema(ReaderOpenContext context)
     {
-        if (schema is not { Fields.Count: > 0 }) return null;
+        if (context.Schema is not { Fields.Count: > 0 } schema) return null;
 
         var schemaBuilder = new SchemaDescriptorBuilder().Indexed();
         var mapper = new RuntimeTypeMapper();
-        foreach (var field in schema.Fields)
+        for (var ordinal = 0; ordinal < schema.Fields.Count; ordinal++)
         {
-            if (ReaderRepresentationProfile.Resolve(RepresentationProfiles, field) is { } representation)
-                representation.Profile.Delimited.BindField(schemaBuilder, field, representation.Type);
-            else if (!DelimitedSpatialFields.TryAdd(schemaBuilder, field))
+            var field = schema.Fields[ordinal];
+            if (context.FieldBindings.TryGetValue(ordinal, out var binding))
+                DelimitedBinding(binding).BindField(schemaBuilder, field, binding.RuntimeType);
+            else
                 PocketCsvReaderProviderDefaults.AddField(schemaBuilder, mapper, field, DecodeCategories);
         }
         return schemaBuilder;
     }
+
+    private static DelimitedFieldBinding DelimitedBinding(ReaderFieldBinding binding) =>
+        binding.Configuration as DelimitedFieldBinding
+        ?? throw new InvalidOperationException($"The delimited binding for '{binding.RuntimeType.FullName}' must supply a {nameof(DelimitedFieldBinding)}.");
 
     private static ResourceDescriptorBuilder CreateResource(DataFormat? format, string? compression)
     {

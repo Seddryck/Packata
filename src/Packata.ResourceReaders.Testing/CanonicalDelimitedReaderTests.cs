@@ -333,7 +333,8 @@ public class CanonicalDelimitedReaderTests
         {
             Assert.That(reader.Read(), Is.True);
             Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(JsonElement)));
-            first = (JsonElement)reader.GetValue(0);
+            first = reader.GetFieldValue<JsonElement>(0);
+            Assert.That(((JsonElement)reader.GetValue(0)).GetRawText(), Is.EqualTo(first.GetRawText()));
             Assert.That(reader.Read(), Is.True);
         }
 

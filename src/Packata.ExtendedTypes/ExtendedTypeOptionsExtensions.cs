@@ -9,15 +9,13 @@ public static class ExtendedTypeOptionsExtensions
     public static ResourceReaderFactoryOptions UseNetTopologySuite(this ResourceReaderFactoryOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        return options.AddRepresentationProfile(new("NetTopologySuite",
-            NetTopologySuiteProfile.SelectType, NetTopologySuiteDelimitedBinding.Binding));
+        return options.AddRepresentationProfile("NetTopologySuite", NetTopologySuiteProfile.SelectType);
     }
 
     /// <summary>Exposes year and year-month fields as Chrononuensis values.</summary>
     public static ResourceReaderFactoryOptions UseChrononuensis(this ResourceReaderFactoryOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        return options.AddRepresentationProfile(new("Chrononuensis",
-            ChrononuensisProfile.SelectType, ChrononuensisDelimitedBinding.Binding));
+        return options.AddRepresentationProfile("Chrononuensis", ChrononuensisProfile.SelectType);
     }
 }

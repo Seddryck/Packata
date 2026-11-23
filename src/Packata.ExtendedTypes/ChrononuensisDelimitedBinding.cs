@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Chrononuensis;
 using Packata.Core;
 using Packata.Core.Contracts;
 using Packata.ResourceReaders;
@@ -8,10 +9,22 @@ using PocketCsvReader.Configuration;
 
 namespace Packata.ExtendedTypes;
 
-internal static class ChrononuensisDelimitedBinding
+/// <summary>Binds Chrononuensis year and year-month fields in PocketCsvReader.</summary>
+public sealed class ChrononuensisDelimitedBinding : IReaderBindingProvider
 {
-    internal static DelimitedRepresentationBinding Binding { get; } =
-        new(parsers => parsers.UseChrononuensis(), BindField);
+    private static readonly DelimitedFieldBinding Binding =
+        new(BindField, parsers => parsers.UseChrononuensis());
+
+    /// <inheritdoc />
+    public ReaderFieldBinding? TryBind(ReaderRepresentationRequest request)
+    {
+        var logicalType = request.Field.LogicalType?.Trim().ToLowerInvariant();
+        if ((logicalType == "year" && request.RuntimeType == typeof(Year))
+            || (logicalType == "yearmonth" && request.RuntimeType == typeof(YearMonth)))
+            return new(request.RuntimeType, Binding);
+
+        return null;
+    }
 
     private static void BindField(ISchemaDescriptorBuilder schema, DataField field, Type type)
     {

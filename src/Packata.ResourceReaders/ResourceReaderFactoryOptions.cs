@@ -1,3 +1,5 @@
+using Packata.Core.Contracts;
+
 namespace Packata.ResourceReaders;
 
 /// <summary>Configures providers evaluated before the built-in resource readers.</summary>
@@ -46,11 +48,35 @@ public sealed class ResourceReaderFactoryOptions
     private readonly List<IDataEndpointReaderProvider> _providers = [];
     private readonly Dictionary<string, ReaderRepresentationProfile> _profiles = new(StringComparer.Ordinal);
 
+    private readonly List<ReaderValueConverter> _converters = [];
+
     internal ReaderRepresentationProfile[] GetRepresentationProfiles() => _profiles.Values.ToArray();
 
-    internal ResourceReaderFactoryOptions AddRepresentationProfile(ReaderRepresentationProfile profile)
+    internal ReaderValueConverter[] GetValueConverters() => _converters.ToArray();
+
+    /// <summary>Selects a CLR representation for fields matched by the profile.</summary>
+    /// <remarks>Return null for fields that use another profile or the reader's default representation.
+    /// The selector must support concurrent calls.</remarks>
+    public ResourceReaderFactoryOptions AddRepresentationProfile(string name, Func<DataField, Type?> selectType)
     {
-        _profiles.TryAdd(profile.Name, profile);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(selectType);
+        if (!_profiles.TryAdd(name, new(name, selectType)) && _profiles[name].SelectType != selectType)
+            throw new InvalidOperationException($"Representation profile '{name}' is already registered.");
+        return this;
+    }
+
+    /// <summary>Registers a fallback from a native source type to the requested representation.</summary>
+    /// <remarks>Omitted logical type, format, or encoding can match any declaration. The target type defaults to
+    /// <typeparamref name="TResult"/> and, when supplied explicitly, must match its underlying CLR type.
+    /// Converters shared by concurrent reader openings must be thread-safe and return values that remain
+    /// usable after the reader advances or is disposed.</remarks>
+    public ResourceReaderFactoryOptions AddValueConverter<TSource, TResult>(Func<TSource, TResult> convert,
+        string? logicalType = null, string? format = null, SpatialEncoding? encoding = null, Type? targetType = null)
+    {
+        ArgumentNullException.ThrowIfNull(convert);
+        _converters.Add(new(typeof(TSource), targetType ?? typeof(TResult), typeof(TResult),
+            value => convert((TSource)value), logicalType, format, encoding));
         return this;
     }
 

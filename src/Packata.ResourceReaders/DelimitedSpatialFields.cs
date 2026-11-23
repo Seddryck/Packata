@@ -1,16 +1,17 @@
 using System.Text.Json;
 using Packata.Core;
 using Packata.Core.Contracts;
-using PocketCsvReader.Configuration;
 
 namespace Packata.ResourceReaders;
 
 internal static class DelimitedSpatialFields
 {
-    internal static bool TryAdd(ISchemaDescriptorBuilder schema, DataField field)
+    internal static Type? GetDefaultRepresentation(DataField field)
     {
         var logicalType = field.LogicalType?.Trim().ToLowerInvariant();
-        if (logicalType is not ("geopoint" or "geojson")) return false;
+        var supported = logicalType is "geopoint" or "geojson"
+            || (logicalType is "geometry" or "geography" && field.Spatial?.Encoding is SpatialEncoding.Wkt or SpatialEncoding.GeoJson);
+        if (!supported) return null;
 
         var resolution = FieldTypeResolver.Resolve(field, TypeMappingOptions.Strict);
         var diagnostic = resolution.Diagnostics.FirstOrDefault(item =>
@@ -18,23 +19,34 @@ internal static class DelimitedSpatialFields
         if (diagnostic is not null)
             throw new NotSupportedException($"Cannot bind CSV field '{field.Name}'. {diagnostic.Message}");
 
-        if (resolution.RuntimeType == typeof(GeoPoint))
+        return resolution.RuntimeType
+            ?? throw new NotSupportedException($"Cannot bind CSV field '{field.Name}' as '{logicalType}'.");
+    }
+
+    internal static DelimitedFieldBinding? TryBind(ReaderRepresentationRequest request)
+    {
+        if (request.RuntimeType == typeof(GeoPoint)
+            && string.Equals(request.Field.LogicalType?.Trim(), "geopoint", StringComparison.OrdinalIgnoreCase))
         {
-            var format = GetGeoPointFormat(field);
-            schema.WithCustomField(typeof(GeoPoint), field.Name,
-                builder => builder.WithDataSourceTypeName(logicalType).WithParser<GeoPoint>(text => GeoPointParser.Parse(text, format)));
-            return true;
+            return new((schema, field, type) =>
+            {
+                var format = GetGeoPointFormat(field);
+                schema.WithCustomField(type, field.Name,
+                    builder => builder.WithDataSourceTypeName("geopoint")
+                        .WithParser<GeoPoint>(text => GeoPointParser.Parse(text, format)));
+            });
         }
 
-        if (resolution.RuntimeType == typeof(JsonElement))
+        if (request.RuntimeType == typeof(JsonElement)
+            && (string.Equals(request.Field.LogicalType?.Trim(), "geojson", StringComparison.OrdinalIgnoreCase)
+                || request.Encoding == SpatialEncoding.GeoJson))
         {
-            schema.WithCustomField(typeof(JsonElement), field.Name,
-                builder => builder.WithDataSourceTypeName(logicalType)
-                    .WithParser<JsonElement>(text => JsonSerializer.Deserialize<JsonElement>(text)));
-            return true;
+            return new((schema, field, type) => schema.WithCustomField(type, field.Name,
+                builder => builder.WithDataSourceTypeName(field.LogicalType!)
+                    .WithParser<JsonElement>(text => JsonSerializer.Deserialize<JsonElement>(text))));
         }
 
-        throw new NotSupportedException($"Cannot bind CSV field '{field.Name}' as '{logicalType}'.");
+        return null;
     }
 
     internal static GeoPointFormat GetGeoPointFormat(DataField field) => field.Format?.Trim().ToLowerInvariant() switch
