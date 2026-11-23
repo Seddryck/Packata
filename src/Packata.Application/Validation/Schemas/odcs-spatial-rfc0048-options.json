@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "subType": { "enum": ["Point", "LineString", "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection"] },
+    "crs": { "type": "string", "minLength": 1 },
+    "dimensions": { "enum": [2, 3, 4] },
+    "encoding": { "enum": ["wkt", "wkb", "geojson", "ewkt", "ewkb"] },
+    "algorithm": { "enum": ["spherical", "vincenty", "thomas", "andoyer", "karney"] },
+    "bbox": { "type": "array", "items": { "type": "number" } },
+    "orientation": { "const": "counterclockwise" },
+    "epoch": { "type": "number" }
+  },
+  "additionalProperties": false,
+  "allOf": [{
+    "if": { "required": ["dimensions"], "properties": { "dimensions": { "const": 3 } } },
+    "then": { "properties": { "bbox": { "minItems": 6, "maxItems": 6 } } },
+    "else": {
+      "if": { "required": ["dimensions"], "properties": { "dimensions": { "const": 4 } } },
+      "then": { "properties": { "bbox": { "minItems": 8, "maxItems": 8 } } },
+      "else": { "properties": { "bbox": { "minItems": 4, "maxItems": 4 } } }
+    }
+  }]
+}

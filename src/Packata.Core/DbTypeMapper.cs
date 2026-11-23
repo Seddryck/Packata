@@ -16,8 +16,9 @@ public class DbTypeMapper : BaseTypeMapper<DbType>
 
     protected override void Initialize()
     {
-        foreach (var entry in TypeMappingCatalog.Entries.Where(TypeMappingCatalog.IsLegacyEntry))
-            RegisterDefault(entry.LogicalType, entry.Format, entry.DatabaseType);
+        foreach (var entry in TypeMappingCatalog.Entries.Where(entry => TypeMappingCatalog.IsLegacyEntry(entry)
+            && entry.DatabaseType is not null))
+            RegisterDefault(entry.LogicalType, entry.Format, entry.DatabaseType!.Value);
     }
 
     public FieldTypeResolution Resolve(DataField field, TypeMappingOptions options)

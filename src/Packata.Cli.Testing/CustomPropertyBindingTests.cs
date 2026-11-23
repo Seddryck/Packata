@@ -23,7 +23,7 @@ public sealed class CustomPropertyBindingTests
         }
 
         var listed = await Json("config", "list");
-        Assert.That(listed.Count(entry => entry.Value<string>("key")!.StartsWith("mapping.", StringComparison.Ordinal)), Is.EqualTo(16));
+        Assert.That(listed.Count(entry => entry.Value<string>("key")!.StartsWith("mapping.", StringComparison.Ordinal)), Is.EqualTo(18));
         var set = await CliWorkspace.RunWithEnvironment(environment, ["config", "set", key, """{"property":"additionalProperties","vendor":null}"""]);
         Assert.That(set.ExitCode, Is.Zero, set.Error);
         var effective = (await Json("config", "get", key))[0]!;
@@ -51,6 +51,20 @@ public sealed class CustomPropertyBindingTests
         var configuration = new CliConfiguration(path);
         Assert.That(configuration.MappingOptions().DataPackage.DefaultValue.Property, Is.EqualTo("initial"));
         Assert.That(() => configuration.Get("connectors.catalog"), Throws.TypeOf<CliException>());
+    }
+
+    [Test]
+    public void Physical_context_selectors_flow_into_both_adapter_options()
+    {
+        using var workspace = new CliWorkspace();
+        var path = workspace.Write("config.json", """
+            {"mapping.odcs.field.physicalTypeContext":"{\"property\":\"storage\",\"vendor\":\"acme\"}",
+             "mapping.datapackage.field.physicalTypeContext":"storage"}
+            """);
+        var options = new CliConfiguration(path).MappingOptions();
+        Assert.That(options.Odcs.Field.PhysicalTypeContext.Property, Is.EqualTo("storage"));
+        Assert.That(options.Odcs.Field.PhysicalTypeContext.Vendor, Is.EqualTo("acme"));
+        Assert.That(options.DataPackage.PhysicalTypeContext.Property, Is.EqualTo("storage"));
     }
 
     [TestCase("""{"mapping.datapackage.field.defaultValue":17}""")]

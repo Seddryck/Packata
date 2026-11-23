@@ -8,6 +8,7 @@ namespace Packata.OpenDataContract.Mapping;
 public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
 {
     private readonly OdcsBindings bindings;
+    private readonly bool spatialRfc0048;
 
     public OpenDataContractMapper() => bindings = OdcsBindings.Default;
 
@@ -18,6 +19,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         ArgumentNullException.ThrowIfNull(options.Field);
         ArgumentNullException.ThrowIfNull(options.Server);
         bindings = new(options);
+        spatialRfc0048 = options.EnableSpatialRfc0048;
     }
 
     public MappingResult<CoreContract> Map(DataContract document)
@@ -110,7 +112,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         ICollection<MappingDiagnostic> diagnostics)
     {
         var (allowAdditional, enforceOrder) = PropertyRequirementsMapper.Map(schema, diagnostics, bindings);
-        var fields = schema.Properties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics, schema.Name, [property.Name])).ToArray();
+        var sourceContext = SpatialDeclarations.SourceContext(endpoints);
+        var fields = schema.Properties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics, schema.Name, [property.Name], sourceContext)).ToArray();
         var primaryKey = schema.Properties
             .Where(x => x.PrimaryKey)
             .OrderBy(x => x.PrimaryKeyPosition ?? int.MaxValue)
@@ -192,7 +195,8 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
 
     private static string UnescapeReferenceName(string name) => name.Replace("~1", "/").Replace("~0", "~");
 
-    private DataField MapField(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics, string assetId, IReadOnlyList<string> fieldPath)
+    private DataField MapField(SchemaProperty property, string path, ICollection<MappingDiagnostic> diagnostics, string assetId,
+        IReadOnlyList<string> fieldPath, PhysicalTypeContext? sourceContext)
     {
         var domain = MapValueDomain(property, path, diagnostics);
         var constraints = MapConstraints(property);
@@ -206,17 +210,32 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             property.Required ?? false,
             constraints,
             QualityRules: QualityMapper.Map(property.Quality, new QualityTarget(assetId, fieldPath), $"{path}/quality", diagnostics),
-            Children: property.Properties.Select(child => MapField(child, $"{path}/properties/{child.Name}", diagnostics, assetId, [..fieldPath, child.Name])).ToArray(),
+            Children: property.Properties.Select(child => MapField(child, $"{path}/properties/{child.Name}", diagnostics, assetId, [..fieldPath, child.Name], sourceContext)).ToArray(),
             Extensions: MapFieldExtensionMetadata(property),
             PhysicalName: property.PhysicalName,
             Description: property.Description,
             Nullable: property.Nullable ?? false,
-            Items: property.Items is null ? null : MapField(property.Items, $"{path}/items", diagnostics, assetId, [..fieldPath, "[]"]),
+            Items: property.Items is null ? null : MapField(property.Items, $"{path}/items", diagnostics, assetId, [..fieldPath, "[]"], sourceContext),
             ValueDomain: domain,
             Map: property.Map is null ? null : new DataMap(
-                MapField(property.Map.Key, path + "/map/key", diagnostics, assetId, [..fieldPath, "key"]),
-                MapField(property.Map.Value, path + "/map/value", diagnostics, assetId, [..fieldPath, "value"])));
+                MapField(property.Map.Key, path + "/map/key", diagnostics, assetId, [..fieldPath, "key"], sourceContext),
+                MapField(property.Map.Value, path + "/map/value", diagnostics, assetId, [..fieldPath, "value"], sourceContext)))
+        {
+            Spatial = SpatialRfc0048Mapper.Map(GetLogicalTypeName(property.LogicalType), property.DeclaredLogicalTypeOptions,
+                spatialRfc0048, path, diagnostics),
+            PhysicalTypeContext = MapPhysicalTypeContext(property, sourceContext, path, diagnostics)
+        };
+        SpatialDeclarations.CheckPhysicalContext(mapped, path, diagnostics);
         return ApplyColumnDefault(mapped, property.CustomProperties, path, diagnostics);
+    }
+
+    private PhysicalTypeContext? MapPhysicalTypeContext(SchemaProperty property, PhysicalTypeContext? sourceContext,
+        string path, ICollection<MappingDiagnostic> diagnostics)
+    {
+        if (property.PhysicalType is null) return null;
+        var declaration = bindings.PhysicalTypeContext is { } selector
+            ? property.CustomProperties.LastOrDefault(entry => selector.Matches(entry.Property, entry.Vendor))?.ReadMappingValue() : null;
+        return SpatialDeclarations.PhysicalContext(declaration, sourceContext, path, diagnostics);
     }
 
     private DataField ApplyColumnDefault(DataField field, CustomProperties properties,
@@ -285,11 +304,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
 
     private static Dictionary<string, object?> MapFieldExtensions(SchemaProperty property)
     {
-        var extensions = new Dictionary<string, object?>();
-        if (property.Classification is not null) extensions["classification"] = property.Classification;
-        if (property.Partitioned is not null) extensions["partitioned"] = property.Partitioned;
-        if (property.PartitionKeyPosition is not null)
-            extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
+        var extensions = MapStorageMetadata(property);
         if (property.CustomProperties.Count > 0)
             extensions["customProperties"] = MapCustomPropertyValues(property.CustomProperties);
         if (property.Enum is not null)
@@ -299,9 +314,25 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
         return extensions;
     }
 
+    private static Dictionary<string, object?> MapStorageMetadata(SchemaProperty property)
+    {
+        var extensions = new Dictionary<string, object?>();
+        if (property.Classification is not null) extensions["classification"] = property.Classification;
+        if (property.Partitioned is not null) extensions["partitioned"] = property.Partitioned;
+        if (property.PartitionKeyPosition is not null)
+            extensions["partitionKeyPosition"] = property.PartitionKeyPosition;
+        return extensions;
+    }
+
     private static ExtensionMetadata MapFieldExtensionMetadata(SchemaProperty property)
     {
         var extensions = MapFieldExtensions(property);
+        if (property.LogicalType is UnknownLogicalType { Type: "geometry" or "geography" }
+            && property.DeclaredLogicalTypeOptions is { } logicalOptions)
+        {
+            extensions["logicalTypeOptions"] = MetadataSnapshot.CopyDictionary(logicalOptions.Select(
+                pair => new KeyValuePair<string, object?>(pair.Key, pair.Value)));
+        }
         return extensions.Count == 0 ? ExtensionMetadata.Empty : ExtensionMetadata.For("odcs", extensions);
     }
 

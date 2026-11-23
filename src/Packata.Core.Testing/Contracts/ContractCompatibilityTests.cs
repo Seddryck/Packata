@@ -10,6 +10,19 @@ public class ContractCompatibilityTests
     private static CompatibilityResult Compare(DataField before, DataField after) => ContractCompatibility.Compare(Contract(before), Contract(after));
 
     [Test]
+    public void SpatialMetadataChanges_RequireDedicatedCompatibilityPolicy()
+    {
+        var before = new DataField("location", "geometry")
+        { Spatial = new(SpatialModel.Geometry, SpatialSubtype.Point, "EPSG:4326", 2, SpatialEncoding.Wkt) };
+        var after = before with { Spatial = before.Spatial! with { Crs = "EPSG:3857" } };
+        var result = Compare(before, after);
+        Assert.That(result.Findings.Single(finding => finding.Rule == "spatial-semantics").Classification, Is.EqualTo(CompatibilityClassification.Unknown));
+        Assert.That(result.Outcome, Is.EqualTo(CompatibilityOutcome.Unknown));
+        var physical = before with { PhysicalTypeContext = new("postgresql") };
+        Assert.That(Compare(before, physical).Findings.Single(finding => finding.Rule == "physical-representation").Classification, Is.EqualTo(CompatibilityClassification.PotentiallyBreaking));
+    }
+
+    [Test]
     public void IdenticalContracts_DeclareDirectionPolicyAndCompletion()
     {
         var result = Compare(new("amount", "integer"), new("amount", "integer"));

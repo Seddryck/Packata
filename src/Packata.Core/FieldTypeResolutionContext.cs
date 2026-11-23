@@ -1,6 +1,7 @@
 using System.Data;
 using System.Globalization;
 using System.Numerics;
+using System.Text.Json;
 using Packata.Core.Contracts;
 
 namespace Packata.Core;
@@ -8,6 +9,10 @@ namespace Packata.Core;
 // One interpretation owns the source parameters, diagnostics, and independent projections.
 internal sealed class FieldTypeResolutionContext
 {
+    private const string ConflictingSemantics = "ConflictingSemantics";
+    private const string DefaultFormat = "default";
+    private const string GeometryType = "geometry";
+    private const string GeographyType = "geography";
     private static readonly string[] TemporalTypes = ["date", "time", "datetime", "timestamp"];
     private static readonly string[] StringAnnotations =
         ["password", "byte", "binary", "email", "uuid", "uri", "hostname", "ipv4", "ipv6", "xml"];
@@ -52,11 +57,22 @@ internal sealed class FieldTypeResolutionContext
         ReadParameters();
         SelectEntry();
         SelectIntegerEntry();
-        _runtime = _entry?.RuntimeType;
+        _runtime = SpatialRuntimeType();
         _database = _entry?.DatabaseType;
+        if (_entry is not null && _runtime is null)
+        {
+            Report("UnsupportedRepresentation", TypeMappingTarget.Runtime,
+                $"Logical type '{_field.LogicalType}' requires an explicit supported spatial encoding or configured runtime representation.");
+        }
+        if (_entry is not null && _database is null)
+        {
+            Report("UnsupportedRepresentation", TypeMappingTarget.Database,
+                $"DbType has no portable representation for logical type '{_field.LogicalType}'.");
+        }
         ProjectTemporal();
         ProjectNumber();
         CheckIntegerBounds();
+        CheckSpatialDescriptor();
         ResolveNestedFields();
         ProjectShape();
         RejectSourceErrors();
@@ -118,7 +134,7 @@ internal sealed class FieldTypeResolutionContext
     {
         if ((_width is not null && _width != width) || (_signed is not null && _signed != signed))
         {
-            Report("ConflictingSemantics", TypeMappingTarget.Source,
+            Report(ConflictingSemantics, TypeMappingTarget.Source,
                 "Integer format takes precedence over integerWidth/signed parameters.", TypeMappingSeverity.Warning);
         }
 
@@ -155,7 +171,7 @@ internal sealed class FieldTypeResolutionContext
         if (!DateTimeFormatConverter.HasOffset(_format)) return;
         if (_timezone == false)
         {
-            Report("ConflictingSemantics", TypeMappingTarget.Source,
+            Report(ConflictingSemantics, TypeMappingTarget.Source,
                 "Offset parsing pattern conflicts with timezone=false; the parsing pattern takes precedence.", TypeMappingSeverity.Warning);
         }
 
@@ -174,7 +190,18 @@ internal sealed class FieldTypeResolutionContext
 
     private bool IsAnnotation()
     {
-        if (_semanticFormat is null or "default" or "any") return true;
+        return _type switch
+        {
+            "geopoint" => _semanticFormat is null or DefaultFormat or "array" or "object",
+            "geojson" => _semanticFormat is null or DefaultFormat or "topojson",
+            GeometryType or GeographyType => _semanticFormat is null or DefaultFormat,
+            _ => IsScalarAnnotation()
+        };
+    }
+
+    private bool IsScalarAnnotation()
+    {
+        if (_semanticFormat is null or DefaultFormat or "any") return true;
         if (_type == "string") return StringAnnotations.Contains(_semanticFormat);
         if (_type == "number") return _semanticFormat == "decimal";
         return _temporal && _format is not null && IsPattern(_format);
@@ -309,6 +336,53 @@ internal sealed class FieldTypeResolutionContext
             new FieldTypeResolutionContext(child, _options, _path + "/" + child.Name).Resolve()).ToArray();
     }
 
+    private void CheckSpatialDescriptor()
+    {
+        var spatial = _field.Spatial;
+        if (spatial is null) return;
+        CheckSpatialCoordinates(spatial);
+        CheckSpatialContent(spatial);
+        CheckSpatialModel(spatial);
+        CheckPointRepresentation(spatial);
+    }
+
+    private void CheckSpatialCoordinates(SpatialDescriptor spatial)
+    {
+        if (spatial.Dimensions is not (null or 2 or 3 or 4))
+            Report("InvalidParameter", TypeMappingTarget.Source, "Spatial dimensions must be 2, 3, or 4.");
+        if (spatial.Model == SpatialModel.Geometry && string.IsNullOrWhiteSpace(spatial.Crs))
+            Report("InvalidParameter", TypeMappingTarget.Source, "Planar geometry requires an explicit CRS.");
+    }
+
+    private void CheckSpatialContent(SpatialDescriptor spatial)
+    {
+        if ((_type is GeometryType or GeographyType) && (spatial.Content != SpatialContent.Geometry || spatial.Encoding == SpatialEncoding.TopoJson))
+            Report(ConflictingSemantics, TypeMappingTarget.Source, "Geometry/geography requires geometry content; TopoJSON topology and GeoJSON features need an explicit conversion policy.");
+    }
+
+    private void CheckSpatialModel(SpatialDescriptor spatial)
+    {
+        if ((_type == GeometryType && spatial.Model != SpatialModel.Geometry)
+            || (_type == GeographyType && spatial.Model != SpatialModel.Geography))
+            Report(ConflictingSemantics, TypeMappingTarget.Source, "Spatial model conflicts with the logical type.");
+    }
+
+    private void CheckPointRepresentation(SpatialDescriptor spatial)
+    {
+        if (_type == "geopoint" && (spatial.SubType is not (null or SpatialSubtype.Point)
+            || spatial.Dimensions is not (null or 2)))
+            Report(ConflictingSemantics, TypeMappingTarget.Source, "GeoPoint requires a two-dimensional Point representation.");
+    }
+
+    private Type? SpatialRuntimeType()
+        => (_type is GeometryType or GeographyType) && _entry is not null ? _field.Spatial?.Encoding switch
+        {
+            SpatialEncoding.GeoJson => typeof(JsonElement),
+            SpatialEncoding.Wkt or SpatialEncoding.Ewkt => typeof(string),
+            SpatialEncoding.Wkb or SpatialEncoding.Ewkb => typeof(byte[]),
+            _ => null
+        } : _entry?.RuntimeType;
+
     private void ProjectShape()
     {
         if (_type == "array" && _items is not null && _field.Children.Count == 0)
@@ -396,6 +470,7 @@ internal sealed class FieldTypeResolutionContext
         var legacy = TypeMappingCatalog.Entries.FirstOrDefault(e => TypeMappingCatalog.IsLegacyEntry(e)
             && e.LogicalType == _field.LogicalType && e.Format == _field.Format);
         offset = legacy is null && TypeMappingCatalog.HasOffset(_field.LogicalType ?? "", _field.Format);
-        return legacy ?? TypeMappingCatalog.Entries.FirstOrDefault(e => e.LogicalType == _field.LogicalType && e.Format is null);
+        return legacy ?? TypeMappingCatalog.Entries.FirstOrDefault(e => TypeMappingCatalog.IsLegacyEntry(e)
+            && e.LogicalType == _field.LogicalType && e.Format is null);
     }
 }

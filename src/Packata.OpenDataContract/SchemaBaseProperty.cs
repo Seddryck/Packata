@@ -43,7 +43,14 @@ public abstract class SchemaBaseProperty : SchemaElement
     /// </value>
     protected Dictionary<string, object>? LogicalTypeOptions { get; set; }
 
+    [YamlIgnore]
     internal IReadOnlyDictionary<string, object>? DeclaredLogicalTypeOptions => LogicalTypeOptions;
+
+    internal void PreserveSpatialOptions(Dictionary<string, object> options)
+    {
+        LogicalTypeOptions = options;
+        _cached = null;
+    }
 
     private ILogicalType? _cached;
     public ILogicalType? LogicalType

@@ -61,6 +61,139 @@ such as `uuid`, `email`, or `binary`; mapping these annotations does not validat
 convert their values. Unknown formats produce `UnsupportedFormat` rather than silently
 selecting an unformatted representation.
 
+## Spatial declarations
+
+Canonical `geopoint` resolves to `Packata.Core.GeoPoint`, an immutable value type with
+`double Longitude` and `double Latitude` properties and value equality. DPv2 Table
+Schema defines three input formats, all with the same CLR representation.
+
+| Logical type | Format | Input representation | CLR type |
+| --- | --- | --- | --- |
+| `geopoint` | omitted or `default` | Longitude and latitude text, such as `"4.35, 50.85"` | `GeoPoint` |
+| `geopoint` | `array` | Exactly two JSON numbers, such as `[4.35, 50.85]` | `GeoPoint` |
+| `geopoint` | `object` | Exactly the numeric `lon` and `lat` members | `GeoPoint` |
+| `geojson` | omitted or `default` | GeoJSON geometry, feature, or feature collection | `System.Text.Json.JsonElement` |
+| `geojson` | `topojson` | TopoJSON object | `System.Text.Json.JsonElement` |
+
+The positional point formats use longitude first and latitude second. The Data Package
+mapper preserves the declared logical type and explicit format, including an omitted
+format. Strict resolution interprets omission as `default`. Other spatial formats,
+including `any`, produce a source `UnsupportedFormat` error. These encodings come from
+[DPv2 Table Schema](https://datapackage.org/standard/table-schema/#geopoint).
+
+```csharp
+var location = new GeoPoint(Longitude: 4.35, Latitude: 50.85);
+var field = new DataField("location", "geopoint", Format: "array");
+var resolution = FieldTypeResolver.Resolve(field, TypeMappingOptions.Strict);
+// RuntimeType is typeof(GeoPoint).
+```
+
+Spatial types have a null strict `DatabaseType` and an
+`UnsupportedRepresentation` diagnostic targeted at `Database`. Their CLR projections
+remain available. Dialect-specific storage and export adapters determine their own
+supported representations. Explicit database fallbacks retain that diagnostic.
+
+`DataField.Spatial` describes schema meaning separately from the CLR value: `Model`
+(`Unspecified`, planar `Geometry`, or geodetic `Geography`), `SubType`, `Crs`,
+`Dimensions`, `Encoding`, and `Content`. It also retains `Algorithm`, `BoundingBox`,
+`Orientation`, and decimal-year `Epoch`. Bounding boxes are copied into an immutable
+snapshot. Switching a CLR profile does not change this descriptor.
+
+DPv2 geopoints declare a two-dimensional Point with unspecified spatial model and
+CRS. Their input encoding remains in `Format`; the mapper does not invent a WKT or
+GeoJSON encoding. Generic DPv2 GeoJSON has `Content: GeoJsonValue`, which includes
+Feature and FeatureCollection; TopoJSON has `Content: Topology`. Neither implies a
+particular geometry subtype or spatial model.
+
+### Proposed ODCS RFC-0048 profile
+
+[Bitol RFC-0048](https://github.com/bitol-io/tsc/blob/main/rfcs/0048-geometry-geography.md)
+is a proposal, outside official ODCS v3.2.0. Mapping `logicalType: geometry` or
+`geography` requires `new OdcsMappingOptions { EnableSpatialRfc0048 = true }`.
+The existing ODCS mapper maps `logicalTypeOptions` into the spatial descriptor and
+also retains the original options in `Extensions["odcs"]["logicalTypeOptions"]`.
+`geometry` requires an explicit CRS. Omitted geography CRS and dimensions stay absent
+in the canonical declaration, even though the RFC defines interpretation defaults
+of EPSG:4326 and two dimensions. Three dimensions do not establish whether the third
+ordinate is Z or M; four dimensions represent XYZM.
+
+| Canonical geometry/geography encoding | Default CLR type |
+| --- | --- |
+| `geojson` | owned `System.Text.Json.JsonElement` |
+| `wkt`, `ewkt` | `string` |
+| `wkb`, `ewkb` | `byte[]` |
+| omitted | No default; runtime `UnsupportedRepresentation` diagnostic |
+
+These mappings depend on encoding and selected representation policy, independently
+of ODCS/DPv2 provenance. The descriptor retains planar/geodetic meaning even when both
+use the same coordinates and CLR type. A GeoPoint value alone cannot establish an RFC
+model or CRS. DPv2 formats are source encodings, while RFC encoding is retained in
+`Spatial.Encoding`, not copied into the unrelated `Format` property.
+
+Source validation opts into a separate, offline profile:
+
+```csharp
+var options = ContractMappingOptions.Default with
+{
+    Odcs = new OdcsMappingOptions { EnableSpatialRfc0048 = true }
+};
+var report = DescriptorValidation.Validate(text, "odcs",
+    DescriptorValidation.DefaultLayers, null, default, options);
+```
+
+Its profile URI is `https://seddryck.github.io/Packata/profiles/odcs-spatial-rfc0048/1.0`.
+The profile extends the pinned schema in memory; default ODCS validation continues to
+reject these proposed types. It validates the seven geometry subtypes, CRS, dimensions,
+encoding, geography edge algorithm, bbox length, orientation and epoch. No network
+schema retrieval or general extension-validation mechanism is involved.
+
+Mapping diagnostics distinguish `SPATIAL_PROFILE` (missing opt-in), `SPATIAL_OPTIONS`
+(invalid RFC options), `SPATIAL_RFC0048_CONTENT` (a general GeoJSON declaration can
+include features/collections), and `SPATIAL_RFC0048_ENCODING` (TopoJSON has no RFC
+encoding). The last two warn about conversion limits while retaining the DP declaration;
+they do not convert payloads or manufacture a geometry. Compatibility comparison
+reports changed spatial semantics as unknown until a containment policy is supplied.
+
+### Physical storage context
+
+`PhysicalType` stays separate from spatial meaning. `PhysicalTypeContext` retains
+`Provider`, `Dialect`, and `Server`. A single bound database endpoint supplies its
+provider scheme and server ID. Multiple unbound servers do not establish a context.
+Offline declarations can use a field custom property:
+
+```yaml
+customProperties:
+  - property: physicalTypeContext
+    vendor: packata
+    value: {provider: snowflake, dialect: snowflake}
+```
+
+DPv2 uses the same payload under `packata:customProperties`, alongside its existing
+`x-packata-physicalType` extension. Both adapters reuse configurable binding selectors
+and their disabled presets. ODCS `vendor: packata` attributes the extension; the payload's
+provider identifies storage. No top-level vendor field is introduced.
+
+An unqualified `GEOGRAPHY` does not identify a vendor. Missing/ambiguous context emits
+`SPATIAL_PHYSICAL_CONTEXT`; a conflicting explicit and bound provider emits
+`SPATIAL_PHYSICAL_CONTEXT_CONFLICT`. Native physical-type compatibility and SQL rendering
+continue through the existing explicit target dialect and native-type registry from
+[#494](https://github.com/Seddryck/Packata/issues/494); these mappers preserve source
+context without adding SQL generation or treating source types as portable.
+
+Core resolution describes the field's representation. Value decoding, owned
+`JsonElement` lifetimes, and optional runtime profiles are supplied by reader bindings.
+The optional NetTopologySuite profile will select the declared subtype (for example,
+`Point` or `LineString`) or general `Geometry` when unspecified, through the ExtendedTypes work tracked in
+[#791](https://github.com/Seddryck/Packata/issues/791). Geopoint decoding is tracked in
+[#781](https://github.com/Seddryck/Packata/issues/781). Reader bindings must return the
+selected CLR type consistently from `GetValue`, `GetFieldType`, and typed getters.
+Unknown encodings, subtype mismatches, and TopoJSON-to-geometry conversion need explicit
+diagnostics/policy; installing an optional library alone cannot justify a conversion.
+
+The legacy `Map` API and `LegacyCompatibility` resolution retain their existing opaque
+object representations for spatial fields. Strict resolution exposes the default CLR
+types above, independently of reader conversion support.
+
 ## Representation limits and nested fields
 
 Declared integer bounds must fit the selected signed/unsigned domain. Bound comparisons

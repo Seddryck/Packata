@@ -18,6 +18,7 @@ public sealed record OdcsMappingOptions
             Categories = OdcsBindingOverride.Disabled,
             DefaultValue = OdcsBindingOverride.Disabled,
             DefaultExpression = OdcsBindingOverride.Disabled,
+            PhysicalTypeContext = OdcsBindingOverride.Disabled,
         },
         Server = new()
         {
@@ -33,6 +34,13 @@ public sealed record OdcsMappingOptions
     };
 
     public OdcsSchemaBindings Schema { get; init; } = new();
+
+    /// <summary>Opts into mapping and validating the proposed RFC-0048 spatial profile.</summary>
+    /// <value>Whether the proposed spatial profile is enabled.</value>
+    /// <value>
+    /// Opts into mapping and validating the proposed RFC-0048 spatial profile.
+    /// </value>
+    public bool EnableSpatialRfc0048 { get; init; }
 
     public OdcsFieldBindings Field { get; init; } = new();
 
@@ -55,6 +63,8 @@ public sealed record OdcsFieldBindings
     public OdcsBindingOverride DefaultValue { get; init; } = OdcsBindingOverride.BuiltIn;
 
     public OdcsBindingOverride DefaultExpression { get; init; } = OdcsBindingOverride.BuiltIn;
+
+    public OdcsBindingOverride PhysicalTypeContext { get; init; } = OdcsBindingOverride.BuiltIn;
 }
 
 public sealed record OdcsServerBindings

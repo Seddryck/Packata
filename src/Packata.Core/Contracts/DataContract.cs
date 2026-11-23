@@ -91,6 +91,8 @@ public sealed record DataField(
     string? Language = null,
     DataMap? Map = null)
 {
+    public SpatialDescriptor? Spatial { get; init; }
+    public PhysicalTypeContext? PhysicalTypeContext { get; init; }
     public ColumnDefaultLiteral? DefaultValue { get; init; }
     public ColumnDefaultExpression? DefaultExpression { get; init; }
 

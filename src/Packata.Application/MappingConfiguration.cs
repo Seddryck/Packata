@@ -9,6 +9,7 @@ internal static class MappingConfiguration
     private const string OdcsPrefix = "mapping.odcs.";
     private const string DefaultValueKey = "mapping.datapackage.field.defaultValue";
     private const string DefaultExpressionKey = "mapping.datapackage.field.defaultExpression";
+    private const string PhysicalTypeContextKey = "mapping.datapackage.field.physicalTypeContext";
     private static readonly string[] Keys =
     [
         OdcsPrefix + "schema.allowAdditionalProperties",
@@ -17,6 +18,7 @@ internal static class MappingConfiguration
         OdcsPrefix + "field.categories",
         OdcsPrefix + "field.defaultValue",
         OdcsPrefix + "field.defaultExpression",
+        OdcsPrefix + "field.physicalTypeContext",
         OdcsPrefix + "server.delimiter",
         OdcsPrefix + "server.quoteChar",
         OdcsPrefix + "server.lineTerminator",
@@ -27,6 +29,7 @@ internal static class MappingConfiguration
         OdcsPrefix + "server.commentRows",
         DefaultValueKey,
         DefaultExpressionKey,
+        PhysicalTypeContextKey,
     ];
 
     internal static IEnumerable<string> SettingKeys => Keys.Select(key => key);
@@ -57,6 +60,7 @@ internal static class MappingConfiguration
                 Categories = ReadOdcs(settings, OdcsPrefix + "field.categories"),
                 DefaultValue = ReadOdcs(settings, OdcsPrefix + "field.defaultValue"),
                 DefaultExpression = ReadOdcs(settings, OdcsPrefix + "field.defaultExpression"),
+                PhysicalTypeContext = ReadOdcs(settings, OdcsPrefix + "field.physicalTypeContext"),
             },
             Server = new()
             {
@@ -74,6 +78,7 @@ internal static class MappingConfiguration
         {
             DefaultValue = ReadDataPackage(settings, DefaultValueKey),
             DefaultExpression = ReadDataPackage(settings, DefaultExpressionKey),
+            PhysicalTypeContext = ReadDataPackage(settings, PhysicalTypeContextKey),
         };
         try
         {
