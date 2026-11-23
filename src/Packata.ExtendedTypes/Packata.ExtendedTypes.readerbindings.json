@@ -1,0 +1,16 @@
+[
+  {
+    "id": "Packata.ExtendedTypes/Chrononuensis/delimited",
+    "readerKey": "packata.delimited",
+    "profileName": "Chrononuensis",
+    "assemblyName": "Packata.ExtendedTypes",
+    "providerType": "Packata.ExtendedTypes.ChrononuensisDelimitedBinding"
+  },
+  {
+    "id": "Packata.ExtendedTypes/NetTopologySuite/delimited",
+    "readerKey": "packata.delimited",
+    "profileName": "NetTopologySuite",
+    "assemblyName": "Packata.ExtendedTypes",
+    "providerType": "Packata.ExtendedTypes.NetTopologySuiteDelimitedBinding"
+  }
+]

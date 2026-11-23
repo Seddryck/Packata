@@ -60,6 +60,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.ResourceReaders.Ndjson` | Optional NDJSON and JSON Lines reader provider |
 | `Packata.ResourceReaders.Parquet` | Optional Parquet reader provider |
 | `Packata.ResourceReaders.WebLogs` | Optional Common and W3C web-log reader provider |
+| `Packata.ExtendedTypes` | Optional [NetTopologySuite and Chrononuensis reader bindings](docs/extended-types.md) |
 | `Packata.ResourceReaders.Database` | Optional database reader provider |
 | `Packata.Storages` | Access to documents and resources on local, HTTP(S), S3, and Azure storage, including ZIP, TAR, Gzip-TAR, and Brotli-TAR package containers |
 | `Packata.Provisioners` | Provisioning of canonical data contracts to relational platforms |

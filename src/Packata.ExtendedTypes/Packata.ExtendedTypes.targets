@@ -1,0 +1,9 @@
+<Project>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)Packata.ExtendedTypes.readerbindings.json"
+             Link="Packata.ReaderBindings/Packata.ExtendedTypes.readerbindings.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Pack="false" />
+  </ItemGroup>
+</Project>

@@ -1,6 +1,8 @@
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using NUnit.Framework;
+using Packata.Core;
 using Packata.Core.Contracts;
 using Packata.Core.Reading;
 using Packata.Core.Storage;
@@ -286,6 +288,71 @@ public class CanonicalDelimitedReaderTests
 
         Assert.That(reader.Read(), Is.True);
         Assert.That(reader["id"], Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task OpenAsync_decodes_each_geopoint_column_using_its_declared_format()
+    {
+        var content = "id,text_point,array_point,object_point\r\n"
+            + "3000000000,\"4.35, 50.85\",\"[4.35,50.85]\",\"{\"\"lat\"\":50.85,\"\"lon\"\":4.35}\"\r\n";
+        var resolver = new DictionaryResolver(("data.csv", Encoding.UTF8.GetBytes(content)));
+        var schema = new DataSchema(
+        [
+            new("id", "integer", Format: "i64"),
+            new("text_point", "geopoint"),
+            new("array_point", "geopoint", Format: "array"),
+            new("object_point", "geopoint", Format: "object")
+        ]);
+
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(Endpoint(["data.csv"]), schema);
+
+        Assert.That(reader.Read(), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(long)));
+            Assert.That(reader.GetValue(0), Is.EqualTo(3000000000L));
+            for (var index = 1; index < reader.FieldCount; index++)
+            {
+                Assert.That(reader.GetFieldType(index), Is.EqualTo(typeof(GeoPoint)));
+                Assert.That(reader.GetValue(index), Is.EqualTo(new GeoPoint(4.35, 50.85)));
+            }
+        }
+    }
+
+    [TestCase(null, "Point")]
+    [TestCase("default", "FeatureCollection")]
+    [TestCase("topojson", "Topology")]
+    public async Task OpenAsync_returns_owned_json_elements(string? format, string kind)
+    {
+        var content = $"geometry\r\n\"{{\"\"type\"\":\"\"{kind}\"\"}}\"\r\n\"{{}}\"\r\n";
+        var resolver = new DictionaryResolver(("data.csv", Encoding.UTF8.GetBytes(content)));
+        var schema = new DataSchema([new("geometry", "geojson", Format: format)]);
+        JsonElement first;
+
+        using (var reader = await new ResourceReaderFactory(resolver).OpenAsync(Endpoint(["data.csv"]), schema))
+        {
+            Assert.That(reader.Read(), Is.True);
+            Assert.That(reader.GetFieldType(0), Is.EqualTo(typeof(JsonElement)));
+            first = reader.GetFieldValue<JsonElement>(0);
+            Assert.That(((JsonElement)reader.GetValue(0)).GetRawText(), Is.EqualTo(first.GetRawText()));
+            Assert.That(reader.Read(), Is.True);
+        }
+
+        Assert.That(first.GetProperty("type").GetString(), Is.EqualTo(kind));
+    }
+
+    [TestCase("geopoint", "default", "invalid")]
+    [TestCase("geopoint", "array", "\"[4.35,50.85,3]\"")]
+    [TestCase("geopoint", "object", "\"{\"\"longitude\"\":4.35,\"\"lat\"\":50.85}\"")]
+    [TestCase("geojson", "default", "{")]
+    public async Task OpenAsync_surfaces_invalid_spatial_values_as_conversion_errors(string type, string format, string cell)
+    {
+        var resolver = new DictionaryResolver(("data.csv", Encoding.UTF8.GetBytes($"location\r\n{cell}\r\n")));
+        var schema = new DataSchema([new("location", type, Format: format)]);
+        using var reader = await new ResourceReaderFactory(resolver).OpenAsync(Endpoint(["data.csv"]), schema);
+
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(() => reader.GetValue(0), type == "geopoint" ? Throws.TypeOf<FormatException>() : Throws.TypeOf<JsonException>());
     }
 
     [Test]

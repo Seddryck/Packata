@@ -17,6 +17,9 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
     private readonly IReadOnlyList<IDataEndpointReaderProvider> _providers;
     private readonly DataFormatResolver _formats;
     private readonly CategoryDecodingOptions _categories;
+    private readonly IReadOnlyList<ReaderRepresentationProfile> _representationProfiles;
+    private readonly IReadOnlyList<ReaderValueConverter> _valueConverters;
+    private readonly ReaderBindingCatalog _bindingCatalog = ReaderBindingCatalog.ForApplication();
 
     public ResourceReaderFactory(IEndpointStreamResolver? streams = null)
         : this(streams, DefaultProviders(), new DataFormatResolutionOptions())
@@ -30,7 +33,8 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         var options = new ResourceReaderFactoryOptions();
         configure(options);
         return new ResourceReaderFactory(streams,
-            options.CombineWith(DefaultProviders()), options.Formats, CategoryDecodingOptions.From(options));
+            options.CombineWith(DefaultProviders()), options.Formats, CategoryDecodingOptions.From(options),
+            options.GetRepresentationProfiles(), options.GetValueConverters());
     }
 
     internal ResourceReaderFactory(IEndpointStreamResolver? streams,
@@ -40,11 +44,15 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
     private ResourceReaderFactory(IEndpointStreamResolver? streams,
         IEnumerable<IDataEndpointReaderProvider> providers,
-        DataFormatResolutionOptions formatOptions, CategoryDecodingOptions? categories = null)
+        DataFormatResolutionOptions formatOptions, CategoryDecodingOptions? categories = null,
+        IReadOnlyList<ReaderRepresentationProfile>? representationProfiles = null,
+        IReadOnlyList<ReaderValueConverter>? valueConverters = null)
     {
         _streams = streams ?? new DefaultEndpointStreamResolver();
         _providers = providers.ToArray();
         _categories = categories ?? new();
+        _representationProfiles = representationProfiles ?? [];
+        _valueConverters = valueConverters ?? [];
         foreach (var provider in _providers.OfType<DelimitedReaderProvider>())
             provider.DecodeCategories = _categories.Enabled;
         _formats = new DataFormatResolver(formatOptions);
@@ -64,13 +72,14 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
 
         var format = _formats.Resolve(endpoint);
         var provider = _providers.FirstOrDefault(candidate => candidate.CanHandle(request, format));
+
         if (request.IndexedRead is { } indexed)
             return await OpenIndexedAsync(request, indexed, provider, format, cancellationToken).ConfigureAwait(false);
 
         return await OpenOrdinaryAsync(request, provider, format, cancellationToken).ConfigureAwait(false);
     }
 
-    private ValueTask<IDataReader> OpenIndexedAsync(DataEndpointReadRequest request, IndexedRead read,
+    private async ValueTask<IDataReader> OpenIndexedAsync(DataEndpointReadRequest request, IndexedRead read,
         IDataEndpointReaderProvider? provider, ResolvedDataFormat format, CancellationToken cancellationToken)
     {
         var endpoint = request.Endpoint;
@@ -85,7 +94,10 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
             request = request with { Endpoint = endpoint with { Location = new PathLocation(partitions.Paths.Where(keep).ToArray()) } };
         }
 
-        return indexedProvider.OpenIndexedAsync(new(request, format, _streams, equalities), cancellationToken);
+        var plan = Bind(indexedProvider, request.Schema);
+        var context = new IndexedReaderOpenContext(request, format, _streams, equalities) { FieldBindings = plan.NativeBindings };
+        var reader = await indexedProvider.OpenIndexedAsync(context, cancellationToken).ConfigureAwait(false);
+        return plan.HasBindings ? new OwnedDataReader(reader, [], plan) : reader;
     }
 
     private async ValueTask<IDataReader> OpenOrdinaryAsync(DataEndpointReadRequest request,
@@ -95,13 +107,13 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
         if (_categories.Enabled && provider is not DelimitedReaderProvider)
             throw new CategoryDecodingNotSupportedException();
         if (provider is null) throw UnsupportedEndpoint(endpoint, format);
-
         if (_categories.Enabled)
         {
             request = await new CategoryTableLoader(_streams, _formats, _providers, _categories)
                 .ExpandAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
+        var plan = Bind(provider, request.Schema);
         var opened = new List<Stream>();
         try
         {
@@ -117,9 +129,9 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
                     opened.Add(await _streams.OpenAsync(path, cancellationToken).ConfigureAwait(false));
             }
 
-            var context = new ReaderOpenContext(request, format, opened);
+            var context = new ReaderOpenContext(request, format, opened) { FieldBindings = plan.NativeBindings };
             var reader = await provider.OpenAsync(context, cancellationToken).ConfigureAwait(false);
-            return new OwnedDataReader(reader, opened.Cast<IDisposable>().ToArray());
+            return new OwnedDataReader(reader, opened.Cast<IDisposable>().ToArray(), plan);
         }
         catch
         {
@@ -127,6 +139,9 @@ public sealed class ResourceReaderFactory : IDataEndpointReaderFactory
             throw;
         }
     }
+
+    private ReaderBindingPlan Bind(IDataEndpointReaderProvider reader, DataSchema? schema)
+        => ReaderBindingPlan.Create(reader, schema, _representationProfiles, _valueConverters, _bindingCatalog);
 
     private static IReadOnlyList<ResolvedIndexedEquality> ResolveEqualities(DataSchema? schema, IndexedRead read)
     {

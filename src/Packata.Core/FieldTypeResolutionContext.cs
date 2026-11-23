@@ -15,7 +15,7 @@ internal sealed class FieldTypeResolutionContext
     private const string GeographyType = "geography";
     private static readonly string[] TemporalTypes = ["date", "time", "datetime", "timestamp"];
     private static readonly string[] StringAnnotations =
-        ["password", "byte", "binary", "email", "uuid", "uri", "hostname", "ipv4", "ipv6", "xml"];
+        ["password", "byte", "binary", "email", "uuid", "uri", "uri-reference", "hostname", "ipv4", "ipv6", "xml"];
     private static readonly string[] IntegerBounds = ["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"];
     private readonly DataField _field;
     private readonly TypeMappingOptions _options;
