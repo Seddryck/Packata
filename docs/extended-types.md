@@ -1,3 +1,9 @@
+---
+title: Extended CLR types
+parent: Reference
+permalink: /reference/dotnet/extended-types/
+---
+
 # Extended CLR types
 
 Install the optional `Packata.ExtendedTypes` NuGet package and enable the profiles your reader factory needs.
@@ -13,7 +19,7 @@ var factory = ResourceReaderFactory.Create(options =>
 });
 ```
 
-The package depends on `Packata.ResourceReaders`, `PocketCsvReader.NetTopologySuite`, and `PocketCsvReader.Chrononuensis`. The PocketCsvReader integration packages bring in NetTopologySuite and Chrononuensis. The bundled bindings support CSV, TSV, and PSV. Other integrations can contribute [native reader bindings](reader-bindings.md), and applications can register fallback converters for the readers they use.
+The package depends on `Packata.ResourceReaders`, `PocketCsvReader.NetTopologySuite`, and `PocketCsvReader.Chrononuensis`. The PocketCsvReader integration packages bring in NetTopologySuite and Chrononuensis. The bundled bindings support CSV, TSV, and PSV. Other integrations can contribute [native reader bindings]({{ '/reference/dotnet/reader-bindings/' | relative_url }}), and applications can register fallback converters for the readers they use.
 
 | Profile | Canonical declaration | CSV CLR type and handling |
 | --- | --- | --- |

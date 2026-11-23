@@ -33,27 +33,26 @@ internal sealed class ReaderBindingPlan(IDataEndpointReaderProvider reader)
         });
         for (var ordinal = 0; ordinal < schema.Fields.Count; ordinal++)
         {
-            var field = schema.Fields[ordinal];
-            var selection = ReaderRepresentationProfile.Resolve(profiles, field);
-            var target = selection?.Type ?? reader.GetDefaultRepresentation(field);
-            if (target is null && converters.Count == 0) continue;
-
-            var missing = ReaderMissingValues.Resolve(schema, field);
-            if (target is null && converters.Count > 0)
-            {
-                var resolved = FieldTypeResolver.Resolve(field, TypeMappingOptions.Strict).RuntimeType;
-                if (resolved is not null && converters.Any(converter => converter.Matches(new(field, resolved, null, missing))))
-                    target = resolved;
-            }
-
-            if (target is not null)
-            {
-                var request = new ReaderRepresentationRequest(field, target, selection?.ProfileName, missing);
+            if (CreateRequest(reader, schema, schema.Fields[ordinal], profiles, converters) is { } request)
                 plan._fields.Add(ordinal, Resolve(reader.BindingKey, request, providers.Value, converters));
-            }
         }
 
         return plan;
+    }
+
+    private static ReaderRepresentationRequest? CreateRequest(IDataEndpointReaderProvider reader, DataSchema schema,
+        DataField field, IReadOnlyList<ReaderRepresentationProfile> profiles, IReadOnlyList<ReaderValueConverter> converters)
+    {
+        var selection = ReaderRepresentationProfile.Resolve(profiles, field);
+        var target = selection?.Type ?? reader.GetDefaultRepresentation(field);
+        if (target is not null)
+            return new(field, target, selection?.ProfileName, ReaderMissingValues.Resolve(schema, field));
+
+        if (converters.Count == 0 || FieldTypeResolver.Resolve(field, TypeMappingOptions.Strict).RuntimeType is not { } defaultType)
+            return null;
+
+        var request = new ReaderRepresentationRequest(field, defaultType, null, ReaderMissingValues.Resolve(schema, field));
+        return converters.Any(converter => converter.Matches(request)) ? request : null;
     }
 
     private static ResolvedField Resolve(string key, ReaderRepresentationRequest request,

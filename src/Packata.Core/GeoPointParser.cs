@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace Packata.Core;
@@ -30,6 +31,29 @@ public static class GeoPointParser
             GeoPointFormat.Object => ParseObject(text),
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Unknown geopoint format.")
         };
+    }
+
+    /// <summary>Tries to parse a comma-separated longitude and latitude.</summary>
+    public static bool TryParse(ReadOnlySpan<char> text, out GeoPoint point)
+        => TryParse(text, GeoPointFormat.Default, out point);
+
+    /// <summary>Tries to parse a point using the specified input format.</summary>
+    /// <returns>True when the value is a valid point. False for malformed values or undefined formats.</returns>
+    public static bool TryParse(ReadOnlySpan<char> text, GeoPointFormat format, out GeoPoint point)
+    {
+        point = default;
+        if (!Enum.IsDefined(format)) return false;
+
+        try
+        {
+            point = Parse(text, format);
+            return true;
+        }
+        catch (Exception error) when (error is FormatException or JsonException or EncoderFallbackException
+            or ArgumentException { InnerException: EncoderFallbackException })
+        {
+            return false;
+        }
     }
 
     /// <summary>Parses a comma-separated longitude and latitude using invariant numeric formatting.</summary>

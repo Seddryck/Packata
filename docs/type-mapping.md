@@ -182,13 +182,16 @@ context without adding SQL generation or treating source types as portable.
 
 Core resolution describes the field's representation. Value decoding, owned
 `JsonElement` lifetimes, and optional runtime profiles are supplied by reader bindings.
-For supported encodings, the optional [NetTopologySuite profile](extended-types.md)
+For supported encodings, the optional [NetTopologySuite profile]({{ '/reference/dotnet/extended-types/' | relative_url }})
 selects the declared subtype (for example, `Point` or `LineString`) or general
 `Geometry` when unspecified. Geopoint decoding is tracked in
 [#781](https://github.com/Seddryck/Packata/issues/781). Reader bindings must return the
 selected CLR type consistently from `GetValue`, `GetFieldType`, and typed getters.
 Unknown encodings, subtype mismatches, and TopoJSON-to-geometry conversion need explicit
 diagnostics/policy; installing an optional library alone cannot justify a conversion.
+
+For a non-throwing value check, call `GeoPointParser.TryParse` with the declared
+`GeoPointFormat`. The same decoder supplies the typed CSV binding.
 
 The legacy `Map` API and `LegacyCompatibility` resolution retain their existing opaque
 object representations for spatial fields. Strict resolution exposes the default CLR

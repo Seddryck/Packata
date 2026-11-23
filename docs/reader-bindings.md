@@ -1,3 +1,9 @@
+---
+title: Reader representation bindings
+parent: Reference
+permalink: /reference/dotnet/reader-bindings/
+---
+
 # Reader representation bindings
 
 A reader factory resolves a CLR representation for each bound field from its canonical declaration and enabled profile. A reader contributes native bindings for the types and encodings it can produce. Packata tries a native binding first, then an explicitly registered converter from a supported source type. If both paths are unavailable, opening the reader reports the reader, field, and requested type.
@@ -38,4 +44,4 @@ For example, a package contributing a native binding for a reader with key `exam
 ]
 ```
 
-A contribution without `profileName` is available to the default profile and as a native source for converters. A manifest entry with a profile name becomes available when the factory enables that profile. See the bundled [manifest](../src/Packata.ExtendedTypes/Packata.ExtendedTypes.readerbindings.json) and [MSBuild target](../src/Packata.ExtendedTypes/Packata.ExtendedTypes.targets) for the package layout. The application references the integration package and configures the reader and profile as usual. Packata instantiates the binding provider.
+A contribution without `profileName` is available to the default profile and as a native source for converters. A manifest entry with a profile name becomes available when the factory enables that profile. See the bundled [manifest](https://github.com/Seddryck/Packata/blob/main/src/Packata.ExtendedTypes/Packata.ExtendedTypes.readerbindings.json) and [MSBuild target](https://github.com/Seddryck/Packata/blob/main/src/Packata.ExtendedTypes/Packata.ExtendedTypes.targets) for the package layout. The application references the integration package and configures the reader and profile as usual. Packata instantiates the binding provider.
