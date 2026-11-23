@@ -28,5 +28,5 @@ internal sealed record ReaderRepresentationProfile(
 }
 
 internal sealed record DelimitedRepresentationBinding(
-    Action<RuntimeParsersDescriptorBuilder> ConfigureParsers,
+    Action<RuntimeParsersDescriptorBuilder>? ConfigureParsers,
     Action<ISchemaDescriptorBuilder, DataField, Type> BindField);

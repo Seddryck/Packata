@@ -65,7 +65,7 @@ internal sealed class DelimitedReaderProvider : IDataEndpointIndexedReaderProvid
             builder.WithParsers(parsers =>
             {
                 foreach (var profile in RepresentationProfiles)
-                    profile.Delimited.ConfigureParsers(parsers);
+                    profile.Delimited.ConfigureParsers?.Invoke(parsers);
                 return parsers;
             });
         }
