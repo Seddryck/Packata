@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><IsPackable>false</IsPackable></PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="DubUrl.Provider.Access" Version="0.73.0" />
     <ProjectReference Include="../Packata.Arrow/Packata.Arrow.csproj" />
     <InternalsVisibleTo Include="Packata.Cli.Testing" />
     <InternalsVisibleTo Include="packata" />
