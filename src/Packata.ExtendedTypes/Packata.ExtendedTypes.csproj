@@ -4,8 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Packata.ResourceReaders\Packata.ResourceReaders.csproj" />
-    <PackageReference Include="PocketCsvReader.Chrononuensis" Version="2.85.0" />
-    <PackageReference Include="PocketCsvReader.NetTopologySuite" Version="2.85.0" />
+    <PackageReference Include="PocketCsvReader.Chrononuensis" Version="2.89.1" />
+    <PackageReference Include="PocketCsvReader.NetTopologySuite" Version="2.89.1" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Packata.ExtendedTypes.readerbindings.json"
