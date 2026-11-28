@@ -18,7 +18,10 @@ public enum CompilationFindingKind { Unsupported,
 
 public sealed record RuleDescriptor(string ExecutionId, string? SourceId, string? SourcePath,
     RuleCategory Category, QualityTarget Target, string Backend, string ImplementationVersion,
-    string? EndpointId = null, QualityMetadata? Metadata = null);
+    string? EndpointId = null, QualityMetadata? Metadata = null)
+{
+    public SlaEvaluationBinding? SlaBinding { get; init; }
+}
 public sealed record InputRequirements(QualityInputScope Scope, bool RequiresCompleteInput = true);
 public sealed record RuleDiagnostic(string Code, string Message);
 public sealed record CompilationFinding(string ExecutionId, CompilationFindingKind Kind, string Code, string Message);
@@ -74,6 +77,7 @@ public sealed record RuleExecutionContext(DateTimeOffset ObservationTime, IRuleD
 {
     public RuleLimits Limits { get; init; } = Limits ?? new();
     public TimeProvider Clock { get; init; } = Clock ?? TimeProvider.System;
+    public SlaObservationRun? SlaObservations { get; init; }
     public IReadOnlyDictionary<string, QualityValue> Bindings { get; init; } =
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, QualityValue>((Bindings ?? new Dictionary<string, QualityValue>()).ToDictionary(p => p.Key, p => p.Value));
 }
@@ -84,6 +88,8 @@ public sealed record RuleMeasurement(QualityValue? Value, string? Unit = null, l
 {
     public IReadOnlyList<RuleEvidence> Evidence { get; init; } = Evidence ?? [];
     public IReadOnlyList<RuleDiagnostic> Diagnostics { get; init; } = Diagnostics ?? [];
+    public SlaObservationWindow? SlaWindow { get; init; }
+    public string? SlaSnapshotId { get; init; }
 }
 public sealed record RuleResult(RuleDescriptor Descriptor, RuleOutcome Outcome, RuleMeasurement Measurement,
     IReadOnlyList<QualityExpectation> Expectations, DateTimeOffset ObservationTime,

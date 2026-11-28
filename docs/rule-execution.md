@@ -28,10 +28,9 @@ skipped work is retained. Completion and violations are reported independently, 
 partial work cannot produce an overall pass. Evidence is bounded and excludes raw
 data and connection secrets by default.
 
-This delivery covers canonical quality declarations and quality execution (#592–#596).
-Constraint compilation into the existing dataset validator (#597) and explicit SLA
-observation bindings (#598) remain subsequent work under #591. Producer compatibility
-and consumer satisfaction comparisons remain separate operations.
+The shared pipeline serves canonical quality rules and
+[SLA commitments with explicit observation bindings]({{ '/concepts/commitments/' | relative_url }}#evaluate-observed-commitments).
+Producer compatibility and consumer satisfaction comparisons use contract declarations.
 
 ## Canonical quality migration
 
