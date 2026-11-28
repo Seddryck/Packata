@@ -28,6 +28,7 @@ The existing `packata infer` command remains available.
 | `data pull` | [Download Data Package resources](#download-data-package-resources) |
 | `data serve` | [Serve assets over HTTP]({{ '/http-serving/' | relative_url }}) |
 | `data validate` | [Structural validation]({{ '/dataset-validation/' | relative_url }}) |
+| `quality plan` | [Plan quality rules]({{ '/cli-quality/#plan-and-execute-quality-rules' | relative_url }}) |
 | `quality run` | [Quality execution and OORS reports]({{ '/cli-quality/' | relative_url }}) |
 | `lineage export` | [OpenLineage](#export-declared-lineage) |
 | `dialect export` | [CSV dialect](#export-a-csv-dialect) |
@@ -46,6 +47,7 @@ Use `--help`, `-h` or `-?` for help. Root version switches are `--version` and `
 | validate, inspect, diff, schema export, dialect export, lineage export, data preview, data pull | 0 success; 1 invalid/unsupported document or operation; 2 invocation error; 3 I/O failure; 130 cancellation |
 | contract satisfies | 0 gate passes; 1 Unsatisfied or default Unknown; 2 input/invocation/I/O/cancellation/analysis error or Unknown under error policy |
 | quality run | 0 pass or warning; 1 quality failure without errors; 2 command/contract/execution/report error, cancellation, no matches, or all skipped |
+| quality plan | 0 plan produced; 2 invocation, contract, selection, or plan output error |
 | contract compare | Same base codes, plus 4 for a completed report failing the selected gate and 5 for incomplete analysis; see [details](#assess-consumer-compatibility) |
 | schema infer/infer | 0 success; 1 operation failure; 2 caught cancellation or invocation error; framework cancellation can return 130 |
 | dialect infer | 0 report or save succeeded; 1 operation or I/O failure; 2 invocation error or caught cancellation; framework cancellation can return 130 |

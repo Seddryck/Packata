@@ -18,23 +18,27 @@ public class QualityCommandTests
         schema:
           - name: customers
             physicalType: file
+            tags: [asset-only]
             quality:
               - id: z-count
                 type: library
                 metric: rowCount
                 mustBe: 2
                 dimension: completeness
+                tags: [critical]
               - type: text
                 description: Manual review
             properties:
               - name: email
                 logicalType: string
+                tags: [field-only]
                 quality:
                   - id: a-missing
                     type: library
                     metric: nullValues
                     mustBe: 0
                     dimension: completeness
+                    tags: [nightly]
         servers:
           - server: local
             type: local
@@ -89,6 +93,7 @@ public class QualityCommandTests
         var help = await CliWorkspace.Run("quality", "run", "--help");
         Assert.That(branch.ExitCode, Is.Zero);
         Assert.That(help.ExitCode, Is.Zero);
+        Assert.That(help.Output, Does.Contain("--tag"));
         Assert.That(help.Output, Does.Contain("--asset").And.Contain("--field").And.Contain("--id").And.Contain("--dimension").And.Contain("--type").And.Contain("--output-format"));
         Assert.That((await CliWorkspace.Run("quality", "run")).ExitCode, Is.EqualTo(2));
     }
@@ -147,6 +152,9 @@ public class QualityCommandTests
     }
 
     [TestCase("--field|email")]
+    [TestCase("--tag|Critical")]
+    [TestCase("--tag|asset-only")]
+    [TestCase("--tag|field-only")]
     [TestCase("--id|absent")]
     [TestCase("--output-format|text")]
     [TestCase("--output-format|csv")]
@@ -158,6 +166,121 @@ public class QualityCommandTests
         Assert.That(result.ExitCode, Is.EqualTo(2));
         Assert.That(result.Output, Is.Empty);
         Assert.That(result.Error, Is.Not.Empty);
+        if (arguments.StartsWith("--tag", StringComparison.Ordinal))
+            Assert.That(result.Error, Does.Contain("No quality rules match the supplied filters."));
+    }
+
+    [Test]
+    public async Task RuleTagsUseOrWithinTheFilterAndAndWithOtherFilters()
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Contract);
+        workspace.Write("customers.csv", "email\r\na\r\nb\r\n");
+        string[] tags = ["--tag", "critical", "--tag", "nightly"];
+        var union = await CliWorkspace.Run(["quality", "run", source, ..tags]);
+        Assert.That(union.ExitCode, Is.Zero, union.Error);
+        var document = JObject.Parse(union.Output);
+        Assert.That(document["results"]!.Select(rule => (string?)rule["id"]), Is.EqualTo(new[] { "z-count", "a-missing" }));
+        Assert.That(Property(document, "filters")["tag"]!.Values<string>(), Is.EqualTo(new[] { "critical", "nightly" }));
+        var intersection = await CliWorkspace.Run(["quality", "run", source, ..tags, "--asset", "customers", "--field", "email",
+            "--id", "a-missing", "--type", "library", "--dimension", "completeness"]);
+        Assert.That(intersection.ExitCode, Is.Zero, intersection.Error);
+        Assert.That(JObject.Parse(intersection.Output)["results"]!.Select(rule => (string?)rule["id"]), Is.EqualTo(new[] { "a-missing" }));
+    }
+
+    [Test]
+    public async Task PlanAndRunSelectTheSameRulesAndPlanWorksWithoutTheDataset()
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Contract);
+        string[] filters = ["--asset", "customers", "--field", "email", "--tag", "critical", "--tag", "nightly",
+            "--type", "library", "--dimension", "completeness", "--id", "a-missing"];
+        var plan = await CliWorkspace.Run(["quality", "plan", source, "--output-format", "json", ..filters]);
+        Assert.That(plan.ExitCode, Is.Zero, plan.Error);
+        var rules = JObject.Parse(plan.Output)["rules"]!;
+        var rule = rules.Single();
+        Assert.That((string?)rule["status"], Is.EqualTo("planned"));
+        Assert.That((string?)rule["engine"], Is.EqualTo("packata.rules.expressif"));
+        Assert.That((string?)rule["target"]!["assetId"], Is.EqualTo("customers"));
+        Assert.That(rule["target"]!["fieldPath"]!.Values<string>(), Is.EqualTo(new[] { "email" }));
+        Assert.That(rule["outcome"], Is.Null);
+
+        workspace.Write("customers.csv", "email\r\na\r\nb\r\n");
+        var run = await CliWorkspace.Run(["quality", "run", source, ..filters]);
+        Assert.That(run.ExitCode, Is.Zero, run.Error);
+        Assert.That(JObject.Parse(run.Output)["results"]!.Select(r => (string?)r["id"]), Is.EqualTo(rules.Select(r => (string?)r["id"])));
+    }
+
+    [Test]
+    public async Task PlanReportsUnsupportedRulesAndMissingInputs()
+    {
+        using var workspace = new CliWorkspace();
+        var content = Contract[..Contract.IndexOf("servers:", StringComparison.Ordinal)].Replace("metric: rowCount", "metric: absentMetric");
+        var source = workspace.Write("contract.yaml", content);
+        var json = await CliWorkspace.Run("quality", "plan", source, "--output-format", "json");
+        Assert.That(json.ExitCode, Is.Zero, json.Error);
+        var rules = JObject.Parse(json.Output)["rules"]!.ToArray();
+        Assert.That(rules.Select(r => (string?)r["status"]), Is.EqualTo(new[] { "unsupported", "unsupported", "needs-input" }));
+        Assert.That((string?)rules[0]["diagnostics"]![0]!["code"], Is.EqualTo("UNSUPPORTED"));
+        Assert.That((string?)rules[1]["path"], Is.Not.Empty);
+
+        var text = await CliWorkspace.Run("quality", "plan", source);
+        Assert.That(text.ExitCode, Is.Zero, text.Error);
+        Assert.That(text.Output, Does.Contain("No data was evaluated").And.Contain("needs-input").And.Contain("customers.email"));
+    }
+
+    [Test]
+    public async Task SqlPlanWorksWithAnUnavailableDatabaseAndConnectorStore()
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("sql.yaml", """
+            apiVersion: v3.2.0
+            kind: DataContract
+            id: sql-quality
+            version: 1.0.0
+            status: active
+            schema:
+              - name: customers
+                quality:
+                  - id: sql-count
+                    type: sql
+                    query: SELECT count(*) FROM {object}
+                    mustBe: 1
+            servers:
+              - server: db
+                type: custom
+                endpointUrl: sqlite://./unavailable.db?Pooling=false
+                format: database
+                database: unavailable.db
+                schema: main
+            """);
+        var store = workspace.Write("blocked-store", "This file blocks creation of the connector store directory.");
+        workspace.Write("config.json", new JObject
+        {
+            ["connectors.offline"] = "true",
+            ["connectors.store"] = store
+        }.ToString());
+        var result = await CliWorkspace.RunWithEnvironment(new Dictionary<string, string?> { ["PACKATA_CONFIG_HOME"] = workspace.Path },
+            "quality", "plan", source, "--output-format", "json");
+        Assert.That(result.ExitCode, Is.Zero, result.Error);
+        var rule = JObject.Parse(result.Output)["rules"]!.Single();
+        Assert.That((string?)rule["status"], Is.EqualTo("planned"));
+        Assert.That((string?)rule["engine"], Is.EqualTo("packata.rules.sql"));
+        Assert.That(result.Output, Does.Not.Contain("SELECT count"));
+        Assert.That(File.Exists(Path.Combine(workspace.Path, "unavailable.db")), Is.False);
+    }
+
+    [TestCase("--tag|unknown", "No quality rules match the supplied filters.")]
+    [TestCase("--field|email", "--field requires --asset.")]
+    [TestCase("--output-format|yaml", "--output-format must be text or json.")]
+    public async Task InvalidPlanArgumentsAndEmptySelectionsProduceActionableErrors(string arguments, string message)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Contract);
+        var result = await CliWorkspace.Run(["quality", "plan", source, ..arguments.Split('|')]);
+        Assert.That(result.ExitCode, Is.EqualTo(2));
+        Assert.That(result.Output, Is.Empty);
+        Assert.That(result.Error, Does.Contain(message));
     }
 
     [Test]
@@ -206,6 +329,10 @@ public class QualityCommandTests
             Assert.That(result.ExitCode, Is.EqualTo(2));
             Assert.That(result.Output, Is.Empty);
             Assert.That(result.Error, Does.Not.Contain("do-not-export"));
+            var plan = await CliWorkspace.Run("quality", "plan", source);
+            Assert.That(plan.ExitCode, Is.EqualTo(2));
+            Assert.That(plan.Output, Is.Empty);
+            Assert.That(plan.Error, Is.Not.Empty.And.Not.Contain("do-not-export"));
         }
     }
 

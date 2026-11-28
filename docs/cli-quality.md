@@ -6,7 +6,38 @@ parent: Command-line interface
 grand_parent: Reference
 ---
 
-# Execute quality rules
+# Plan and execute quality rules
+
+<!-- cli:quality plan -->
+
+`packata quality plan <SOURCE> [options]`
+
+```console
+packata quality plan contract.odcs.yaml --asset customers --tag critical
+packata quality plan contract.odcs.yaml --asset customers --output-format json
+```
+
+Planning loads and validates the ODCS contract and uses the same rule filters and
+compilers as `quality run`. It checks declared bindings without opening datasets,
+connecting to databases, acquiring connectors, or executing rules. It leaves
+runtime access, credentials, and data quality unverified.
+
+The default `--output-format text` prints a readable plan. JSON includes a
+`rules` array with each selected rule's contract ID when present, source path,
+target, type, engine when known, status, and available planning diagnostics.
+
+| Status | Meaning |
+| --- | --- |
+| `planned` | The rule compiled with the declared inputs |
+| `needs-input` | Planning found a missing or ambiguous binding, or the rule requires an explicit observation |
+| `unsupported` | The rule or its capabilities cannot be executed by the selected engine, or it is a text rule |
+| `invalid` | The rule could not be compiled or has no registered engine |
+
+Exit code `0` means that the command produced a plan. Individual statuses describe
+planning only and carry no quality verdict. Invalid command or contract input, an
+empty selection, and command errors return `2`.
+
+## Execute quality rules
 
 <!-- cli:quality run -->
 
@@ -19,6 +50,7 @@ controls source detection; quality execution requires ODCS. `--output <PATH>` an
 ```console
 packata quality run contract.odcs.yaml
 packata quality run contract.odcs.yaml --asset customers --field email --dimension completeness --dimension uniqueness
+packata quality run contract.odcs.yaml --asset customers --tag critical --tag nightly
 packata quality run contract.odcs.yaml --id customer-email-required --output report.oors.json
 packata quality run contract.odcs.yaml --type library --output-format yaml --output report.oors.yaml
 ```
@@ -32,10 +64,12 @@ Incomplete measurements and execution timeouts are errors, never quality passes.
 
 ## Selection and execution
 
-`--id`, `--asset`, `--field`, `--type`, and `--dimension` are optional and repeatable.
+`--id`, `--asset`, `--field`, `--type`, `--dimension`, and `--tag` are optional and repeatable.
 Values of one option use OR; different options use AND. Matching is exact and
 case-sensitive. Field paths use dots for nested fields, and `--field` requires
 `--asset`. Without filters, all asset and field quality rules are selected.
+Tag selection uses the rule's own tags. Asset and field tags have no effect, and
+untagged rules are excluded when a tag is supplied.
 
 Only selected rules appear in the report. Filtered-out rules are absent, rather
 than skipped. No matching rules is a command error with no report. Anonymous rules
