@@ -50,15 +50,11 @@ public static class JsonSchemaExport
     private static Dictionary<string, object?> ConvertField(DataField field, string path)
     {
         var result = new Dictionary<string, object?>();
-        if (!field.IsNullabilityKnown && field.LogicalType is null)
-        {
-            if (field.Description is not null) result["description"] = field.Description;
-            return result;
-        }
-
-        var type = GetJsonType(field.LogicalType, path);
-        result["type"] = field.Nullable || !field.IsNullabilityKnown ? new[] { type, "null" } : (object)type;
+        var type = GetJsonType(field, path);
+        if (type is not null) result["type"] = JsonTypeDeclaration(type, field);
         if (field.Description is not null) result["description"] = field.Description;
+        if (type is null) return result;
+
         var format = GetJsonFormat(field);
         if (format is not null) result["format"] = format;
         AddNestedSchemas(result, field, type, path);
@@ -66,6 +62,12 @@ public static class JsonSchemaExport
             AddConstraint(result, constraint, type, path);
         return result;
     }
+
+    private static object JsonTypeDeclaration(string type, DataField field)
+        => field.Nullable || !field.IsNullabilityKnown ? new[] { type, "null" } : type;
+
+    private static string? GetJsonType(DataField field, string path)
+        => !field.IsNullabilityKnown && field.LogicalType is null ? null : GetJsonType(field.LogicalType, path);
 
     private static string GetJsonType(string? logicalType, string path) => logicalType?.ToLowerInvariant() switch
     {
