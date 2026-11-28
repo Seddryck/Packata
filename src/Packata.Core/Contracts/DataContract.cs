@@ -68,6 +68,7 @@ public sealed record DataSchema(
     bool EnforcePropertyOrder = false)
 {
     public IReadOnlyList<DataMeasure> Measures { get; init; } = [];
+    public IReadOnlyList<IReadOnlyList<string>> UniqueKeys { get; init; } = [];
     public IReadOnlyList<DataIndex> Indexes { get; init; } = [];
     public IReadOnlyList<string> PrimaryKey { get; init; } = PrimaryKey ?? [];
     public IReadOnlyList<DataRelationship> Relationships { get; init; } = Relationships ?? [];
@@ -92,6 +93,10 @@ public sealed record DataField(
     string? Language = null,
     DataMap? Map = null)
 {
+    /// <summary>Whether the source established nullability for the row field.</summary>
+    /// <value>False when the source leaves nullability unspecified.</value>
+    public bool IsNullabilityKnown { get; init; } = true;
+
     public SpatialDescriptor? Spatial { get; init; }
     public PhysicalTypeContext? PhysicalTypeContext { get; init; }
     public ColumnDefaultLiteral? DefaultValue { get; init; }

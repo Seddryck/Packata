@@ -49,11 +49,15 @@ public static class JsonSchemaExport
 
     private static Dictionary<string, object?> ConvertField(DataField field, string path)
     {
-        var type = GetJsonType(field.LogicalType, path);
-        var result = new Dictionary<string, object?>
+        var result = new Dictionary<string, object?>();
+        if (!field.IsNullabilityKnown && field.LogicalType is null)
         {
-            ["type"] = field.Nullable ? new[] { type, "null" } : (object)type
-        };
+            if (field.Description is not null) result["description"] = field.Description;
+            return result;
+        }
+
+        var type = GetJsonType(field.LogicalType, path);
+        result["type"] = field.Nullable || !field.IsNullabilityKnown ? new[] { type, "null" } : (object)type;
         if (field.Description is not null) result["description"] = field.Description;
         var format = GetJsonFormat(field);
         if (format is not null) result["format"] = format;
