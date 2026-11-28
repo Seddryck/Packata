@@ -20,7 +20,7 @@ public sealed class QualityExecutionService(IEnumerable<QualityEngine> engines, 
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (document.NativeDocument is not Packata.OpenDataContract.DataContract)
-            throw new ArgumentException("quality run requires an ODCS contract.");
+            throw new ArgumentException("Quality commands require an ODCS contract.");
         var validation = document.Validate();
         cancellationToken.ThrowIfCancellationRequested();
         if (validation.Any(value => value.Severity == MappingSeverity.Error)) return new(null, validation);
@@ -33,6 +33,28 @@ public sealed class QualityExecutionService(IEnumerable<QualityEngine> engines, 
     {
         try { return QualityRun.Select(contract, filters); }
         catch (ArgumentException) { throw new QualitySelectionException(); }
+    }
+
+    public static IReadOnlyList<QualityPlanResult> Plan(DataContract contract, QualityFilters filters, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var selected = SelectRules(contract, filters);
+        var runner = new QualityRun(CreateEngines(null));
+        return Array.AsReadOnly(runner.Plan(contract, selected, cancellationToken).Select(result => CheckInputs(contract, result)).ToArray());
+    }
+
+    private static QualityPlanResult CheckInputs(DataContract contract, QualityPlanResult result)
+    {
+        if (result.Status != QualityPlanStatus.Planned || result.Rule.Definition is SqlQuality) return result;
+        if (result.Rule.Definition is ExpressifQuality { Scope: QualityInputScope.Observation })
+            return result with { Status = QualityPlanStatus.NeedsInput, Message = "This rule requires an explicit observation." };
+        try { SelectDataRequest(contract, result.Rule.Target!); }
+        catch (Exception error) when (error is DataPreviewSelectionException or ContractAssetSelectionException)
+        {
+            return result with { Status = QualityPlanStatus.NeedsInput, Message = "Declare one resolvable endpoint binding for the rule's asset." };
+        }
+
+        return result;
     }
 
     public async Task<QualityRunReport> RunAsync(DataContract contract, QualityFilters filters, string snapshot,
@@ -69,15 +91,16 @@ public sealed class QualityExecutionService(IEnumerable<QualityEngine> engines, 
         public ValueTask<SqlRuleSession> OpenAsync(DataEndpoint endpoint, CancellationToken cancellationToken)
             => throw new InvalidOperationException("No database connection is available.");
     }
+
+    private static DataEndpointReadRequest SelectDataRequest(DataContract contract, QualityTarget target)
+        => DataPreviewService.SelectRequest(contract, ContractInferenceService.SelectAsset(contract, target.AssetId));
+
     private sealed class ContractDataSource(DataContract contract, IDataEndpointReaderFactory readers, string snapshot) : IRuleDataSource
     {
         public string SnapshotId => snapshot;
         public bool IsReplayable => true;
         public bool IsComplete => true;
         public ValueTask<System.Data.IDataReader> OpenAsync(QualityTarget target, string? endpointId, CancellationToken cancellationToken)
-        {
-            var asset = ContractInferenceService.SelectAsset(contract, target.AssetId);
-            return readers.OpenAsync(DataPreviewService.SelectRequest(contract, asset), cancellationToken);
-        }
+            => readers.OpenAsync(SelectDataRequest(contract, target), cancellationToken);
     }
 }

@@ -12,10 +12,21 @@ internal static class QualityCommands
 {
     internal static void Configure(IConfigurator configuration) => configuration.AddBranch("quality", quality =>
     {
-        quality.SetDescription("Execute ODCS quality rules and export OORS results.");
+        quality.SetDescription("Plan or execute ODCS quality rules.");
         quality.AddCommand<QualityCommand>("run").WithDescription("Run selected quality rules and produce an OORS v0.8.0 report.")
             .WithExample(["quality", "run", "contract.odcs.yaml", "--asset", "customers"]);
+        quality.AddCommand<QualityPlanCommand>("plan").WithDescription("Plan selected quality rules without accessing data.")
+            .WithExample(["quality", "plan", "contract.odcs.yaml", "--asset", "customers", "--output-format", "json"]);
     });
+
+    internal static DataContract? ValidateContract(ContractSource source, CancellationToken cancellationToken)
+    {
+        if (source.NativeDocument is not Packata.OpenDataContract.DataContract)
+            throw new ContractOperationException("QUALITY001", "$", "Quality commands require an ODCS contract.");
+        var preparation = QualityExecutionService.Prepare(source.ParsedDocument, cancellationToken);
+        foreach (var diagnostic in preparation.Diagnostics) CommandOutput.Diagnostic(diagnostic);
+        return preparation.Contract;
+    }
 }
 
 internal sealed class QualityCommand : AsyncCommand<QualitySettings>
@@ -28,10 +39,10 @@ internal sealed class QualityCommand : AsyncCommand<QualitySettings>
         try
         {
             using var source = await ContractSource.LoadAsync(settings.Source, settings.InputFormat, cancellationToken, retainArchive: true).ConfigureAwait(false);
-            var contract = ValidateContract(source);
+            var contract = QualityCommands.ValidateContract(source, cancellationToken);
             if (contract is null) return 2;
             // Validate selection before acquiring database configuration or data resources.
-            var selected = SelectRules(contract, settings.Filters);
+            var selected = QualityExecutionService.SelectRules(contract, settings.Filters);
             CliDatabase.ResolveOverrides(contract.Endpoints, settings.ConnectionEnvironment);
             CliDatabase.ParsePairs(settings.Connectors, "--connector");
             using var database = CreateDatabase(source, contract, selected, settings);
@@ -50,18 +61,6 @@ internal sealed class QualityCommand : AsyncCommand<QualitySettings>
         }
     }
 
-    private static DataContract? ValidateContract(ContractSource source)
-    {
-        var preparation = QualityExecutionService.Prepare(source.Document ?? throw new InvalidOperationException("The descriptor has not been parsed."));
-        foreach (var diagnostic in preparation.Diagnostics) CommandOutput.Diagnostic(diagnostic);
-        return preparation.Contract;
-    }
-
-    private static IReadOnlyList<DataQualityRule> SelectRules(DataContract contract, QualityFilters filters)
-    {
-        try { return QualityExecutionService.SelectRules(contract, filters); }
-        catch (QualitySelectionException error) { throw new ContractOperationException("QUALITY002", "$", error.Message); }
-    }
     private static CliDatabase? CreateDatabase(ContractSource source, DataContract contract,
         IReadOnlyList<DataQualityRule> selected, QualitySettings settings)
         => selected.Any(r => r.Definition is not TextQuality) && contract.Endpoints.Any(e => e.Location is ConnectionLocation)
@@ -90,6 +89,7 @@ internal sealed class QualityCommand : AsyncCommand<QualitySettings>
     private static string FailureMessage(Exception exception) => exception switch
     {
         ContractOperationException operation => operation.Diagnostic.Message,
+        QualitySelectionException selection => selection.Message,
         OperationCanceledException => "Quality run cancelled.",
         _ => "Unable to complete the quality run or produce a valid OORS report. Check the contract, bindings and output destination."
     };

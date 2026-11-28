@@ -92,6 +92,7 @@ public class QualityRunTests
     private sealed class Compiler(RuleOutcome outcome) : IRuleCompiler<DataQualityRule>
     {
         public List<string?> Seen { get; } = [];
+        public List<string?> Executed { get; } = [];
         public CompilationResult Compile(DataQualityRule rule, RuleCompilationContext context)
         {
             Seen.Add(rule.SourceId);
@@ -99,16 +100,32 @@ public class QualityRunTests
             {
                 "invalid" => new([], [new(rule.ExecutionId, CompilationFindingKind.Invalid, "BAD", "do-not-export")]),
                 "unsupported" => CompilationResult.Unsupported(rule, "do-not-export"),
-                _ => new([new Plan(rule, outcome)], [])
+                _ => new([new Plan(rule, outcome, Executed)], [])
             };
         }
     }
-    private sealed class Plan(DataQualityRule rule, RuleOutcome outcome) : IExecutableRule
+    [Test]
+    public void PlanningCompilesSelectedRulesWithoutExecutingPlans()
+    {
+        var compiler = new Compiler(RuleOutcome.Passed);
+        var contract = Contract(Rule("z", "q/0"), Rule("text", "q/1", "text"), Rule("invalid", "q/2"), Rule("unsupported", "q/3"));
+        var selected = QualityRun.Select(contract, new());
+        var results = new QualityRun([Engine(compiler)]).Plan(contract, selected);
+        Assert.That(results.Select(result => result.Status), Is.EqualTo(new[]
+        {
+            QualityPlanStatus.Planned, QualityPlanStatus.Unsupported, QualityPlanStatus.Invalid, QualityPlanStatus.Unsupported
+        }));
+        Assert.That(compiler.Seen, Is.EqualTo(new[] { "z", "invalid", "unsupported" }));
+        Assert.That(compiler.Executed, Is.Empty);
+    }
+
+    private sealed class Plan(DataQualityRule rule, RuleOutcome outcome, List<string?> executed) : IExecutableRule
     {
         public RuleDescriptor Descriptor => QualityCompilation.Descriptor(rule, "test", "1");
         public InputRequirements Requirements => new(QualityInputScope.Observation);
         public ValueTask<RuleResult> ExecuteAsync(RuleExecutionContext context, CancellationToken cancellationToken)
         {
+            executed.Add(rule.SourceId);
             if (rule.SourceId == "throws") throw new InvalidOperationException("do-not-export");
             return ValueTask.FromResult(new RuleResult(Descriptor, outcome, new(QualityValue.From(1)), [],
                 context.ObservationTime, context.ObservationTime, context.ObservationTime, TimeSpan.FromMilliseconds(1)));
