@@ -66,7 +66,8 @@ public sealed class ConstraintCompiler(IEnumerable<ConstraintInput> inputs,
     private ConstraintInput[] Inputs(string assetId) => _inputs.Where(input => input.Asset.Id == assetId).ToArray();
 
     private static bool Applies(ConstraintInput input, DataField field)
-        => input.DiagnosticCode is not null || input.ReadError || field.Required || input.Columns.ContainsKey(field.Name);
+        => input.DiagnosticCode is not null || input.ReadError || field.Required
+            || input.Columns.ContainsKey(field.Name) || input.AmbiguousFields?.Contains(field.Name) == true;
 
     private IEnumerable<IExecutableRule> FieldPlans(DataSchema schema, ConstraintInput input, DataField field, string prefix)
     {
@@ -182,6 +183,8 @@ public sealed class ConstraintCompiler(IEnumerable<ConstraintInput> inputs,
     {
         if (input.ReadError) throw new IOException("The input could not be inspected.");
         if (input.DiagnosticCode is { } diagnostic) throw new IncompleteRuleInputException(diagnostic);
+        if (fields.Any(field => input.AmbiguousFields?.Contains(field) == true))
+            throw new IncompleteRuleInputException("CONSTRAINT_COLUMN_AMBIGUOUS");
         if (fields.Any(field => !input.Columns.ContainsKey(field)))
             throw new IncompleteRuleInputException("CONSTRAINT_COLUMN_UNAVAILABLE");
         if (context.ConstraintInput is null) throw new IncompleteRuleInputException("CONSTRAINT_INPUT_CONTEXT_REQUIRED");

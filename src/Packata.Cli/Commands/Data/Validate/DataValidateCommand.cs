@@ -21,8 +21,9 @@ internal sealed class DataValidateCommand : AsyncCommand<DataValidateSettings>
             if (!mapped.IsSuccessful) return ExitCodes.InvalidDocument;
             var service = CreateService(source, mapped);
             var contract = mapped.RequireValue();
-            var structuralContract = deferred.Length == 0 ? contract : LocalValidationContract(contract);
-            var report = await service.ValidateAsync(structuralContract, settings.Asset, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var validationContract = deferred.Length > 0 && settings.Checks == DatasetValidationChecks.Structure
+                ? LocalValidationContract(contract) : contract;
+            var report = await service.ValidateAsync(validationContract, settings.Checks, settings.Asset, cancellationToken: cancellationToken).ConfigureAwait(false);
             report = report with { CompilationFindings = report.CompilationFindings.Concat(deferred).ToArray() };
             await DataValidationPresenter.WriteAsync(report, settings.OutputFormat, Console.Out, cancellationToken).ConfigureAwait(false);
             return DataValidationPresenter.ExitCode(report);

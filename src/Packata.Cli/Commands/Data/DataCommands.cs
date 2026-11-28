@@ -13,8 +13,10 @@ internal static class DataCommands
                 .WithDescription("Serve explicitly selected contract assets over negotiated streaming HTTP.")
                 .WithExample("data", "serve", "contract.yaml", "--asset", "customers", "--binding", "0", "--port", "0");
             data.AddCommand<DataValidateCommand>("validate")
-                .WithDescription("Validate dataset structure against contract matching, order, types, and relationships.")
-                .WithExample("data", "validate", "contract.yaml", "--asset", "customers", "--output-format", "json");
+                .WithDescription("Validate dataset structure and declared value constraints.")
+                .WithExample("data", "validate", "contract.yaml")
+                .WithExample("data", "validate", "contract.yaml", "--structure")
+                .WithExample("data", "validate", "contract.yaml", "--constraint", "--output-format", "json");
             data.AddCommand<PreviewCommand>("preview")
                 .WithDescription("Preview a bounded sample of a bound contract asset.")
                 .WithExample(["data", "preview", "contract.yaml", "--asset", "customers", "--limit", "20"]);
