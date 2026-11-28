@@ -5,50 +5,100 @@ using Packata.ResourceReaders;
 
 namespace Packata.Application;
 
-/// <summary>
-/// Binds existing descriptor/reader capabilities to structural plans and the shared runner.
-/// Does not perform value validation, type inference, or execute authored quality rules.
-/// </summary>
+[Flags]
+public enum DatasetValidationChecks
+{
+    Structure = 1,
+    Constraint = 2,
+    Both = Structure | Constraint
+}
+
+/// <summary>Binds observed structure and raw inputs to the shared validation runner.</summary>
 public sealed class DatasetValidationService(IDataEndpointReaderFactory readers, IInferenceStreamSource? metadataStreams = null)
 {
-    public async Task<RuleEvaluationReport> ValidateAsync(DataContract contract, string? assetId = null,
+    public Task<RuleEvaluationReport> ValidateAsync(DataContract contract, string? assetId = null,
         RuleLimits? limits = null, CancellationToken cancellationToken = default)
+        => ValidateAsync(contract, DatasetValidationChecks.Structure, assetId, limits, cancellationToken);
+
+    public async Task<RuleEvaluationReport> ValidateAsync(DataContract contract, DatasetValidationChecks checks,
+        string? assetId = null, RuleLimits? limits = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contract);
+        if (checks is not (DatasetValidationChecks.Structure or DatasetValidationChecks.Constraint or DatasetValidationChecks.Both))
+            throw new ArgumentOutOfRangeException(nameof(checks));
         cancellationToken.ThrowIfCancellationRequested();
         var selected = assetId is null ? contract.Assets.ToArray() : [ContractInferenceService.SelectAsset(contract, assetId)];
-        var requiredAssets = RequiredAssets(selected);
-        var inputs = new List<DatasetStructure>();
-        foreach (var asset in contract.Assets.Where(a => requiredAssets.Contains(a.Id)))
-            inputs.AddRange(await ReadAssetAsync(contract, asset, cancellationToken).ConfigureAwait(false));
-        return await ValidateAsync(contract, selected, inputs, limits, cancellationToken).ConfigureAwait(false);
+        var evaluateValues = checks.HasFlag(DatasetValidationChecks.Constraint);
+        var requiredAssets = RequiredAssets(selected, evaluateValues);
+        var observations = new List<DatasetStructure>();
+        var rawInputs = new List<ConstraintInput>();
+        foreach (var asset in contract.Assets.Where(asset => requiredAssets.Contains(asset.Id)))
+        {
+            foreach (var (structure, request) in await ReadAssetAsync(contract, asset, cancellationToken).ConfigureAwait(false))
+            {
+                observations.Add(structure);
+                if (!evaluateValues) continue;
+                // A physical input is opened for values at most once by the per-run scan cache.
+                var raw = request is null ? null : new ReaderRuleDataSource(readers, asset.Id, request, structure.Source, isReplayable: false);
+                rawInputs.Add(StructuralValidationCompiler.BindConstraintInput(asset, structure, raw));
+            }
+        }
+
+        var structureCompiler = new StructuralValidationCompiler(observations);
+        var context = new RuleCompilationContext(contract);
+        var compilations = new List<CompilationResult>();
+        if (checks.HasFlag(DatasetValidationChecks.Structure))
+            compilations.AddRange(selected.Select(asset => structureCompiler.Compile(asset, context)));
+        if (evaluateValues)
+        {
+            var prerequisites = selected.SelectMany(asset => structureCompiler.RelationshipPrerequisites(asset, contract));
+            var constraints = new ConstraintCompiler(rawInputs, prerequisites);
+            compilations.AddRange(selected.Select(asset => constraints.Compile(asset, context)));
+        }
+
+        return await RuleRunner.ExecuteAsync(compilations,
+            new(DateTimeOffset.UtcNow, Limits: limits) { ConstraintInput = evaluateValues ? new() : null }, cancellationToken).ConfigureAwait(false);
     }
 
-    private static HashSet<string> RequiredAssets(IReadOnlyList<DataAsset> selected)
+    private static HashSet<string> RequiredAssets(IEnumerable<DataAsset> selected, bool evaluateValues)
     {
-        var required = selected.Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
-        foreach (var relationship in selected.SelectMany(a => a.Schema?.Relationships ?? [])) required.Add(relationship.TargetAsset);
+        var required = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var asset in selected)
+        {
+            required.Add(asset.Id);
+            foreach (var relationship in asset.Schema?.Relationships ?? []) required.Add(relationship.TargetAsset);
+            if (!evaluateValues) continue;
+            foreach (var field in asset.Schema?.Fields ?? [])
+            {
+                if (field.ValueDomain is { Reference.BoundAssetId: { } target } domain
+                    && (domain.AllowedValues is null || domain.Reference!.EffectiveEncoding == ValueEncoding.Label))
+                    required.Add(target);
+            }
+        }
+
         return required;
     }
 
-    private async Task<IReadOnlyList<DatasetStructure>> ReadAssetAsync(DataContract contract, DataAsset asset, CancellationToken token)
+    private async Task<IReadOnlyList<(DatasetStructure Structure, DataEndpointReadRequest? Request)>> ReadAssetAsync(
+        DataContract contract, DataAsset asset, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         DataEndpointReadRequest request;
         try { request = DataPreviewService.SelectRequest(contract, asset) with { Schema = null }; }
         catch (DataPreviewSelectionException)
         {
-            return [new(asset.Id, asset.Id, null, DiagnosticCode: "INPUT_BINDING_UNRESOLVED")];
+            return [(new(asset.Id, asset.Id, null, DiagnosticCode: "INPUT_BINDING_UNRESOLVED"), null)];
         }
         if (request.Endpoint.Location is not PathLocation { Paths.Count: > 0 } paths)
-            return [new(asset.Id, asset.Id, null, request.Endpoint.Id, DiagnosticCode: "STRUCTURE_SOURCE_UNSUPPORTED")];
-        var inputs = new List<DatasetStructure>();
+            return [(new(asset.Id, asset.Id, null, request.Endpoint.Id, DiagnosticCode: "STRUCTURE_SOURCE_UNSUPPORTED"), null)];
+        var inputs = new List<(DatasetStructure, DataEndpointReadRequest?)>();
         foreach (var path in paths.Paths)
         {
             // Inspect each physical input independently; combined-reader projection must not hide differences.
             var single = request with { Endpoint = request.Endpoint with { Location = new PathLocation([path]) } };
-            inputs.Add(await ReadInputAsync(asset, single, path, token).ConfigureAwait(false));
+            inputs.Add((await ReadInputAsync(asset, single, path, token).ConfigureAwait(false), single));
         }
+
         return inputs;
     }
 

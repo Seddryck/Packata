@@ -30,6 +30,165 @@ public class DataValidateCommandTests
                 logicalType: string
         """;
 
+    [TestCase("", true, true, 1)]
+    [TestCase("--structure", true, false, 0)]
+    [TestCase("--constraint", false, true, 1)]
+    [TestCase("--constraint --structure", true, true, 1)]
+    public async Task Flags_select_checks_for_the_same_bound_data(string flags, bool structure, bool constraint, int exitCode)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Odcs);
+        workspace.Write("orders.csv", "id,name\ntwo,Alice\n2.50,Bob\n2.00,Chloe\n3,Dana\n");
+        var result = await CliWorkspace.Run(["data", "validate", source, "--output-format", "json", .. flags.Split(' ', StringSplitOptions.RemoveEmptyEntries)]);
+        Assert.That(result.ExitCode, Is.EqualTo(exitCode), result.Error + result.Output);
+        var report = JObject.Parse(result.Output);
+        var results = report["results"]!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(results.Any(check => Backend(check) == "packata.structure"), Is.EqualTo(structure));
+            Assert.That(results.Any(check => Backend(check) == "packata.constraint"), Is.EqualTo(constraint));
+            Assert.That((bool?)report["passed"], Is.EqualTo(!constraint));
+            if (constraint)
+            {
+                var integer = Check(report, ":id:logicalType");
+                Assert.That((string?)integer["outcome"], Is.EqualTo("Failed"));
+                Assert.That((long?)integer["measurement"]!["population"], Is.EqualTo(4));
+                Assert.That(integer["measurement"]!["evidence"]!.Count(), Is.EqualTo(3));
+            }
+        });
+    }
+
+    [TestCase("name\nAlice\n", 4, "Inconclusive", "CONSTRAINT_COLUMN_UNAVAILABLE")]
+    [TestCase("id,name\n,Alice\n", 1, "Failed", null)]
+    [TestCase("id,name\ntwo,Alice\n", 1, "Failed", null)]
+    public async Task Constraint_only_distinguishes_missing_column_from_invalid_or_missing_cell(string csv, int exit, string outcome, string? diagnostic)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Odcs.Replace("        logicalType: integer", "        logicalType: integer\n        required: true"));
+        workspace.Write("orders.csv", csv);
+        var result = await CliWorkspace.Run("data", "validate", source, "--constraint", "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(exit), result.Error + result.Output);
+        var report = JObject.Parse(result.Output);
+        var required = Check(report, ":id:required");
+        Assert.Multiple(() =>
+        {
+            Assert.That((string?)required["outcome"], Is.EqualTo(outcome));
+            Assert.That((string?)Check(report, ":id:logicalType")["outcome"], Is.EqualTo(outcome));
+            Assert.That(report["results"]!.All(check => Backend(check) == "packata.constraint"), Is.True);
+            if (diagnostic is not null) Assert.That(result.Output, Does.Contain(diagnostic));
+        });
+    }
+
+    [TestCase("id\n42\n", 0, "Passed", "Passed")]
+    [TestCase("id\n1\n", 1, "Passed", "Failed")]
+    [TestCase("other\n1\n", 4, "Failed", "Inconclusive")]
+    [TestCase(null, 3, "Error", "Inconclusive")]
+    public async Task Combined_validation_distinguishes_missing_target_column_from_an_orphan(string? customers, int exit, string structure, string constraint)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("package.json", """
+            {"name":"shop","resources":[
+              {"name":"orders","path":"orders.csv","format":"csv","dialect":{"header":true,"lineTerminator":"\n"},
+               "schema":{"fields":[{"name":"customer_id","type":"integer"}],"foreignKeys":[{"fields":["customer_id"],"reference":{"resource":"customers","fields":["id"]}}]}},
+              {"name":"customers","path":"customers.csv","format":"csv","dialect":{"header":true,"lineTerminator":"\n"},
+               "schema":{"fields":[{"name":"id","type":"integer"}]}}
+            ]}
+            """);
+        workspace.Write("orders.csv", "customer_id\n42\n");
+        if (customers is not null) workspace.Write("customers.csv", customers);
+        var result = await CliWorkspace.Run("data", "validate", source, "--asset", "orders", "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(exit), result.Error + result.Output);
+        var report = JObject.Parse(result.Output);
+        Assert.Multiple(() =>
+        {
+            Assert.That((string?)Check(report, ":relationship:0:")["outcome"], Is.EqualTo(structure));
+            Assert.That((string?)Check(report, ":foreignKey:0")["outcome"], Is.EqualTo(constraint));
+        });
+    }
+
+    [Test]
+    public async Task DataPackage_value_requiredness_is_independent_of_fields_match()
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("package.json", """
+            {"name":"sample","resources":[{"name":"orders","path":"orders.csv","format":"csv",
+            "dialect":{"header":true,"lineTerminator":"\n"},"schema":{"fieldsMatch":"superset","missingValues":["-"],
+            "fields":[{"name":"id","type":"integer","constraints":{"required":true}},{"name":"note","type":"string"}]}}]}
+            """);
+        workspace.Write("orders.csv", "id,note\n-,\n");
+        var result = await CliWorkspace.Run("data", "validate", source, "--constraint", "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(1), result.Error + result.Output);
+        var report = JObject.Parse(result.Output);
+        Assert.Multiple(() =>
+        {
+            Assert.That((string?)Check(report, ":id:logicalType")["outcome"], Is.EqualTo("Passed"));
+            Assert.That((string?)Check(report, ":id:required")["outcome"], Is.EqualTo("Failed"));
+            Assert.That((string?)Check(report, ":note:logicalType")["outcome"], Is.EqualTo("Passed"));
+        });
+    }
+
+    [TestCase("label,id\nAlice,1\nBob\n", 1, "Passed", "Failed")]
+    [TestCase("label,id\nAlice,1\nBob,\"3\n", 3, "Error", "Error")]
+    public async Task Raw_reader_distinguishes_short_records_from_malformed_csv(string csv, int exit, string type, string required)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("package.json", """
+            {"name":"sample","resources":[{"name":"orders","path":"orders.csv","format":"csv","dialect":{"header":true,"lineTerminator":"\n"},
+            "schema":{"fields":[{"name":"label","type":"string"},{"name":"id","type":"integer","constraints":{"required":true}}]}}]}
+            """);
+        workspace.Write("orders.csv", csv);
+        var result = await CliWorkspace.Run("data", "validate", source, "--constraint", "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(exit), result.Error + result.Output);
+        var report = JObject.Parse(result.Output);
+        Assert.Multiple(() =>
+        {
+            Assert.That((string?)Check(report, ":id:logicalType")["outcome"], Is.EqualTo(type));
+            Assert.That((string?)Check(report, ":id:required")["outcome"], Is.EqualTo(required));
+        });
+    }
+
+    [Test]
+    public async Task Default_validation_checks_native_parquet_values()
+    {
+        using var workspace = new CliWorkspace();
+        File.Copy(Path.Combine(TestContext.CurrentContext.TestDirectory, "Resources", "iris.parquet"), Path.Combine(workspace.Path, "iris.parquet"));
+        var source = workspace.Write("package.json", """
+            {"name":"iris","resources":[{"name":"flowers","path":"iris.parquet","format":"parquet",
+            "schema":{"fieldsMatch":"partial","fields":[{"name":"Sepal.Length","type":"number","constraints":{"minimum":5}}]}}]}
+            """);
+        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(1), result.Error + result.Output);
+        var report = JObject.Parse(result.Output);
+        Assert.Multiple(() =>
+        {
+            Assert.That((string?)Check(report, ":schemaType:Sepal.Length")["outcome"], Is.EqualTo("Passed"));
+            Assert.That((string?)Check(report, ":Sepal.Length:logicalType")["outcome"], Is.EqualTo("Passed"));
+            Assert.That((string?)Check(report, ":Sepal.Length:minimum:0")["outcome"], Is.EqualTo("Failed"));
+        });
+    }
+
+    [TestCase("id,name\n", 0, "Passed", "Passed")]
+    [TestCase("id,name,name\n2,Alice,Al\n", 4, "Passed", "Inconclusive")]
+    public async Task Raw_binding_uses_observed_headers_for_empty_inputs_and_ambiguous_fields(string csv, int exit, string id, string name)
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Odcs);
+        workspace.Write("orders.csv", csv);
+        var result = await CliWorkspace.Run("data", "validate", source, "--constraint", "--output-format", "json");
+        Assert.That(result.ExitCode, Is.EqualTo(exit), result.Error + result.Output);
+        var report = JObject.Parse(result.Output);
+        Assert.Multiple(() =>
+        {
+            Assert.That((string?)Check(report, ":id:logicalType")["outcome"], Is.EqualTo(id));
+            Assert.That((string?)Check(report, ":name:logicalType")["outcome"], Is.EqualTo(name));
+        });
+    }
+
+    private static string? Backend(JToken result) => (string?)result["descriptor"]!["backend"];
+
+    private static JToken Check(JObject report, string suffix)
+        => report["results"]!.Single(check => ((string?)check["descriptor"]!["executionId"])!.EndsWith(suffix, StringComparison.Ordinal));
+
     [TestCase("id,name\nnot-an-integer,Alice\n", 0)]
     [TestCase("id,name\n", 0)]
     [TestCase("id,name\n1\n", 0)]
@@ -41,7 +200,7 @@ public class DataValidateCommandTests
         using var workspace = new CliWorkspace();
         var source = workspace.Write("contract.yaml", Odcs);
         workspace.Write("orders.csv", csv);
-        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(expectedExit), result.Error + result.Output);
         var report = JObject.Parse(result.Output);
         Assert.That((bool)report["isComplete"]!, Is.True);
@@ -64,7 +223,7 @@ public class DataValidateCommandTests
         var declaration = $"    customProperties:\n      - vendor: packata\n        property: allowAdditionalProperties\n        value: {additional.ToString().ToLowerInvariant()}\n      - vendor: packata\n        property: enforcePropertyOrder\n        value: {order.ToString().ToLowerInvariant()}\n";
         var source = workspace.Write("contract.yaml", Odcs.Replace("    properties:", declaration + "    properties:"));
         workspace.Write("orders.csv", csv);
-        var result = await CliWorkspace.Run("data", "validate", source, "--asset", "orders", "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--asset", "orders", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(expected), result.Error + result.Output);
     }
 
@@ -75,11 +234,11 @@ public class DataValidateCommandTests
         var descriptor = Odcs.Replace("        logicalType: integer", "        logicalType: integer\n        required: true");
         var source = workspace.Write("contract.yaml", descriptor);
         workspace.Write("orders.csv", "name\nAlice\n");
-        var missing = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var missing = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(missing.ExitCode, Is.EqualTo(1), missing.Error + missing.Output);
         Assert.That(missing.Output, Does.Contain("missingRequired"));
         workspace.Write("orders.csv", "id\nnot-an-integer\n");
-        var present = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var present = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(present.ExitCode, Is.Zero, present.Error + present.Output);
     }
 
@@ -94,7 +253,7 @@ public class DataValidateCommandTests
         var declaration = $"    customProperties:\n      - vendor: packata\n        property: allowAdditionalProperties\n        value: {value}\n";
         var source = workspace.Write("contract.yaml", Odcs.Replace("    properties:", declaration + "    properties:"));
         workspace.Write("orders.csv", "id,name,extra\n1,Alice,x\n");
-        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(expected), result.Error + result.Output);
         if (value.StartsWith('"') || value == "1")
         {
@@ -118,7 +277,7 @@ public class DataValidateCommandTests
             {"name":"sample","resources":[{"name":"orders","path":"orders.csv","format":"csv","dialect":{"header":true,"lineTerminator":"\n"},"schema":{"fieldsMatch":"MODE","fields":[{"name":"id","type":"integer"},{"name":"name","type":"string"}]}}]}
             """.Replace("MODE", mode));
         workspace.Write("orders.csv", csv);
-        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(expected), result.Error + result.Output);
     }
 
@@ -131,12 +290,12 @@ public class DataValidateCommandTests
             """);
         workspace.Write("good.csv", "id,name\n1,Alice\n");
         workspace.Write("bad.csv", "name,id\nAlice,1\n");
-        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(1), result.Error + result.Output);
         var report = JObject.Parse(result.Output);
         Assert.That(report["results"]!.Select(r => (string?)r["descriptor"]!["sourcePath"]).Distinct().Count(), Is.EqualTo(2));
         var missingSource = workspace.Write("missing.yaml", Odcs);
-        var missing = await CliWorkspace.Run("data", "validate", missingSource, "--output-format", "json");
+        var missing = await CliWorkspace.Run("data", "validate", missingSource, "--structure", "--output-format", "json");
         Assert.That(missing.ExitCode, Is.EqualTo(3), missing.Error + missing.Output);
         Assert.That((bool)JObject.Parse(missing.Output)["passed"]!, Is.False);
     }
@@ -149,7 +308,7 @@ public class DataValidateCommandTests
             {"name":"sample","resources":[{"name":"orders","path":"orders.csv","format":"csv","dialect":{"header":false,"headerRows":[]},"schema":{"fields":[{"name":"id","type":"integer"}]}}]}
             """);
         workspace.Write("orders.csv", "1\n");
-        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         Assert.That(result.Output, Does.Contain("HEADER_IDENTITY_UNAVAILABLE"));
     }
@@ -160,13 +319,13 @@ public class DataValidateCommandTests
         using var workspace = new CliWorkspace();
         var source = workspace.Write("contract.yaml", Odcs);
         workspace.Write("orders.csv", "id,name,name\n1,Alice,Alice\n");
-        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         var report = JObject.Parse(result.Output);
         Assert.That((bool)report["passed"]!, Is.False);
         Assert.That(report["results"]!.Any(r => (string?)r["outcome"] == "Failed"), Is.True);
         var invalid = workspace.Write("invalid.yaml", Odcs.Replace("    properties:",
             "    customProperties:\n      - vendor: packata\n        property: enforcePropertyOrder\n        value: invalid\n    properties:").Replace("orders.csv", "does-not-exist.csv"));
-        var rejected = await CliWorkspace.Run("data", "validate", invalid, "--output-format", "json");
+        var rejected = await CliWorkspace.Run("data", "validate", invalid, "--structure", "--output-format", "json");
         Assert.That(rejected.ExitCode, Is.EqualTo(1), rejected.Error + rejected.Output);
         Assert.That(rejected.Error, Does.Contain("ODCS008"));
         Assert.That(rejected.Output, Is.Empty);
@@ -187,10 +346,10 @@ public class DataValidateCommandTests
         var source = workspace.Write("package.json", descriptor);
         workspace.Write("orders.csv", "customer_id\n42\n");
         workspace.Write("customers.csv", "id\n1\n");
-        var valid = await CliWorkspace.Run("data", "validate", source, "--asset", "orders", "--output-format", "json");
+        var valid = await CliWorkspace.Run("data", "validate", source, "--structure", "--asset", "orders", "--output-format", "json");
         Assert.That(valid.ExitCode, Is.Zero, valid.Error + valid.Output);
         workspace.Write("customers.csv", "other\n1\n");
-        var missingColumn = await CliWorkspace.Run("data", "validate", source, "--asset", "orders", "--output-format", "json");
+        var missingColumn = await CliWorkspace.Run("data", "validate", source, "--structure", "--asset", "orders", "--output-format", "json");
         Assert.That(missingColumn.ExitCode, Is.EqualTo(1), missingColumn.Error + missingColumn.Output);
         var report = JObject.Parse(missingColumn.Output);
         Assert.That(report["results"]!.Single(r => ((string?)r["descriptor"]!["executionId"])!.Contains("relationship"))["outcome"]!.Value<string>(), Is.EqualTo("Failed"));
@@ -202,7 +361,7 @@ public class DataValidateCommandTests
         using var workspace = new CliWorkspace();
         var source = workspace.Write("contract.yaml", Odcs);
         workspace.Write("orders.csv", "");
-        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(result.ExitCode, Is.Not.Zero, result.Error + result.Output);
         Assert.That((bool)JObject.Parse(result.Output)["passed"]!, Is.False);
     }
@@ -214,7 +373,7 @@ public class DataValidateCommandTests
         var descriptor = ExternalRelationship();
         var source = workspace.Write("contract.yaml", descriptor);
         workspace.Write("orders.csv", "id,name\n1,Alice\n");
-        var result = await CliWorkspace.Run("data", "validate", source, "--asset", "orders", "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--asset", "orders", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(4), result.Error + result.Output);
         Assert.That(result.Error, Does.Contain("SEM_EXTERNAL_REFERENCE Warning"));
         var report = JObject.Parse(result.Output);
@@ -229,7 +388,7 @@ public class DataValidateCommandTests
         Assert.That(offline.Diagnostics.Any(f => f.Code == "SEM_EXTERNAL_REFERENCE" && f.Severity == Packata.Core.Contracts.MappingSeverity.Error), Is.True);
 
         workspace.Write("orders.csv", "name,id\nAlice,1\n");
-        var reordered = await CliWorkspace.Run("data", "validate", source, "--asset", "orders", "--output-format", "json");
+        var reordered = await CliWorkspace.Run("data", "validate", source, "--structure", "--asset", "orders", "--output-format", "json");
         var reorderedReport = JObject.Parse(reordered.Output);
         Assert.That(reorderedReport["results"]!.Any(r => (string?)r["outcome"] == "Failed"), Is.True);
         Assert.That((bool)reorderedReport["hasViolations"]!, Is.True);
@@ -243,7 +402,7 @@ public class DataValidateCommandTests
             "    customProperties:\n      - vendor: packata\n        property: enforcePropertyOrder\n        value: invalid\n    properties:");
         var source = workspace.Write("contract.yaml", descriptor);
         // No data file exists: malformed declarations must remain fatal before acquisition.
-        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(1), result.Error + result.Output);
         Assert.That(result.Error, Does.Contain("ODCS008"));
         Assert.That(result.Output, Is.Empty);
@@ -260,7 +419,7 @@ public class DataValidateCommandTests
         var source = workspace.Write("package.json", """
             {"name":"iris","resources":[{"name":"flowers","path":"iris.parquet","format":"parquet","schema":{"fieldsMatch":"partial","fields":[{"name":"Sepal.Length","type":"string"}]}}]}
             """);
-        var result = await CliWorkspace.Run("data", "validate", source, "--output-format", "json");
+        var result = await CliWorkspace.Run("data", "validate", source, "--structure", "--output-format", "json");
         Assert.That(result.ExitCode, Is.EqualTo(1), result.Error + result.Output);
         Assert.That(result.Output, Does.Contain("schemaType"));
     }

@@ -1,3 +1,4 @@
+using Packata.Application;
 using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -6,6 +7,21 @@ namespace Packata.Cli;
 
 internal sealed class DataValidateSettings : ContractSourceSettings
 {
+    [CommandOption("--structure")]
+    [Description("Check column presence, order, and schema metadata. With neither flag, run both kinds of checks.")]
+    public bool Structure { get; init; }
+
+    [CommandOption("--constraint")]
+    [Description("Check declared schema constraints against values. With neither flag, run both kinds of checks.")]
+    public bool Constraint { get; init; }
+
+    public DatasetValidationChecks Checks => (Structure, Constraint) switch
+    {
+        (true, false) => DatasetValidationChecks.Structure,
+        (false, true) => DatasetValidationChecks.Constraint,
+        _ => DatasetValidationChecks.Both
+    };
+
     [CommandOption("--asset <ID>")]
     [Description("Asset to validate; default is all declared assets.")]
     public string? Asset { get; init; }

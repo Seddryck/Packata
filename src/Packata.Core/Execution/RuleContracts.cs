@@ -72,6 +72,7 @@ public sealed record RuleExecutionContext(DateTimeOffset ObservationTime, IRuleD
     IReadOnlyDictionary<string, QualityValue>? Bindings = null, RuleLimits? Limits = null,
     TimeProvider? Clock = null)
 {
+    public ConstraintEvaluationInput? ConstraintInput { get; init; }
     public RuleLimits Limits { get; init; } = Limits ?? new();
     public TimeProvider Clock { get; init; } = Clock ?? TimeProvider.System;
     public IReadOnlyDictionary<string, QualityValue> Bindings { get; init; } =

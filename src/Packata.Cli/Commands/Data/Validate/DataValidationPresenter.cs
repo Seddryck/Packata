@@ -16,7 +16,7 @@ internal static class DataValidationPresenter
             await WriteResultAsync(result, output, token).ConfigureAwait(false);
         foreach (var finding in report.CompilationFindings)
             await output.WriteLineAsync($"{finding.Kind}: {finding.Code}: {finding.Message}".AsMemory(), token).ConfigureAwait(false);
-        await output.WriteLineAsync($"Structural validation: {Summary(report)}.".AsMemory(), token).ConfigureAwait(false);
+        await output.WriteLineAsync($"Dataset validation: {Summary(report)}.".AsMemory(), token).ConfigureAwait(false);
     }
 
     private static async Task WriteResultAsync(RuleResult result, TextWriter output, CancellationToken token)
@@ -24,6 +24,11 @@ internal static class DataValidationPresenter
         var identity = CommandOutput.Redact(result.Descriptor.ExecutionId);
         var source = CommandOutput.Redact(result.Descriptor.SourcePath ?? "");
         await output.WriteLineAsync($"{result.Outcome}: {identity} [{source}]".AsMemory(), token).ConfigureAwait(false);
+        if (result.Descriptor.Backend == "packata.constraint" && result.Measurement.Value is { } count)
+        {
+            await output.WriteLineAsync($"  Violating rows: {count.ToObject()} of {result.Measurement.Population} inspected"
+                .AsMemory(), token).ConfigureAwait(false);
+        }
         foreach (var evidence in result.Measurement.Evidence)
         {
             var value = ContractJson.RedactedJson(evidence.Value.ToObject() ?? "null").ToString(Newtonsoft.Json.Formatting.None);

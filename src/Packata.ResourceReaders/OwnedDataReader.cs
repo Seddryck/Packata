@@ -4,7 +4,7 @@ using Packata.Core.Reading;
 
 namespace Packata.ResourceReaders;
 
-internal sealed class OwnedDataReader : IDataReader, IOriginalColumnNames
+internal sealed class OwnedDataReader : IDataReader, IOriginalColumnNames, IRawDataRecord
 {
     private readonly IDataReader _inner;
     private readonly IDisposable[] _owned;
@@ -108,6 +108,18 @@ internal sealed class OwnedDataReader : IDataReader, IOriginalColumnNames
         var value = ConvertValue(i, field);
         (_converted ??= []).Add(i, value);
         return value;
+    }
+
+    public object? GetRawValue(int ordinal)
+    {
+        if (_inner is IRawDataRecord raw) return raw.GetRawValue(ordinal);
+        if (_inner is not PocketCsvReader.CsvDataReader csv) return _inner.GetValue(ordinal);
+        try { return csv.IsDBNull(ordinal) ? null : csv.GetString(ordinal); }
+        catch (ArgumentOutOfRangeException) when (ordinal >= 0 && ordinal < csv.FieldCount)
+        {
+            // PocketCsvReader raises this when a declared header ordinal is absent from a short record.
+            return null;
+        }
     }
 
     public int GetValues(object[] values)

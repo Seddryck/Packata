@@ -273,3 +273,43 @@ sealed class SuppliedMeasurement : IMeasurementPlan
     }
 }
 ```
+
+## Executable schema constraints
+
+Use `ConstraintCompiler` with explicitly bound `ConstraintInput` instances and
+relationship prerequisites from structural validation. Execute its plans with
+`RuleRunner` and a fresh `ConstraintEvaluationInput` per run. The shared plans
+report category Constraint and backend packata.constraint.
+
+| Declaration | Value evaluation |
+| --- | --- |
+| Logical type | Scalar string, signed 64-bit integer, finite number/decimal, boolean, date, time, timestamp/datetime, and scalar any. |
+| Format | Exact invariant temporal patterns. Defaults are ISO calendar date, 24-hour time and ISO date-time. Date-times without an offset are interpreted as UTC. Declared .NET formats and DPv2 directives %Y, %m, %d, %H, %M, %S, %f and %z are supported. |
+| Required values | DPv2 uses its field constraint independently of fieldsMatch. ODCS requires a non-null value in each present, non-nullable property. A missing required column blocks evaluation. An absent optional column has no cell population. |
+| Bounds and length | Inclusive/exclusive numeric and temporal bounds. String length counts Unicode scalar values. |
+| Pattern | The .NET regex dialect with invariant culture and a match timeout. Patterns search within a string unless anchored. |
+| Allowed values | Effective typed enum or category restriction, including inline subsets and bound same-package category-table values or labels. A label identifies an allowed value through a declared table binding. |
+| Uniqueness and primary key | Field uniqueness and ordered composite unique/primary keys across an asset's inputs. Unique keys ignore tuples with a null component. Primary keys reject them. Repeated complete tuples are counted after their first occurrence. |
+| Foreign key | An explicitly bound, structurally compatible target supplies matching ordered tuples. Source tuples with any null component are exempt. Target duplicates are checked by separate uniqueness rules. Tuple equality compares numbers by mathematical value, strings ordinally, and temporal values by their typed meaning. |
+| Other constructs | JSON Schema, nested-value constraints, spatial/complex types, unsupported formats and unresolved references produce incomplete checks. |
+
+Text is read before declared-type conversion. Integer text accepts an optional
+ASCII sign and decimal digits, with no fraction, exponent, grouping or surrounding
+whitespace. Numbers use the invariant decimal point and may use an exponent within
+the supported finite range. Boolean markers match exactly and DPv2 can declare
+alternatives. Native nulls and exact DPv2 missing tokens are normalized before
+parsing. The DPv2 default missing token is the empty string for non-string fields.
+Invalid cells count against logical type and are treated as null by subsequent
+value checks. Enum equality retains the distinction between integer, number,
+boolean and string values.
+
+Each physical input is scanned once per run and successful conversions are
+retained for related checks. Row, key-state, evidence and time limits bound the
+run. A truncated scan reports partial counts. An incomplete target lookup cannot
+produce an orphan count. Evidence identifies the input and one-based data record.
+A read error is reported as an execution error.
+
+Declaration validation resolves references and checks relationship shape.
+Structural validation checks observed property presence, order and type metadata.
+Referential integrity checks whether supplied source key values exist in the
+supplied target data. Database provisioning is a separate operation.

@@ -30,6 +30,45 @@ public sealed class StructuralValidationCompiler : IRuleCompiler<DataAsset>
         return new(Array.AsReadOnly(plans), []);
     }
 
+    /// <summary>Bind original observed names for value evaluation without applying property-set rules again.</summary>
+    public static ConstraintInput BindConstraintInput(DataAsset asset, DatasetStructure input, IRuleDataSource? data)
+    {
+        var observed = (input.Columns ?? []).ToLookup(column => column.Name, StringComparer.Ordinal);
+        var fields = asset.Schema?.Fields ?? [];
+        var columns = fields.Where(field => observed[PhysicalName(field)].Count() == 1)
+            .ToDictionary(field => field.Name, PhysicalName, StringComparer.Ordinal);
+        var ambiguous = fields.Where(field => observed[PhysicalName(field)].Skip(1).Any())
+            .Select(field => field.Name).ToHashSet(StringComparer.Ordinal);
+        return new(asset, input.Source, columns, data, input.EndpointId,
+            input.DiagnosticCode ?? (input.Columns is null ? "STRUCTURE_UNAVAILABLE" : null), input.ReadError, ambiguous);
+    }
+
+    /// <summary>Reuse declaration and observed-key checks as value-rule prerequisites.</summary>
+    public IEnumerable<ConstraintRelationshipPrerequisite> RelationshipPrerequisites(DataAsset asset, DataContract contract)
+    {
+        var relationships = asset.Schema?.Relationships ?? [];
+        var sources = _observations.Where(source => source.AssetId == asset.Id).ToArray();
+        for (var index = 0; index < relationships.Count; index++)
+            yield return new(asset.Id, index, RelationshipDiagnostic(asset, relationships[index], contract, sources));
+    }
+
+    private string? RelationshipDiagnostic(DataAsset asset, DataRelationship relationship, DataContract contract, DatasetStructure[] sources)
+    {
+        if (sources.Length == 0) return "RELATIONSHIP_SOURCE_UNAVAILABLE";
+        foreach (var source in sources)
+        {
+            try
+            {
+                var result = Relationship(asset, source, relationship, contract);
+                if (!result.Complete) return result.Diagnostics[0].Code;
+                if (result.Value?.ToObject() is not true) return "RELATIONSHIP_STRUCTURE_FAILED";
+            }
+            catch (IOException) { return "RELATIONSHIP_STRUCTURE_UNREADABLE"; }
+        }
+
+        return null;
+    }
+
     private static CompilationResult Invalid(DataAsset asset, string code, string message)
         => new([], [new($"structure:{asset.Id}", CompilationFindingKind.Invalid, code, message)]);
 

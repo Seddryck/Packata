@@ -157,6 +157,7 @@ public sealed class DataPackageMapper : IDataContractMapper<Native.DataPackage>
                 ["fieldsMatch"] = schema.FieldsMatch.ToString(),
                 ["uniqueKeys"] = schema.UniqueKeys,
                 ["missingValues"] = schema.MissingValues,
+                ["missingValueTokens"] = schema.MissingValues?.Select(value => value.Value).ToArray(),
                 ["metrics"] = schema.Metrics
             }), AllowAdditionalProperties: schema.FieldsMatch is Native.FieldsMatching.Subset or Native.FieldsMatching.Partial,
             EnforcePropertyOrder: schema.FieldsMatch == Native.FieldsMatching.Exact);
