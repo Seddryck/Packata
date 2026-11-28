@@ -113,8 +113,11 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
     {
         var (allowAdditional, enforceOrder) = PropertyRequirementsMapper.Map(schema, diagnostics, bindings);
         var sourceContext = SpatialDeclarations.SourceContext(endpoints);
-        var fields = schema.Properties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics, schema.Name, [property.Name], sourceContext)).ToArray();
-        var primaryKey = schema.Properties
+        var rowProperties = schema.Properties.Where(property => property.SemanticType != "measure").ToArray();
+        var fields = rowProperties.Select(property => MapField(property, $"schema/{schema.Name}/properties/{property.Name}", diagnostics, schema.Name, [property.Name], sourceContext)).ToArray();
+        var measures = schema.Properties.Where(property => property.SemanticType == "measure")
+            .Select(property => MeasureMapper.FromProperty(property, GetLogicalTypeName(property.LogicalType))).ToArray();
+        var primaryKey = rowProperties
             .Where(x => x.PrimaryKey)
             .OrderBy(x => x.PrimaryKeyPosition ?? int.MaxValue)
             .Select(x => x.Name)
@@ -122,7 +125,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
 
         var relationships = schema.Relationships
             .Select(value => MapRelationship(value, schema.Name, null, diagnostics))
-            .Concat(schema.Properties.SelectMany(property => property.Relationships
+            .Concat(rowProperties.SelectMany(property => property.Relationships
                 .Select(value => MapRelationship(value, schema.Name, property.Name, diagnostics))))
             .Where(value => value is not null).Cast<DataRelationship>().ToArray();
 
@@ -133,7 +136,7 @@ public sealed class OpenDataContractMapper : IDataContractMapper<DataContract>
             schema.Description,
             MapAssetKind(schema.PhysicalType),
             new DataSchema(fields, primaryKey, relationships, AllowAdditionalProperties: allowAdditional, EnforcePropertyOrder: enforceOrder)
-            { Indexes = IndexDeclarationMapper.Map(schema, diagnostics) },
+            { Indexes = IndexDeclarationMapper.Map(schema, diagnostics), Measures = measures },
             endpoints.Select(x => new EndpointBinding(x.Id, schema.PhysicalName)).ToArray(),
             QualityRules: QualityMapper.Map(schema.Quality, new QualityTarget(schema.Name), $"schema/{schema.Name}/quality", diagnostics),
             Extensions: MapCustomProperties(schema.CustomProperties, schema.TagEntries));

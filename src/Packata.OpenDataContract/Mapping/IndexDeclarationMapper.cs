@@ -48,7 +48,7 @@ internal static class IndexDeclarationMapper
     {
         var values = Object(entry, "property", "kind", "order", "comparison");
         var name = Text(values, "property");
-        var properties = schema.Properties.Where(property => property.Name == name).ToArray();
+        var properties = schema.Properties.Where(property => property.SemanticType != "measure" && property.Name == name).ToArray();
         if (string.IsNullOrWhiteSpace(name) || properties.Length != 1)
             throw Invalid($"Index property '{name}' must name exactly one top-level property in '{schema.Name}'.");
 

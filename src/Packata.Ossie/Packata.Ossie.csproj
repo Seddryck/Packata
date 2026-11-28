@@ -7,6 +7,9 @@
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../Packata.Core/Packata.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <EmbeddedResource Include="Schema/ossie-schema.json" />
     <None Include="$(MSBuildProjectDirectory)\Schema\NOTICE" Pack="true" PackagePath="\" />
   </ItemGroup>

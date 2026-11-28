@@ -7,7 +7,8 @@ internal static partial class LineageMapper
 {
     internal static FieldLineage[] Map(SchemaObject schema, IReadOnlyList<SchemaObject> schemas,
         ICollection<MappingDiagnostic> diagnostics)
-        => schema.Properties.SelectMany(property => Map(property, [property.PhysicalName ?? property.Name], schemas, diagnostics,
+        => schema.Properties.Where(property => property.SemanticType != "measure")
+            .SelectMany(property => Map(property, [property.PhysicalName ?? property.Name], schemas, diagnostics,
             $"schema/{schema.Name}/properties/{property.Name}")).ToArray();
 
     private static IEnumerable<FieldLineage> Map(SchemaBaseProperty property, string[] path,
@@ -68,7 +69,7 @@ internal static partial class LineageMapper
         foreach (var identifier in Identifier().Matches(logic).Select(match => match.Value))
         {
             var candidates = matches.SelectMany((match, index) => match[0].Properties
-                .Where(property => property.Name == identifier || property.PhysicalName == identifier)
+                .Where(property => property.SemanticType != "measure" && (property.Name == identifier || property.PhysicalName == identifier))
                 .Select(property => (Index: index, Field: property.PhysicalName ?? property.Name))).ToArray();
             if (candidates.Length != 1) return false;
             fields[candidates[0].Index].Add(candidates[0].Field);
