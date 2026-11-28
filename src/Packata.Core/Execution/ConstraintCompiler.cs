@@ -134,11 +134,10 @@ public sealed class ConstraintCompiler(IEnumerable<ConstraintInput> inputs,
         {
             return constraint.Kind switch
             {
-                "minimum" or "maximum" or "exclusiveMinimum" or "exclusiveMaximum" => BoundPredicate(constraint, parser),
-                "minLength" or "maxLength" when parser.HasTextValues => LengthPredicate(constraint),
-                "pattern" when parser.HasTextValues && constraint.Value is string pattern => PatternPredicate(pattern),
-                "enum" when constraint.Value is IEnumerable values && constraint.Value is not string => EnumPredicate(values),
-                _ => new()
+                "minLength" or "maxLength" => LengthPredicate(constraint, parser),
+                "pattern" => PatternPredicate(constraint, parser),
+                "enum" => EnumPredicate(constraint.Value),
+                _ => BoundPredicate(constraint, parser)
             };
         }
         catch (ArgumentException)
@@ -149,21 +148,22 @@ public sealed class ConstraintCompiler(IEnumerable<ConstraintInput> inputs,
 
     private static CellPredicate BoundPredicate(DataConstraint constraint, ConstraintValueParser parser)
     {
-        if (parser.Bound(constraint.Value) is not { } bound) return new();
-        var op = constraint.Kind switch
+        ExpectationOperator? op = constraint.Kind switch
         {
             "minimum" => ExpectationOperator.GreaterOrEqual,
             "maximum" => ExpectationOperator.LessOrEqual,
             "exclusiveMinimum" => ExpectationOperator.Greater,
-            _ => ExpectationOperator.Less
+            "exclusiveMaximum" => ExpectationOperator.Less,
+            _ => null
         };
-        var expectation = new QualityExpectation(op, bound);
+        if (op is null || parser.Bound(constraint.Value) is not { } bound) return new();
+        var expectation = new QualityExpectation(op.Value, bound);
         return new(cell => cell.Value is { } value && !ExpectationAssertionPlan.Matches(value, expectation), bound.ToObject());
     }
 
-    private static CellPredicate LengthPredicate(DataConstraint constraint)
+    private static CellPredicate LengthPredicate(DataConstraint constraint, ConstraintValueParser parser)
     {
-        if (!ScalarValue.TryCreate(constraint.Value, out var length)
+        if (!parser.HasTextValues || !ScalarValue.TryCreate(constraint.Value, out var length)
             || length is not { Kind: ScalarKind.Integer, Value: long size } || size < 0)
             return new();
 
@@ -171,14 +171,16 @@ public sealed class ConstraintCompiler(IEnumerable<ConstraintInput> inputs,
             ? Length(text) < size : Length(text) > size), size);
     }
 
-    private static CellPredicate PatternPredicate(string pattern)
+    private static CellPredicate PatternPredicate(DataConstraint constraint, ConstraintValueParser parser)
     {
+        if (!parser.HasTextValues || constraint.Value is not string pattern) return new();
         var regex = new Regex(pattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
         return new(cell => cell.Value?.ToObject() is string text && !regex.IsMatch(text), pattern);
     }
 
-    private static CellPredicate EnumPredicate(IEnumerable values)
+    private static CellPredicate EnumPredicate(object? operand)
     {
+        if (operand is string || operand is not IEnumerable values) return new();
         var allowed = values.Cast<object?>().Select(ScalarValue.From).ToHashSet();
         return new(cell => cell.State == ConstraintCellState.Value && (cell.Scalar is not { } scalar || !allowed.Contains(scalar)),
             "effective allowed values");
