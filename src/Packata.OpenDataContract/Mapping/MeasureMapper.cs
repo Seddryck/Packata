@@ -47,7 +47,9 @@ internal static class MeasureMapper
 
         var expressions = measure.Expressions;
         var unqualified = expressions.Where(expression => expression.Dialect is null).Take(2).ToArray();
-        var selected = expressions.Count == 1 ? expressions[0] : unqualified.Length == 1 ? unqualified[0] : null;
+        var selected = unqualified.Length == 1 ? unqualified[0] : null;
+        if (expressions.Count == 1)
+            selected = expressions[0];
         if (expressions.Count > 1)
         {
             var message = selected is null
