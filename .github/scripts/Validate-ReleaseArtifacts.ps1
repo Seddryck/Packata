@@ -32,6 +32,7 @@ $packageIds = @(
     'Packata.Storages',
     'Packata.OpenDataContract',
     'Packata.OpenLineage',
+    'Packata.Ossie',
     'Packata.Rules.Expressif',
     'Packata.Rules.Sql'
 )
@@ -71,6 +72,10 @@ foreach ($packageId in $packageIds) {
 
         foreach ($framework in $frameworks) {
             Assert-Condition ($entries -contains "lib/$framework/$packageId.dll") "Package '$packageId' has no assembly for '$framework'."
+        }
+
+        if ($packageId -eq 'Packata.Ossie') {
+            Assert-Condition ($entries -contains 'NOTICE') "Package '$packageId' is missing the Apache Ossie notice."
         }
 
         if ($packageId -eq 'Packata.ExtendedTypes') {
