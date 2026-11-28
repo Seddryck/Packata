@@ -61,7 +61,7 @@ internal static class MeasureMapper
         string path, ICollection<MappingDiagnostic> diagnostics)
     {
         if (expressions.Count <= 1)
-            return expressions.FirstOrDefault();
+            return expressions.Count == 1 ? expressions[0] : null;
 
         var unqualified = expressions.Where(expression => expression.Dialect is null).Take(2).ToArray();
         var selected = unqualified.Length == 1 ? unqualified[0] : null;
