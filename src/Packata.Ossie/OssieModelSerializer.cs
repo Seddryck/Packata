@@ -37,9 +37,7 @@ public static class OssieModelSerializer
         if (format is not (OssieSerializationFormat.Json or OssieSerializationFormat.Yaml))
             throw new ArgumentOutOfRangeException(nameof(format), format, "Expected JSON or YAML.");
 
-        var document = JsonSerializer.SerializeToElement(model, Options);
-        OssieDocumentValidation.Validate(document);
-        OssieDeclarationValidation.Validate(model);
+        var document = ValidateModel(model);
 
         if (format == OssieSerializationFormat.Json)
         {
@@ -51,6 +49,14 @@ public static class OssieModelSerializer
             using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true);
             OssieYaml.Write(document, writer);
         }
+    }
+
+    internal static JsonElement ValidateModel(OssieModel model)
+    {
+        var document = JsonSerializer.SerializeToElement(model, Options);
+        OssieDocumentValidation.Validate(document);
+        OssieDeclarationValidation.Validate(model);
+        return document;
     }
 
     private static JsonDocument ReadDocument(TextReader reader, OssieSerializationFormat format)

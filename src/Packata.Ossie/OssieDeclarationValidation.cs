@@ -50,7 +50,7 @@ internal static class OssieDeclarationValidation
             throw new OssieDocumentException(path + "/to_columns", "The target fields must match a primary or unique key.");
     }
 
-    private static string Normalize(string identifier)
+    internal static string Normalize(string identifier)
         => identifier.Length >= 2 && identifier[0] == '"' && identifier[^1] == '"'
             ? identifier[1..^1].Replace("\"\"", "\"", StringComparison.Ordinal)
             : identifier.ToUpperInvariant();
