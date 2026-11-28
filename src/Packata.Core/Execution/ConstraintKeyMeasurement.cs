@@ -38,27 +38,35 @@ internal static class ConstraintKeyMeasurement
     public static async ValueTask<RuleMeasurement> CategoryAsync(ConstraintInput source, string name, ConstraintInput[] targets,
         ValueDomain domain, RuleExecutionContext context, CancellationToken token)
     {
-        if (targets.Length == 0 || targets[0].Asset.CategoryTable is not { ValueField.Segments.Count: 1 } table)
-            return ConstraintCompiler.Incomplete("CATEGORY_REFERENCE_UNAVAILABLE");
-        var fields = new List<string> { table.ValueField.Segments[0] };
-        if (domain.Reference!.EffectiveEncoding == ValueEncoding.Label)
-        {
-            if (table.LabelField is not { Segments.Count: 1 } label)
-                return ConstraintCompiler.Incomplete("CATEGORY_LABEL_UNAVAILABLE");
-            fields.Add(label.Segments[0]);
-        }
+        var (fields, diagnostic) = CategoryFields(targets.FirstOrDefault()?.Asset.CategoryTable, domain.Reference!.EffectiveEncoding);
+        if (diagnostic is not null) return ConstraintCompiler.Incomplete(diagnostic);
 
         var allowed = domain.AllowedValues?.ToHashSet();
         var lookup = new HashSet<ScalarValue>();
         await ReadLookupAsync(targets, fields, context, token, cells =>
         {
-            if (cells[0].Scalar is not { } value || (allowed is not null && !allowed.Contains(value))) return;
-            if (cells[^1].Scalar is { } encoded) Add(lookup, encoded, context.Limits);
+            if (IncludedCategory(cells[0], allowed) && cells[^1].Scalar is { } encoded)
+                Add(lookup, encoded, context.Limits);
         }).ConfigureAwait(false);
         var tally = new ConstraintTally(context.Limits, "effective category values");
         return await MeasureAsync([source], [name], tally, context, token,
-            cells => cells[0].State == ConstraintCellState.Value && (cells[0].Scalar is not { } value || !lookup.Contains(value))).ConfigureAwait(false);
+            cells => OutsideCategory(cells[0], lookup)).ConfigureAwait(false);
     }
+
+    private static (string[] Fields, string? Diagnostic) CategoryFields(CategoryTableDefinition? table, ValueEncoding encoding)
+    {
+        if (table is not { ValueField.Segments.Count: 1 }) return ([], "CATEGORY_REFERENCE_UNAVAILABLE");
+        var value = table.ValueField.Segments[0];
+        if (encoding != ValueEncoding.Label) return ([value], null);
+        return table.LabelField is { Segments.Count: 1 } label
+            ? ([value, label.Segments[0]], null) : ([], "CATEGORY_LABEL_UNAVAILABLE");
+    }
+
+    private static bool IncludedCategory(ConstraintCell cell, HashSet<ScalarValue>? allowed)
+        => cell.Scalar is { } value && (allowed is null || allowed.Contains(value));
+
+    private static bool OutsideCategory(ConstraintCell cell, HashSet<ScalarValue> lookup)
+        => cell.State == ConstraintCellState.Value && !IncludedCategory(cell, lookup);
 
     private static async Task ReadLookupAsync(ConstraintInput[] inputs, IReadOnlyList<string> fields,
         RuleExecutionContext context, CancellationToken token, Action<ConstraintCell[]> collect)

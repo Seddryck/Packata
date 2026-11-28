@@ -25,15 +25,24 @@ internal sealed class ConstraintValueParser
     {
         _type = field.LogicalType?.ToLowerInvariant() ?? "any";
         var dp = schema.Extensions.TryGetNamespace("datapackage", out _);
-        _missing = new(Markers(field.Extensions, "missingValues") ?? Markers(schema.Extensions, "missingValueTokens") ?? Markers(schema.Extensions, "missingValues")
-            ?? (dp && _type != "string" ? [""] : []), StringComparer.Ordinal);
-        _true = new(Markers(field.Extensions, "trueValues") ?? (dp ? ["true", "True", "TRUE", "1"] : ["true", "True", "TRUE"]), StringComparer.Ordinal);
-        _false = new(Markers(field.Extensions, "falseValues") ?? (dp ? ["false", "False", "FALSE", "0"] : ["false", "False", "FALSE"]), StringComparer.Ordinal);
+        _missing = new(MissingMarkers(schema, field, dp && _type != "string"), StringComparer.Ordinal);
+        (_true, _false) = BooleanMarkers(field, dp);
         _formats = Formats(field.Format, dp);
-        Supported = (_type is "any" or "string" or "integer" or "number" or "decimal" or "boolean" or "date" or "time" or "timestamp" or "datetime")
+        Supported = (HasTextValues || IsNumeric || IsTemporal || _type == "boolean")
             && !_true.Overlaps(_false)
-            && (string.IsNullOrEmpty(field.Format) || field.Format is "default" or "any" || _formats.Length > 0);
+            && (UsesDefaultFormat(field.Format) || _formats.Length > 0);
     }
+
+    private bool IsNumeric => _type is "integer" or "number" or "decimal";
+    private bool IsTemporal => _type is "date" or "time" or "timestamp" or "datetime";
+
+    private static IEnumerable<string> MissingMarkers(DataSchema schema, DataField field, bool emptyIsMissing)
+        => Markers(field.Extensions, "missingValues") ?? Markers(schema.Extensions, "missingValueTokens")
+            ?? Markers(schema.Extensions, "missingValues") ?? (emptyIsMissing ? [""] : []);
+
+    private static (HashSet<string> True, HashSet<string> False) BooleanMarkers(DataField field, bool dataPackage)
+        => (new(Markers(field.Extensions, "trueValues") ?? (dataPackage ? ["true", "True", "TRUE", "1"] : ["true", "True", "TRUE"]), StringComparer.Ordinal),
+            new(Markers(field.Extensions, "falseValues") ?? (dataPackage ? ["false", "False", "FALSE", "0"] : ["false", "False", "FALSE"]), StringComparer.Ordinal));
 
     public bool Supported { get; }
     public bool HasTextValues => _type is "string" or "any";
@@ -49,7 +58,7 @@ internal sealed class ConstraintValueParser
 
     public QualityValue? Bound(object? raw)
     {
-        if (_type is "integer" or "number" or "decimal" && ScalarValue.TryCreate(raw, out var scalar)
+        if (IsNumeric && ScalarValue.TryCreate(raw, out var scalar)
             && scalar.Kind is ScalarKind.Integer or ScalarKind.Number)
             return QualityValue.From(scalar.Value);
         var value = raw is null ? null : ConvertValue(raw);
@@ -65,18 +74,27 @@ internal sealed class ConstraintValueParser
 
     private object? ConvertValue(object raw)
     {
-        if (_type is "date" or "time" or "timestamp" or "datetime") return Temporal(raw);
-        if (_type == "boolean" && raw is string boolean)
+        if (IsTemporal) return raw is string temporalText ? TemporalText(temporalText) : NativeTemporal(raw);
+        if (raw is string text)
         {
-            if (_true.Contains(boolean)) return true;
-            if (_false.Contains(boolean)) return false;
-            return null;
+            if (_type == "boolean") return BooleanText(text);
+            if (IsNumeric) return NumericText(text);
         }
 
-        if (raw is string text && _type is "integer" or "number" or "decimal") return NumericText(text);
-        if (!ScalarValue.TryCreate(raw, out var scalar) || !scalar.IsCompatibleWith(_type)) return null;
+        return CompatibleScalar(raw);
+    }
+
+    private bool? BooleanText(string text)
+    {
+        if (_true.Contains(text)) return true;
+        if (_false.Contains(text)) return false;
+        return null;
+    }
+
+    private object? CompatibleScalar(object raw)
+    {
         if (_type == "string" && raw is not (string or char)) return null;
-        return scalar.Value;
+        return ScalarValue.TryCreate(raw, out var scalar) && scalar.IsCompatibleWith(_type) ? scalar.Value : null;
     }
 
     private object? NumericText(string text)
@@ -88,69 +106,73 @@ internal sealed class ConstraintValueParser
         return ScalarValue.TryParseNumber(text, out var number) ? number.Value : null;
     }
 
-    private object? Temporal(object raw)
+    private object? NativeTemporal(object raw) => (_type, raw) switch
     {
-        if (raw is not string text)
-        {
-            return (_type, raw) switch
-            {
-                ("date", DateOnly date) => date,
-                ("date", DateTime date) when date.TimeOfDay == TimeSpan.Zero => DateOnly.FromDateTime(date),
-                ("time", TimeOnly time) => time,
-                ("time", TimeSpan time) when time >= TimeSpan.Zero && time < TimeSpan.FromDays(1) => TimeOnly.FromTimeSpan(time),
-                ("timestamp" or "datetime", DateTimeOffset timestamp) => timestamp,
-                ("timestamp" or "datetime", DateTime date) => new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc)),
-                _ => null
-            };
-        }
+        ("date", DateOnly date) => date,
+        ("date", DateTime date) when date.TimeOfDay == TimeSpan.Zero => DateOnly.FromDateTime(date),
+        ("time", TimeOnly time) => time,
+        ("time", TimeSpan time) when time >= TimeSpan.Zero && time < TimeSpan.FromDays(1) => TimeOnly.FromTimeSpan(time),
+        ("timestamp" or "datetime", DateTimeOffset timestamp) => timestamp,
+        ("timestamp" or "datetime", DateTime date) => new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc)),
+        _ => null
+    };
 
-        const DateTimeStyles exact = DateTimeStyles.None;
-        const DateTimeStyles timestampStyle = DateTimeStyles.AssumeUniversal;
-        return _type switch
-        {
-            "date" when DateOnly.TryParseExact(text, _formats, Invariant, exact, out var date) => date,
-            "time" when TimeOnly.TryParseExact(text, _formats, Invariant, exact, out var time) => time,
-            "timestamp" or "datetime" when DateTimeOffset.TryParseExact(text, _formats, Invariant, timestampStyle, out var timestamp) => timestamp,
-            _ => null
-        };
-    }
+    private object? TemporalText(string text) => _type switch
+    {
+        "date" when DateOnly.TryParseExact(text, _formats, Invariant, DateTimeStyles.None, out var date) => date,
+        "time" when TimeOnly.TryParseExact(text, _formats, Invariant, DateTimeStyles.None, out var time) => time,
+        "timestamp" or "datetime" when DateTimeOffset.TryParseExact(text, _formats, Invariant, DateTimeStyles.AssumeUniversal, out var timestamp) => timestamp,
+        _ => null
+    };
 
     private string[] Formats(string? format, bool dataPackage)
     {
-        if (_type is not ("date" or "time" or "timestamp" or "datetime")) return [];
-        if (string.IsNullOrEmpty(format) || format is "default" or "any")
-        {
-            return _type switch
-            {
-                "date" => ["yyyy-MM-dd"],
-                "time" => ["HH:mm:ss", "HH:mm:ss.FFFFFFF"],
-                _ => ["yyyy-MM-dd'T'HH:mm:ssK", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK"]
-            };
-        }
-
-        if (!dataPackage || !format.Contains('%')) return [format];
-        var directive = new Regex("%.", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-        var translated = directive.Replace(format, match => match.Value switch
-        {
-            "%Y" => "yyyy",
-            "%m" => "MM",
-            "%d" => "dd",
-            "%H" => "HH",
-            "%M" => "mm",
-            "%S" => "ss",
-            "%f" => "{fraction}",
-            "%z" => "{offset}",
-            "%%" => "'[%]'",
-            _ => "%"
-        });
-        if (translated.Replace("'[%]'", "", StringComparison.Ordinal).Contains('%')) return [];
-        var fractions = translated.Contains("{fraction}", StringComparison.Ordinal)
-            ? Enumerable.Range(1, 6).Select(width => translated.Replace("{fraction}", new string('f', width), StringComparison.Ordinal))
-            : [translated];
-        return fractions.SelectMany(pattern => pattern.Contains("{offset}", StringComparison.Ordinal)
-            ? new[] { pattern.Replace("{offset}", "zzz", StringComparison.Ordinal), pattern.Replace("{offset}", "'Z'", StringComparison.Ordinal) }
-            : [pattern]).Select(pattern => pattern.Replace("'[%]'", "'%'", StringComparison.Ordinal)).ToArray();
+        if (!IsTemporal) return [];
+        if (UsesDefaultFormat(format)) return DefaultFormats();
+        return dataPackage && format!.Contains('%') ? TranslateFormats(format) : [format!];
     }
+
+    private static bool UsesDefaultFormat(string? format) => string.IsNullOrEmpty(format) || format is "default" or "any";
+
+    private string[] DefaultFormats() => _type switch
+    {
+        "date" => ["yyyy-MM-dd"],
+        "time" => ["HH:mm:ss", "HH:mm:ss.FFFFFFF"],
+        _ => ["yyyy-MM-dd'T'HH:mm:ssK", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK"]
+    };
+
+    private static string[] TranslateFormats(string format)
+    {
+        var directive = new Regex("%.", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+        var translated = directive.Replace(format, match => TranslateDirective(match.Value));
+        if (translated.Replace("'[%]'", "", StringComparison.Ordinal).Contains('%')) return [];
+        return ExpandFraction(translated).SelectMany(ExpandOffset)
+            .Select(pattern => pattern.Replace("'[%]'", "'%'", StringComparison.Ordinal)).ToArray();
+    }
+
+    private static string TranslateDirective(string directive) => directive switch
+    {
+        "%Y" => "yyyy",
+        "%m" => "MM",
+        "%d" => "dd",
+        "%H" => "HH",
+        "%M" => "mm",
+        "%S" => "ss",
+        "%f" => "{fraction}",
+        "%z" => "{offset}",
+        "%%" => "'[%]'",
+        _ => "%"
+    };
+
+    private static IEnumerable<string> ExpandFraction(string pattern)
+        => pattern.Contains("{fraction}", StringComparison.Ordinal)
+            ? Enumerable.Range(1, 6).Select(width => pattern.Replace("{fraction}", new string('f', width), StringComparison.Ordinal))
+            : [pattern];
+
+    private static string[] ExpandOffset(string pattern)
+        => pattern.Contains("{offset}", StringComparison.Ordinal)
+            ? [pattern.Replace("{offset}", "zzz", StringComparison.Ordinal), pattern.Replace("{offset}", "'Z'", StringComparison.Ordinal)]
+            : [pattern];
 
     private static IEnumerable<string>? Markers(ExtensionMetadata extensions, string name)
         => extensions.TryGetNamespace("datapackage", out var native)

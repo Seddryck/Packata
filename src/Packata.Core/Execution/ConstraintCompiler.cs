@@ -22,45 +22,12 @@ public sealed class ConstraintCompiler(IEnumerable<ConstraintInput> inputs,
         if (inputs.Length == 0)
             return new([], [new($"constraint:{declaration.Id}", CompilationFindingKind.MissingBinding, "RAW_INPUT_UNAVAILABLE", "Bind the asset's raw input before evaluating constraints.")]);
 
-        var plans = new List<IExecutableRule>();
-        for (var index = 0; index < inputs.Length; index++)
-        {
-            var input = inputs[index];
-            foreach (var field in schema.Fields.Where(field => Applies(input, field)))
-                plans.AddRange(FieldPlans(schema, input, field, $"constraint:{declaration.Id}:{index}:{field.Name}"));
-        }
-
         var prefix = $"constraint:{declaration.Id}";
-        foreach (var field in schema.Fields.Where(field => field.Constraints.Any(c => c is { Kind: "unique", Value: true })))
-        {
-            var applicable = inputs.Where(input => Applies(input, field)).ToArray();
-            if (applicable.Length > 0)
-                plans.Add(KeyPlan(applicable, [field.Name], $"{prefix}:unique:{field.Name}"));
-        }
-
-        var primary = schema.PrimaryKey.Count > 0 ? schema.PrimaryKey : schema.Fields
-            .Where(field => field.Constraints.Any(c => c is { Kind: "primaryKey", Value: true })).Select(field => field.Name).ToArray();
-        if (primary.Count > 0)
-            plans.Add(KeyPlan(inputs, primary, $"{prefix}:primaryKey", primaryKey: true));
-        if (schema.Extensions.TryGetNamespace("datapackage", out var metadata)
-            && metadata.GetValueOrDefault("uniqueKeys") is IEnumerable<IEnumerable<string>> keys)
-        {
-            plans.AddRange(keys.Select((key, index) => KeyPlan(inputs, key.ToArray(), $"{prefix}:uniqueKey:{index}")));
-        }
-
-        for (var index = 0; index < schema.Relationships.Count; index++)
-        {
-            var relationship = schema.Relationships[index];
-            var prerequisite = _relationships.FirstOrDefault(check => check.AssetId == declaration.Id && check.RelationshipIndex == index);
-            var targets = relationship.TargetAsset == declaration.Id ? inputs : Inputs(relationship.TargetAsset);
-            var blocked = prerequisite is null ? "RELATIONSHIP_PREREQUISITE_UNAVAILABLE" : prerequisite.DiagnosticCode;
-            plans.Add(Plan(inputs[0], $"{prefix}:foreignKey:{index}", relationship.Fields, QualityInputScope.Dataset,
-                (execution, token) => blocked is null
-                    ? ConstraintKeyMeasurement.ForeignAsync(inputs, relationship.Fields, targets, relationship.TargetFields, execution, token)
-                    : ValueTask.FromResult(Incomplete(blocked))));
-        }
-
-        return new(plans.AsReadOnly(), []);
+        var plans = FieldPlans(schema, inputs, prefix)
+            .Concat(UniquePlans(schema, inputs, prefix))
+            .Concat(ForeignPlans(declaration.Id, schema, inputs, prefix))
+            .ToArray();
+        return new(Array.AsReadOnly(plans), []);
     }
 
     private ConstraintInput[] Inputs(string assetId) => _inputs.Where(input => input.Asset.Id == assetId).ToArray();
@@ -69,76 +36,156 @@ public sealed class ConstraintCompiler(IEnumerable<ConstraintInput> inputs,
         => input.DiagnosticCode is not null || input.ReadError || field.Required
             || input.Columns.ContainsKey(field.Name) || input.AmbiguousFields?.Contains(field.Name) == true;
 
+    private IEnumerable<IExecutableRule> FieldPlans(DataSchema schema, ConstraintInput[] inputs, string prefix)
+    {
+        for (var index = 0; index < inputs.Length; index++)
+        {
+            var input = inputs[index];
+            foreach (var field in schema.Fields.Where(field => Applies(input, field)))
+            {
+                foreach (var plan in FieldPlans(schema, input, field, $"{prefix}:{index}:{field.Name}"))
+                    yield return plan;
+            }
+        }
+    }
+
+    private static IEnumerable<IExecutableRule> UniquePlans(DataSchema schema, ConstraintInput[] inputs, string prefix)
+    {
+        foreach (var field in schema.Fields.Where(field => field.Constraints.Any(c => c is { Kind: "unique", Value: true })))
+        {
+            var applicable = inputs.Where(input => Applies(input, field)).ToArray();
+            if (applicable.Length > 0)
+                yield return KeyPlan(applicable, [field.Name], $"{prefix}:unique:{field.Name}");
+        }
+
+        var primary = schema.PrimaryKey.Count > 0 ? schema.PrimaryKey : schema.Fields
+            .Where(field => field.Constraints.Any(c => c is { Kind: "primaryKey", Value: true })).Select(field => field.Name).ToArray();
+        if (primary.Count > 0)
+            yield return KeyPlan(inputs, primary, $"{prefix}:primaryKey", primaryKey: true);
+        if (schema.Extensions.TryGetNamespace("datapackage", out var metadata)
+            && metadata.GetValueOrDefault("uniqueKeys") is IEnumerable<IEnumerable<string>> keys)
+        {
+            foreach (var (key, index) in keys.Select((key, index) => (key, index)))
+                yield return KeyPlan(inputs, key.ToArray(), $"{prefix}:uniqueKey:{index}");
+        }
+    }
+
+    private IEnumerable<IExecutableRule> ForeignPlans(string assetId, DataSchema schema, ConstraintInput[] inputs, string prefix)
+    {
+        for (var index = 0; index < schema.Relationships.Count; index++)
+        {
+            var relationship = schema.Relationships[index];
+            var prerequisite = _relationships.FirstOrDefault(check => check.AssetId == assetId && check.RelationshipIndex == index);
+            var targets = relationship.TargetAsset == assetId ? inputs : Inputs(relationship.TargetAsset);
+            var blocked = prerequisite is null ? "RELATIONSHIP_PREREQUISITE_UNAVAILABLE" : prerequisite.DiagnosticCode;
+            yield return Plan(inputs[0], $"{prefix}:foreignKey:{index}", relationship.Fields, QualityInputScope.Dataset,
+                (execution, token) => blocked is null
+                    ? ConstraintKeyMeasurement.ForeignAsync(inputs, relationship.Fields, targets, relationship.TargetFields, execution, token)
+                    : ValueTask.FromResult(Incomplete(blocked)));
+        }
+    }
+
     private IEnumerable<IExecutableRule> FieldPlans(DataSchema schema, ConstraintInput input, DataField field, string prefix)
     {
         var parser = new ConstraintValueParser(schema, field);
-        var fields = new[] { field.Name };
-        yield return CellPlan(input, field, $"{prefix}:logicalType", $"logical type {field.LogicalType ?? "any"}{(field.Format is null ? "" : $" ({field.Format})")}",
+        var type = field.LogicalType ?? "any";
+        var expectedType = field.Format is null ? $"logical type {type}" : $"logical type {type} ({field.Format})";
+        yield return CellPlan(input, field, $"{prefix}:logicalType", expectedType,
             parser.Supported ? cell => cell.State == ConstraintCellState.Invalid : null, "LOGICAL_TYPE_OR_FORMAT_UNSUPPORTED");
 
         if (!field.Nullable)
             yield return CellPlan(input, field, $"{prefix}:required", "non-null value", cell => cell.State is ConstraintCellState.Invalid or ConstraintCellState.Missing);
 
+        foreach (var plan in DeclaredCellPlans(input, field, prefix, parser))
+            yield return plan;
+
+        if (field.ValueDomain is { Reference: { } reference } domain
+            && (domain.AllowedValues is null || reference.EffectiveEncoding == ValueEncoding.Label))
+        {
+            yield return CategoryPlan(input, field, $"{prefix}:category", domain, reference, parser.Supported);
+        }
+    }
+
+    private static IEnumerable<IExecutableRule> DeclaredCellPlans(ConstraintInput input, DataField field, string prefix, ConstraintValueParser parser)
+    {
         var constraintIndex = 0;
         foreach (var constraint in field.Constraints)
         {
             var identity = $"{prefix}:{constraint.Kind}:{constraintIndex++}";
             if (constraint.Kind == "primaryKey" || constraint is { Kind: "unique", Value: bool }) continue;
+            if (constraint.Kind == "enum" && field.ValueDomain is { Reference.EffectiveEncoding: ValueEncoding.Label }) continue;
 
-            if (constraint.Kind == "enum" && field.ValueDomain is { Reference.EffectiveEncoding: ValueEncoding.Label })
-                continue;
-            var (violates, expected, diagnostic) = Predicate(constraint, parser);
-            yield return CellPlan(input, field, identity, expected, violates, diagnostic);
-        }
-
-        if (field.ValueDomain is { Reference: { } reference } domain
-            && (domain.AllowedValues is null || reference.EffectiveEncoding == ValueEncoding.Label))
-        {
-            yield return Plan(input, $"{prefix}:category", fields, QualityInputScope.Dataset, (execution, token) =>
-                parser.Supported
-                    ? ConstraintKeyMeasurement.CategoryAsync(input, field.Name, Inputs(reference.BoundAssetId ?? ""), domain, execution, token)
-                    : ValueTask.FromResult(Incomplete("LOGICAL_TYPE_OR_FORMAT_UNSUPPORTED")));
+            var predicate = Predicate(constraint, parser);
+            yield return CellPlan(input, field, identity, predicate.Expected, predicate.Violates, predicate.Diagnostic);
         }
     }
 
-    private static (Func<ConstraintCell, bool>? Violates, object? Expected, string Diagnostic) Predicate(DataConstraint constraint, ConstraintValueParser parser)
+    private IExecutableRule CategoryPlan(ConstraintInput input, DataField field, string id, ValueDomain domain,
+        ValueDomainReference reference, bool supported)
+        => Plan(input, id, [field.Name], QualityInputScope.Dataset, (execution, token) =>
+            supported
+                ? ConstraintKeyMeasurement.CategoryAsync(input, field.Name, Inputs(reference.BoundAssetId ?? ""), domain, execution, token)
+                : ValueTask.FromResult(Incomplete("LOGICAL_TYPE_OR_FORMAT_UNSUPPORTED")));
+
+    private static CellPredicate Predicate(DataConstraint constraint, ConstraintValueParser parser)
     {
-        if (!parser.Supported) return (null, null, "LOGICAL_TYPE_OR_FORMAT_UNSUPPORTED");
-        var expected = constraint.Value;
+        if (!parser.Supported) return new(Diagnostic: "LOGICAL_TYPE_OR_FORMAT_UNSUPPORTED");
         try
         {
-            switch (constraint.Kind)
+            return constraint.Kind switch
             {
-                case "minimum" or "maximum" or "exclusiveMinimum" or "exclusiveMaximum" when parser.Bound(expected) is { } bound:
-                    var op = constraint.Kind switch
-                    {
-                        "minimum" => ExpectationOperator.GreaterOrEqual,
-                        "maximum" => ExpectationOperator.LessOrEqual,
-                        "exclusiveMinimum" => ExpectationOperator.Greater,
-                        _ => ExpectationOperator.Less
-                    };
-                    var expectation = new QualityExpectation(op, bound);
-                    return (cell => cell.Value is { } value && !ExpectationAssertionPlan.Matches(value, expectation), bound.ToObject(), "");
-                case "minLength" or "maxLength" when parser.HasTextValues && ScalarValue.TryCreate(expected, out var length)
-                    && length is { Kind: ScalarKind.Integer, Value: long size } && size >= 0:
-                    return (cell => cell.Value?.ToObject() is string text && (constraint.Kind == "minLength"
-                        ? Length(text) < size : Length(text) > size), size, "");
-                case "pattern" when parser.HasTextValues && expected is string pattern:
-                    var regex = new Regex(pattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-                    return (cell => cell.Value?.ToObject() is string text && !regex.IsMatch(text), pattern, "");
-                case "enum" when expected is IEnumerable values && expected is not string:
-                    var allowed = values.Cast<object?>().Select(ScalarValue.From).ToHashSet();
-                    return (cell => cell.State == ConstraintCellState.Value && (cell.Scalar is not { } scalar || !allowed.Contains(scalar)),
-                        "effective allowed values", "");
-                default:
-                    return (null, null, "CONSTRAINT_UNSUPPORTED");
-            }
+                "minimum" or "maximum" or "exclusiveMinimum" or "exclusiveMaximum" => BoundPredicate(constraint, parser),
+                "minLength" or "maxLength" when parser.HasTextValues => LengthPredicate(constraint),
+                "pattern" when parser.HasTextValues && constraint.Value is string pattern => PatternPredicate(pattern),
+                "enum" when constraint.Value is IEnumerable values && constraint.Value is not string => EnumPredicate(values),
+                _ => new()
+            };
         }
         catch (ArgumentException)
         {
-            return (null, null, "CONSTRAINT_OPERAND_INVALID");
+            return new(Diagnostic: "CONSTRAINT_OPERAND_INVALID");
         }
     }
+
+    private static CellPredicate BoundPredicate(DataConstraint constraint, ConstraintValueParser parser)
+    {
+        if (parser.Bound(constraint.Value) is not { } bound) return new();
+        var op = constraint.Kind switch
+        {
+            "minimum" => ExpectationOperator.GreaterOrEqual,
+            "maximum" => ExpectationOperator.LessOrEqual,
+            "exclusiveMinimum" => ExpectationOperator.Greater,
+            _ => ExpectationOperator.Less
+        };
+        var expectation = new QualityExpectation(op, bound);
+        return new(cell => cell.Value is { } value && !ExpectationAssertionPlan.Matches(value, expectation), bound.ToObject());
+    }
+
+    private static CellPredicate LengthPredicate(DataConstraint constraint)
+    {
+        if (!ScalarValue.TryCreate(constraint.Value, out var length)
+            || length is not { Kind: ScalarKind.Integer, Value: long size } || size < 0)
+            return new();
+
+        return new(cell => cell.Value?.ToObject() is string text && (constraint.Kind == "minLength"
+            ? Length(text) < size : Length(text) > size), size);
+    }
+
+    private static CellPredicate PatternPredicate(string pattern)
+    {
+        var regex = new Regex(pattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+        return new(cell => cell.Value?.ToObject() is string text && !regex.IsMatch(text), pattern);
+    }
+
+    private static CellPredicate EnumPredicate(IEnumerable values)
+    {
+        var allowed = values.Cast<object?>().Select(ScalarValue.From).ToHashSet();
+        return new(cell => cell.State == ConstraintCellState.Value && (cell.Scalar is not { } scalar || !allowed.Contains(scalar)),
+            "effective allowed values");
+    }
+
+    private sealed record CellPredicate(Func<ConstraintCell, bool>? Violates = null, object? Expected = null,
+        string Diagnostic = "CONSTRAINT_UNSUPPORTED");
 
     private static int Length(string text)
     {
