@@ -15,6 +15,7 @@ docs/samples/quickstart/customers.csv text eol=lf
 # Official schema artifacts are pinned byte-for-byte, including their SHA-256.
 src/Packata.Application/Validation/Schemas/*.json -text
 docs/profiles/**/*.json -text
+src/Packata.Ossie/Schema/ossie-schema.json -text
 
 # Git hooks run in Unix shells, including Git for Windows.
 .githooks/* text eol=lf

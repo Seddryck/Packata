@@ -53,6 +53,7 @@ Use the format-specific models when you need direct access to Data Package or OD
 | `Packata.DataPackage` | Data Package v2 models, JSON/YAML serialization, validation, and canonical mapping |
 | `Packata.OpenDataContract` | ODCS models, YAML serialization, validation, and canonical mapping |
 | `Packata.OpenLineage` | Export canonical lineage as OpenLineage job events |
+| `Packata.Ossie` | Read and write native Apache Ossie Layer 1 models in YAML and JSON |
 | `Packata.ResourceReaders` | Core reader factory and access to delimited resources through `IDataReader` |
 | `Packata.ResourceReaders.Excel` | Optional Excel reader provider |
 | `Packata.ResourceReaders.FixedWidth` | Optional fixed-width text reader provider |
@@ -357,6 +358,26 @@ For shared database connections, host-supplied credentials, and operation prefli
 [ODCS and Data Package example](examples/DatabaseConnections). The
 [connector acquisition example](examples/ConnectorAcquisition) demonstrates acquisition on the first read
 from a host-supplied catalog and reuse on later reads.
+
+### Apache Ossie semantic models
+
+Use Packata.Ossie to read or write native Layer 1 semantic models with an
+explicit format. The serializer leaves both streams open.
+
+```csharp
+using Packata.Ossie;
+
+using var source = File.OpenRead("sales.ossie.yaml");
+OssieModel model = OssieModelSerializer.Deserialize(source, OssieSerializationFormat.Yaml);
+
+using var destination = File.Create("sales.ossie.json");
+OssieModelSerializer.Serialize(model, destination, OssieSerializationFormat.Json);
+```
+
+Invalid documents and unsupported versions raise `OssieDocumentException`.
+Its `Path` identifies the affected declaration, for example `$/datasets/0/source`.
+See the [pinned Apache Ossie revision](src/Packata.Ossie/Schema/README.md) for
+the supported document shape and validation rules.
 
 ### Declared lineage and OpenLineage
 

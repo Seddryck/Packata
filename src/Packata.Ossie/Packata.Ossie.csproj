@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Read and write native Apache Ossie Layer 1 semantic models in YAML and JSON.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="JsonSchema.Net" Version="9.4.1" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Schema/ossie-schema.json" />
+    <None Include="$(MSBuildProjectDirectory)\Schema\NOTICE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

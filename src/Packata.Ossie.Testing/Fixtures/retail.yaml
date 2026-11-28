@@ -1,0 +1,88 @@
+version: 0.3.0.dev0
+name: retail
+description: Orders and customers
+ai_context:
+  instructions: Use for retail analysis.
+  synonyms: [sales]
+  examples: [How many orders?]
+  ranking:
+    enabled: true
+    weights: [.125, null]
+datasets:
+  - name: orders
+    source: SELECT id, customer_id, paid_on, amount FROM sales.orders
+    primary_key: [id]
+    unique_keys: [[customer_id, id]]
+    description: Orders
+    ai_context: One row per order.
+    fields:
+      - name: id
+        expression: {sql: id}
+        label: Order identifier
+        datatype: Integer
+      - name: customer_id
+        expression: {sql: customer_id}
+      - name: paid_on
+        expression: {sql: paid_on}
+        dimension: {is_time: false}
+        datatype: Date
+      - name: amount
+        expression:
+          sql: amount
+          dialects:
+            - dialect: warehouse/v2
+              expression: |-
+                raw_amount + 0
+                -- opaque
+        description: Amount paid
+        datatype: Decimal
+        nonportable_extensions:
+          - vendor_name: warehouse
+            data: {scale: 2}
+    metrics:
+      - name: revenue
+        expression: {sql: SUM(amount)}
+        datatype: Decimal
+  - name: customers
+    source: sales.public.customers
+    primary_key: [id]
+    fields:
+      - name: id
+        expression:
+          dialects:
+            - dialect: vendor SQL
+              expression: customer_key
+    nonportable_extensions:
+      - vendor_name: catalog
+        data: {empty: {}}
+relationships:
+  - name: orders_to_customers
+    from: orders
+    to: customers
+    from_columns: [customer_id]
+    to_columns: [id]
+    ai_context: Join each order to its customer.
+    nonportable_extensions:
+      - vendor_name: catalog
+        data: {labels: []}
+metrics:
+  - name: total_revenue
+    expression: {sql: AGG(orders.revenue)}
+    description: Revenue across orders
+    datatype: Decimal
+    nonportable_extensions:
+      - vendor_name: catalog
+        data: {aliases: [total]}
+nonportable_extensions:
+  - vendor_name: vendor.example
+    data:
+      '123': numeric key
+      boolean: true
+      missing: null
+      leadingZero: '010'
+      date: '2024-01-01'
+      quotedBoolean: 'true'
+      quotedNull: 'null'
+      tags: [yes, false, {nested: 010, hex: 0xff, octal: 0o10}]
+      empty: ''
+      large: 987654321012345678901234567890

@@ -13,6 +13,8 @@
       "src\\Packata.OpenDataContract.Testing\\Packata.OpenDataContract.Testing.csproj",
       "src\\Packata.OpenDataContract\\Packata.OpenDataContract.csproj",
       "src\\Packata.OpenLineage\\Packata.OpenLineage.csproj",
+      "src\\Packata.Ossie\\Packata.Ossie.csproj",
+      "src\\Packata.Ossie.Testing\\Packata.Ossie.Testing.csproj",
       "src\\Packata.Provisioners.Testing\\Packata.Provisioners.Testing.csproj",
       "src\\Packata.Provisioners\\Packata.Provisioners.csproj",
       "src\\Packata.ResourceReaders.Testing\\Packata.ResourceReaders.Testing.csproj",
