@@ -72,7 +72,7 @@ public sealed class SlaRuleCompiler(SlaEvaluationBindings bindings) : IRuleCompi
 
     private static BindingFinding? ValidateCommitment(Commitment commitment)
     {
-        if (commitment.Window is { End: null } || (commitment.Window is { } window && window.End == window.Start))
+        if (HasUnsupportedWindow(commitment.Window))
             return new(CompilationFindingKind.Unsupported, "UNSUPPORTED_SLA_WINDOW", "Daily availability needs distinct start and end times.");
         if (commitment.Elements.Count > 1)
             return new(CompilationFindingKind.Unsupported, "UNSUPPORTED_SLA_SCOPE", "This policy requires a commitment with at most one declared element.");
@@ -81,6 +81,9 @@ public sealed class SlaRuleCompiler(SlaEvaluationBindings bindings) : IRuleCompi
             return new(CompilationFindingKind.Invalid, "INVALID_SLA_COMMITMENT", "The normalized SLA operand is outside its supported range.");
         return null;
     }
+
+    private static bool HasUnsupportedWindow(AvailabilityWindow? window)
+        => window is not null && (window.End is null || window.End == window.Start);
 
     private static bool ValidOffset(TimeSpan offset)
         => offset >= TimeSpan.FromHours(-14) && offset <= TimeSpan.FromHours(14) && offset.Ticks % TimeSpan.TicksPerMinute == 0;
