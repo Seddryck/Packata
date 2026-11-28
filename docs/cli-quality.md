@@ -19,6 +19,7 @@ controls source detection; quality execution requires ODCS. `--output <PATH>` an
 ```console
 packata quality run contract.odcs.yaml
 packata quality run contract.odcs.yaml --asset customers --field email --dimension completeness --dimension uniqueness
+packata quality run contract.odcs.yaml --asset customers --tag critical --tag nightly
 packata quality run contract.odcs.yaml --id customer-email-required --output report.oors.json
 packata quality run contract.odcs.yaml --type library --output-format yaml --output report.oors.yaml
 ```
@@ -32,10 +33,12 @@ Incomplete measurements and execution timeouts are errors, never quality passes.
 
 ## Selection and execution
 
-`--id`, `--asset`, `--field`, `--type`, and `--dimension` are optional and repeatable.
+`--id`, `--asset`, `--field`, `--type`, `--dimension`, and `--tag` are optional and repeatable.
 Values of one option use OR; different options use AND. Matching is exact and
 case-sensitive. Field paths use dots for nested fields, and `--field` requires
 `--asset`. Without filters, all asset and field quality rules are selected.
+Tag selection uses the rule's own tags. Asset and field tags have no effect, and
+untagged rules are excluded when a tag is supplied.
 
 Only selected rules appear in the report. Filtered-out rules are absent, rather
 than skipped. No matching rules is a command error with no report. Anonymous rules

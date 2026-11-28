@@ -22,6 +22,9 @@ internal sealed class QualitySettings : DatabaseCommandSettings
     [CommandOption("--dimension <DIMENSION>")]
     [Description("Select a quality dimension; repeatable (OR).")]
     public string[] Dimension { get; init; } = [];
+    [CommandOption("--tag <TAG>")]
+    [Description("Select an exact rule tag; repeatable (OR).")]
+    public string[] Tag { get; init; } = [];
     [CommandOption("--output-format <FORMAT>")]
     [Description("OORS serialization: json or yaml (default: json).")]
     public string OutputFormat { get; init; } = "json";
@@ -32,7 +35,7 @@ internal sealed class QualitySettings : DatabaseCommandSettings
     [Description("Assert that database credentials enforce read-only SQL access. SQLite is enforced automatically.")]
     public bool SqlReadOnlyCredentials { get; init; }
 
-    internal QualityFilters Filters => new() { Id = Id, Asset = Asset, Field = Field, Type = Type, Dimension = Dimension };
+    internal QualityFilters Filters => new() { Id = Id, Asset = Asset, Field = Field, Type = Type, Dimension = Dimension, Tag = Tag };
     public override ValidationResult Validate()
     {
         var result = base.Validate();

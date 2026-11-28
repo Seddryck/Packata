@@ -18,23 +18,27 @@ public class QualityCommandTests
         schema:
           - name: customers
             physicalType: file
+            tags: [asset-only]
             quality:
               - id: z-count
                 type: library
                 metric: rowCount
                 mustBe: 2
                 dimension: completeness
+                tags: [critical]
               - type: text
                 description: Manual review
             properties:
               - name: email
                 logicalType: string
+                tags: [field-only]
                 quality:
                   - id: a-missing
                     type: library
                     metric: nullValues
                     mustBe: 0
                     dimension: completeness
+                    tags: [nightly]
         servers:
           - server: local
             type: local
@@ -89,6 +93,7 @@ public class QualityCommandTests
         var help = await CliWorkspace.Run("quality", "run", "--help");
         Assert.That(branch.ExitCode, Is.Zero);
         Assert.That(help.ExitCode, Is.Zero);
+        Assert.That(help.Output, Does.Contain("--tag"));
         Assert.That(help.Output, Does.Contain("--asset").And.Contain("--field").And.Contain("--id").And.Contain("--dimension").And.Contain("--type").And.Contain("--output-format"));
         Assert.That((await CliWorkspace.Run("quality", "run")).ExitCode, Is.EqualTo(2));
     }
@@ -147,6 +152,9 @@ public class QualityCommandTests
     }
 
     [TestCase("--field|email")]
+    [TestCase("--tag|Critical")]
+    [TestCase("--tag|asset-only")]
+    [TestCase("--tag|field-only")]
     [TestCase("--id|absent")]
     [TestCase("--output-format|text")]
     [TestCase("--output-format|csv")]
@@ -158,6 +166,26 @@ public class QualityCommandTests
         Assert.That(result.ExitCode, Is.EqualTo(2));
         Assert.That(result.Output, Is.Empty);
         Assert.That(result.Error, Is.Not.Empty);
+        if (arguments.StartsWith("--tag", StringComparison.Ordinal))
+            Assert.That(result.Error, Does.Contain("No quality rules match the supplied filters."));
+    }
+
+    [Test]
+    public async Task RuleTagsUseOrWithinTheFilterAndAndWithOtherFilters()
+    {
+        using var workspace = new CliWorkspace();
+        var source = workspace.Write("contract.yaml", Contract);
+        workspace.Write("customers.csv", "email\r\na\r\nb\r\n");
+        string[] tags = ["--tag", "critical", "--tag", "nightly"];
+        var union = await CliWorkspace.Run(["quality", "run", source, ..tags]);
+        Assert.That(union.ExitCode, Is.Zero, union.Error);
+        var document = JObject.Parse(union.Output);
+        Assert.That(document["results"]!.Select(rule => (string?)rule["id"]), Is.EqualTo(new[] { "z-count", "a-missing" }));
+        Assert.That(Property(document, "filters")["tag"]!.Values<string>(), Is.EqualTo(new[] { "critical", "nightly" }));
+        var intersection = await CliWorkspace.Run(["quality", "run", source, ..tags, "--asset", "customers", "--field", "email",
+            "--id", "a-missing", "--type", "library", "--dimension", "completeness"]);
+        Assert.That(intersection.ExitCode, Is.Zero, intersection.Error);
+        Assert.That(JObject.Parse(intersection.Output)["results"]!.Select(rule => (string?)rule["id"]), Is.EqualTo(new[] { "a-missing" }));
     }
 
     [Test]

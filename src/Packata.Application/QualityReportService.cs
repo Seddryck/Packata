@@ -56,7 +56,7 @@ public static class QualityReportService
         Add(properties, "runner", new JObject { ["name"] = "packata", [VersionProperty] = source.RunnerVersion });
         Add(properties, "engines", new JArray(report.Engines.Select(Engine)));
         var applied = Object(("id", Array(filters.Id)), ("asset", Array(filters.Asset)), ("field", Array(filters.Field)),
-            ("type", Array(filters.Type)), ("dimension", Array(filters.Dimension)));
+            ("type", Array(filters.Type)), ("dimension", Array(filters.Dimension)), ("tag", Array(filters.Tag)));
         if (applied.Count > 0) Add(properties, "filters", applied);
         Add(properties, "summary", Summary(report));
         return properties;

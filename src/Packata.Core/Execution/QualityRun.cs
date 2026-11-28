@@ -9,17 +9,19 @@ public sealed record QualityFilters
     public IReadOnlyList<string> Field { get; init; } = [];
     public IReadOnlyList<string> Type { get; init; } = [];
     public IReadOnlyList<string> Dimension { get; init; } = [];
+    public IReadOnlyList<string> Tag { get; init; } = [];
 
     public void Validate()
     {
         if (Field.Count > 0 && Asset.Count == 0) throw new ArgumentException("--field requires --asset.");
-        if (new[] { Id, Asset, Field, Type, Dimension }.SelectMany(x => x).Any(string.IsNullOrWhiteSpace))
+        if (new[] { Id, Asset, Field, Type, Dimension, Tag }.SelectMany(x => x).Any(string.IsNullOrWhiteSpace))
             throw new ArgumentException("Quality filters require non-empty values.");
     }
 
     internal bool Matches(DataQualityRule rule) => Match(Id, rule.SourceId) && Match(Asset, rule.Target?.AssetId)
         && Match(Field, rule.Target is null ? null : string.Join('.', rule.Target.FieldPath))
-        && Match(Type, rule.Kind) && Match(Dimension, rule.Metadata.Dimension);
+        && Match(Type, rule.Kind) && Match(Dimension, rule.Metadata.Dimension)
+        && (Tag.Count == 0 || rule.Metadata.Tags.Any(tag => Tag.Contains(tag, StringComparer.Ordinal)));
     private static bool Match(IReadOnlyList<string> filter, string? value) => filter.Count == 0 || filter.Contains(value, StringComparer.Ordinal);
 }
 
