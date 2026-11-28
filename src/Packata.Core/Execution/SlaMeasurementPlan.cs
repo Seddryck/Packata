@@ -17,37 +17,52 @@ internal sealed class SlaMeasurementPlan(SlaEvaluationBinding binding, SlaObserv
 
         var request = new SlaObservationRequest(binding, run.SnapshotId, context.ObservationTime, requested);
         var snapshot = await run.Source.ObserveAsync(request, cancellationToken).ConfigureAwait(false);
+        var finding = ValidateSnapshot(snapshot, request);
+        return finding ?? await MeasureSnapshotAsync(snapshot!.Rows, requested, context.Limits.MaxRows, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static RuleMeasurement? ValidateSnapshot(SlaObservationSnapshot? snapshot, SlaObservationRequest request)
+    {
         if (snapshot is null)
             return Incomplete("SLA_OBSERVATIONS_MISSING", "The requested observations are unavailable.");
-        if (snapshot.SnapshotId != run.SnapshotId || snapshot.AsOf != context.ObservationTime)
+        if (snapshot.SnapshotId != request.SnapshotId || snapshot.AsOf != request.ObservationTime)
             return Incomplete("SLA_SNAPSHOT_MISMATCH", "The observations do not match the run snapshot and reference time.");
-        if (!snapshot.Complete || snapshot.Coverage.Start > requested.Start || snapshot.Coverage.End < requested.End
+        if (!snapshot.Complete || snapshot.Coverage.Start > request.Window.Start || snapshot.Coverage.End < request.Window.End
             || snapshot.Coverage.End > snapshot.AsOf)
             return Incomplete("SLA_PARTIAL_WINDOW", "The observation source does not certify coverage of the entire required window.");
+        return null;
+    }
 
+    private async ValueTask<RuleMeasurement> MeasureSnapshotAsync(IAsyncEnumerable<IReadOnlyDictionary<string, object?>> source,
+        SlaObservationWindow requested, long rowLimit, CancellationToken cancellationToken)
+    {
         var population = 0L;
         var rows = CountedRows(cancellationToken);
-        var measurement = binding.Policy switch
-        {
-            SlaMeasurementPolicy.AgeOfLatestTimestamp => await FreshnessAsync(rows, requested).ConfigureAwait(false),
-            SlaMeasurementPolicy.MaximumPairedDeliveryLatency => await LatencyAsync(rows, requested).ConfigureAwait(false),
-            SlaMeasurementPolicy.MaximumTimeSinceUpdate => await FrequencyAsync(rows, requested).ConfigureAwait(false),
-            _ => await IntervalsAsync(rows, requested).ConfigureAwait(false)
-        };
+        var measurement = await MeasureRowsAsync(rows, requested).ConfigureAwait(false);
         return measurement with { Population = population };
 
         async IAsyncEnumerable<IReadOnlyDictionary<string, object?>> CountedRows([EnumeratorCancellation] CancellationToken token)
         {
-            await foreach (var row in snapshot.Rows.WithCancellation(token).ConfigureAwait(false))
+            await foreach (var row in source.WithCancellation(token).ConfigureAwait(false))
             {
                 token.ThrowIfCancellationRequested();
-                if (population == context.Limits.MaxRows)
+                if (population == rowLimit)
                     throw new IncompleteRuleInputException("ROW_BUDGET");
                 population++;
                 yield return row;
             }
         }
     }
+
+    private ValueTask<RuleMeasurement> MeasureRowsAsync(IAsyncEnumerable<IReadOnlyDictionary<string, object?>> rows, SlaObservationWindow requested)
+        => binding.Policy switch
+        {
+            SlaMeasurementPolicy.AgeOfLatestTimestamp => FreshnessAsync(rows, requested),
+            SlaMeasurementPolicy.MaximumPairedDeliveryLatency => LatencyAsync(rows, requested),
+            SlaMeasurementPolicy.MaximumTimeSinceUpdate => FrequencyAsync(rows, requested),
+            SlaMeasurementPolicy.ContinuousRetainedCoverage => RetentionAsync(rows, requested),
+            _ => AvailabilityAsync(rows, requested)
+        };
 
     private async ValueTask<RuleMeasurement> FreshnessAsync(IAsyncEnumerable<IReadOnlyDictionary<string, object?>> rows, SlaObservationWindow requested)
     {
@@ -112,49 +127,63 @@ internal sealed class SlaMeasurementPlan(SlaEvaluationBinding binding, SlaObserv
             : Empty();
     }
 
-    private async ValueTask<RuleMeasurement> IntervalsAsync(IAsyncEnumerable<IReadOnlyDictionary<string, object?>> rows, SlaObservationWindow requested)
+    private async ValueTask<RuleMeasurement> RetentionAsync(IAsyncEnumerable<IReadOnlyDictionary<string, object?>> rows, SlaObservationWindow requested)
     {
-        var retention = binding.Policy == SlaMeasurementPolicy.ContinuousRetainedCoverage;
-        var seen = false;
         var endOfCoverage = requested.Start;
         var continuousStart = requested.Start;
+        await foreach (var row in rows.ConfigureAwait(false))
+        {
+            var (start, end) = ReadInterval(row);
+            if (!ValidInterval(start, end, endOfCoverage, requested.End))
+                return InvalidInterval();
+            if (start > endOfCoverage)
+                continuousStart = start;
+            endOfCoverage = end;
+        }
+
+        if (endOfCoverage == requested.Start)
+            return Empty();
+        var coverage = endOfCoverage == requested.End ? requested.End - continuousStart : TimeSpan.Zero;
+        return new(QualityValue.From(coverage), Evidence: [Evidence("lastRetainedEnd", endOfCoverage)]);
+    }
+
+    private async ValueTask<RuleMeasurement> AvailabilityAsync(IAsyncEnumerable<IReadOnlyDictionary<string, object?>> rows, SlaObservationWindow requested)
+    {
+        var monitoredThrough = requested.Start;
         var availableTicks = 0L;
         await foreach (var row in rows.ConfigureAwait(false))
         {
-            var start = Timestamp(row, binding.TimestampField);
-            var end = Timestamp(row, binding.EndTimestampField!);
-            if (start < endOfCoverage || end <= start || end > requested.End)
-                return Incomplete("SLA_INVALID_INTERVAL", "Intervals must be ordered, non-overlapping and clipped to the measurement window.");
-            if (start > endOfCoverage)
-            {
-                if (!retention)
-                    return Incomplete("SLA_MONITORING_GAP", "Availability requires explicit monitoring status throughout the window.");
-                continuousStart = start;
-            }
-
-            if (!retention)
-            {
-                if (!row.TryGetValue(binding.AvailabilityField!, out var status) || status is not bool up)
-                    return Incomplete("SLA_MISSING_STATUS", "Every monitoring interval needs an explicit boolean availability status.");
-                if (up)
-                    availableTicks += (end - start).Ticks;
-            }
-            endOfCoverage = end;
-            seen = true;
+            var (start, end) = ReadInterval(row);
+            if (!ValidInterval(start, end, monitoredThrough, requested.End))
+                return InvalidInterval();
+            if (start != monitoredThrough)
+                return MonitoringGap();
+            if (!row.TryGetValue(binding.AvailabilityField!, out var status) || status is not bool up)
+                return Incomplete("SLA_MISSING_STATUS", "Every monitoring interval needs an explicit boolean availability status.");
+            if (up)
+                availableTicks += (end - start).Ticks;
+            monitoredThrough = end;
         }
 
-        if (!seen)
+        if (monitoredThrough == requested.Start)
             return Empty();
-        if (retention)
-        {
-            var coverage = endOfCoverage == requested.End ? requested.End - continuousStart : TimeSpan.Zero;
-            return new(QualityValue.From(coverage), Evidence: [Evidence("lastRetainedEnd", endOfCoverage)]);
-        }
-        if (endOfCoverage != requested.End)
-            return Incomplete("SLA_MONITORING_GAP", "Availability requires explicit monitoring status throughout the window.");
+        if (monitoredThrough != requested.End)
+            return MonitoringGap();
         return new(QualityValue.From(availableTicks), Evidence:
             [Evidence("availableTicks", availableTicks), Evidence("monitoredTicks", (requested.End - requested.Start).Ticks)]);
     }
+
+    private (DateTimeOffset Start, DateTimeOffset End) ReadInterval(IReadOnlyDictionary<string, object?> row)
+        => (Timestamp(row, binding.TimestampField), Timestamp(row, binding.EndTimestampField!));
+
+    private static bool ValidInterval(DateTimeOffset start, DateTimeOffset end, DateTimeOffset previousEnd, DateTimeOffset windowEnd)
+        => start >= previousEnd && end > start && end <= windowEnd;
+
+    private static RuleMeasurement InvalidInterval()
+        => Incomplete("SLA_INVALID_INTERVAL", "Intervals must be ordered, non-overlapping and clipped to the measurement window.");
+
+    private static RuleMeasurement MonitoringGap()
+        => Incomplete("SLA_MONITORING_GAP", "Availability requires explicit monitoring status throughout the window.");
 
     private DateTimeOffset Timestamp(IReadOnlyDictionary<string, object?> row, string field)
     {

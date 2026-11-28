@@ -56,73 +56,109 @@ public sealed class SlaRuleCompiler(SlaEvaluationBindings bindings) : IRuleCompi
         return $"/sla/{category}/{reference.Index.ToString(CultureInfo.InvariantCulture)}";
     }
 
-    private static (CompilationFindingKind Kind, string Code, string Message)? Validate(SlaCommitmentKind kind,
-        Commitment commitment, SlaEvaluationBinding[] matches, RuleCompilationContext context)
+    private static BindingFinding? Validate(SlaCommitmentKind kind, Commitment commitment,
+        SlaEvaluationBinding[] matches, RuleCompilationContext context)
+    {
+        var declarationFinding = ValidateCommitment(commitment);
+        if (declarationFinding is not null)
+            return declarationFinding;
+        if (matches.Length == 0)
+            return new(CompilationFindingKind.MissingBinding, "MISSING_SLA_BINDING", "The commitment needs an explicit observation binding.");
+        if (matches.Length > 1)
+            return new(CompilationFindingKind.Invalid, "AMBIGUOUS_SLA_BINDING", "Multiple bindings select the same commitment.");
+
+        return ValidateBinding(kind, matches[0]) ?? ValidateContext(commitment, matches[0], context);
+    }
+
+    private static BindingFinding? ValidateCommitment(Commitment commitment)
     {
         if (commitment.Window is { End: null } || (commitment.Window is { } window && window.End == window.Start))
-            return (CompilationFindingKind.Unsupported, "UNSUPPORTED_SLA_WINDOW", "Daily availability needs distinct start and end times.");
+            return new(CompilationFindingKind.Unsupported, "UNSUPPORTED_SLA_WINDOW", "Daily availability needs distinct start and end times.");
         if (commitment.Elements.Count > 1)
-            return (CompilationFindingKind.Unsupported, "UNSUPPORTED_SLA_SCOPE", "This policy requires a commitment with at most one declared element.");
+            return new(CompilationFindingKind.Unsupported, "UNSUPPORTED_SLA_SCOPE", "This policy requires a commitment with at most one declared element.");
         if ((commitment.Duration is { } duration && !NonNegative(duration)) || commitment.Percentage is < 0 or > 100
-            || (commitment.Window?.UtcOffset is { } offset && (offset < TimeSpan.FromHours(-14) || offset > TimeSpan.FromHours(14)
-                || offset.Ticks % TimeSpan.TicksPerMinute != 0)))
-            return (CompilationFindingKind.Invalid, "INVALID_SLA_COMMITMENT", "The normalized SLA operand is outside its supported range.");
-        if (matches.Length == 0)
-            return (CompilationFindingKind.MissingBinding, "MISSING_SLA_BINDING", "The commitment needs an explicit observation binding.");
-        if (matches.Length > 1)
-            return (CompilationFindingKind.Invalid, "AMBIGUOUS_SLA_BINDING", "Multiple bindings select the same commitment.");
-
-        var binding = matches[0];
-        if (binding.Policy == SlaMeasurementPolicy.Unspecified)
-            return (CompilationFindingKind.MissingBinding, "MISSING_SLA_POLICY", "The binding must declare a measurement policy.");
-        if (binding.Policy != PolicyFor(kind))
-            return (CompilationFindingKind.Unsupported, "UNSUPPORTED_SLA_POLICY", "The measurement policy does not support this commitment kind.");
-        if (binding.Target is null || string.IsNullOrWhiteSpace(binding.Target.AssetId)
-            || string.IsNullOrWhiteSpace(binding.EndpointId) || string.IsNullOrWhiteSpace(binding.SourceId)
-            || string.IsNullOrWhiteSpace(binding.TimestampField)
-            || (NeedsTwoTimestamps(kind) && string.IsNullOrWhiteSpace(binding.EndTimestampField))
-            || (IsAvailability(kind) && string.IsNullOrWhiteSpace(binding.AvailabilityField))
-            || (kind != SlaCommitmentKind.AvailabilityWindow && binding.Lookback is null))
-        {
-            return (CompilationFindingKind.MissingBinding, "INCOMPLETE_SLA_BINDING",
-                "An explicit target, endpoint, source, window and all policy fields are required.");
-        }
-        if ((binding.Lookback is { } lookback && (!NonNegative(lookback) || lookback == default))
-            || (kind == SlaCommitmentKind.AvailabilityWindow && binding.Lookback is not null)
-            || (NeedsTwoTimestamps(kind) && binding.TimestampField == binding.EndTimestampField)
-            || (IsAvailability(kind) && (binding.TimestampField == binding.AvailabilityField || binding.EndTimestampField == binding.AvailabilityField)))
-            return (CompilationFindingKind.Invalid, "INVALID_SLA_BINDING", "The window and policy fields must be distinct and valid.");
-        if (binding.CalendarTimeZone is null && (commitment.Duration?.CalendarMonths > 0 || binding.Lookback?.CalendarMonths > 0
-            || commitment.Window is { UtcOffset: null }))
-        {
-            return (CompilationFindingKind.MissingBinding, "MISSING_SLA_TIME_ZONE",
-                "Calendar months and offsetless daily windows require an explicit calendar time zone.");
-        }
-        if (!MatchesTarget(binding, commitment.Elements, context))
-            return (CompilationFindingKind.Invalid, "SLA_TARGET_MISMATCH", "The binding target or endpoint does not match the selected contract scope.");
+            || (commitment.Window?.UtcOffset is { } offset && !ValidOffset(offset)))
+            return new(CompilationFindingKind.Invalid, "INVALID_SLA_COMMITMENT", "The normalized SLA operand is outside its supported range.");
         return null;
     }
 
-    private static bool MatchesTarget(SlaEvaluationBinding binding, IReadOnlyList<ElementReference> elements, RuleCompilationContext context)
+    private static bool ValidOffset(TimeSpan offset)
+        => offset >= TimeSpan.FromHours(-14) && offset <= TimeSpan.FromHours(14) && offset.Ticks % TimeSpan.TicksPerMinute == 0;
+
+    private static BindingFinding? ValidateBinding(SlaCommitmentKind kind, SlaEvaluationBinding binding)
     {
+        if (binding.Policy == SlaMeasurementPolicy.Unspecified)
+            return new(CompilationFindingKind.MissingBinding, "MISSING_SLA_POLICY", "The binding must declare a measurement policy.");
+        if (binding.Policy != PolicyFor(kind))
+            return new(CompilationFindingKind.Unsupported, "UNSUPPORTED_SLA_POLICY", "The measurement policy does not support this commitment kind.");
+        if (!HasRequiredFields(kind, binding))
+        {
+            return new(CompilationFindingKind.MissingBinding, "INCOMPLETE_SLA_BINDING",
+                "An explicit target, endpoint, source, window and all policy fields are required.");
+        }
+        if (!ValidWindow(kind, binding.Lookback) || !DistinctFields(kind, binding))
+            return new(CompilationFindingKind.Invalid, "INVALID_SLA_BINDING", "The window and policy fields must be distinct and valid.");
+        return null;
+    }
+
+    private static bool HasRequiredFields(SlaCommitmentKind kind, SlaEvaluationBinding binding)
+        => !string.IsNullOrWhiteSpace(binding.Target?.AssetId)
+            && !string.IsNullOrWhiteSpace(binding.EndpointId) && !string.IsNullOrWhiteSpace(binding.SourceId)
+            && !string.IsNullOrWhiteSpace(binding.TimestampField)
+            && (!NeedsTwoTimestamps(kind) || !string.IsNullOrWhiteSpace(binding.EndTimestampField))
+            && (!IsAvailability(kind) || !string.IsNullOrWhiteSpace(binding.AvailabilityField))
+            && (kind == SlaCommitmentKind.AvailabilityWindow || binding.Lookback is not null);
+
+    private static bool ValidWindow(SlaCommitmentKind kind, ContractDuration? lookback)
+        => kind == SlaCommitmentKind.AvailabilityWindow ? lookback is null
+            : lookback is { } duration && duration != default && NonNegative(duration);
+
+    private static bool DistinctFields(SlaCommitmentKind kind, SlaEvaluationBinding binding)
+        => (!NeedsTwoTimestamps(kind) || binding.TimestampField != binding.EndTimestampField)
+            && (!IsAvailability(kind) || (binding.TimestampField != binding.AvailabilityField && binding.EndTimestampField != binding.AvailabilityField));
+
+    private static BindingFinding? ValidateContext(Commitment commitment, SlaEvaluationBinding binding, RuleCompilationContext context)
+    {
+        if (binding.CalendarTimeZone is null && (commitment.Duration?.CalendarMonths > 0 || binding.Lookback?.CalendarMonths > 0
+            || commitment.Window is { UtcOffset: null }))
+        {
+            return new(CompilationFindingKind.MissingBinding, "MISSING_SLA_TIME_ZONE",
+                "Calendar months and offsetless daily windows require an explicit calendar time zone.");
+        }
         if (context.EndpointId is not null && context.EndpointId != binding.EndpointId)
-            return false;
+            return TargetMismatch();
+
         DataAsset? asset = null;
         if (context.Contract is { } contract)
         {
-            var assets = contract.Assets.Where(candidate => candidate.Id == binding.Target.AssetId).Take(2).ToArray();
-            if (assets.Length != 1 || contract.Endpoints.Count(endpoint => endpoint.Id == binding.EndpointId) != 1)
-                return false;
-            asset = assets[0];
-            if (asset.EndpointBindings.Count > 0 && !asset.EndpointBindings.Any(endpoint => endpoint.EndpointId == binding.EndpointId))
-                return false;
+            asset = FindBoundAsset(binding, contract);
+            if (asset is null)
+                return TargetMismatch();
         }
-        if (elements.Count == 0)
-            return true;
-        var element = elements[0];
-        return (element.Dataset == binding.Target.AssetId || element.Dataset == asset?.Name)
-            && (element.Field is null ? binding.Target.FieldPath.Count == 0 : element.Field == string.Join('.', binding.Target.FieldPath));
+
+        if (commitment.Elements.Count == 0 || MatchesElement(binding.Target, commitment.Elements[0], asset))
+            return null;
+        return TargetMismatch();
     }
+
+    private static DataAsset? FindBoundAsset(SlaEvaluationBinding binding, DataContract contract)
+    {
+        var assets = contract.Assets.Where(candidate => candidate.Id == binding.Target.AssetId).Take(2).ToArray();
+        if (assets.Length != 1 || contract.Endpoints.Count(endpoint => endpoint.Id == binding.EndpointId) != 1)
+            return null;
+        var asset = assets[0];
+        return asset.EndpointBindings.Count == 0 || asset.EndpointBindings.Any(endpoint => endpoint.EndpointId == binding.EndpointId)
+            ? asset : null;
+    }
+
+    private static bool MatchesElement(QualityTarget target, ElementReference element, DataAsset? asset)
+        => (element.Dataset == target.AssetId || element.Dataset == asset?.Name)
+            && (element.Field is null ? target.FieldPath.Count == 0 : element.Field == string.Join('.', target.FieldPath));
+
+    private static BindingFinding TargetMismatch()
+        => new(CompilationFindingKind.Invalid, "SLA_TARGET_MISMATCH", "The binding target or endpoint does not match the selected contract scope.");
+
+    private sealed record BindingFinding(CompilationFindingKind Kind, string Code, string Message);
 
     private static bool NonNegative(ContractDuration duration) => duration.CalendarMonths >= 0 && duration.Elapsed >= TimeSpan.Zero;
 
